@@ -29,6 +29,7 @@ from builtins import *
 
 import os
 import pkg_resources
+from typing import Dict, Union, List, Tuple, Any
 
 from bag.design import Module
 
@@ -40,34 +41,119 @@ yaml_file = pkg_resources.resource_filename(__name__, os.path.join('netlist_info
 class bag_serdes_ec__gm(Module):
     """Module for library bag_serdes_ec cell gm.
 
-    Fill in high level description here.
+    A Gm cell with many customizability used mainly for SERDES circuits.
     """
 
-    param_list = []
+    param_list = ['lch', 'w_dict', 'th_dict', 'fg_dict', 'dum_info']
 
     def __init__(self, bag_config, parent=None, prj=None, **kwargs):
         Module.__init__(self, bag_config, yaml_file, parent=parent, prj=prj, **kwargs)
         for par in self.param_list:
             self.parameters[par] = None
 
-    def design(self):
-        """To be overridden by subclasses to design this module.
+    def design(self, lch=16e-9, w_dict=None, th_dict=None, fg_dict=None, dum_info=None):
+        # type: (float, Dict[str, Union[float, int]], Dict[str, str], Dict[str, int], List[Tuple[Any]]) -> None
+        """Design this Gm cell.
 
-        This method should fill in values for all parameters in
-        self.parameters.  To design instances of this module, you can
-        call their design() method or any other ways you coded.
+        The Gm cell uses at most 5 rows of transistors.  The row types from top to
+        bottom are 'casc', 'in', 'sw', 'en', and 'tail'.
 
-        To modify schematic structure, call:
+        The transistor names are 'casc', 'in', 'sw', 'en', 'tail', 'ref', and 'cap'.
+        fg_dict maps from transistor name to single-sided number of fingers, except
+        for ref and cap, which maps to total number of fingers.
 
-        rename_pin()
-        delete_instance()
-        replace_instance_master()
-        reconnect_instance_terminal()
-        restore_instance()
-        array_instance()
+        Parameters
+        ----------
+        lch : float
+            channel length, in meters.
+        w_dict : Dict[str, Union[float, int]]
+            dictionary from row type to transistor width, in fins or meters.
+        th_dict : Dict[str, str]
+            dictionary from row type to transistor threshold flavor.
+        fg_dict : Dict[str, int]
+            dictionary from transistor type to single-sided number of fingers.
+        dum_info : List[Tuple[Any]]
+            the dummy information data structure.
         """
         local_dict = locals()
         for name in self.param_list:
             if name not in local_dict:
                 raise ValueError('Parameter %s not specified.' % name)
             self.parameters[name] = local_dict[name]
+
+        # design each transistor, from top to bottom
+        # cascode
+        fg = fg_dict.get('casc', 0)
+        if fg <= 0:
+            in_dname = 'out'
+            self.delete_instance('XCASP')
+            self.delete_instance('XCASN')
+            self.remove_pin('bias_casc')
+        else:
+            in_dname = 'mid'
+            w = w_dict['casc']
+            th = th_dict['casc']
+            self.instances['XCASP'].design(w=w, l=lch, nf=fg, intent=th)
+            self.instances['XCASN'].design(w=w, l=lch, nf=fg, intent=th)
+
+        # input
+        fg = fg_dict['in']
+        w = w_dict['in']
+        th = th_dict['in']
+        self.instances['XINP'].design(w=w, l=lch, nf=fg, intent=th)
+        self.instances['XINN'].design(w=w, l=lch, nf=fg, intent=th)
+        self.reconnect_instance_terminal('XINP', 'D', '%sn' % in_dname)
+        self.reconnect_instance_terminal('XINN', 'D', '%sp' % in_dname)
+
+        # tail switch
+        fg = fg_dict.get('sw', 0)
+        if fg <= 0:
+            self.delete_instance('XSWP')
+            self.delete_instance('XSWN')
+            self.remove_pin('clk_sw')
+            self.remove_pin('VDD')
+        else:
+            w = w_dict['sw']
+            th = th_dict['sw']
+            self.instances['XSWP'].design(w=w, l=lch, nf=fg, intent=th)
+            self.instances['XSWN'].design(w=w, l=lch, nf=fg, intent=th)
+
+        # tail enable
+        fg = fg_dict.get('en', 0)
+        if fg <= 0:
+            tail_dname = 'tail'
+            self.delete_instance('XENP')
+            self.delete_instance('XENN')
+            self.remove_pin('enable')
+        else:
+            tail_dname = 'foot'
+            w = w_dict['en']
+            th = th_dict['en']
+            self.instances['XENP'].design(w=w, l=lch, nf=fg, intent=th)
+            self.instances['XENN'].design(w=w, l=lch, nf=fg, intent=th)
+
+        # tail
+        fg = fg_dict['tail']
+        w = w_dict['tail']
+        th = th_dict['tail']
+        self.instances['XTAILP'].design(w=w, l=lch, nf=fg, intent=th)
+        self.instances['XTAILN'].design(w=w, l=lch, nf=fg, intent=th)
+        self.reconnect_instance_terminal('XTAILP', 'D', tail_dname)
+        self.reconnect_instance_terminal('XTAILN', 'D', tail_dname)
+
+        # reference
+        fg = fg_dict.get('ref', 0)
+        if fg <= 0:
+            self.delete_instance('XREF')
+        else:
+            self.instances['XREF'].design(w=w, l=lch, nf=fg, intent=th)
+
+        # tail decap
+        fg = fg_dict.get('cap', 0)
+        if fg <= 0:
+            self.delete_instance('XCAP')
+        else:
+            self.instances['XCAP'].design(w=w, l=lch, nf=fg, intent=th)
+
+        # handle dummy transistors
+        self.design_dummy_transistors(dum_info, 'XDUM', 'VDD', 'VSS')

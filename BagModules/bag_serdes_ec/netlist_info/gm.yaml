@@ -2,6 +2,46 @@ lib_name: bag_serdes_ec
 cell_name: gm
 pins: [ "VSS", "inn", "enable", "outn", "VDD", "clk_sw", "bias_casc", "outp", "bias_tail", "inp" ]
 instances:
+  XCAP:
+    lib_name: BAG_prim
+    cell_name: nmos4_standard
+    instpins:
+      S:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      D:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      B:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      G:
+        direction: inputOutput
+        net_name: "bias_tail"
+        num_bits: 1
+  XREF:
+    lib_name: BAG_prim
+    cell_name: nmos4_standard
+    instpins:
+      S:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      D:
+        direction: inputOutput
+        net_name: "bias_tail"
+        num_bits: 1
+      B:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      G:
+        direction: inputOutput
+        net_name: "bias_tail"
+        num_bits: 1
   XINN:
     lib_name: BAG_prim
     cell_name: nmos4_standard
