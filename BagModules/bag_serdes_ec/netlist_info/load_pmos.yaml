@@ -18,6 +18,26 @@ instances:
     lib_name: basic
     cell_name: ipin
     instpins: {}
+  XREF:
+    lib_name: BAG_prim
+    cell_name: pmos4_standard
+    instpins:
+      S:
+        direction: inputOutput
+        net_name: "VDD"
+        num_bits: 1
+      D:
+        direction: inputOutput
+        net_name: "bias"
+        num_bits: 1
+      B:
+        direction: inputOutput
+        net_name: "VDD"
+        num_bits: 1
+      G:
+        direction: inputOutput
+        net_name: "bias"
+        num_bits: 1
   XCAPN:
     lib_name: BAG_prim
     cell_name: pmos4_standard

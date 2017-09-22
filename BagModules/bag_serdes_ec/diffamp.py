@@ -29,6 +29,7 @@ from builtins import *
 
 import os
 import pkg_resources
+from typing import Dict, Union, List, Tuple, Any
 
 from bag.design import Module
 
@@ -40,34 +41,63 @@ yaml_file = pkg_resources.resource_filename(__name__, os.path.join('netlist_info
 class bag_serdes_ec__diffamp(Module):
     """Module for library bag_serdes_ec cell diffamp.
 
-    Fill in high level description here.
+    A differential amplifier cell with many options used mainly for SERDES circuits
     """
 
-    param_list = []
+    param_list = ['lch', 'w_dict', 'th_dict', 'fg_dict', 'gm_dum_info', 'load_dum_info']
 
     def __init__(self, bag_config, parent=None, prj=None, **kwargs):
         Module.__init__(self, bag_config, yaml_file, parent=parent, prj=prj, **kwargs)
         for par in self.param_list:
             self.parameters[par] = None
 
-    def design(self):
-        """To be overridden by subclasses to design this module.
+    def design(self,
+               lch=16e-9,  # type: float
+               w_dict=None,  # type: Dict[str, Union[float, int]]
+               th_dict=None,  # type: Dict[str, str]
+               fg_dict=None,  # type: Dict[str, int]
+               gm_dum_info=None,  # type: List[Tuple[Any]]
+               load_dum_info=None,  # type: List[Tuple[Any]]
+               ):
+        # type: (...) -> None
+        """Design this differential amplifier.
 
-        This method should fill in values for all parameters in
-        self.parameters.  To design instances of this module, you can
-        call their design() method or any other ways you coded.
+        The differential amplifier cell uses at most 6 rows of transistors.  The row types from top to
+        bottom are 'load', 'casc', 'in', 'sw', 'en', and 'tail'.
 
-        To modify schematic structure, call:
+        for fg_dict, see documentation for Gm and load_pmos generator.
 
-        rename_pin()
-        delete_instance()
-        replace_instance_master()
-        reconnect_instance_terminal()
-        restore_instance()
-        array_instance()
+        Parameters
+        ----------
+        lch : float
+            channel length, in meters.
+        w_dict : Dict[str, Union[float, int]]
+            dictionary from row type to transistor width, in fins or meters.
+        th_dict : Dict[str, str]
+            dictionary from row type to transistor threshold flavor.
+        fg_dict : Dict[str, int]
+            dictionary from transistor type to single-sided number of fingers.
+        gm_dum_info : List[Tuple[Any]]
+            the Gm dummy information data structure.
+        load_dum_info : List[Tuple[Any]]
+            the Load dummy information data structure.
         """
         local_dict = locals()
         for name in self.param_list:
             if name not in local_dict:
                 raise ValueError('Parameter %s not specified.' % name)
             self.parameters[name] = local_dict[name]
+
+        self.instances['XGM'].design(lch=lch, w_dict=w_dict, th_dict=th_dict,
+                                     fg_dict=fg_dict, dum_info=gm_dum_info)
+        self.instances['XLOAD'].design(lch=lch, w_dict=w_dict, th_dict=th_dict,
+                                       fg_dict=fg_dict, dum_info=load_dum_info)
+
+        # remove unused pins
+        if self.fg_dict.get('casc', 0) <= 0:
+            self.remove_pin('bias_casc')
+        if self.fg_dict.get('sw', 0) <= 0:
+            self.remove_pin('VDDN')
+            self.remove_pin('clk_sw')
+        if self.fg_dict.get('en', 0) <= 0:
+            self.remove_pin('enable')

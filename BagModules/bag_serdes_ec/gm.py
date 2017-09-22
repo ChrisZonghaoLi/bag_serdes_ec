@@ -41,7 +41,7 @@ yaml_file = pkg_resources.resource_filename(__name__, os.path.join('netlist_info
 class bag_serdes_ec__gm(Module):
     """Module for library bag_serdes_ec cell gm.
 
-    A Gm cell with many customizability used mainly for SERDES circuits.
+    A Gm cell with many options used mainly for SERDES circuits.
     """
 
     param_list = ['lch', 'w_dict', 'th_dict', 'fg_dict', 'dum_info']
@@ -58,9 +58,9 @@ class bag_serdes_ec__gm(Module):
         The Gm cell uses at most 5 rows of transistors.  The row types from top to
         bottom are 'casc', 'in', 'sw', 'en', and 'tail'.
 
-        The transistor names are 'casc', 'in', 'sw', 'en', 'tail', 'ref', and 'cap'.
+        The transistor names are 'casc', 'in', 'sw', 'en', 'tail', 'tail_ref', and 'tail_cap'.
         fg_dict maps from transistor name to single-sided number of fingers, except
-        for ref and cap, which maps to total number of fingers.
+        for tail_ref and tail_cap, which maps to total number of fingers.
 
         Parameters
         ----------
@@ -142,14 +142,14 @@ class bag_serdes_ec__gm(Module):
         self.reconnect_instance_terminal('XTAILN', 'D', tail_dname)
 
         # reference
-        fg = fg_dict.get('ref', 0)
+        fg = fg_dict.get('tail_ref', 0)
         if fg <= 0:
             self.delete_instance('XREF')
         else:
             self.instances['XREF'].design(w=w, l=lch, nf=fg, intent=th)
 
         # tail decap
-        fg = fg_dict.get('cap', 0)
+        fg = fg_dict.get('tail_cap', 0)
         if fg <= 0:
             self.delete_instance('XCAP')
         else:
