@@ -388,7 +388,7 @@ class SerdesRXBase(with_metaclass(abc.ABCMeta, AnalogBase)):
                 fg_load_sep_min=0,  # type: int
                 out_on_source=False,  # type: bool
                 ):
-        # type: (...) -> Tuple[int, Dict[str, List[WireArray]]]
+        # type: (...) -> Tuple[int, Dict[str, WireArray]]
         """Draw a differential gm stage.
 
         Parameters
@@ -418,7 +418,7 @@ class SerdesRXBase(with_metaclass(abc.ABCMeta, AnalogBase)):
         -------
         fg_gm : int
             width of Gm stage in number of fingers.
-        port_dict : Dict[str, List[WireArray]]
+        port_dict : Dict[str, WireArray]
             a dictionary from connection name to WireArrays.  Outputs are on mos_conn_layer,
             and rests are on the layer above that.
         """
@@ -480,6 +480,59 @@ class SerdesRXBase(with_metaclass(abc.ABCMeta, AnalogBase)):
             self._append_to_warr_dict(warr_dict, 'bias_tail', n_warrs['g'])
 
         # connect to horizontal wires
+        # nets relative index parameters
         tr_manager = TrackManager(self.grid, tr_widths, tr_spaces)
+        nets = ['midp', 'midn', 'bias_casc', 'tail', 'inp', 'inn', 'VDD', 'clk_sw', 'foot', 'enable', 'bias_tail']
+        rows = ['casc', 'casc', 'casc',      'in',   'in',  'in',  'sw',  'sw',     'en',   'en',     'tail']
+        trns = ['ds',   'ds',   'g',         'ds',   'g',   'g',   'ds',  'g',      'ds',   'g',      'g']
 
-        return 0, {}
+        # compute default inp/inn indices.
+        hm_layer = self.mos_conn_layer + 1
+        if 'inp' not in tr_indices or 'inn' not in tr_indices:
+            tr_indices = tr_indices.copy()
+            ntr_used, (inp_idx, inn_idx) = tr_manager.place_wires(hm_layer, ['inp', 'inn'])
+            ntr_tot = self.get_num_tracks('nch', self.get_nmos_row_index('in'), 'g')
+            if ntr_tot < ntr_used:
+                raise ValueError('Need at least %d gate tracks to draw differential input' % ntr_used)
+            tr_indices['inp'] = inp_idx + (ntr_tot - ntr_used)
+            tr_indices['inn'] = inn_idx + (ntr_tot - ntr_used)
+
+        # connect horizontal wires
+        result = {}
+        inp_tidx, inn_tidx = 0, 0
+        for net_name, row_type, tr_type in zip(nets, rows, trns):
+            if net_name in warr_dict:
+                row_idx = self.get_nmos_row_index(row_type)
+                tr_w = tr_manager.get_width(hm_layer, net_name)
+                if net_name in tr_indices:
+                    # use specified relative index
+                    tr_idx = tr_indices[net_name]
+                else:
+                    # compute default relative index.  Try to use the tracks closest to transistor.
+                    ntr_used, (tr_idx, ) = tr_manager.place_wires(hm_layer, [net_name])
+                    ntr_tot = self.get_num_tracks('nch', row_idx, tr_type)
+                    if ntr_tot < ntr_used:
+                        raise ValueError('Need at least %d %s tracks to draw %s track' % (ntr_used, tr_type, net_name))
+                    if tr_type == 'g':
+                        tr_idx += (ntr_tot - ntr_used)
+
+                # get track locations and connect
+                if net_name == 'inp':
+                    inp_tidx = self.get_track_index('nch', row_idx, tr_type, tr_idx)
+                elif net_name == 'inn':
+                    inn_tidx = self.get_track_index('nch', row_idx, tr_type, tr_idx)
+                else:
+                    tid = self.make_track_id('nch', row_idx, tr_type, tr_idx, width=tr_w)
+                    result[net_name] = self.connect_to_tracks(warr_dict[net_name], tid)
+
+        # connect differential input
+        inp_warr, inn_warr = self.connect_differential_tracks(warr_dict['inp'], warr_dict['inn'], hm_layer,
+                                                              inp_tidx, inn_tidx,
+                                                              width=tr_manager.get_width(hm_layer, 'inp'))
+        result['inp'] = inp_warr
+        result['inn'] = inn_warr
+
+        # connect VSS
+        self.connect_to_substrate('ptap', warr_dict['VSS'])
+        # return result
+        return gm_info['fg_tot'], result
