@@ -154,8 +154,8 @@ class SerdesRXBaseInfo(AnalogBaseInfo):
 
                 if tran_type == 'sw':
                     # for tail switch transistor it's special; the down wire type is the
-                    # same as down wire type of input, and up wire is always VDDN.
-                    up_name = 'VDDN'
+                    # same as down wire type of input, and up wire is always vddn.
+                    up_name = 'vddn'
                     up_type = _flip_sd(up_type)
 
                 # we need separation if there's unused middle transistors on any row
@@ -210,6 +210,8 @@ class SerdesRXBaseInfo(AnalogBaseInfo):
                 number of single-sided dummy fingers.
             fg_tail_tot : int
                 total number of single-sided fingers in tail row.
+            fg_load_tot : int
+                total number of single-sided fingers in load row.
             tran_info : Dict[str, Any]
                 transistor row layout information dictionary.
         """
@@ -392,8 +394,8 @@ class SerdesRXBase(with_metaclass(abc.ABCMeta, AnalogBase)):
             warr_dict[name] = []
         warr_dict[name].append(warr)
 
-    def _draw_diffamp_mos(self, col_idx, seg_dict, tran_info):
-        # type: (int, Dict[str, int], Dict[str, Any]) -> Dict[str, List[WireArray]]
+    def _draw_diffamp_mos(self, col_idx, seg_dict, tran_info, net_prefix):
+        # type: (int, Dict[str, int], Dict[str, Any], str) -> Dict[str, List[WireArray]]
         tran_types = ['load', 'casc', 'in', 'sw', 'en', 'tail']
         gnames = ['bias_load', 'bias_casc', 'in', 'clk_sw', 'enable', 'bias_tail']
         g_diffs = [False, False, True, False, False, False]
@@ -417,9 +419,9 @@ class SerdesRXBase(with_metaclass(abc.ABCMeta, AnalogBase)):
 
                 mos_type, row_idx = self.get_row_index(tran_type)
                 p_warrs = self.draw_mos_conn(mos_type, row_idx, col_l - fg_diff - fg, fg, sdir, ddir,
-                                             s_net=sname_p, d_net=dname_p)
+                                             s_net=net_prefix + sname_p, d_net=net_prefix + dname_p)
                 n_warrs = self.draw_mos_conn(mos_type, row_idx, col_r + fg_diff, fg, sdir, ddir,
-                                             s_net=sname_n, d_net=dname_n)
+                                             s_net=net_prefix + sname_n, d_net=net_prefix + dname_n)
 
                 self._append_to_warr_dict(warr_dict, gname_p, p_warrs['g'])
                 self._append_to_warr_dict(warr_dict, dname_p, p_warrs['d'])
@@ -439,8 +441,9 @@ class SerdesRXBase(with_metaclass(abc.ABCMeta, AnalogBase)):
                      fg_min=0,  # type: int
                      fg_dum=0,  # type: int
                      flip_out_sd=False,  # type: bool
+                     net_prefix='',  # type: str
                      ):
-        # type: (...) -> Tuple[int, Dict[str, WireArray]]
+        # type: (...) -> Tuple[Dict[str, WireArray], Dict[str, Any]]
         """Draw a differential amplifier.
 
         Parameters
@@ -461,13 +464,16 @@ class SerdesRXBase(with_metaclass(abc.ABCMeta, AnalogBase)):
             minimum single-sided number of dummy fingers.
         flip_out_sd : bool
             True to draw output on source instead of drain.
+        net_prefix : str
+            this prefit will be added to net names in draw_mos_conn() method and the
+            returned port dictionary.
 
         Returns
         -------
-        fg_amp : int
-            total number of fingers used.
         port_dict : Dict[str, WireArray]
             a dictionary from connection name to WireArrays on horizontal routing layer.
+        amp_info : Dict[str, Any
+            the amplifier layout information dictionary
         """
         if tr_widths is None:
             tr_widths = {}
@@ -485,7 +491,7 @@ class SerdesRXBase(with_metaclass(abc.ABCMeta, AnalogBase)):
         tran_info = amp_info['tran_info']
 
         # draw main transistors and collect ports
-        warr_dict = self._draw_diffamp_mos(col_idx, seg_dict, tran_info)
+        warr_dict = self._draw_diffamp_mos(col_idx, seg_dict, tran_info, net_prefix)
 
         # draw load/tail reference transistor
         for tran_name, mos_type, sup_name in (('tail', 'nch', 'VSS'), ('load', 'pch', 'VDD')):
@@ -509,7 +515,8 @@ class SerdesRXBase(with_metaclass(abc.ABCMeta, AnalogBase)):
                     dname = gname
 
                 # draw transistor
-                warrs = self.draw_mos_conn(mos_type, row_idx, col_ref, fg_ref, sdir, ddir, s_net=sname, d_net=dname)
+                warrs = self.draw_mos_conn(mos_type, row_idx, col_ref, fg_ref, sdir, ddir,
+                                           s_net=net_prefix + sname, d_net=net_prefix + dname)
                 self._append_to_warr_dict(warr_dict, gname, warrs['g'])
                 self._append_to_warr_dict(warr_dict, dname, warrs['d'])
                 self._append_to_warr_dict(warr_dict, sname, warrs['s'])
@@ -535,7 +542,7 @@ class SerdesRXBase(with_metaclass(abc.ABCMeta, AnalogBase)):
         # connect to horizontal wires
         # nets relative index parameters
         tr_manager = TrackManager(self.grid, tr_widths, tr_spaces)
-        nets = ['outp', 'outn', 'bias_load', 'midp', 'midn', 'bias_casc', 'tail', 'inp', 'inn', 'VDDN', 'clk_sw',
+        nets = ['outp', 'outn', 'bias_load', 'midp', 'midn', 'bias_casc', 'tail', 'inp', 'inn', 'vddn', 'clk_sw',
                 'foot', 'enable', 'bias_tail']
         rows = ['load', 'load', 'load',      'casc', 'casc', 'casc',      'in',   'in',  'in',  'sw',   'sw',
                 'en',   'en',     'tail']
@@ -587,7 +594,7 @@ class SerdesRXBase(with_metaclass(abc.ABCMeta, AnalogBase)):
                     outn_tidx = self.get_track_index(mos_type, row_idx, tr_type, tr_idx)
                 else:
                     tid = self.make_track_id(mos_type, row_idx, tr_type, tr_idx, width=tr_w)
-                    result[net_name] = self.connect_to_tracks(warr_dict[net_name], tid)
+                    result[net_prefix + net_name] = self.connect_to_tracks(warr_dict[net_name], tid)
 
         # connect differential input
         inp_warr, inn_warr = self.connect_differential_tracks(warr_dict['inp'], warr_dict['inn'], hm_layer,
@@ -596,14 +603,14 @@ class SerdesRXBase(with_metaclass(abc.ABCMeta, AnalogBase)):
         outp_warr, outn_warr = self.connect_differential_tracks(warr_dict['outp'], warr_dict['outn'], hm_layer,
                                                                 outp_tidx, outn_tidx,
                                                                 width=tr_manager.get_width(hm_layer, 'outp'))
-        result['inp'] = inp_warr
-        result['inn'] = inn_warr
-        result['outp'] = outp_warr
-        result['outn'] = outn_warr
+        result[net_prefix + 'inp'] = inp_warr
+        result[net_prefix + 'inn'] = inn_warr
+        result[net_prefix + 'outp'] = outp_warr
+        result[net_prefix + 'outn'] = outn_warr
 
         # connect VDD and VSS
         self.connect_to_substrate('ptap', warr_dict['VSS'])
         if 'VDD' in warr_dict:
             self.connect_to_substrate('ntap', warr_dict['VDD'])
         # return result
-        return fg_tot, result
+        return result, amp_info
