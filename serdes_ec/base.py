@@ -75,7 +75,7 @@ class SerdesRXBaseInfo(AnalogBaseInfo):
         super(SerdesRXBaseInfo, self).__init__(grid, lch, guard_ring_nf, top_layer=top_layer,
                                                end_mode=end_mode, min_fg_sep=min_fg_sep, fg_tot=fg_tot)
 
-    def _get_gm_tran_info(self, seg_dict, fg_center, out_on_source):
+    def _get_diffamp_tran_info(self, seg_dict, fg_center, flip_out_sd):
         # type: (Dict[str, int], int, bool) -> Tuple[Dict[str, Tuple[Union[int, str]]], bool]
         tran_types = ['casc', 'in', 'sw', 'en', 'tail']
         dn_names = ['mid', 'tail', 'tail', 'foot', 'VSS']
@@ -85,10 +85,36 @@ class SerdesRXBaseInfo(AnalogBaseInfo):
         fg_cas = seg_dict.get('fg_cas', 0)
         need_sep = fg_cas > 0 or not self.abut_analog_mos
 
+        # get load information
         tran_info = {}
-        up_name = 'out'
-        up_type = 's' if out_on_source else 'd'
         fg_prev = fg_diff = 0
+        fg_load = seg_dict.get('load', 0)
+        if fg_load > 0:
+            up_name, dn_name = 'VDD', 'out'
+            fg_diff = (fg_center - fg_load) // 2
+            # get nmos transistor number of fingers that connects to load
+            fg_casc = seg_dict.get('casc', 0)
+            fg_gm = seg_dict['in'] if fg_casc == 0 else fg_casc
+
+            # choose output source/drain to minimize number of output wires
+            up_type = 's' if fg_load >= fg_gm or (fg_load - fg_gm) % 4 == 0 else 'd'
+            # flip output source/drain if needed
+            if flip_out_sd:
+                up_type = _flip_sd(up_type)
+
+            if up_type == 's':
+                tran_info['load'] = (fg_diff, dn_name, up_name, 0, 2)
+            else:
+                tran_info['load'] = (fg_diff, up_name, dn_name, 2, 0)
+
+            fg_prev = fg_load
+            up_name = dn_name
+            up_type = _flip_sd(up_type)
+        else:
+            up_name = 'out'
+            up_type = 's' if flip_out_sd else 'd'
+
+        # get nmos transistors information
         for tran_type, dn_name, center in zip(tran_types, dn_names, centers):
             fg = seg_dict.get(tran_type, 0)
             if fg > 0:
@@ -128,8 +154,8 @@ class SerdesRXBaseInfo(AnalogBaseInfo):
 
                 if tran_type == 'sw':
                     # for tail switch transistor it's special; the down wire type is the
-                    # same as down wire type of input, and up wire is always VDD.
-                    up_name = 'VDD'
+                    # same as down wire type of input, and up wire is always VDDN.
+                    up_name = 'VDDN'
                     up_type = _flip_sd(up_type)
 
                 # we need separation if there's unused middle transistors on any row
@@ -148,11 +174,11 @@ class SerdesRXBaseInfo(AnalogBaseInfo):
 
         return tran_info, need_sep
 
-    def get_gm_info(self, seg_dict, fg_min=0, fg_dum=0, fg_load=0, fg_load_sep_min=0, out_on_source=False):
-        # type: (Dict[str, int], int, int, int, int, bool) -> Dict[str, Any]
-        """Return Gm layout information dictionary.
+    def get_diffamp_info(self, seg_dict, fg_min=0, fg_dum=0, flip_out_sd=False):
+        # type: (Dict[str, int], int, int, bool) -> Dict[str, Any]
+        """Return DiffAmp layout information dictionary.
 
-        This method computes layout information about the Gm cell.
+        This method computes layout information of a differential amplifier.
 
         Parameters
         ----------
@@ -160,13 +186,9 @@ class SerdesRXBaseInfo(AnalogBaseInfo):
             a dictionary containing number of segments per transistor type.
         fg_min : int
             minimum number of total fingers.
-        fg_load : int
-            number of load fingers this Gm cell connects to.  0 if not known.
-        fg_load_sep_min : int
-            minimum number of fingers separating the differential load.  0 if not known.
         fg_dum : int
             minimum single-sided number of dummy fingers.
-        out_on_source : bool
+        flip_out_sd : bool
             True to draw output on source instead of drain.
 
         Returns
@@ -192,35 +214,46 @@ class SerdesRXBaseInfo(AnalogBaseInfo):
                 transistor row layout information dictionary.
         """
         # error checking
-        fg_cap = seg_dict.get('tail_cap', 0)
-        if fg_cap % 4 != 0:
-            raise ValueError('fg_tail_cap = %d must be multiples of 4.' % fg_cap)
-        for even_name in ('casc', 'in', 'tail_ref'):
+        for cap_name in ('tail_cap', 'load_cap'):
+            seg_cur = seg_dict.get(cap_name, 0)
+            if seg_cur % 4 != 0:
+                raise ValueError('seg_%s = %d must be multiples of 4.' % (cap_name, seg_cur))
+        for even_name in ('load', 'casc', 'in', 'tail_ref', 'load_ref'):
             seg_cur = seg_dict.get(even_name, 0)
             if seg_cur % 2 != 0:
                 raise ValueError('seg_%s = %d must be even.' % (even_name, seg_cur))
 
         # determine number of center fingers
+        fg_load = seg_dict.get('load', 0)
         fg_casc = seg_dict.get('casc', 0)
-        fg_in = seg_dict.get('in', 0)
+        fg_in = seg_dict['in']
         fg_center = max(fg_load, fg_casc, fg_in)
 
         # get source and drain information
-        tran_info, need_sep = self._get_gm_tran_info(seg_dict, fg_center, out_on_source)
+        tran_info, need_sep = self._get_diffamp_tran_info(seg_dict, fg_center, flip_out_sd)
 
         # find number of separation fingers
         fg_sep = 0
         # fg_sep from load reference constraint
-        fg_diff_load = (fg_center - fg_load) // 2
-        fg_sep = max(fg_sep, fg_load_sep_min - 2 * fg_diff_load)
+        fg_load_ref = seg_dict.get('load_ref', 0)
+        if fg_load_ref > 0:
+            load_info = tran_info['load']
+            fg_diff_load, load_s_name = load_info[0], load_info[2]
+            if self.abut_analog_mos and load_s_name == 'VDD':
+                # we can abut reference to load
+                fg_load_sep = fg_load_ref
+            else:
+                # we need separator between load and reference.
+                fg_load_sep = fg_load_ref + 2 * self.min_fg_sep
+            fg_sep = max(fg_sep, fg_load_sep - 2 * fg_diff_load)
         # fg_sep from tail reference constraint
-        fg_ref = seg_dict.get('tail_ref', 0)
+        fg_tail_ref = seg_dict.get('tail_ref', 0)
         tail_info = tran_info['tail']
         fg_diff_tail = tail_info[0]
-        if fg_ref > 0:
+        if fg_tail_ref > 0:
             # NOTE: we always need separation between tail reference and tail transistors,
             # otherwise middle dummies in other nmos rows cannot be connected.
-            fg_sep = max(fg_sep, fg_ref + 2 * (self.min_fg_sep - fg_diff_tail))
+            fg_sep = max(fg_sep, fg_tail_ref + 2 * (self.min_fg_sep - fg_diff_tail))
         # fg_sep from need_sep constraint
         if need_sep:
             for info in tran_info.values():
@@ -235,9 +268,9 @@ class SerdesRXBaseInfo(AnalogBaseInfo):
                 fg_side = max(fg_side, tran_info[key][0] + fg_cur)
         # get side fingers for tail row.  Take tail decap into account
         fg_tail = seg_dict['tail']
-        fg_cap = seg_dict.get('tail_cap', 0)
-        if fg_cap > 0:
-            fg_tail_tot = fg_diff_tail + fg_tail + fg_cap
+        fg_tail_cap = seg_dict.get('tail_cap', 0)
+        if fg_tail_cap > 0:
+            fg_tail_tot = fg_diff_tail + fg_tail + fg_tail_cap
             tail_s_name = tail_info[2]
             if not (tail_s_name == 'VSS' and self.abut_analog_mos):
                 # we need to separate tail decap and tail transistor
@@ -245,6 +278,21 @@ class SerdesRXBaseInfo(AnalogBaseInfo):
         else:
             fg_tail_tot = fg_diff_tail + fg_tail
         fg_side = max(fg_side, fg_tail_tot)
+        # get side fingers for load row.  Take load decap into account
+        if fg_load > 0:
+            load_info = tran_info['load']
+            fg_diff_load, load_s_name = load_info[0], load_info[2]
+            fg_load_cap = seg_dict.get('load_cap', 0)
+            if fg_load_cap > 0:
+                fg_load_tot = fg_diff_load + fg_load + fg_load_cap
+                if not (load_s_name == 'VDD' and self.abut_analog_mos):
+                    # we need to separate load decap and load transistor
+                    fg_load_tot += self.min_fg_sep
+            else:
+                fg_load_tot = fg_diff_load + fg_load
+        else:
+            fg_load_tot = 0
+        fg_side = max(fg_side, fg_load_tot)
 
         # get total number of fingers and number of dummies on each edge.
         fg_single = max(fg_center, fg_side)
@@ -266,6 +314,7 @@ class SerdesRXBaseInfo(AnalogBaseInfo):
             fg_sep=fg_sep,
             fg_dum=fg_dum,
             fg_tail_tot=fg_tail_tot,
+            fg_load_tot=fg_load_tot,
             tran_info=tran_info,
         )
 
@@ -304,22 +353,27 @@ class SerdesRXBase(with_metaclass(abc.ABCMeta, AnalogBase)):
         # type: () -> SerdesRXBaseInfo
         return self._serdes_info
 
-    def get_nmos_row_index(self, name):
-        # type: (str) -> int
-        """Returns the index of the given nmos row type.
+    def get_row_index(self, name):
+        # type: (str) -> Tuple[str, int]
+        """Returns the row index of the given transistor name.
 
         Parameters
         ----------
         name : str
-            the nmos row name.
+            the transistor name.
 
         Returns
         -------
-        row_idx : the row index.
+        mos_type : str
+            the transistor type.
+        row_idx : int
+            the row index.
         """
+        if name == 'load':
+            return 'pch', 0
         if name not in self._nrow_idx:
             raise ValueError('row %s not found.' % name)
-        return self._nrow_idx.get[name]
+        return 'nch', self._nrow_idx.get[name]
 
     @staticmethod
     def _get_diff_names(name_base, is_diff, invert=False):
@@ -338,13 +392,13 @@ class SerdesRXBase(with_metaclass(abc.ABCMeta, AnalogBase)):
             warr_dict[name] = []
         warr_dict[name].append(warr)
 
-    def _draw_gm_mos(self, col_idx, seg_dict, tran_info):
+    def _draw_diffamp_mos(self, col_idx, seg_dict, tran_info):
         # type: (int, Dict[str, int], Dict[str, Any]) -> Dict[str, List[WireArray]]
-        tran_types = ['casc', 'in', 'sw', 'en', 'tail']
-        gnames = ['bias_casc', 'in', 'clk_sw', 'enable', 'bias_tail']
-        g_diffs = [False, True, False, False, False]
-        d_diffs = [True, True, False, False, False]
-        s_diffs = [True, False, False, False, False]
+        tran_types = ['load', 'casc', 'in', 'sw', 'en', 'tail']
+        gnames = ['bias_load', 'bias_casc', 'in', 'clk_sw', 'enable', 'bias_tail']
+        g_diffs = [False, False, True, False, False, False]
+        d_diffs = [True, True, True, False, False, False]
+        s_diffs = [False, True, False, False, False, False]
 
         fg_single = tran_info['fg_single']
         fg_dum = tran_info['fg_dum']
@@ -361,10 +415,10 @@ class SerdesRXBase(with_metaclass(abc.ABCMeta, AnalogBase)):
                 dname_p, dname_n = self._get_diff_names(dname, d_diff, invert=True)
                 sname_p, sname_n = self._get_diff_names(sname, s_diff, invert=True)
 
-                row_idx = self.get_nmos_row_index(tran_type)
-                p_warrs = self.draw_mos_conn('nch', row_idx, col_l - fg_diff - fg, fg, sdir, ddir,
+                mos_type, row_idx = self.get_row_index(tran_type)
+                p_warrs = self.draw_mos_conn(mos_type, row_idx, col_l - fg_diff - fg, fg, sdir, ddir,
                                              s_net=sname_p, d_net=dname_p)
-                n_warrs = self.draw_mos_conn('nch', row_idx, col_r + fg_diff, fg, sdir, ddir,
+                n_warrs = self.draw_mos_conn(mos_type, row_idx, col_r + fg_diff, fg, sdir, ddir,
                                              s_net=sname_n, d_net=dname_n)
 
                 self._append_to_warr_dict(warr_dict, gname_p, p_warrs['g'])
@@ -376,20 +430,18 @@ class SerdesRXBase(with_metaclass(abc.ABCMeta, AnalogBase)):
 
         return warr_dict
 
-    def draw_gm(self,  # type: SerdesRXBase
-                col_idx,  # type: int
-                seg_dict,  # type: Dict[str, int]
-                tr_widths=None,  # type: Optional[Dict[str, Dict[int, int]]]
-                tr_spaces=None,  # type: Optional[Dict[Union[str, Tuple[str, str]], Dict[int, int]]]
-                tr_indices=None,  # type: Optional[Dict[str, int]]
-                fg_min=0,  # type: int
-                fg_dum=0,  # type: int
-                fg_load=0,  # type: int
-                fg_load_sep_min=0,  # type: int
-                out_on_source=False,  # type: bool
-                ):
+    def draw_diffamp(self,  # type: SerdesRXBase
+                     col_idx,  # type: int
+                     seg_dict,  # type: Dict[str, int]
+                     tr_widths=None,  # type: Optional[Dict[str, Dict[int, int]]]
+                     tr_spaces=None,  # type: Optional[Dict[Union[str, Tuple[str, str]], Dict[int, int]]]
+                     tr_indices=None,  # type: Optional[Dict[str, int]]
+                     fg_min=0,  # type: int
+                     fg_dum=0,  # type: int
+                     flip_out_sd=False,  # type: bool
+                     ):
         # type: (...) -> Tuple[int, Dict[str, WireArray]]
-        """Draw a differential gm stage.
+        """Draw a differential amplifier.
 
         Parameters
         ----------
@@ -405,22 +457,17 @@ class SerdesRXBase(with_metaclass(abc.ABCMeta, AnalogBase)):
             the track index dictionary.  Maps from net name to relative track index.
         fg_min : int
             minimum number of total fingers.
-        fg_load : int
-            number of load fingers this Gm cell connects to.  0 if not known.
-        fg_load_sep_min : int
-            minimum number of fingers separating the differential load.  0 if not known.
         fg_dum : int
             minimum single-sided number of dummy fingers.
-        out_on_source : bool
+        flip_out_sd : bool
             True to draw output on source instead of drain.
 
         Returns
         -------
-        fg_gm : int
-            width of Gm stage in number of fingers.
+        fg_amp : int
+            total number of fingers used.
         port_dict : Dict[str, WireArray]
-            a dictionary from connection name to WireArrays.  Outputs are on mos_conn_layer,
-            and rests are on the layer above that.
+            a dictionary from connection name to WireArrays on horizontal routing layer.
         """
         if tr_widths is None:
             tr_widths = {}
@@ -430,79 +477,92 @@ class SerdesRXBase(with_metaclass(abc.ABCMeta, AnalogBase)):
             tr_indices = {}
 
         # get layout information
-        gm_info = self._serdes_info.get_gm_info(seg_dict, fg_min=fg_min, fg_dum=fg_dum, fg_load=fg_load,
-                                                fg_load_sep_min=fg_load_sep_min, out_on_source=out_on_source)
+        amp_info = self._serdes_info.get_diffamp_info(seg_dict, fg_min=fg_min, fg_dum=fg_dum, flip_out_sd=flip_out_sd)
+        fg_tot = amp_info['fg_tot']
+        fg_single = amp_info['fg_single']
+        fg_sep = amp_info['fg_sep']
+        fg_dum = amp_info['fg_dum']
+        tran_info = amp_info['tran_info']
 
         # draw main transistors and collect ports
-        tran_info = gm_info['tran_info']
-        warr_dict = self._draw_gm_mos(col_idx, seg_dict, tran_info)
+        warr_dict = self._draw_diffamp_mos(col_idx, seg_dict, tran_info)
 
-        # draw reference transistor
-        row_idx = self.get_nmos_row_index('tail')
-        fg_ref = seg_dict.get('tail_ref', 0)
-        if fg_ref > 0:
-            # get reference column index
-            fg_tot = gm_info['fg_tot']
-            # error checking
-            if (fg_tot - fg_ref) % 2 != 0:
-                raise ValueError('fg_tot = %d and fg_ref = %d has opposite parity.' % (fg_tot, fg_ref))
-            col_ref = col_idx + (fg_tot - fg_ref) // 2
+        # draw load/tail reference transistor
+        for tran_name, mos_type, sup_name in (('tail', 'nch', 'VSS'), ('load', 'pch', 'VDD')):
+            fg_name = '%s_ref' % tran_name
+            fg_ref = seg_dict.get(fg_name, 0)
+            if fg_ref > 0:
+                mos_type, row_idx = self.get_row_index(tran_name)
+                # error checking
+                if (fg_tot - fg_ref) % 2 != 0:
+                    raise ValueError('fg_tot = %d and fg_%s = %d has opposite parity.' % (fg_tot, fg_name, fg_ref))
+                # get reference column index
+                col_ref = col_idx + (fg_tot - fg_ref) // 2
 
-            # get drain/source name/direction
-            tail_info = tran_info['tail']
-            dname, sname, ddir, sdir = tail_info[1:]
-            if dname == 'VSS':
-                sname = 'bias_tail'
-            else:
-                dname = 'bias_tail'
+                # get drain/source name/direction
+                cur_info = tran_info[tran_name]
+                dname, sname, ddir, sdir = cur_info[1:]
+                gname = 'bias_%s' % tran_name
+                if dname == sup_name:
+                    sname = gname
+                else:
+                    dname = gname
 
-            # draw transistor
-            warrs = self.draw_mos_conn('nch', row_idx, col_ref, fg_ref, sdir, ddir, s_net=sname, d_net=dname)
-            self._append_to_warr_dict(warr_dict, 'bias_tail', warrs['g'])
-            self._append_to_warr_dict(warr_dict, dname, warrs['d'])
-            self._append_to_warr_dict(warr_dict, sname, warrs['s'])
+                # draw transistor
+                warrs = self.draw_mos_conn(mos_type, row_idx, col_ref, fg_ref, sdir, ddir, s_net=sname, d_net=dname)
+                self._append_to_warr_dict(warr_dict, gname, warrs['g'])
+                self._append_to_warr_dict(warr_dict, dname, warrs['d'])
+                self._append_to_warr_dict(warr_dict, sname, warrs['s'])
 
-        # draw decap transistor
-        fg_cap = seg_dict.get('tail_cap', 0)
-        if fg_cap > 0:
-            # compute decap column index
-            fg_single = gm_info['fg_single']
-            fg_sep = gm_info['fg_sep']
-            fg_dum = gm_info['fg_dum']
-            fg_tail_tot = gm_info['fg_tail_tot']
-            col_l = col_idx + fg_dum + fg_single - fg_tail_tot
-            col_r = col_idx + fg_dum + fg_single + fg_sep + fg_tail_tot - fg_cap
+        # draw load/tail decap transistor
+        for tran_name, mos_type, sup_name in (('tail', 'nch', 'VSS'), ('load', 'pch', 'VDD')):
+            fg_name = '%s_cap' % tran_name
+            fg_cap = seg_dict.get(fg_name, 0)
+            if fg_cap > 0:
+                mos_type, row_idx = self.get_row_index(tran_name)
+                # compute decap column index
+                fg_row_tot = amp_info['fg_%s_tot' % tran_name]
+                col_l = col_idx + fg_dum + fg_single - fg_row_tot
+                col_r = col_idx + fg_dum + fg_single + fg_sep + fg_row_tot - fg_cap
 
-            fg_cap_single = fg_cap // 2
-            p_warrs = self.draw_mos_decap('nch', row_idx, col_l, fg_cap_single, False, export_gate=True)
-            n_warrs = self.draw_mos_decap('nch', row_idx, col_r, fg_cap_single, False, export_gate=True)
-            self._append_to_warr_dict(warr_dict, 'bias_tail', p_warrs['g'])
-            self._append_to_warr_dict(warr_dict, 'bias_tail', n_warrs['g'])
+                fg_cap_single = fg_cap // 2
+                p_warrs = self.draw_mos_decap(mos_type, row_idx, col_l, fg_cap_single, False, export_gate=True)
+                n_warrs = self.draw_mos_decap(mos_type, row_idx, col_r, fg_cap_single, False, export_gate=True)
+                gname = 'bias_%s' % tran_name
+                self._append_to_warr_dict(warr_dict, gname, p_warrs['g'])
+                self._append_to_warr_dict(warr_dict, gname, n_warrs['g'])
 
         # connect to horizontal wires
         # nets relative index parameters
         tr_manager = TrackManager(self.grid, tr_widths, tr_spaces)
-        nets = ['midp', 'midn', 'bias_casc', 'tail', 'inp', 'inn', 'VDD', 'clk_sw', 'foot', 'enable', 'bias_tail']
-        rows = ['casc', 'casc', 'casc',      'in',   'in',  'in',  'sw',  'sw',     'en',   'en',     'tail']
-        trns = ['ds',   'ds',   'g',         'ds',   'g',   'g',   'ds',  'g',      'ds',   'g',      'g']
+        nets = ['outp', 'outn', 'bias_load', 'midp', 'midn', 'bias_casc', 'tail', 'inp', 'inn', 'VDDN', 'clk_sw',
+                'foot', 'enable', 'bias_tail']
+        rows = ['load', 'load', 'load',      'casc', 'casc', 'casc',      'in',   'in',  'in',  'sw',   'sw',
+                'en',   'en',     'tail']
+        trns = ['ds', 'ds',     'g',         'ds',   'ds',   'g',         'ds',   'g',   'g',   'ds',   'g',
+                'ds',   'g',      'g']
 
-        # compute default inp/inn indices.
+        # compute default inp/inn/outp/outn indices.
         hm_layer = self.mos_conn_layer + 1
-        if 'inp' not in tr_indices or 'inn' not in tr_indices:
-            tr_indices = tr_indices.copy()
-            ntr_used, (inp_idx, inn_idx) = tr_manager.place_wires(hm_layer, ['inp', 'inn'])
-            ntr_tot = self.get_num_tracks('nch', self.get_nmos_row_index('in'), 'g')
-            if ntr_tot < ntr_used:
-                raise ValueError('Need at least %d gate tracks to draw differential input' % ntr_used)
-            tr_indices['inp'] = inp_idx + (ntr_tot - ntr_used)
-            tr_indices['inn'] = inn_idx + (ntr_tot - ntr_used)
+        for tran_name, net_type, net_base, order in (('in', 'g', 'in', -1), ('load', 'ds', 'out', 1)):
+            pname, nname = '%sp' % net_base, '%sn' % net_base
+            if pname not in tr_indices or nname not in tr_indices:
+                tr_indices = tr_indices.copy()
+                net_list = [pname, nname] if order > 0 else [nname, pname]
+                ntr_used, (netp_idx, netn_idx) = tr_manager.place_wires(hm_layer, net_list)
+                mos_type, row_idx = self.get_row_index(tran_name)
+                ntr_tot = self.get_num_tracks(mos_type, row_idx, net_type)
+                if ntr_tot < ntr_used:
+                    raise ValueError('Need at least %d tracks to draw %s and %s' % (ntr_used, pname, nname))
+                tr_indices[pname] = netp_idx + (ntr_tot - ntr_used)
+                tr_indices[nname] = netn_idx + (ntr_tot - ntr_used)
 
         # connect horizontal wires
         result = {}
-        inp_tidx, inn_tidx = 0, 0
+        inp_tidx, inn_tidx, outp_tidx, outn_tidx = 0, 0, 0, 0
         for net_name, row_type, tr_type in zip(nets, rows, trns):
             if net_name in warr_dict:
-                row_idx = self.get_nmos_row_index(row_type)
+                mos_type, row_idx = self.get_row_index(row_type)
                 tr_w = tr_manager.get_width(hm_layer, net_name)
                 if net_name in tr_indices:
                     # use specified relative index
@@ -510,7 +570,7 @@ class SerdesRXBase(with_metaclass(abc.ABCMeta, AnalogBase)):
                 else:
                     # compute default relative index.  Try to use the tracks closest to transistor.
                     ntr_used, (tr_idx, ) = tr_manager.place_wires(hm_layer, [net_name])
-                    ntr_tot = self.get_num_tracks('nch', row_idx, tr_type)
+                    ntr_tot = self.get_num_tracks(mos_type, row_idx, tr_type)
                     if ntr_tot < ntr_used:
                         raise ValueError('Need at least %d %s tracks to draw %s track' % (ntr_used, tr_type, net_name))
                     if tr_type == 'g':
@@ -518,21 +578,32 @@ class SerdesRXBase(with_metaclass(abc.ABCMeta, AnalogBase)):
 
                 # get track locations and connect
                 if net_name == 'inp':
-                    inp_tidx = self.get_track_index('nch', row_idx, tr_type, tr_idx)
+                    inp_tidx = self.get_track_index(mos_type, row_idx, tr_type, tr_idx)
                 elif net_name == 'inn':
-                    inn_tidx = self.get_track_index('nch', row_idx, tr_type, tr_idx)
+                    inn_tidx = self.get_track_index(mos_type, row_idx, tr_type, tr_idx)
+                elif net_name == 'outp':
+                    outp_tidx = self.get_track_index(mos_type, row_idx, tr_type, tr_idx)
+                elif net_name == 'outn':
+                    outn_tidx = self.get_track_index(mos_type, row_idx, tr_type, tr_idx)
                 else:
-                    tid = self.make_track_id('nch', row_idx, tr_type, tr_idx, width=tr_w)
+                    tid = self.make_track_id(mos_type, row_idx, tr_type, tr_idx, width=tr_w)
                     result[net_name] = self.connect_to_tracks(warr_dict[net_name], tid)
 
         # connect differential input
         inp_warr, inn_warr = self.connect_differential_tracks(warr_dict['inp'], warr_dict['inn'], hm_layer,
                                                               inp_tidx, inn_tidx,
                                                               width=tr_manager.get_width(hm_layer, 'inp'))
+        outp_warr, outn_warr = self.connect_differential_tracks(warr_dict['outp'], warr_dict['outn'], hm_layer,
+                                                                outp_tidx, outn_tidx,
+                                                                width=tr_manager.get_width(hm_layer, 'outp'))
         result['inp'] = inp_warr
         result['inn'] = inn_warr
+        result['outp'] = outp_warr
+        result['outn'] = outn_warr
 
-        # connect VSS
+        # connect VDD and VSS
         self.connect_to_substrate('ptap', warr_dict['VSS'])
+        if 'VDD' in warr_dict:
+            self.connect_to_substrate('ntap', warr_dict['VDD'])
         # return result
-        return gm_info['fg_tot'], result
+        return fg_tot, result
