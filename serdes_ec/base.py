@@ -32,6 +32,7 @@ from future.utils import with_metaclass
 import abc
 from typing import TYPE_CHECKING, Optional, Dict, Any, Set, Tuple, List, Union
 
+from bag.layout.routing import TrackManager
 
 from abs_templates_ec.analog_core import AnalogBase, AnalogBaseInfo
 
@@ -148,7 +149,7 @@ class SerdesRXBaseInfo(AnalogBaseInfo):
         return tran_info, need_sep
 
     def get_gm_info(self, seg_dict, fg_min=0, fg_dum=0, fg_load=0, fg_load_sep_min=0, out_on_source=False):
-        # type: (Dict[str, int], int, int, int, int, bool) -> Dict[str, int]
+        # type: (Dict[str, int], int, int, int, int, bool) -> Dict[str, Any]
         """Return Gm layout information dictionary.
 
         This method computes layout information about the Gm cell.
@@ -170,17 +171,25 @@ class SerdesRXBaseInfo(AnalogBaseInfo):
 
         Returns
         -------
-        info : Dict[str, int]
+        info : Dict[str, Any]
             the Gm stage layout information dictionary.  Has the following entries:
 
+            fg_tot : int
+                total number of fingers.
             fg_single : int
                 number of single-sided fingers.
+            fg_center : int
+                number of center-aligned fingers.
+            fg_side : int
+                number of side-aligned fingers.
             fg_sep : int
-                number of fingers separating the differential sides.
-            fg_tot : int
-                total number of Gm fingers.
+                number of separation fingers.
             fg_dum : int
-                number of dummy fingers on each edge.
+                number of single-sided dummy fingers.
+            fg_tail_tot : int
+                total number of single-sided fingers in tail row.
+            tran_info : Dict[str, Any]
+                transistor row layout information dictionary.
         """
         # error checking
         fg_cap = seg_dict.get('tail_cap', 0)
@@ -238,7 +247,8 @@ class SerdesRXBaseInfo(AnalogBaseInfo):
         fg_side = max(fg_side, fg_tail_tot)
 
         # get total number of fingers and number of dummies on each edge.
-        fg_tot = max(fg_center, fg_side) * 2 + fg_sep + 2 * fg_dum
+        fg_single = max(fg_center, fg_side)
+        fg_tot = fg_single * 2 + fg_sep + 2 * fg_dum
         if fg_tot < fg_min:
             # add dummies to get to fg_min
             if (fg_min - fg_tot) % 2 != 0:
@@ -250,6 +260,7 @@ class SerdesRXBaseInfo(AnalogBaseInfo):
         # determine output source/drain type.
         results = dict(
             fg_tot=fg_tot,
+            fg_single=fg_single,
             fg_center=fg_center,
             fg_side=fg_side,
             fg_sep=fg_sep,
@@ -311,11 +322,8 @@ class SerdesRXBase(with_metaclass(abc.ABCMeta, AnalogBase)):
         return self._nrow_idx.get[name]
 
     @staticmethod
-    def _flip_sd(name):
-        return 'd' if name == 's' else 's'
-
-    @staticmethod
     def _get_diff_names(name_base, is_diff, invert=False):
+        # type: (str, bool, bool) -> Tuple[str, str]
         if is_diff:
             if invert:
                 return name_base + 'n', name_base + 'p'
@@ -325,76 +333,86 @@ class SerdesRXBase(with_metaclass(abc.ABCMeta, AnalogBase)):
 
     @staticmethod
     def _append_to_warr_dict(warr_dict, name, warr):
+        # type: (Dict[str, List[WireArray]], str, WireArray) -> None
         if name not in warr_dict:
             warr_dict[name] = []
         warr_dict[name].append(warr)
 
-    def _draw_gm_mos(self, col_idx, fg_tot, fg_single, fg_dum, warr_dict, tran_type, fg,
-                     up_name, dn_name, g_name, up_type, g_diff, d_diff, s_diff, center):
+    def _draw_gm_mos(self, col_idx, seg_dict, tran_info):
+        # type: (int, Dict[str, int], Dict[str, Any]) -> Dict[str, List[WireArray]]
+        tran_types = ['casc', 'in', 'sw', 'en', 'tail']
+        gnames = ['bias_casc', 'in', 'clk_sw', 'enable', 'bias_tail']
+        g_diffs = [False, True, False, False, False]
+        d_diffs = [True, True, False, False, False]
+        s_diffs = [True, False, False, False, False]
 
-        if center:
-            fg_diff = fg_dum + (fg_single - fg) // 2
-        else:
-            fg_diff = fg_dum + fg_single - fg
+        fg_single = tran_info['fg_single']
+        fg_dum = tran_info['fg_dum']
+        fg_sep = tran_info['fg_sep']
+        col_l = col_idx + fg_dum + fg_single
+        col_r = col_l + fg_sep
 
-        if up_type == 'd':
-            ddir, sdir = 2, 0
-            d_name, s_name = up_name, dn_name
-        else:
-            ddir, sdir = 0, 2
-            d_name, s_name = dn_name, up_name
+        warr_dict = {}
+        for tran_type, gname, g_diff, d_diff, s_diff in zip(tran_types, gnames, g_diffs, d_diffs, s_diffs):
+            if tran_type in tran_info:
+                fg = seg_dict[tran_type]
+                fg_diff, dname, sname, ddir, sdir = tran_info[tran_type]
+                gname_p, gname_n = self._get_diff_names(gname, g_diff)
+                dname_p, dname_n = self._get_diff_names(dname, d_diff, invert=True)
+                sname_p, sname_n = self._get_diff_names(sname, s_diff, invert=True)
 
-        g_name_p, g_name_n = self._get_diff_names(g_name, g_diff)
-        d_name_p, d_name_n = self._get_diff_names(d_name, d_diff, invert=True)
-        s_name_p, s_name_n = self._get_diff_names(s_name, s_diff, invert=True)
+                row_idx = self.get_nmos_row_index(tran_type)
+                p_warrs = self.draw_mos_conn('nch', row_idx, col_l - fg_diff - fg, fg, sdir, ddir,
+                                             s_net=sname_p, d_net=dname_p)
+                n_warrs = self.draw_mos_conn('nch', row_idx, col_r + fg_diff, fg, sdir, ddir,
+                                             s_net=sname_n, d_net=dname_n)
 
-        row_idx = self.get_nmos_row_index(tran_type)
-        p_warrs = self.draw_mos_conn('nch', row_idx, col_idx + fg_diff, fg, sdir, ddir,
-                                     s_net=s_name_p, d_net=d_name_p)
-        n_warrs = self.draw_mos_conn('nch', row_idx, col_idx + fg_tot - fg_diff, fg, sdir, ddir,
-                                     s_net=s_name_n, d_net=d_name_n)
-        self._append_to_warr_dict(warr_dict, g_name_p, p_warrs['g'])
-        self._append_to_warr_dict(warr_dict, d_name_p, p_warrs['d'])
-        self._append_to_warr_dict(warr_dict, s_name_p, p_warrs['s'])
-        self._append_to_warr_dict(warr_dict, g_name_n, n_warrs['g'])
-        self._append_to_warr_dict(warr_dict, d_name_n, n_warrs['d'])
-        self._append_to_warr_dict(warr_dict, s_name_n, n_warrs['s'])
+                self._append_to_warr_dict(warr_dict, gname_p, p_warrs['g'])
+                self._append_to_warr_dict(warr_dict, dname_p, p_warrs['d'])
+                self._append_to_warr_dict(warr_dict, sname_p, p_warrs['s'])
+                self._append_to_warr_dict(warr_dict, gname_n, n_warrs['g'])
+                self._append_to_warr_dict(warr_dict, dname_n, n_warrs['d'])
+                self._append_to_warr_dict(warr_dict, sname_n, n_warrs['s'])
+
+        return warr_dict
 
     def draw_gm(self,  # type: SerdesRXBase
                 col_idx,  # type: int
-                fg_dict,  # type: Dict[str, int]
+                seg_dict,  # type: Dict[str, int]
                 tr_widths=None,  # type: Optional[Dict[str, Dict[int, int]]]
                 tr_spaces=None,  # type: Optional[Dict[Union[str, Tuple[str, str]], Dict[int, int]]]
                 tr_indices=None,  # type: Optional[Dict[str, int]]
-                flip_sd=False,  # type: bool
+                fg_min=0,  # type: int
+                fg_dum=0,  # type: int
+                fg_load=0,  # type: int
+                fg_load_sep_min=0,  # type: int
+                out_on_source=False,  # type: bool
                 ):
         # type: (...) -> Tuple[int, Dict[str, List[WireArray]]]
         """Draw a differential gm stage.
-
-        a separator is used to separate the positive half and the negative half of the gm stage.
-        For tail/switch/enable devices, the g/d/s of both halves are shorted together.
 
         Parameters
         ----------
         col_idx : int
             the left-most transistor index.  0 is the left-most transistor.
-        fg_dict : Dict[str, int]
-            a dictionary containing number of fingers per transistor type.
-            in addition to transistor types, you can specify the following entries:
-
-            min :
-                minimum number of total fingers.
-            sep_min :
-                minimum number of fingers that separates the differential sides.
+        seg_dict : Dict[str, int]
+            a dictionary containing number of segments per transistor type.
         tr_widths : Optional[Dict[str, Dict[int, int]]]
             the track width dictionary.
         tr_spaces : Optional[Dict[Union[str, Tuple[str, str]], Dict[int, int]]]
             the track spacing dictionary.
         tr_indices : Optional[Dict[str, int]]
             the track index dictionary.  Maps from net name to relative track index.
-        flip_sd : bool
-            True to flip source/drain.  This is to help draw layout where certain configuration
-            of number of fingers and source/drain directions may not be possible.
+        fg_min : int
+            minimum number of total fingers.
+        fg_load : int
+            number of load fingers this Gm cell connects to.  0 if not known.
+        fg_load_sep_min : int
+            minimum number of fingers separating the differential load.  0 if not known.
+        fg_dum : int
+            minimum single-sided number of dummy fingers.
+        out_on_source : bool
+            True to draw output on source instead of drain.
 
         Returns
         -------
@@ -412,58 +430,56 @@ class SerdesRXBase(with_metaclass(abc.ABCMeta, AnalogBase)):
             tr_indices = {}
 
         # get layout information
-        gm_info = self._serdes_info.get_gm_info(fg_dict)
-        fg_single = gm_info['fg_single']
-        fg_tot = gm_info['fg_tot']
-        fg_dum = gm_info['fg_dum']
-
-        # transistor settings
-        tran_types = ['casc', 'in', 'sw', 'en', 'tail']
-        dn_names = ['mid', 'tail', 'tail', 'foot', 'VSS']
-        g_names = ['bias_casc', 'in', 'clk_sw', 'enable', 'bias_tail']
-        g_diffs = [False, True, False, False, False]
-        d_diffs = [True, True, False, False, False]
-        s_diffs = [True, False, False, False, False]
-        centers = [True, True, False, False, False]
+        gm_info = self._serdes_info.get_gm_info(seg_dict, fg_min=fg_min, fg_dum=fg_dum, fg_load=fg_load,
+                                                fg_load_sep_min=fg_load_sep_min, out_on_source=out_on_source)
 
         # draw main transistors and collect ports
-        warr_dict = {}
-        up_type = 's' if flip_sd else 'd'
-        up_name = 'out'
-        tail_up_type = 'd'
-        for tran_type, dn_name, g_name, g_diff, d_diff, s_diff, center in \
-                zip(tran_types, dn_names, g_names, g_diffs, d_diffs, s_diffs, centers):
-            fg = fg_dict.get(tran_type, 0)
-            if fg > 0:
-                if tran_type == 'sw':
-                    # for switch the down net is always equal to the down net of input.
-                    up_name = 'VDD'
-                    up_type = self._flip_sd(up_type)
-                if tran_type == 'tail':
-                    tail_up_type = up_type
-                self._draw_gm_mos(col_idx, fg_tot, fg_single, fg_dum, warr_dict, tran_type, fg,
-                                  up_name, dn_name, g_name, up_type, g_diff, d_diff, s_diff, center)
-                up_name = dn_name
-                up_type = self._flip_sd(up_type)
+        tran_info = gm_info['tran_info']
+        warr_dict = self._draw_gm_mos(col_idx, seg_dict, tran_info)
 
         # draw reference transistor
         row_idx = self.get_nmos_row_index('tail')
-        fg = fg_dict.get('tail_ref', 0)
-        if fg > 0:
-            if tail_up_type == 'd':
-                sdir, ddir = 0, 2
-                s_net, d_net = 'VSS', 'bias_tail'
+        fg_ref = seg_dict.get('tail_ref', 0)
+        if fg_ref > 0:
+            # get reference column index
+            fg_tot = gm_info['fg_tot']
+            # error checking
+            if (fg_tot - fg_ref) % 2 != 0:
+                raise ValueError('fg_tot = %d and fg_ref = %d has opposite parity.' % (fg_tot, fg_ref))
+            col_ref = col_idx + (fg_tot - fg_ref) // 2
+
+            # get drain/source name/direction
+            tail_info = tran_info['tail']
+            dname, sname, ddir, sdir = tail_info[1:]
+            if dname == 'VSS':
+                sname = 'bias_tail'
             else:
-                sdir, ddir = 2, 0
-                s_net, d_net = 'bias_tail', 'VSS'
-            warrs = self.draw_mos_conn('nch', row_idx, col_idx + fg_dum + fg_single + self.min_fg_sep,
-                                       fg, sdir, ddir, s_net=s_net, d_net=d_net)
+                dname = 'bias_tail'
+
+            # draw transistor
+            warrs = self.draw_mos_conn('nch', row_idx, col_ref, fg_ref, sdir, ddir, s_net=sname, d_net=dname)
             self._append_to_warr_dict(warr_dict, 'bias_tail', warrs['g'])
-            self._append_to_warr_dict(warr_dict, d_net, warrs['d'])
-            self._append_to_warr_dict(warr_dict, s_net, warrs['s'])
+            self._append_to_warr_dict(warr_dict, dname, warrs['d'])
+            self._append_to_warr_dict(warr_dict, sname, warrs['s'])
 
         # draw decap transistor
+        fg_cap = seg_dict.get('tail_cap', 0)
+        if fg_cap > 0:
+            # compute decap column index
+            fg_single = gm_info['fg_single']
+            fg_sep = gm_info['fg_sep']
+            fg_dum = gm_info['fg_dum']
+            fg_tail_tot = gm_info['fg_tail_tot']
+            col_l = col_idx + fg_dum + fg_single - fg_tail_tot
+            col_r = col_idx + fg_dum + fg_single + fg_sep + fg_tail_tot - fg_cap
 
+            fg_cap_single = fg_cap // 2
+            p_warrs = self.draw_mos_decap('nch', row_idx, col_l, fg_cap_single, False, export_gate=True)
+            n_warrs = self.draw_mos_decap('nch', row_idx, col_r, fg_cap_single, False, export_gate=True)
+            self._append_to_warr_dict(warr_dict, 'bias_tail', p_warrs['g'])
+            self._append_to_warr_dict(warr_dict, 'bias_tail', n_warrs['g'])
 
-        # connect horizontal wires
-        pass
+        # connect to horizontal wires
+        tr_manager = TrackManager(self.grid, tr_widths, tr_spaces)
+
+        return 0, {}
