@@ -474,7 +474,7 @@ class SerdesRXBase(with_metaclass(abc.ABCMeta, AnalogBase)):
         -------
         port_dict : Dict[str, WireArray]
             a dictionary from connection name to WireArrays on horizontal routing layer.
-        amp_info : Dict[str, Any
+        amp_info : Dict[str, Any]
             the amplifier layout information dictionary
         """
         if tr_widths is None:

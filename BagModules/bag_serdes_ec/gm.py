@@ -44,14 +44,14 @@ class bag_serdes_ec__gm(Module):
     A Gm cell with many options used mainly for SERDES circuits.
     """
 
-    param_list = ['lch', 'w_dict', 'th_dict', 'fg_dict', 'dum_info']
+    param_list = ['lch', 'w_dict', 'th_dict', 'seg_dict', 'dum_info']
 
     def __init__(self, bag_config, parent=None, prj=None, **kwargs):
         Module.__init__(self, bag_config, yaml_file, parent=parent, prj=prj, **kwargs)
         for par in self.param_list:
             self.parameters[par] = None
 
-    def design(self, lch=16e-9, w_dict=None, th_dict=None, fg_dict=None, dum_info=None):
+    def design(self, lch=16e-9, w_dict=None, th_dict=None, seg_dict=None, dum_info=None):
         # type: (float, Dict[str, Union[float, int]], Dict[str, str], Dict[str, int], List[Tuple[Any]]) -> None
         """Design this Gm cell.
 
@@ -59,7 +59,7 @@ class bag_serdes_ec__gm(Module):
         bottom are 'casc', 'in', 'sw', 'en', and 'tail'.
 
         The transistor names are 'casc', 'in', 'sw', 'en', 'tail', 'tail_ref', and 'tail_cap'.
-        fg_dict maps from transistor name to single-sided number of fingers, except
+        seg_dict maps from transistor name to single-sided number of fingers, except
         for tail_ref and tail_cap, which maps to total number of fingers.
 
         Parameters
@@ -70,7 +70,7 @@ class bag_serdes_ec__gm(Module):
             dictionary from row type to transistor width, in fins or meters.
         th_dict : Dict[str, str]
             dictionary from row type to transistor threshold flavor.
-        fg_dict : Dict[str, int]
+        seg_dict : Dict[str, int]
             dictionary from transistor type to single-sided number of fingers.
         dum_info : List[Tuple[Any]]
             the dummy information data structure.
@@ -83,7 +83,7 @@ class bag_serdes_ec__gm(Module):
 
         # design each transistor, from top to bottom
         # cascode
-        fg = fg_dict.get('casc', 0)
+        fg = seg_dict.get('casc', 0)
         if fg <= 0:
             in_dname = 'out'
             self.delete_instance('XCASP')
@@ -97,7 +97,7 @@ class bag_serdes_ec__gm(Module):
             self.instances['XCASN'].design(w=w, l=lch, nf=fg, intent=th)
 
         # input
-        fg = fg_dict['in']
+        fg = seg_dict['in']
         w = w_dict['in']
         th = th_dict['in']
         self.instances['XINP'].design(w=w, l=lch, nf=fg, intent=th)
@@ -106,7 +106,7 @@ class bag_serdes_ec__gm(Module):
         self.reconnect_instance_terminal('XINN', 'D', '%sp' % in_dname)
 
         # tail switch
-        fg = fg_dict.get('sw', 0)
+        fg = seg_dict.get('sw', 0)
         if fg <= 0:
             self.delete_instance('XSWP')
             self.delete_instance('XSWN')
@@ -119,7 +119,7 @@ class bag_serdes_ec__gm(Module):
             self.instances['XSWN'].design(w=w, l=lch, nf=fg, intent=th)
 
         # tail enable
-        fg = fg_dict.get('en', 0)
+        fg = seg_dict.get('en', 0)
         if fg <= 0:
             tail_dname = 'tail'
             self.delete_instance('XENP')
@@ -133,7 +133,7 @@ class bag_serdes_ec__gm(Module):
             self.instances['XENN'].design(w=w, l=lch, nf=fg, intent=th)
 
         # tail
-        fg = fg_dict['tail']
+        fg = seg_dict['tail']
         w = w_dict['tail']
         th = th_dict['tail']
         self.instances['XTAILP'].design(w=w, l=lch, nf=fg, intent=th)
@@ -142,14 +142,14 @@ class bag_serdes_ec__gm(Module):
         self.reconnect_instance_terminal('XTAILN', 'D', tail_dname)
 
         # reference
-        fg = fg_dict.get('tail_ref', 0)
+        fg = seg_dict.get('tail_ref', 0)
         if fg <= 0:
             self.delete_instance('XREF')
         else:
             self.instances['XREF'].design(w=w, l=lch, nf=fg, intent=th)
 
         # tail decap
-        fg = fg_dict.get('tail_cap', 0)
+        fg = seg_dict.get('tail_cap', 0)
         if fg <= 0:
             self.delete_instance('XCAP')
         else:

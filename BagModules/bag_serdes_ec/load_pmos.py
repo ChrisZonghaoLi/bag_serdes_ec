@@ -44,20 +44,20 @@ class bag_serdes_ec__load_pmos(Module):
     A pmos load cell with option to add output decaps (for integrator application).
     """
 
-    param_list = ['lch', 'w_dict', 'th_dict', 'fg_dict', 'dum_info']
+    param_list = ['lch', 'w_dict', 'th_dict', 'seg_dict', 'dum_info']
 
     def __init__(self, bag_config, parent=None, prj=None, **kwargs):
         Module.__init__(self, bag_config, yaml_file, parent=parent, prj=prj, **kwargs)
         for par in self.param_list:
             self.parameters[par] = None
 
-    def design(self, lch=16e-9, w_dict=None, th_dict=None, fg_dict=None, dum_info=None):
+    def design(self, lch=16e-9, w_dict=None, th_dict=None, seg_dict=None, dum_info=None):
         # type: (float, Dict[str, Union[float, int]], Dict[str, str], Dict[str, int], List[Tuple[Any]]) -> None
         """Design this load cell.
 
         The load cell uses 1 row of transistors.  The row is named 'load'.
 
-        The transistor names are 'load', 'load_ref', and 'load_cap'.  fg_dict maps
+        The transistor names are 'load', 'load_ref', and 'load_cap'.  seg_dict maps
         transistor name to single-sided number of fingers, except for load_ref, which
         maps to total number of fingers.
 
@@ -69,7 +69,7 @@ class bag_serdes_ec__load_pmos(Module):
             dictionary from row type to transistor width, in fins or meters.
         th_dict : Dict[str, str]
             dictionary from row type to transistor threshold flavor.
-        fg_dict : Dict[str, int]
+        seg_dict : Dict[str, int]
             dictionary from transistor type to single-sided number of fingers.
         dum_info : List[Tuple[Any]]
             the dummy information data structure.
@@ -81,14 +81,14 @@ class bag_serdes_ec__load_pmos(Module):
             self.parameters[name] = local_dict[name]
 
         # load
-        fg = fg_dict['load']
+        fg = seg_dict['load']
         w = w_dict['load']
         th = th_dict['load']
         self.instances['XLOADP'].design(w=w, l=lch, nf=fg, intent=th)
         self.instances['XLOADN'].design(w=w, l=lch, nf=fg, intent=th)
 
         # load decap
-        fg = fg_dict.get('load_cap', 0)
+        fg = seg_dict.get('load_cap', 0)
         if fg <= 0:
             self.delete_instance('XCAPP')
             self.delete_instance('XCAPN')
@@ -97,7 +97,7 @@ class bag_serdes_ec__load_pmos(Module):
             self.instances['XCAPN'].design(w=w, l=lch, nf=fg, intent=th)
 
         # load reference
-        fg = fg_dict.get('load_ref', 0)
+        fg = seg_dict.get('load_ref', 0)
         if fg <= 0:
             self.delete_instance('XREF')
         else:
