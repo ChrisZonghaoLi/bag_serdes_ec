@@ -99,10 +99,10 @@ class bag_serdes_ec__diffamp(Module):
                                        seg_dict=seg_dict, dum_info=load_dum_info)
 
         # remove unused pins
-        if self.seg_dict.get('casc', 0) <= 0:
+        if seg_dict.get('casc', 0) <= 0:
             self.remove_pin('bias_casc')
-        if self.seg_dict.get('sw', 0) <= 0:
+        if seg_dict.get('sw', 0) <= 0:
             self.remove_pin('vddn')
             self.remove_pin('clk_sw')
-        if self.seg_dict.get('en', 0) <= 0:
+        if seg_dict.get('en', 0) <= 0:
             self.remove_pin('enable')

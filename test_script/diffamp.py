@@ -21,8 +21,10 @@ def make_tdb(prj, target_lib, specs):
     return tdb
 
 
-def generate(prj, specs):
+def generate(prj, specs, gen_sch=True):
     temp_db = make_tdb(prj, impl_lib, specs)
+    lib_name = specs['lib_name']
+    cell_name = specs['cell_name']
     params = specs['params']
     lch_list = specs['swp_params']['lch']
     gr_nf_list = specs['swp_params']['guard_ring_nf']
@@ -34,8 +36,17 @@ def generate(prj, specs):
         for lch in lch_list:
             params['lch'] = lch
             params['guard_ring_nf'] = gr_nf
-            temp_list.append(temp_db.new_template(params=params, temp_cls=DiffAmp, debug=False))
-            name_list.append(name_fmt % (float_to_si_string(lch), gr_nf))
+            temp = temp_db.new_template(params=params, temp_cls=DiffAmp, debug=False)
+            cur_name = name_fmt % (float_to_si_string(lch), gr_nf)
+            temp_list.append(temp)
+            name_list.append(cur_name)
+
+            if gen_sch:
+                dsn = prj.create_design_module(lib_name=lib_name, cell_name=cell_name)
+                dsn.design(**temp.sch_params)
+                print('creating schematic for %s' % cur_name)
+                dsn.implement_design(impl_lib, top_cell_name=cur_name, erase=True)
+
     print('creating layout')
     temp_db.batch_layout(prj, temp_list, name_list)
     print('done')
