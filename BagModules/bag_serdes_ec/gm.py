@@ -111,7 +111,7 @@ class bag_serdes_ec__gm(Module):
             self.delete_instance('XSWP')
             self.delete_instance('XSWN')
             self.remove_pin('clk_sw')
-            self.remove_pin('VDD')
+            self.remove_pin('vddn')
         else:
             w = w_dict['sw']
             th = th_dict['sw']

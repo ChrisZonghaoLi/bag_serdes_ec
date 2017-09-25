@@ -1,6 +1,6 @@
 lib_name: bag_serdes_ec
 cell_name: gm
-pins: [ "VSS", "inn", "enable", "outn", "VDD", "clk_sw", "bias_casc", "outp", "bias_tail", "inp" ]
+pins: [ "vddn", "VSS", "inn", "enable", "outn", "clk_sw", "bias_casc", "outp", "bias_tail", "inp" ]
 instances:
   XINN:
     lib_name: BAG_prim
@@ -132,7 +132,7 @@ instances:
         num_bits: 1
       D:
         direction: inputOutput
-        net_name: "VDD"
+        net_name: "vddn"
         num_bits: 1
       B:
         direction: inputOutput
@@ -212,7 +212,7 @@ instances:
         num_bits: 1
       D:
         direction: inputOutput
-        net_name: "VDD"
+        net_name: "vddn"
         num_bits: 1
       B:
         direction: inputOutput
