@@ -348,6 +348,7 @@ class SerdesRXBase(with_metaclass(abc.ABCMeta, AnalogBase)):
         # type: (TemplateDB, str, Dict[str, Any], Set[str], **Any) -> None
         super(SerdesRXBase, self).__init__(temp_db, lib_name, params, used_names, **kwargs)
         self._nrow_idx = None
+        self._prow_idx = None
         self._serdes_info = None  # type: SerdesRXBaseInfo
 
     @property
@@ -371,11 +372,12 @@ class SerdesRXBase(with_metaclass(abc.ABCMeta, AnalogBase)):
         row_idx : int
             the row index.
         """
-        if name == 'load':
-            return 'pch', 0
-        if name not in self._nrow_idx:
-            raise ValueError('row %s not found.' % name)
-        return 'nch', self._nrow_idx.get[name]
+        if name in self._nrow_idx:
+            return 'nch', self._nrow_idx[name]
+        if name in self._prow_idx:
+            return 'pch', self._prow_idx[name]
+
+        raise ValueError('row %s not found.' % name)
 
     @staticmethod
     def _get_diff_names(name_base, is_diff, invert=False):
@@ -614,3 +616,81 @@ class SerdesRXBase(with_metaclass(abc.ABCMeta, AnalogBase)):
             self.connect_to_substrate('ntap', warr_dict['VDD'])
         # return result
         return result, amp_info
+
+    @staticmethod
+    def _draw_rows_helper(name_list, w_dict, th_dict, g_ntr_dict, ds_ntr_dict):
+        row_idx_lookup = {}
+        w_list, th_list, g_tracks, ds_tracks = [], [], [], []
+        cur_idx = 0
+        for name in name_list:
+            width = w_dict.get(name, 0)
+            if width > 0:
+                thres = th_dict[name]
+                row_idx_lookup[name] = cur_idx
+                w_list.append(width)
+                th_list.append(thres)
+                g_tracks.append(g_ntr_dict.get(name, 1))
+                ds_tracks.append(ds_ntr_dict.get(name, 1))
+                cur_idx += 1
+
+        return row_idx_lookup, w_list, th_list, g_tracks, ds_tracks
+
+    def draw_rows(self,
+                  lch,  # type: float
+                  fg_tot,  # type: int
+                  ptap_w,  # type: Union[float, int]
+                  ntap_w,  # type: Union[float, int]
+                  w_dict,  # type: Dict[str, Union[float, int]]
+                  th_dict,  # type: Dict[str, str]
+                  g_ntr_dict,  # type: Dict[str, int]
+                  ds_ntr_dict,  # type: Dict[str, int]
+                  **kwargs  # type: **kwargs
+                  ):
+        # type: (...) -> None
+        """Draw the transistors and substrate rows.
+
+        Parameters
+        ----------
+        lch : float
+            the transistor channel length, in meters
+        fg_tot : int
+            total number of fingers for each row.
+        ptap_w : Union[float, int]
+            pwell substrate contact width.
+        ntap_w : Union[float, int]
+            nwell substrate contact width.
+        w_dict : Dict[str, Union[float, int]]
+            dictionary from transistor type to row width.  Currently supported type names are
+            load, casc, in, sw, en, and tail.
+        th_dict : Dict[str, str]
+            dictionary from transistor type to threshold flavor.
+        g_ntr_dict : Dict[str, int]
+            dictionary from transistor type to number of gate tracks.
+        ds_ntr_dict : Dict[str, int]
+            dictionary from transistor type to number of drain/source tracks.
+        **kwargs
+            any addtional parameters for AnalogBase's draw_base() method.
+        """
+        # make SerdesRXBaseInfo
+        guard_ring_nf = kwargs.get('guard_ring_nf', 0)
+        top_layer = kwargs.get('top_layer', None)
+        end_mode = kwargs.get('end_mode', 15)
+        min_fg_sep = kwargs.get('min_fg_sep', 0)
+        self._serdes_info = SerdesRXBaseInfo(self.grid, lch, guard_ring_nf, top_layer=top_layer, end_mode=end_mode,
+                                             min_fg_sep=min_fg_sep, fg_tot=fg_tot)
+
+        # figure out row indices for each nmos row type,
+        # and build nw_list/nth_list/ng_tracks/nds_tracks
+        tmp_result = self._draw_rows_helper(['tail', 'en', 'sw', 'in', 'casc'], w_dict, th_dict,
+                                            g_ntr_dict, ds_ntr_dict)
+        self._nrow_idx, nw_list, nth_list, ng_tracks, nds_tracks = tmp_result
+        tmp_result = self._draw_rows_helper(['load'], w_dict, th_dict, g_ntr_dict, ds_ntr_dict)
+        self._prow_idx, pw_list, pth_list, pg_tracks, pds_tracks = tmp_result
+
+        n_orient = ['R0'] * len(nw_list)
+        p_orient = ['MX'] * len(pw_list)
+
+        # draw base
+        self.draw_base(lch, fg_tot, ptap_w, ntap_w, nw_list, nth_list, pw_list, pth_list,
+                       ng_tracks=ng_tracks, nds_tracks=nds_tracks, pg_tracks=pg_tracks, pds_tracks=pds_tracks,
+                       n_orentations=n_orient, p_orientation=p_orient, **kwargs)
