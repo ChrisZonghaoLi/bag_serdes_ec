@@ -45,7 +45,7 @@ if __name__ == '__main__':
 
     impl_lib = 'AAAFOO'
 
-    with open('test_specs/diffamp.yaml', 'r') as f:
+    with open('test_specs/diffamp_serdes.yaml', 'r') as f:
         block_specs = yaml.load(f)
 
     local_dict = locals()
