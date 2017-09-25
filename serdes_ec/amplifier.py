@@ -144,11 +144,15 @@ class DiffAmp(SerdesRXBase):
 
         hm_layer = self.mos_conn_layer + 1
         tr_manager = TrackManager(self.grid, tr_widths, tr_spaces)
-        g_ntr_dict, ds_ntr_dict = {}, {}
+        g_ntr_dict, ds_ntr_dict, tr_indices = {}, {}, {}
         for row_name, gtr_list, dtr_list in zip(row_names, gtr_lists, dtr_lists):
             num_gtr, _ = tr_manager.place_wires(hm_layer, gtr_list)
             if dtr_list:
-                num_dtr, _ = tr_manager.place_wires(hm_layer, dtr_list)
+                dtr_sp = tr_manager.get_space(hm_layer, dtr_list[0])
+                num_dtr, didx_list = tr_manager.place_wires(hm_layer, dtr_list, start_idx=dtr_sp)
+                for dtr_name, dtr_idx in zip(dtr_list, didx_list):
+                    tr_indices[dtr_name] = dtr_idx
+                num_dtr += 2 * dtr_sp
             else:
                 num_dtr = 1
 
@@ -160,7 +164,7 @@ class DiffAmp(SerdesRXBase):
 
         # draw diffamp
         amp_ports, _ = self.draw_diffamp(0, seg_dict, tr_widths=tr_widths, tr_spaces=tr_spaces,
-                                         fg_dum=fg_dum, flip_out_sd=flip_out_sd)
+                                         tr_indices=tr_indices, fg_dum=fg_dum, flip_out_sd=flip_out_sd)
 
         # add dummies and pins
         vss_warrs, vdd_warrs = self.fill_dummy()
