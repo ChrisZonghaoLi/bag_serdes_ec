@@ -140,24 +140,30 @@ class DiffAmp(SerdesRXBase):
         # construct number of tracks dictionary
         row_names = ['load', 'casc', 'in', 'sw', 'en', 'tail']
         gtr_lists = [['bias_load'], ['bias_casc'], ['inp', 'inn'], ['bias_sw'], ['enable'], ['bias_tail']]
-        dtr_lists = [['outp', 'outn'], ['midp'], ['tail'], ['vddn'], ['foot'], []]
+        dtr_lists = [['outp', 'outn'], ['midp'], [], ['vddn'], ['tail'], ['tail']]
+
+        # rename tail row drain net name if enable row exists
+        if w_dict.get('en', 0) > 0:
+            dtr_lists[-1][0] = 'foot'
 
         hm_layer = self.mos_conn_layer + 1
         tr_manager = TrackManager(self.grid, tr_widths, tr_spaces)
         g_ntr_dict, ds_ntr_dict, tr_indices = {}, {}, {}
         for row_name, gtr_list, dtr_list in zip(row_names, gtr_lists, dtr_lists):
-            num_gtr, _ = tr_manager.place_wires(hm_layer, gtr_list)
-            if dtr_list:
-                dtr_sp = tr_manager.get_space(hm_layer, dtr_list[0])
-                num_dtr, didx_list = tr_manager.place_wires(hm_layer, dtr_list, start_idx=dtr_sp)
-                for dtr_name, dtr_idx in zip(dtr_list, didx_list):
-                    tr_indices[dtr_name] = dtr_idx
-                num_dtr += 2 * dtr_sp
-            else:
-                num_dtr = 1
+            w_row = w_dict.get(row_name, 0)
+            if w_row > 0:
+                num_gtr, _ = tr_manager.place_wires(hm_layer, gtr_list)
+                if dtr_list:
+                    dtr_sp = tr_manager.get_space(hm_layer, dtr_list[0])
+                    num_dtr, didx_list = tr_manager.place_wires(hm_layer, dtr_list, start_idx=dtr_sp)
+                    for dtr_name, dtr_idx in zip(dtr_list, didx_list):
+                        tr_indices[dtr_name] = dtr_idx
+                    num_dtr += 2 * dtr_sp
+                else:
+                    num_dtr = 1
 
-            g_ntr_dict[row_name] = num_gtr
-            ds_ntr_dict[row_name] = num_dtr
+                g_ntr_dict[row_name] = num_gtr
+                ds_ntr_dict[row_name] = num_dtr
 
         # draw transistor rows
         self.draw_rows(lch, fg_tot, ptap_w, ntap_w, w_dict, th_dict, g_ntr_dict, ds_ntr_dict)

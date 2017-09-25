@@ -543,10 +543,14 @@ class SerdesRXBase(with_metaclass(abc.ABCMeta, AnalogBase)):
         tr_manager = TrackManager(self.grid, tr_widths, tr_spaces)
         nets = ['outp', 'outn', 'bias_load', 'midp', 'midn', 'bias_casc', 'tail', 'inp', 'inn', 'vddn', 'clk_sw',
                 'foot', 'enable', 'bias_tail']
-        rows = ['load', 'load', 'load',      'casc', 'casc', 'casc',      'in',   'in',  'in',  'sw',   'sw',
-                'en',   'en',     'tail']
+        rows = ['load', 'load', 'load',      'casc', 'casc', 'casc',      'tail', 'in',  'in',  'sw',   'sw',
+                'tail', 'en',     'tail']
         trns = ['ds', 'ds',     'g',         'ds',   'ds',   'g',         'ds',   'g',   'g',   'ds',   'g',
                 'ds',   'g',      'g']
+
+        # tail net should be connected on enable row if it exists
+        if 'enable' in warr_dict:
+            rows[6] = 'en'
 
         # compute default inp/inn/outp/outn indices.
         hm_layer = self.mos_conn_layer + 1
