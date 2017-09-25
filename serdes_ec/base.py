@@ -396,17 +396,14 @@ class SerdesRXBase(with_metaclass(abc.ABCMeta, AnalogBase)):
             warr_dict[name] = []
         warr_dict[name].append(warr)
 
-    def _draw_diffamp_mos(self, col_idx, seg_dict, tran_info, net_prefix):
-        # type: (int, Dict[str, int], Dict[str, Any], str) -> Dict[str, List[WireArray]]
+    def _draw_diffamp_mos(self, col_idx, seg_dict, tran_info, fg_single, fg_dum, fg_sep, net_prefix):
+        # type: (int, Dict[str, int], Dict[str, Any], int, int, int, str) -> Dict[str, List[WireArray]]
         tran_types = ['load', 'casc', 'in', 'sw', 'en', 'tail']
         gnames = ['bias_load', 'bias_casc', 'in', 'clk_sw', 'enable', 'bias_tail']
         g_diffs = [False, False, True, False, False, False]
         d_diffs = [True, True, True, False, False, False]
         s_diffs = [False, True, False, False, False, False]
 
-        fg_single = tran_info['fg_single']
-        fg_dum = tran_info['fg_dum']
-        fg_sep = tran_info['fg_sep']
         col_l = col_idx + fg_dum + fg_single
         col_r = col_l + fg_sep
 
@@ -493,7 +490,7 @@ class SerdesRXBase(with_metaclass(abc.ABCMeta, AnalogBase)):
         tran_info = amp_info['tran_info']
 
         # draw main transistors and collect ports
-        warr_dict = self._draw_diffamp_mos(col_idx, seg_dict, tran_info, net_prefix)
+        warr_dict = self._draw_diffamp_mos(col_idx, seg_dict, tran_info, fg_single, fg_dum, fg_sep, net_prefix)
 
         # draw load/tail reference transistor
         for tran_name, mos_type, sup_name in (('tail', 'nch', 'VSS'), ('load', 'pch', 'VDD')):
