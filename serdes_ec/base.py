@@ -694,4 +694,4 @@ class SerdesRXBase(with_metaclass(abc.ABCMeta, AnalogBase)):
         # draw base
         self.draw_base(lch, fg_tot, ptap_w, ntap_w, nw_list, nth_list, pw_list, pth_list,
                        ng_tracks=ng_tracks, nds_tracks=nds_tracks, pg_tracks=pg_tracks, pds_tracks=pds_tracks,
-                       n_orentations=n_orient, p_orientation=p_orient, **kwargs)
+                       n_orientations=n_orient, p_orientations=p_orient, **kwargs)
