@@ -166,7 +166,8 @@ class DiffAmp(SerdesRXBase):
                 ds_ntr_dict[row_name] = num_dtr
 
         # draw transistor rows
-        self.draw_rows(lch, fg_tot, ptap_w, ntap_w, w_dict, th_dict, g_ntr_dict, ds_ntr_dict)
+        self.draw_rows(lch, fg_tot, ptap_w, ntap_w, w_dict, th_dict, g_ntr_dict, ds_ntr_dict,
+                       guard_ring_nf=guard_ring_nf)
 
         # draw diffamp
         amp_ports, _ = self.draw_diffamp(0, seg_dict, tr_widths=tr_widths, tr_spaces=tr_spaces,
