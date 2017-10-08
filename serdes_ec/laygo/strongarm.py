@@ -369,8 +369,8 @@ class StrongArmLatch(LaygoBase):
 
         # connect inputs
         in_tid = self.make_track_id(2, 'g', loc_g_in[0], width=tr_w_in)
-        inp_warr = self.connect_to_tracks(inp.get_all_port_pins('g'), in_tid)
-        inn_warr = self.connect_to_tracks(inn.get_all_port_pins('g'), in_tid)
+        inp_warr = self.connect_to_tracks(inp.get_all_port_pins('g'), in_tid, min_len_mode=0)
+        inn_warr = self.connect_to_tracks(inn.get_all_port_pins('g'), in_tid, min_len_mode=0)
         self.add_pin('inp', inp_warr, show=show_pins)
         self.add_pin('inn', inn_warr, show=show_pins)
 
@@ -432,7 +432,7 @@ class StrongArmLatch(LaygoBase):
             drain_vdd.extend(inst.get_all_port_pins('d'))
             drain_vdd.extend(inst.get_all_port_pins('g'))
         source_vdd_tid = self.make_track_id(5, 'ds', loc_ds_sub[0], width=tr_w_sup)
-        drain_vdd_tid = self.make_track_id(5, 'ds', loc_ds_sub[0], width=tr_w_sup)
+        drain_vdd_tid = self.make_track_id(5, 'ds', loc_ds_sub[1], width=tr_w_sup)
         source_vdd_warrs = self.connect_to_tracks(source_vdd, source_vdd_tid)
         drain_vdd_warrs = self.connect_to_tracks(drain_vdd, drain_vdd_tid)
         self.add_pin('VDD', source_vdd_warrs, show=show_pins)
@@ -444,8 +444,8 @@ class StrongArmLatch(LaygoBase):
         nand_gtr_id = self.get_track_index(4, 'g', loc_g_invp2[0])
         nand_gbr_tid = self.make_track_id(4, 'g', loc_g_invp2[1], width=tr_w_nand)
         nand_nmos_out_tid = self.make_track_id(3, 'gb', (tr_w_nand - 1) // 2, width=tr_w_nand)
-        nand_outnl = self.connect_to_tracks(nandnl['d'], nand_nmos_out_tid, min_len_mode=1)
-        nand_outnr = self.connect_to_tracks(nandnr['d'], nand_nmos_out_tid, min_len_mode=1)
+        nand_outnl = self.connect_to_tracks(nandnl['d'], nand_nmos_out_tid, min_len_mode=0)
+        nand_outnr = self.connect_to_tracks(nandnr['d'], nand_nmos_out_tid, min_len_mode=0)
 
         nand_gtl = nandnl['gt'] + nandpl['gt']
         nand_gtl.extend(nandpr['d'])
@@ -467,8 +467,8 @@ class StrongArmLatch(LaygoBase):
         nand_outl, nand_outr = self.connect_differential_tracks(nand_outpl, nand_outpr, ym_layer,
                                                                 nand_outl_id, nand_outr_id, track_upper=out_upper,
                                                                 width=tr_w_nand_y, unit_mode=True)
-        self.connect_to_tracks(nand_outnl, nand_outl.track_id)
-        self.connect_to_tracks(nand_outnr, nand_outr.track_id)
+        nand_outl = self.connect_to_tracks(nand_outnl, nand_outl.track_id, track_upper=out_upper, unit_mode=True)
+        nand_outr = self.connect_to_tracks(nand_outnr, nand_outr.track_id, track_upper=out_upper, unit_mode=True)
 
         self.add_pin('outp', nand_outl, show=show_pins)
         self.add_pin('outn', nand_outr, show=show_pins)
@@ -503,11 +503,13 @@ class StrongArmLatch(LaygoBase):
 
         xm_layer = ym_layer + 1
         om_idx = self.grid.coord_to_nearest_track(xm_layer, outp1.middle, half_track=True)
-        sp_out_xm = tr_manager.get_space(xm_layer, ('out', 'out'))
+        _, loc_xm_out = tr_manager.place_wires(xm_layer, ['out', 'out'])
+        out_mid_idx = (loc_xm_out[0] + loc_xm_out[1]) / 2
+        outp_idx = loc_xm_out[1] + om_idx - out_mid_idx
+        outn_idx = loc_xm_out[0] + om_idx - out_mid_idx
         tr_w_out_xm = tr_manager.get_width(xm_layer, 'out')
         outp, outn = self.connect_differential_tracks([outp1, outp2], [outn1, outn2], xm_layer,
-                                                      om_idx + sp_out_xm / 2, om_idx - sp_out_xm / 2,
-                                                      width=tr_w_out_xm)
+                                                      outp_idx, outn_idx, width=tr_w_out_xm)
         self.add_pin('midp', outp, show=show_pins)
         self.add_pin('midn', outn, show=show_pins)
         self.connect_differential_tracks(outn, outp, ym_layer, nand_inn_tid, nand_inp_tid, width=tr_w_nand_y)
