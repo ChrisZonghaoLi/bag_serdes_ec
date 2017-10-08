@@ -33,7 +33,10 @@ from abs_templates_ec.laygo.core import LaygoBase
 
 
 class StrongArmLatch(LaygoBase):
-    """A StrongArm latch
+    """A StrongArm latch with simple cross-couple NAND gate as SR latch`12.
+
+    This design has no bridge switch, since we do not expect input to flip parity frequently
+    during evaluation period.
 
     Parameters
     ----------
@@ -143,7 +146,7 @@ class StrongArmLatch(LaygoBase):
             laygo_info.set_num_col(tot_latch_blk + tot_nand_blk)
 
             # compute ym wire indices
-            x_latch_mid = laygo_info.col_to_coord(coln + num_nblk, 'd', unit_mode=True)
+            x_latch_mid = laygo_info.col_to_coord(coln + num_nblk + 1, 'd', unit_mode=True)
             clk_idx = self.grid.coord_to_nearest_track(ym_layer, x_latch_mid, half_track=True,
                                                        mode=1, unit_mode=True)
 
