@@ -175,53 +175,42 @@ class StrongArmLatch(LaygoBase):
         col_in = n_dum + n_single - n_in
         col_tail = n_dum + n_single - n_tail
 
-        if n_invn % 2 == 1:
-            outp_ds_type = 'd'
-            outp_mid_col = col_invn + (n_invn - 1) // 2
+        # find space between latch and nand gates from wire placement
+        # step 1: find relative track index of clock
+        if n_sep % 2 == 1:
+            clk_col_type = n_dum + n_single + (n_sep - 1) // 2, 'd'
         else:
-            outp_ds_type = 's'
-            outp_mid_col = n_invn + n_invn // 2
-
-        # iterate to find total number of nand blocks
+            clk_col_type = n_dum + n_single + n_sep // 2, 's'
+        clk_ridx = laygo_info.col_to_nearest_rel_track(ym_layer, clk_col_type[0], clk_col_type[1], half_track=True)
+        # step 2: find relative track index of outp
+        if n_invn % 2 == 1:
+            op_col_type = col_invn + (n_invn - 1) // 2, 'd'
+        else:
+            op_col_type = col_invn + n_invn // 2, 's'
+        op_ridx = laygo_info.col_to_nearest_rel_track(ym_layer, op_col_type[0], op_col_type[1], half_track=True)
+        # make sure spacing between outp and clk is satisfied.
+        _, loc_op_clk = tr_manager.place_wires(ym_layer, ['out', 'clk'])
+        op_ridx = min(op_ridx, clk_ridx - loc_op_clk[-1] + loc_op_clk[0])
+        # step 3: find NAND outp relative track index
         num_ym_tracks, loc_ym = tr_manager.place_wires(ym_layer, ['out', 'out', 'mid', 'nand', 'nand'])
-
-        n_nand_prev = -1
-        n_nand_tot = 0
-        n_sp = 0
-        clk_idx, op_idx, on_idx = -1, -1, -1
-        while n_nand_tot != n_nand_prev:
-            n_nand_prev = n_nand_tot
-            laygo_info.set_num_col(n_latch + n_nand_tot)
-
-            # compute ym wire indices
-            if n_sep % 2 == 1:
-                x_latch_mid = laygo_info.col_to_coord(n_dum + n_single + (n_sep + 1) // 2, 'd', unit_mode=True)
-            else:
-                x_latch_mid = laygo_info.col_to_coord(n_dum + n_single + n_sep // 2, 's', unit_mode=True)
-
-            clk_idx = self.grid.coord_to_nearest_track(ym_layer, x_latch_mid, half_track=True,
-                                                       mode=1, unit_mode=True)
-
-            # compute NAND gate location
-            x_outp_mid = laygo_info.col_to_coord(outp_mid_col, outp_ds_type, unit_mode=True)
-            op_idx = self.grid.coord_to_nearest_track(ym_layer, x_outp_mid, half_track=True,
-                                                      mode=1, unit_mode=True)
-            op_idx = min(op_idx, clk_idx - tr_manager.get_space(ym_layer, ('clk', 'out')))
-            on_idx = clk_idx + (clk_idx - op_idx)
-            nand_op_idx = on_idx + loc_ym[-1] - loc_ym[0]
-            nand_op_x = self.grid.track_to_coord(ym_layer, nand_op_idx, unit_mode=True)
-            # based on nand outp track index, compute nand gate column index.
-            col_nand, _ = laygo_info.coord_to_nearest_col(nand_op_x, ds_type='d', mode=1, unit_mode=True)
-
-            n_sp = col_nand - n_latch - n_nand // 2
-            n_nand_tot = n_sp + 2 * n_nand + n_nand_sp
-
+        on_ridx = clk_ridx + (clk_ridx - op_ridx)
+        nand_op_ridx = on_ridx + loc_ym[-1] - loc_ym[0]
+        # step 4: find left NAND gate column index, then compute number of space columns
+        col_nand, _ = laygo_info.rel_track_to_nearest_col(ym_layer, nand_op_ridx, ds_type='d', mode=1)
+        n_sp = max(col_nand - n_latch - n_nand // 2, 1)
+        n_nand_tot = n_sp + 2 * n_nand + n_nand_sp
         n_tot = n_latch + n_nand_tot
 
         # specify row types
         self.set_row_types(row_list, w_list, orient_list, thres_list, draw_boundaries, end_mode,
                            num_g_tracks, num_gb_tracks, num_ds_tracks, guard_ring_nf=0,
                            top_layer=top_layer, row_kwargs=row_kwargs, num_col=n_tot)
+
+        # calculate clk/outp/outn vertical track indices
+        clk_idx = laygo_info.col_to_track(ym_layer, clk_col_type[0], clk_col_type[1])
+        op_idx = laygo_info.col_to_track(ym_layer, op_col_type[0], op_col_type[1])
+        op_idx = min(op_idx, clk_idx - loc_op_clk[-1] + loc_op_clk[0])
+        on_idx = clk_idx + (clk_idx - op_idx)
 
         # add blocks
         ndum_list, pdum_list = [], []
