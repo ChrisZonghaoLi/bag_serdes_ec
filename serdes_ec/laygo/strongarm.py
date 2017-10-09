@@ -164,8 +164,12 @@ class StrongArmLatch(LaygoBase):
         # determine number of blocks
         laygo_info = self.laygo_info
         ym_layer = hm_layer + 1
+        # determine number of separation blocks needed for mid reset wires to be DRC clean
+        m1_w = self.grid.get_track_width(hm_layer - 1, 1, unit_mode=True)  # type: int
+        mid_via_ext = self.grid.get_via_extensions(hm_layer - 1, 1, tr_w_mid, unit_mode=True)[1]  # type: int
+        mid_sp_le = self.grid.get_line_end_space(hm_layer, tr_w_mid, unit_mode=True)  # type: int
+        n_sep = -(-(m1_w + mid_via_ext * 2 + mid_sp_le) // laygo_info.col_width)
         # determine total number of latch blocks
-        n_sep = 1
         n_ptot = n_invp + 2 * n_rst
         n_ntot = max(n_invn, n_in, n_tail)
         n_single = max(n_ptot, n_ntot)
@@ -370,12 +374,10 @@ class StrongArmLatch(LaygoBase):
         # connect nmos mid
         nmidp = inn.get_all_port_pins('s') + invn_outp.get_all_port_pins('s')
         nmidn = inp.get_all_port_pins('s') + invn_outn.get_all_port_pins('s')
-        nmidp = self.connect_wires(nmidp)[0].to_warr_list()
-        nmidn = self.connect_wires(nmidn)[0].to_warr_list()
-        # TODO: fix this part
-        # exclude last wire to avoid horizontal line-end DRC error.
-        nmidp = self.connect_to_tracks(nmidp[:-1], mid_tid)
-        nmidn = self.connect_to_tracks(nmidn[1:], mid_tid)
+        nmidp = self.connect_wires(nmidp)
+        nmidn = self.connect_wires(nmidn)
+        nmidp = self.connect_to_tracks(nmidp, mid_tid)
+        nmidn = self.connect_to_tracks(nmidn, mid_tid)
 
         # connect pmos mid
         mid_tid = self.make_track_id(4, 'gb', loc_gb_invp[1], width=tr_w_mid)
@@ -383,8 +385,8 @@ class StrongArmLatch(LaygoBase):
         pmidn = self.connect_to_tracks(rst_midn.get_all_port_pins('d'), mid_tid, min_len_mode=1)
 
         # connect nmos output
-        noutp = self.connect_to_tracks(invn_outp.get_all_port_pins('d'), nout_tid)
-        noutn = self.connect_to_tracks(invn_outn.get_all_port_pins('d'), nout_tid)
+        noutp = self.connect_to_tracks(invn_outp.get_all_port_pins('d'), nout_tid, min_len_mode=0)
+        noutn = self.connect_to_tracks(invn_outn.get_all_port_pins('d'), nout_tid, min_len_mode=0)
 
         # connect pmos output
         pout_tid = self.make_track_id(4, 'gb', loc_gb_invp[0], width=tr_w_mid)
