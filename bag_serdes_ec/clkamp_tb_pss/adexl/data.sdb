@@ -1,0 +1,105 @@
+<?xml version="1.0"?>
+<setupdb version="5">data
+	<active>Active Setup
+		<corners>
+			<corner enabled="1">_default</corner>
+		</corners>
+		<extensions>
+			<extension>Parasitics
+				<callback>_parSetupDBExtensionCB</callback>
+				<iconvalue></iconvalue>
+				<icontype></icontype>
+			</extension>
+		</extensions>
+		<currentmode>Single Run, Sweeps and Corners</currentmode>
+		<overwritehistory>0</overwritehistory>
+		<tests>
+			<test>tb_pss
+				<tool>ADE</tool>
+				<tooloptions>
+					<option>cell
+						<value>clkamp_tb_pss</value>
+					</option>
+					<option>lib
+						<value>bag_serdes_ec</value>
+					</option>
+					<option>sim
+						<value>spectre</value>
+					</option>
+					<option>view
+						<value>schematic</value>
+					</option>
+					<option>path
+						<value>$AXL_SETUPDB_DIR/test_states</value>
+					</option>
+					<option>state
+						<value>tb_pss_active</value>
+					</option>
+				</tooloptions>
+				<origoptions>
+					<option>cell
+						<value>clkamp_tb_pss</value>
+					</option>
+					<option>lib
+						<value>bag_serdes_ec</value>
+					</option>
+					<option>sim
+						<value>spectre</value>
+					</option>
+					<option>view
+						<value>schematic</value>
+					</option>
+				</origoptions>
+			</test>
+		</tests>
+		<vars>
+			<var>cload
+				<value>1f</value>
+				<dependentTests>
+					<dependentTest omitted="0">tb_pss</dependentTest>
+				</dependentTests>
+			</var>
+			<var>ibias
+				<value>1u</value>
+				<dependentTests>
+					<dependentTest omitted="0">tb_pss</dependentTest>
+				</dependentTests>
+			</var>
+			<var>vdd
+				<value>1</value>
+				<dependentTests>
+					<dependentTest omitted="0">tb_pss</dependentTest>
+				</dependentTests>
+			</var>
+			<var>vinac
+				<value>0.1</value>
+				<dependentTests>
+					<dependentTest omitted="0">tb_pss</dependentTest>
+				</dependentTests>
+			</var>
+			<var>vindc
+				<value>0.1</value>
+				<dependentTests>
+					<dependentTest omitted="0">tb_pss</dependentTest>
+				</dependentTests>
+			</var>
+			<var>tper
+				<value></value>
+				<dependentTests></dependentTests>
+			</var>
+			<var>nharm
+				<value>100</value>
+				<dependentTests>
+					<dependentTest omitted="0">tb_pss</dependentTest>
+				</dependentTests>
+			</var>
+			<var>tper_pss
+				<value>1n</value>
+				<dependentTests>
+					<dependentTest omitted="0">tb_pss</dependentTest>
+				</dependentTests>
+			</var>
+		</vars>
+	</active>
+	<history>History</history>
+</setupdb>
