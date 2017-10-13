@@ -29,13 +29,12 @@ from __future__ import (absolute_import, division,
                         print_function, unicode_literals)
 # noinspection PyUnresolvedReferences,PyCompatibility
 from builtins import *
-
 from typing import Dict, Any, Set
 
 from bag.layout.routing import TrackManager
 from bag.layout.template import TemplateDB
 
-from .base import SerdesRXBase, SerdesRXBaseInfo
+from serdes_ec.layout.analog.base import SerdesRXBase, SerdesRXBaseInfo
 
 
 class DiffAmp(SerdesRXBase):

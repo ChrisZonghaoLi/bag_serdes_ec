@@ -6,7 +6,7 @@ from bag import float_to_si_string
 from bag.core import BagProject
 from bag.layout import RoutingGrid, TemplateDB
 
-from serdes_ec.amplifier import DiffAmp
+from serdes_ec.layout.analog.amplifier import DiffAmp
 
 
 def make_tdb(prj, target_lib, specs):

@@ -5,7 +5,7 @@ import yaml
 from bag.core import BagProject
 from bag.layout import RoutingGrid, TemplateDB
 
-from serdes_ec.laygo.strongarm import StrongArmLatch
+from serdes_ec.layout.laygo import StrongArmLatch
 
 
 def make_tdb(prj, target_lib, specs):
