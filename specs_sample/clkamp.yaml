@@ -1,0 +1,79 @@
+impl_lib: 'AAAFOO_CLKAMP'
+dut_lib: 'bag_serdes_ec'
+dut_cell: 'diffamp'
+layout_package: 'serdes_ec.layout.analog.amplifier'
+layout_class: 'DiffAmp'
+sweep_params: {lch: [!!float 20e-9, ]}
+dsn_name_base: 'CLKAMP'
+sim_envs: ['tt', ]
+routing_grid:
+  layers: [4, 5, 6, 7]
+  spaces: [0.100, 0.100, 0.100, 0.100]
+  widths: [0.100, 0.100, 0.100, 0.100]
+  bot_dir: 'x'
+
+rcx_params: {}
+root_dir: 'data/clkamp'
+
+layout_params:
+  lch: !!float 20e-9
+  ptap_w: 6
+  ntap_w: 6
+  w_dict: {in: 4, load: 4, sw: 4, tail: 4}
+  th_dict: {in: standard, load: standard, sw: standard, tail: standard}
+  seg_dict: {in: 4, load: 4, sw: 4, tail: 4}
+  fg_dum: 4
+  flip_out_sd: False
+  guard_ring_nf: 0
+  top_layer: !!null
+  show_pins: True
+  tr_widths:
+    bias: {4: 1}
+    out: {4: 1}
+    in: {4: 1}
+    tail: {4: 1}
+  tr_spaces:
+    bias: {4: 0}
+    out: {4: 1}
+    in: {4: 1}
+    tail: {4: 0}
+
+wrapper_cell: 'diffamp_wrapper_dm'
+wrapper_params:
+  cload: !!float 10e-15
+
+view_name: 'av_extracted'
+
+tb_dc:
+  tb_lib: 'bag_serdes_ec'
+  tb_cell: 'clkamp_tb_pss'
+  tb_name_base: 'TB_PSS'
+  sch_params:
+    dut_conns:
+      inac: 'vin'
+      indc: 'indc'
+      voutcm: 'voutcm'
+      ibias: 'ibias'
+      outac: 'vout'
+      outdc: 'outdc'
+      midac: 'midac'
+      middc: 'middc'
+
+    vbias_dict:
+      vindc: ['indc', 'VSS', 'vindc']
+      voutcm: ['voutcm', 'VSS', 'voutcm']
+
+    ibias_dict:
+      ibias: ['ibias', 'VSS', 'ibias']
+
+  tb_params:
+    vimax: !!float 0.9
+    vimin: !!float -0.9
+    vindc: !!float 0.45
+    voutcm: !!float 0.45
+    ibias: !!float 300e-9
+    vdd: !!float 0.9
+    voutref: !!float 0.45
+    vout_start: !!float -0.75
+    vout_stop: !!float 0.75
+    vout_num: 100
