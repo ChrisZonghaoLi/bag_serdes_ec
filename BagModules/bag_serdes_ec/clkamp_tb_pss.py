@@ -30,6 +30,7 @@ from builtins import *
 import os
 import pkg_resources
 
+from bag import float_to_si_string
 from bag.design import Module
 
 
@@ -43,14 +44,16 @@ class bag_serdes_ec__clkamp_tb_pss(Module):
     Fill in high level description here.
     """
 
-    param_list = []
+    param_list = ['dut_lib', 'dut_cell', 'dut_conns', 'vbias_dict', 'ibias_dict',
+                  'tran_fname', 'clk_params_list', 'no_cload']
 
     def __init__(self, bag_config, parent=None, prj=None, **kwargs):
         Module.__init__(self, bag_config, yaml_file, parent=parent, prj=prj, **kwargs)
         for par in self.param_list:
             self.parameters[par] = None
 
-    def design(self):
+    def design(self, dut_lib='', dut_cell='', dut_conns=None, vbias_dict=None, ibias_dict=None,
+               tran_fname='', clk_params_list=None, no_cload=False):
         """To be overridden by subclasses to design this module.
 
         This method should fill in values for all parameters in
@@ -66,8 +69,51 @@ class bag_serdes_ec__clkamp_tb_pss(Module):
         restore_instance()
         array_instance()
         """
+        # initialization and error checking
+        if vbias_dict is None:
+            vbias_dict = {}
+        if ibias_dict is None:
+            ibias_dict = {}
+        if dut_conns is None:
+            dut_conns = {}
+        if not clk_params_list:
+            raise ValueError('clk parameters not specified.')
+
         local_dict = locals()
         for name in self.param_list:
             if name not in local_dict:
                 raise ValueError('Parameter %s not specified.' % name)
             self.parameters[name] = local_dict[name]
+
+        # setup bias sources
+        self.design_dc_bias_sources(vbias_dict, ibias_dict, 'VSUP', 'IBIAS', define_vdd=True)
+
+        # setup pwl source
+        self.instances['VIN'].parameters['fileName'] = tran_fname
+
+        # delete load cap if needed
+        if no_cload:
+            self.delete_instance('CLOAD')
+
+        # setup DUT
+        self.replace_instance_master('XDUT', dut_lib, dut_cell, static=True)
+        for term_name, net_name in dut_conns.items():
+            self.reconnect_instance_terminal('XDUT', term_name, net_name)
+
+        # setup clocks
+        ck_inst = 'VCK'
+        num_clk = len(clk_params_list)
+        name_list = [clk_params['name'] for clk_params in clk_params_list]
+        self.array_instance(ck_inst, name_list)
+        for idx, clk_params in enumerate(clk_params_list):
+            if 'master' in clk_params:
+                vck_lib, vck_cell = clk_params['master']
+                self.replace_instance_master(ck_inst, vck_lib, vck_cell, static=True, index=idx)
+            for key, val in clk_params['params'].items():
+                if isinstance(val, str):
+                    pass
+                elif isinstance(val, int) or isinstance(val, float):
+                    val = float_to_si_string(val)
+                else:
+                    raise ValueError('value %s of type %s not supported' % (val, type(val)))
+                self.instances[ck_inst][idx].parameters[key] = val
