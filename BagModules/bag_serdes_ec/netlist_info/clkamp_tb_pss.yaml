@@ -82,25 +82,13 @@ instances:
         direction: inputOutput
         net_name: "vout"
         num_bits: 1
-  VCKN:
+  VCK:
     lib_name: analogLib
     cell_name: vpulse
     instpins:
       PLUS:
         direction: inputOutput
-        net_name: "clkn"
-        num_bits: 1
-      MINUS:
-        direction: inputOutput
-        net_name: "VSS"
-        num_bits: 1
-  VCKP:
-    lib_name: analogLib
-    cell_name: vpulse
-    instpins:
-      PLUS:
-        direction: inputOutput
-        net_name: "clkp"
+        net_name: "clk"
         num_bits: 1
       MINUS:
         direction: inputOutput
@@ -110,13 +98,9 @@ instances:
     lib_name: bag_serdes_ec
     cell_name: clkamp_model
     instpins:
-      clkn:
+      clk:
         direction: input
-        net_name: "clkn"
-        num_bits: 1
-      clkp:
-        direction: input
-        net_name: "clkp"
+        net_name: "clk"
         num_bits: 1
       VSS:
         direction: inputOutput

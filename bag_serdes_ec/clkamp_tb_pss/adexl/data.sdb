@@ -71,21 +71,11 @@
 					<dependentTest omitted="0">tb_pss</dependentTest>
 				</dependentTests>
 			</var>
-			<var>vinac
-				<value>0.1</value>
-				<dependentTests>
-					<dependentTest omitted="0">tb_pss</dependentTest>
-				</dependentTests>
-			</var>
 			<var>vindc
 				<value>0.1</value>
 				<dependentTests>
 					<dependentTest omitted="0">tb_pss</dependentTest>
 				</dependentTests>
-			</var>
-			<var>tper
-				<value></value>
-				<dependentTests></dependentTests>
 			</var>
 			<var>nharm
 				<value>100</value>

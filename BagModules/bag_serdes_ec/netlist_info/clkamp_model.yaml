@@ -1,6 +1,6 @@
 lib_name: bag_serdes_ec
 cell_name: clkamp_model
-pins: [ "VDD", "VSS", "vin", "vout", "ibias", "clkn", "clkp" ]
+pins: [ "VDD", "VSS", "vin", "vout", "ibias", "clk" ]
 instances:
   PIN1:
     lib_name: basic
@@ -9,10 +9,6 @@ instances:
   PIN0:
     lib_name: basic
     cell_name: iopin
-    instpins: {}
-  PIN6:
-    lib_name: basic
-    cell_name: ipin
     instpins: {}
   PIN5:
     lib_name: basic
