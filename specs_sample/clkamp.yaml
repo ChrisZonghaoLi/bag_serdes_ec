@@ -38,9 +38,9 @@ layout_params:
     in: {4: 1}
     tail: {4: 0}
 
-wrapper_cell: 'diffamp_wrapper_dm'
-wrapper_params:
-  cload: !!float 10e-15
+wrapper_lib: 'bag_testbenches_ec'
+wrapper_cell: 'dut_wrapper_dm'
+wrapper_params: {}
 
 view_name: 'av_extracted'
 
