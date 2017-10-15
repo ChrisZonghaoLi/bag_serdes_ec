@@ -5,15 +5,11 @@ layout_package: 'serdes_ec.layout.analog.amplifier'
 layout_class: 'DiffAmp'
 sweep_params: {lch: [!!float 20e-9, ]}
 dsn_name_base: 'CLKAMP'
-sim_envs: ['tt', ]
 routing_grid:
   layers: [4, 5, 6, 7]
   spaces: [0.100, 0.100, 0.100, 0.100]
   widths: [0.100, 0.100, 0.100, 0.100]
   bot_dir: 'x'
-
-rcx_params: {}
-root_dir: 'data/clkamp'
 
 layout_params:
   lch: !!float 20e-9
@@ -40,40 +36,99 @@ layout_params:
 
 wrapper_lib: 'bag_testbenches_ec'
 wrapper_cell: 'dut_wrapper_dm'
-wrapper_params: {}
+wrapper_params:
+  balun_list:
+    - !!python/tuple ['inac', 'indc', 'inp', 'inn']
+    - !!python/tuple ['outac', 'outdc', 'outp', 'outn']
+  pin_list:
+    - !!python/tuple ['vddn', 'inputOutput']
+    - !!python/tuple ['inac', 'input']
+    - !!python/tuple ['indc', 'input']
+    - !!python/tuple ['bias_load', 'input']
+    - !!python/tuple ['bias_tail', 'input']
+    - !!python/tuple ['clk_sw', 'input']
+    - !!python/tuple ['outac', 'output']
+    - !!python/tuple ['outdc', 'output']
+  dut_conns:
+    vddn: vddn
+    inp: inp
+    inn: inn
+    bias_load: bias_load
+    bias_tail: bias_tail
+    clk_sw: clk_sw
+    outp: outp
+    outn: outn
 
+sim_envs: ['tt', ]
 view_name: 'av_extracted'
+rcx_params: {}
+root_dir: 'data/clkamp'
 
-tb_dc:
+tb_pss:
   tb_lib: 'bag_serdes_ec'
   tb_cell: 'clkamp_tb_pss'
   tb_name_base: 'TB_PSS'
   sch_params:
     dut_conns:
+      vddn: 'VDD'
       inac: 'vin'
-      indc: 'indc'
-      voutcm: 'voutcm'
-      ibias: 'ibias'
+      indc: 'vincm'
+      bias_load: 'clkn_load'
+      bias_tail: 'clkp_tail'
+      clk_sw: 'clkn_sw'
       outac: 'vout'
-      outdc: 'outdc'
-      midac: 'midac'
-      middc: 'middc'
-
+      outdc: 'voutcm'
     vbias_dict:
-      vindc: ['indc', 'VSS', 'vindc']
-      voutcm: ['voutcm', 'VSS', 'voutcm']
-
-    ibias_dict:
-      ibias: ['ibias', 'VSS', 'ibias']
+      vindc: ['vincm', 'VSS', 'vincm']
+    ibias_dict: {}
+    tran_fname: 'stimuli/pwl_data.txt'
+    clk_params_list:
+      - name: 'CKLOAD'
+        conns:
+          PLUS: 'clkn_load'
+          MINUS: 'VSS'
+        params:
+          v1: 'vload + vamp / 2'
+          v2: 'vload - vamp / 2'
+          per: 'tper_pss'
+          td: 'tper_pss / 2 - tr / 2'
+          tr: 'tr'
+          tf: 'tr'
+          pw: 'tper_pss / 2 - tr'
+      - name: 'CKSW'
+        conns:
+          PLUS: 'clkn_sw'
+          MINUS: 'VSS'
+        params:
+          v1: 'vsw + vamp / 2'
+          v2: 'vsw - vamp / 2'
+          per: 'tper_pss'
+          td: 'tper_pss / 2 - tr / 2'
+          tr: 'tr'
+          tf: 'tr'
+          pw: 'tper_pss / 2 - tr'
+      - name: 'CKTAIL'
+        conns:
+          PLUS: 'clkp_tail'
+          MINUS: 'VSS'
+        params:
+          v1: 'vtail - vamp / 2'
+          v2: 'vtail + vamp / 2'
+          per: 'tper_pss'
+          td: 'tper_pss / 2 - tr / 2'
+          tr: 'tr'
+          tf: 'tr'
+          pw: 'tper_pss / 2 - tr'
 
   tb_params:
-    vimax: !!float 0.9
-    vimin: !!float -0.9
-    vindc: !!float 0.45
-    voutcm: !!float 0.45
-    ibias: !!float 300e-9
-    vdd: !!float 0.9
-    voutref: !!float 0.45
-    vout_start: !!float -0.75
-    vout_stop: !!float 0.75
-    vout_num: 100
+    nharm: 100
+    cload: !!float 1.0e-15
+    tper_pss: !!float 100e-12
+    tr: !!float 10e-12
+    vdd: !!float 1.0
+    vindc: !!float 0.0
+    vamp: !!float 0.5
+    vincm:  !!float 0.7
+    vload: !!float 0.7
+    vsw:  !!float 0.5
+    vtail: !!float 0.3

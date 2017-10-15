@@ -23,7 +23,7 @@
 ########################################################################################################################
 
 
-from typing import TYPE_CHECKING, Optional, Tuple, Any, Dict
+from typing import TYPE_CHECKING, Optional, Tuple, Any
 
 from bag.tech.core import SimulationManager
 
@@ -35,24 +35,6 @@ class ClkAmpChar(SimulationManager):
     def __init__(self, prj, spec_file):
         # type: (Optional[BagProject], str) -> None
         super(ClkAmpChar, self).__init__(prj, spec_file)
-        combo_list = list(self.get_combinations_iter())
-
-        if len(combo_list) != 1:
-            raise ValueError('This characterization class does not support sweeping design parameters.')
-
-        self._val_list = combo_list[0]
-
-    def get_layout_params(self, val_list):
-        # type: (Tuple[Any, ...]) -> Dict[str, Any]
-        lay_params = self.specs['layout_params'].copy()
-        for var, val in zip(self.swp_var_list, val_list):
-            lay_params[var] = val
-
-        return lay_params
-
-    def get_tb_sch_params(self, tb_type, val_list):
-        # type: (str, Tuple[Any, ...]) -> Dict[str, Any]
-        return self.specs[tb_type]['sch_params']
 
     def configure_tb(self, tb_type, tb, val_list):
         # type: (str, Testbench, Tuple[Any, ...]) -> None
@@ -61,7 +43,6 @@ class ClkAmpChar(SimulationManager):
         view_name = self.specs['view_name']
         impl_lib = self.specs['impl_lib']
         dsn_name_base = self.specs['dsn_name_base']
-        tb_params_real = self.specs['feedback_params'].copy()
 
         tb_params = tb_specs['tb_params']
         dsn_name = self.get_instance_name(dsn_name_base, val_list)
@@ -69,8 +50,7 @@ class ClkAmpChar(SimulationManager):
         tb.set_simulation_environments(sim_envs)
         tb.set_simulation_view(impl_lib, dsn_name, view_name)
 
-        tb_params_real.update(tb_params)
-        for key, val in tb_params_real.items():
+        for key, val in tb_params.items():
             if isinstance(val, list):
                 tb.set_sweep_parameter(key, values=val)
             else:

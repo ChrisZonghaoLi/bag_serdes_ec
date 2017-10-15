@@ -41,7 +41,7 @@ yaml_file = pkg_resources.resource_filename(__name__, os.path.join('netlist_info
 class bag_serdes_ec__clkamp_tb_pss(Module):
     """Module for library bag_serdes_ec cell clkamp_tb_pss.
 
-    Fill in high level description here.
+    This is the schematic for a testbench that runs a PSS simulation on a clocked circuit.
     """
 
     param_list = ['dut_lib', 'dut_cell', 'dut_conns', 'vbias_dict', 'ibias_dict',
@@ -54,20 +54,51 @@ class bag_serdes_ec__clkamp_tb_pss(Module):
 
     def design(self, dut_lib='', dut_cell='', dut_conns=None, vbias_dict=None, ibias_dict=None,
                tran_fname='', clk_params_list=None, no_cload=False):
-        """To be overridden by subclasses to design this module.
+        """Design the testbench schematic.
 
-        This method should fill in values for all parameters in
-        self.parameters.  To design instances of this module, you can
-        call their design() method or any other ways you coded.
+        The testbench contains a periodic PWL voltage source, variable number of DC voltage/current
+        biases, variable number of ideal clock sources, and a optional output capacitor load.
+        the input PWL voltage net is 'vin' and the output capacitor net is 'vout'.
 
-        To modify schematic structure, call:
+        The necessary simulation parameters are:
 
-        rename_pin()
-        delete_instance()
-        replace_instance_master()
-        reconnect_instance_terminal()
-        restore_instance()
-        array_instance()
+        cload : the load capacitance.
+        vdd : the supply voltage.
+        vindc : the input PWL voltage DC offset.
+        nharm : number of PSS output harmonics.
+        tper_pss : the PSS simulation period.
+
+        Parameters
+        ----------
+        dut_lib : str
+            the DUT library name.
+        dut_cell : str
+            the DUT cell name.
+        dut_conns: Dict[str, str]
+            a dictionary from DUT pin name to net name.  Used to connect DUT to the testbench.
+        vbias_dict : Dict[str, Tuple[str, str, Union[str, float]]]
+            the DC voltage bias dictionary.  key is the bias source name, value is a tuple of
+            positive net name, negative net name, and bias value (as a number or as a variable
+            name).
+        ibias_dict : Dict[str, Tuple[str, str, Union[str, float]]]
+            the DC current bias dictionary.  Same format as vbias_dict.
+        tran_fname : str
+            the PWL signal file name.
+        clk_params_list : List[Dict[str, Any]]
+            A list of dictionaries of all clock sources needed.  Each dictionary should have the
+            following entries;
+
+            name : str
+                name of this clock source.
+            master : Tuple[str, str]
+                the clock master library/cell name.  This is used to switch from pulse sources to PWL or
+                sinusoidal sources.  If not specified, defaults to pulse sources.
+            conns : Dict[str, str]
+                a dictionary from clock source pin name to net name.
+            params : Dict[str, Any]
+                the parameter dictionary for the clock source.  All parameters should be specified.
+        no_cload : bool
+            True to remove the capacitive output load.
         """
         # initialization and error checking
         if vbias_dict is None:
@@ -103,12 +134,16 @@ class bag_serdes_ec__clkamp_tb_pss(Module):
         # setup clocks
         ck_inst = 'VCK'
         num_clk = len(clk_params_list)
-        name_list = [clk_params['name'] for clk_params in clk_params_list]
+        name_list = ['V' + clk_params['name'] for clk_params in clk_params_list]
         self.array_instance(ck_inst, name_list)
         for idx, clk_params in enumerate(clk_params_list):
             if 'master' in clk_params:
                 vck_lib, vck_cell = clk_params['master']
                 self.replace_instance_master(ck_inst, vck_lib, vck_cell, static=True, index=idx)
+
+            for term, net in clk_params['conns'].items():
+                self.reconnect_instance_terminal(ck_inst, term, net, index=idx)
+
             for key, val in clk_params['params'].items():
                 if isinstance(val, str):
                     pass
