@@ -111,6 +111,9 @@ class bag_serdes_ec__clkamp_tb_pss(Module):
         if not clk_params_list:
             raise ValueError('clk parameters not specified.')
 
+        # convert tran_fname to absolute path
+        tran_fname = os.path.abspath(tran_fname)
+
         local_dict = locals()
         for name in self.param_list:
             if name not in local_dict:
@@ -121,6 +124,8 @@ class bag_serdes_ec__clkamp_tb_pss(Module):
         self.design_dc_bias_sources(vbias_dict, ibias_dict, 'VSUP', 'IBIAS', define_vdd=True)
 
         # setup pwl source
+        if not os.path.isfile(tran_fname):
+            raise ValueError('%s is not a file.' % tran_fname)
         self.instances['VIN'].parameters['fileName'] = tran_fname
 
         # delete load cap if needed

@@ -40,6 +40,9 @@ wrapper_params:
   balun_list:
     - !!python/tuple ['inac', 'indc', 'inp', 'inn']
     - !!python/tuple ['outac', 'outdc', 'outp', 'outn']
+  cap_list:
+    - !!python/tuple ['outp', 'VSS', 'cload']
+    - !!python/tuple ['outn', 'VSS', 'cload']
   pin_list:
     - !!python/tuple ['vddn', 'inputOutput']
     - !!python/tuple ['inac', 'input']
@@ -69,6 +72,7 @@ tb_pss:
   tb_cell: 'clkamp_tb_pss'
   tb_name_base: 'TB_PSS'
   sch_params:
+    no_cload: True
     dut_conns:
       vddn: 'VDD'
       inac: 'vin'

@@ -24,8 +24,11 @@
 
 
 from typing import TYPE_CHECKING, Optional, Tuple, Any, Dict
+import os
 from copy import deepcopy
 
+from bag.io import open_file
+from bag.data.digital import de_bruijn, dig_to_pwl
 from bag.tech.core import SimulationManager
 
 if TYPE_CHECKING:
@@ -36,6 +39,33 @@ class ClkAmpChar(SimulationManager):
     def __init__(self, prj, spec_file):
         # type: (Optional[BagProject], str) -> None
         super(ClkAmpChar, self).__init__(prj, spec_file)
+
+    def setup_pwl_input(self, input_type='dc', **kwargs):
+        # type: (str, **kwargs) -> None
+        tb_specs = self.specs['tb_pss']
+        tper = tb_specs['tb_params']['tper']
+
+        # generate data
+        if input_type == 'dc':
+            values = [1.0]
+            tb_specs['tb_params']['tper_pss'] = tper
+        elif input_type == 'binary':
+            n = kwargs['n']
+            values = de_bruijn(n, symbols=[-1.0, 1.0])
+            tb_specs['tb_params']['tper_pss'] = tper * len(values)
+        else:
+            raise ValueError('Unsupported PWL type: %s' % input_type)
+
+        tr = kwargs['tr']
+        tvec, yvec = dig_to_pwl(values, tper, tr, td=0.0)
+
+        tran_fname = tb_specs['sch_params']['tran_fname']
+        tran_fname = os.path.abspath(tran_fname)
+        stimuli_dir = os.path.dirname(tran_fname)
+        os.makedirs(stimuli_dir, exist_ok=True)
+        with open_file(tran_fname, 'w') as f:
+            for t, y in zip(tvec, yvec):
+                f.write('%.8f %.8f\n' % (t,  y))
 
     def get_layout_params(self, val_list):
         # type: (Tuple[Any, ...]) -> Dict[str, Any]
@@ -84,3 +114,7 @@ class ClkAmpChar(SimulationManager):
                 tb.set_sweep_parameter(key, values=val)
             else:
                 tb.set_parameter(key, val)
+
+        # add outputs
+        tb.add_output('voutdm', """getData("/vout" ?result "pss_td")""")
+        tb.add_output('voutcm', """getData("/voutcm" ?result "pss_td")""")
