@@ -64,7 +64,8 @@ class bag_serdes_ec__clkamp_tb_pss(Module):
 
         cload : the load capacitance.
         vdd : the supply voltage.
-        vindc : the input PWL voltage DC offset.
+        gain : the PWL voltage source will be scaled by this amount.
+        vindc : the input DC voltage offset.  Final input value is gain * PWL + vindc.
         nharm : number of PSS output harmonics.
         tper_pss : the PSS simulation period.
 

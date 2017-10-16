@@ -90,11 +90,11 @@ tb_pss:
         params:
           v1: 'vload + vamp / 2'
           v2: 'vload - vamp / 2'
-          per: 'tper_pss'
-          td: 'tper_pss / 2 - tr / 2'
+          per: 'tper'
+          td: 'tper / 2 - tr / 2'
           tr: 'tr'
           tf: 'tr'
-          pw: 'tper_pss / 2 - tr'
+          pw: 'tper / 2 - tr'
       - name: 'CKSW'
         conns:
           PLUS: 'clkn_sw'
@@ -102,11 +102,11 @@ tb_pss:
         params:
           v1: 'vsw + vamp / 2'
           v2: 'vsw - vamp / 2'
-          per: 'tper_pss'
-          td: 'tper_pss / 2 - tr / 2'
+          per: 'tper'
+          td: 'tper / 2 - tr / 2'
           tr: 'tr'
           tf: 'tr'
-          pw: 'tper_pss / 2 - tr'
+          pw: 'tper / 2 - tr'
       - name: 'CKTAIL'
         conns:
           PLUS: 'clkp_tail'
@@ -114,15 +114,17 @@ tb_pss:
         params:
           v1: 'vtail - vamp / 2'
           v2: 'vtail + vamp / 2'
-          per: 'tper_pss'
-          td: 'tper_pss / 2 - tr / 2'
+          per: 'tper'
+          td: 'tper / 2 - tr / 2'
           tr: 'tr'
           tf: 'tr'
-          pw: 'tper_pss / 2 - tr'
+          pw: 'tper / 2 - tr'
 
   tb_params:
     nharm: 100
+    gain: !!float 1.0
     cload: !!float 1.0e-15
+    tper:  !!float 100e-12
     tper_pss: !!float 100e-12
     tr: !!float 10e-12
     vdd: !!float 1.0

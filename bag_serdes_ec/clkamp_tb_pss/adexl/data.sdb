@@ -89,6 +89,12 @@
 					<dependentTest omitted="0">tb_pss</dependentTest>
 				</dependentTests>
 			</var>
+			<var>gain
+				<value>1</value>
+				<dependentTests>
+					<dependentTest omitted="0">tb_pss</dependentTest>
+				</dependentTests>
+			</var>
 		</vars>
 	</active>
 	<history>History</history>

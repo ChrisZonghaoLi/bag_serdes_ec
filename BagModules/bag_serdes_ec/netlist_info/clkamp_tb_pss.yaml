@@ -64,11 +64,11 @@ instances:
     instpins:
       PLUS:
         direction: inputOutput
-        net_name: "vin"
+        net_name: "vin_norm"
         num_bits: 1
       MINUS:
         direction: inputOutput
-        net_name: "vindc"
+        net_name: "VSS"
         num_bits: 1
   CLOAD:
     lib_name: analogLib
@@ -121,4 +121,24 @@ instances:
       ibias:
         direction: input
         net_name: "ibias"
+        num_bits: 1
+  EIN:
+    lib_name: analogLib
+    cell_name: vcvs
+    instpins:
+      NC+:
+        direction: inputOutput
+        net_name: "vin_norm"
+        num_bits: 1
+      NC-:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      PLUS:
+        direction: inputOutput
+        net_name: "vin"
+        num_bits: 1
+      MINUS:
+        direction: inputOutput
+        net_name: "vindc"
         num_bits: 1

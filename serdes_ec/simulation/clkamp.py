@@ -23,7 +23,8 @@
 ########################################################################################################################
 
 
-from typing import TYPE_CHECKING, Optional, Tuple, Any
+from typing import TYPE_CHECKING, Optional, Tuple, Any, Dict
+from copy import deepcopy
 
 from bag.tech.core import SimulationManager
 
@@ -35,6 +36,34 @@ class ClkAmpChar(SimulationManager):
     def __init__(self, prj, spec_file):
         # type: (Optional[BagProject], str) -> None
         super(ClkAmpChar, self).__init__(prj, spec_file)
+
+    def get_layout_params(self, val_list):
+        # type: (Tuple[Any, ...]) -> Dict[str, Any]
+        """Returns the layout dictionary from the given sweep parameter values.
+
+        This method is over-ridden so user can set width/threshold/segment too.
+        """
+        lay_params = deepcopy(self.specs['layout_params'])
+        for var, val in zip(self.swp_var_list, val_list):
+            # handle width/threshold/segment settings
+            special_var = False
+            for prefix in ('w_', 'th_', 'seg_'):
+                if var.startswith(prefix):
+                    special_var = True
+                    var_actual = var[len(prefix):]
+                    table = lay_params[prefix + 'dict']
+                    if var_actual not in table:
+                        raise ValueError('Unknown parameter: %s' % var)
+                    table[var_actual] = val
+                    break
+
+            # handle other settings
+            if not special_var:
+                if var not in lay_params:
+                    raise ValueError('Unknown parameter: %s' % var)
+                lay_params[var] = val
+
+        return lay_params
 
     def configure_tb(self, tb_type, tb, val_list):
         # type: (str, Testbench, Tuple[Any, ...]) -> None
