@@ -23,7 +23,7 @@
 ########################################################################################################################
 
 
-from typing import TYPE_CHECKING, Optional, Tuple, Any, Dict
+from typing import TYPE_CHECKING, Optional, Tuple, Any, Dict, List
 import os
 from copy import deepcopy
 
@@ -40,23 +40,11 @@ class ClkAmpChar(SimulationManager):
         # type: (Optional[BagProject], str) -> None
         super(ClkAmpChar, self).__init__(prj, spec_file)
 
-    def setup_pwl_input(self, input_type='dc', **kwargs):
-        # type: (str, **kwargs) -> None
+    def setup_pwl_input(self, values, tr):
+        # type: (List[float], float) -> None
         tb_specs = self.specs['tb_pss']
         tper = tb_specs['tb_params']['tper']
 
-        # generate data
-        if input_type == 'dc':
-            values = [1.0]
-            tb_specs['tb_params']['tper_pss'] = tper
-        elif input_type == 'binary':
-            n = kwargs['n']
-            values = de_bruijn(n, symbols=[-1.0, 1.0])
-            tb_specs['tb_params']['tper_pss'] = tper * len(values)
-        else:
-            raise ValueError('Unsupported PWL type: %s' % input_type)
-
-        tr = kwargs['tr']
         tvec, yvec = dig_to_pwl(values, tper, tr, td=0.0)
 
         tran_fname = tb_specs['sch_params']['tran_fname']
@@ -66,6 +54,27 @@ class ClkAmpChar(SimulationManager):
         with open_file(tran_fname, 'w') as f:
             for t, y in zip(tvec, yvec):
                 f.write('%.8f %.8f\n' % (t,  y))
+
+    def setup_linearity(self, vin_amp):
+        tb_specs = self.specs['tb_pss']
+        tper = tb_specs['tb_params']['tper']
+
+        values = [1.0]
+        tb_specs['tb_params']['tper_pss'] = tper
+        tr = 0.2 * tper
+
+        self.setup_pwl_input(values, tr)
+        tb_specs['tb_params']['gain'] = vin_amp
+
+    def setup_tran_binary(self, vin_amp, n, tr):
+        tb_specs = self.specs['tb_pss']
+        tper = tb_specs['tb_params']['tper']
+
+        values = de_bruijn(n, symbols=[-1.0, 1.0])
+        tb_specs['tb_params']['tper_pss'] = tper * len(values)
+
+        self.setup_pwl_input(values, tr)
+        tb_specs['tb_params']['gain'] = vin_amp
 
     def get_layout_params(self, val_list):
         # type: (Tuple[Any, ...]) -> Dict[str, Any]
