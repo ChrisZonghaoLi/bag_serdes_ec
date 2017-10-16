@@ -67,10 +67,10 @@ view_name: 'av_extracted'
 rcx_params: {}
 root_dir: 'data/clkamp'
 
-tb_pss:
+tb_pss_dc:
   tb_lib: 'bag_serdes_ec'
   tb_cell: 'clkamp_tb_pss'
-  tb_name_base: 'TB_PSS'
+  tb_name_base: 'TB_PSS_DC'
   sch_params:
     no_cload: True
     dut_conns:
@@ -85,7 +85,7 @@ tb_pss:
     vbias_dict:
       vindc: ['vincm', 'VSS', 'vincm']
     ibias_dict: {}
-    tran_fname: 'stimuli/pwl_data.txt'
+    tran_fname: 'stimuli/pwl_dc_data.txt'
     clk_params_list:
       - name: 'CKLOAD'
         conns:
@@ -126,7 +126,81 @@ tb_pss:
 
   tb_params:
     nharm: 100
-    gain: !!float 1.0
+    gain: [0.04, 0.08, 0.12, 0.16, 0.2, 0.24]
+    cload: !!float 1.0e-15
+    tper:  !!float 100e-12
+    tper_pss: !!float 100e-12
+    tr: !!float 10e-12
+    vdd: !!float 1.0
+    vindc: !!float 0.0
+    vamp: !!float 0.5
+    vincm:  !!float 0.7
+    vload: !!float 0.7
+    vsw:  !!float 0.5
+    vtail: !!float 0.3
+
+tb_pss_tran:
+  tb_lib: 'bag_serdes_ec'
+  tb_cell: 'clkamp_tb_pss'
+  tb_name_base: 'TB_PSS_TRAN'
+  input_tr: 20e-12
+  input_n: 3
+  sch_params:
+    no_cload: True
+    dut_conns:
+      vddn: 'VDD'
+      inac: 'vin'
+      indc: 'vincm'
+      bias_load: 'clkn_load'
+      bias_tail: 'clkp_tail'
+      clk_sw: 'clkn_sw'
+      outac: 'vout'
+      outdc: 'voutcm'
+    vbias_dict:
+      vindc: ['vincm', 'VSS', 'vincm']
+    ibias_dict: {}
+    tran_fname: 'stimuli/pwl_tran_data.txt'
+    clk_params_list:
+      - name: 'CKLOAD'
+        conns:
+          PLUS: 'clkn_load'
+          MINUS: 'VSS'
+        params:
+          v1: 'vload + vamp / 2'
+          v2: 'vload - vamp / 2'
+          per: 'tper'
+          td: 'tper / 2 - tr / 2'
+          tr: 'tr'
+          tf: 'tr'
+          pw: 'tper / 2 - tr'
+      - name: 'CKSW'
+        conns:
+          PLUS: 'clkn_sw'
+          MINUS: 'VSS'
+        params:
+          v1: 'vsw + vamp / 2'
+          v2: 'vsw - vamp / 2'
+          per: 'tper'
+          td: 'tper / 2 - tr / 2'
+          tr: 'tr'
+          tf: 'tr'
+          pw: 'tper / 2 - tr'
+      - name: 'CKTAIL'
+        conns:
+          PLUS: 'clkp_tail'
+          MINUS: 'VSS'
+        params:
+          v1: 'vtail - vamp / 2'
+          v2: 'vtail + vamp / 2'
+          per: 'tper'
+          td: 'tper / 2 - tr / 2'
+          tr: 'tr'
+          tf: 'tr'
+          pw: 'tper / 2 - tr'
+
+  tb_params:
+    nharm: 100
+    gain: 0.2
     cload: !!float 1.0e-15
     tper:  !!float 100e-12
     tper_pss: !!float 100e-12

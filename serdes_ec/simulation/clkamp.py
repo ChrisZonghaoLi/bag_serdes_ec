@@ -40,14 +40,11 @@ class ClkAmpChar(SimulationManager):
         # type: (Optional[BagProject], str) -> None
         super(ClkAmpChar, self).__init__(prj, spec_file)
 
-    def setup_pwl_input(self, values, tr):
+    def setup_pwl_input(self, values, tper, tr, tran_fname):
         # type: (List[float], float) -> None
-        tb_specs = self.specs['tb_pss']
-        tper = tb_specs['tb_params']['tper']
 
         tvec, yvec = dig_to_pwl(values, tper, tr, td=0.0)
 
-        tran_fname = tb_specs['sch_params']['tran_fname']
         tran_fname = os.path.abspath(tran_fname)
         stimuli_dir = os.path.dirname(tran_fname)
         os.makedirs(stimuli_dir, exist_ok=True)
@@ -55,26 +52,26 @@ class ClkAmpChar(SimulationManager):
             for t, y in zip(tvec, yvec):
                 f.write('%.8f %.8f\n' % (t,  y))
 
-    def setup_linearity(self, vin_amp):
-        tb_specs = self.specs['tb_pss']
+    def setup_linearity(self):
+        tb_specs = self.specs['tb_pss_dc']
         tper = tb_specs['tb_params']['tper']
+        tran_fname = tb_specs['sch_params']['tran_fname']
 
         values = [1.0]
-        tb_specs['tb_params']['tper_pss'] = tper
         tr = 0.2 * tper
+        self.setup_pwl_input(values, tper, tr, tran_fname)
 
-        self.setup_pwl_input(values, tr)
-        tb_specs['tb_params']['gain'] = vin_amp
-
-    def setup_tran_binary(self, vin_amp, n, tr):
-        tb_specs = self.specs['tb_pss']
+    def setup_tran_binary(self):
+        tb_specs = self.specs['tb_pss_tran']
+        input_tr = tb_specs['input_tr']
+        input_n = tb_specs['input_n']
         tper = tb_specs['tb_params']['tper']
+        tran_fname = tb_specs['sch_params']['tran_fname']
 
-        values = de_bruijn(n, symbols=[-1.0, 1.0])
+        values = de_bruijn(input_n, symbols=[-1.0, 1.0])
         tb_specs['tb_params']['tper_pss'] = tper * len(values)
 
-        self.setup_pwl_input(values, tr)
-        tb_specs['tb_params']['gain'] = vin_amp
+        self.setup_pwl_input(values, tper, input_tr, tran_fname)
 
     def get_layout_params(self, val_list):
         # type: (Tuple[Any, ...]) -> Dict[str, Any]
