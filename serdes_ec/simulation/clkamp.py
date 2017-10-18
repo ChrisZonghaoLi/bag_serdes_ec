@@ -27,6 +27,9 @@ from typing import TYPE_CHECKING, Optional, Tuple, Any, Dict, List
 import os
 from copy import deepcopy
 
+import numpy as np
+import scipy.linalg as linalg
+
 from bag.io import open_file
 from bag.data.digital import de_bruijn, dig_to_pwl
 from bag.tech.core import SimulationManager
@@ -40,7 +43,8 @@ class ClkAmpChar(SimulationManager):
         # type: (Optional[BagProject], str) -> None
         super(ClkAmpChar, self).__init__(prj, spec_file)
 
-    def setup_pwl_input(self, values, tper, tr, tran_fname):
+    @classmethod
+    def _setup_pwl_input(cls, values, tper, tr, tran_fname):
         # type: (List[float], float) -> None
 
         tvec, yvec = dig_to_pwl(values, tper, tr, td=0.0)
@@ -59,7 +63,7 @@ class ClkAmpChar(SimulationManager):
 
         values = [1.0]
         tr = 0.2 * tper
-        self.setup_pwl_input(values, tper, tr, tran_fname)
+        self._setup_pwl_input(values, tper, tr, tran_fname)
 
     def setup_tran_binary(self):
         tb_specs = self.specs['tb_pss_tran']
@@ -71,7 +75,7 @@ class ClkAmpChar(SimulationManager):
         values = de_bruijn(input_n, symbols=[-1.0, 1.0])
         tb_specs['tb_params']['tper_pss'] = tper * len(values)
 
-        self.setup_pwl_input(values, tper, input_tr, tran_fname)
+        self._setup_pwl_input(values, tper, input_tr, tran_fname)
 
     def get_layout_params(self, val_list):
         # type: (Tuple[Any, ...]) -> Dict[str, Any]
@@ -122,5 +126,75 @@ class ClkAmpChar(SimulationManager):
                 tb.set_parameter(key, val)
 
         # add outputs
-        tb.add_output('voutdm', """getData("/vout" ?result "pss_td")""")
-        tb.add_output('voutcm', """getData("/voutcm" ?result "pss_td")""")
+        tb.add_output('vod', """getData("/vout" ?result "pss_td")""")
+        tb.add_output('voc', """getData("/voutcm" ?result "pss_td")""")
+        tb.add_output('clk', """getData("/clkp_tail" ?result "pss_td")""")
+
+    @classmethod
+    def compute_linearity(cls, results, time_idx):
+        # type: (Dict[str, Any], int) -> Tuple[np.array, np.array, np.array, List[str]]
+        """Given a PSS simulation with DC input, compute linearity spec.
+
+        This function samples the transient waveform at the given index, then
+        performs a least-square fit to a straight line.
+
+        Parameters
+        ----------
+        results : Dict[str, Any]
+            the simulation result dictionary.
+        time_idx : int
+            the index at which to sample the output waveform.
+
+        Returns
+        -------
+        gain : np.array
+            A (N1, N2, ...) numpy array representing the linear gain across
+            swept parameters.
+        offset : np.array
+            A (N1, N2, ...) numpy array representing the differential output
+            offset across swept parameters.
+        err : np.array
+            A (N1, N2, ...) numpy array of least-square fit residues
+            (squared 2-norm of b - Ax) across swept parameters.  This is a
+            measurement of non-linearity.
+        swp_var_list : List[str]
+            list of swept parameter names of each dimension of the return result.
+        """
+        swp_var_list = list(results['sweep_params']['vod'])
+        vod = results['vod']
+
+        # error checking
+        if 'gain' not in swp_var_list:
+            raise ValueError('gain must be swept to measure linearity.')
+        if 'time' not in swp_var_list:
+            raise ValueError('time is not swept, something is wrong.')
+
+        # remove time
+        num_dim = len(swp_var_list)
+        ax_idx = swp_var_list.index('time')
+        if ax_idx != num_dim - 1:
+            vod = np.swapaxes(vod, ax_idx, num_dim - 1)
+            swp_var_list[ax_idx] = swp_var_list[num_dim - 1]
+        vod = vod[..., time_idx]
+        swp_var_list = swp_var_list[:-1]
+
+        # move gain to first dimension
+        ax_idx = swp_var_list.index('gain')
+        if ax_idx != 0:
+            vod = np.swapaxes(vod, 0, ax_idx)
+            swp_var_list[ax_idx] = swp_var_list[0]
+        swp_var_list = swp_var_list[1:]
+
+        # perform least square linear fit
+        vin = results['gain']
+        num_in = vin.size
+        swp_shape = vod.shape[1:]
+        b = vod.reshape((num_in, -1))
+        a = np.ones((num_in, 2), dtype=float)
+        a[:, 0] = vin
+        x, err, _, _ = linalg.lstsq(a, b)
+        # reshape answer to match sweep parameters
+        x = x.reshape((2, ) + swp_shape)
+        err = err.reshape(swp_shape)
+
+        return x[0, ...], x[1, ...], err, swp_var_list
