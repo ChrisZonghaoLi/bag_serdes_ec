@@ -5,7 +5,7 @@ import yaml
 from bag.core import BagProject
 from bag.layout import RoutingGrid, TemplateDB
 
-from serdes_ec.layout.laygo.strongarm import SenseAmpStrongArm
+from serdes_ec.layout.laygo.strongarm import StrongArmLatch
 
 
 def make_tdb(prj, target_lib, specs):
@@ -24,10 +24,10 @@ def generate(prj, specs):
     temp_db = make_tdb(prj, impl_lib, specs)
     params = specs['params']
 
-    temp = temp_db.new_template(params=params, temp_cls=SenseAmpStrongArm, debug=False)
+    temp = temp_db.new_template(params=params, temp_cls=StrongArmLatch, debug=False)
 
     print('creating layout')
-    temp_db.batch_layout(prj, [temp], ['SENSEAMP_STRONGARM'])
+    temp_db.batch_layout(prj, [temp], ['STRONGARM_LATCH'])
     print('done')
 
 
@@ -35,7 +35,7 @@ if __name__ == '__main__':
 
     impl_lib = 'AAAFOO_STRONGARM'
 
-    with open('test_specs/strongarm.yaml', 'r') as f:
+    with open('test_specs/strongarm_core.yaml', 'r') as f:
         block_specs = yaml.load(f)
 
     local_dict = locals()
