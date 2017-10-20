@@ -21,7 +21,7 @@ def make_tdb(prj, target_lib, specs):
     return tdb
 
 
-def generate(prj, specs, gen_sch=True):
+def generate(prj, specs, gen_sch=True, run_lvs=False):
     temp_db = make_tdb(prj, impl_lib, specs)
     lib_name = specs['lib_name']
     cell_name = specs['cell_name']
@@ -49,8 +49,16 @@ def generate(prj, specs, gen_sch=True):
 
     print('creating layout')
     temp_db.batch_layout(prj, temp_list, name_list)
-    print('done')
-
+    print('layout done')
+    
+    if run_lvs:
+        print('running lvs')
+        lvs_passed, lvs_log = prj.run_lvs(impl_lib, name_list[0])
+        print('LVS log: %s' % lvs_log)
+        if lvs_passed:
+            print('LVS passed!')
+        else:
+            print('LVS failed...')
 
 if __name__ == '__main__':
 
@@ -68,4 +76,4 @@ if __name__ == '__main__':
         print('loading BAG project')
         bprj = local_dict['bprj']
 
-    generate(bprj, block_specs)
+    generate(bprj, block_specs, run_lvs=True)
