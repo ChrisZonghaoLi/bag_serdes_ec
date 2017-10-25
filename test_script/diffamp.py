@@ -45,7 +45,7 @@ def generate(prj, specs, gen_sch=True, run_lvs=False):
                 dsn = prj.create_design_module(lib_name=lib_name, cell_name=cell_name)
                 dsn.design(**temp.sch_params)
                 print('creating schematic for %s' % cur_name)
-                dsn.implement_design(impl_lib, top_cell_name=cur_name, erase=True)
+                dsn.implement_design(impl_lib, top_cell_name=cur_name)
 
     print('creating layout')
     temp_db.batch_layout(prj, temp_list, name_list)
@@ -60,9 +60,10 @@ def generate(prj, specs, gen_sch=True, run_lvs=False):
         else:
             print('LVS failed...')
 
+
 if __name__ == '__main__':
 
-    impl_lib = 'AAAFOO'
+    impl_lib = 'AAAFOO_DIFFAMP'
 
     with open('test_specs/diffamp_serdes.yaml', 'r') as f:
         block_specs = yaml.load(f)
