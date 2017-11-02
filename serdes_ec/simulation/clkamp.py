@@ -32,7 +32,7 @@ import scipy.linalg as linalg
 
 from bag.io import open_file
 from bag.data.digital import de_bruijn, dig_to_pwl
-from bag.tech.core import SimulationManager
+from bag.simulation.core import SimulationManager
 
 if TYPE_CHECKING:
     from bag.core import BagProject, Testbench
