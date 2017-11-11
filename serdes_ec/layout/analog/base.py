@@ -72,8 +72,8 @@ class SerdesRXBaseInfo(AnalogBaseInfo):
 
     def __init__(self, grid, lch, guard_ring_nf, top_layer=None, end_mode=15, min_fg_sep=0, fg_tot=None):
         # type: (RoutingGrid, float, int, Optional[int], int, int, Optional[int]) -> None
-        super(SerdesRXBaseInfo, self).__init__(grid, lch, guard_ring_nf, top_layer=top_layer,
-                                               end_mode=end_mode, min_fg_sep=min_fg_sep, fg_tot=fg_tot)
+        AnalogBaseInfo.__init__(self, grid, lch, guard_ring_nf, top_layer=top_layer,
+                                end_mode=end_mode, min_fg_sep=min_fg_sep, fg_tot=fg_tot)
 
     def _get_diffamp_tran_info(self, seg_dict, fg_center, flip_out_sd):
         # type: (Dict[str, int], int, bool) -> Tuple[Dict[str, Tuple[Union[int, str]]], bool]
@@ -346,7 +346,7 @@ class SerdesRXBase(with_metaclass(abc.ABCMeta, AnalogBase)):
 
     def __init__(self, temp_db, lib_name, params, used_names, **kwargs):
         # type: (TemplateDB, str, Dict[str, Any], Set[str], **Any) -> None
-        super(SerdesRXBase, self).__init__(temp_db, lib_name, params, used_names, **kwargs)
+        AnalogBase.__init__(self, temp_db, lib_name, params, used_names, **kwargs)
         self._nrow_idx = None
         self._prow_idx = None
         self._serdes_info = None  # type: SerdesRXBaseInfo
@@ -401,17 +401,21 @@ class SerdesRXBase(with_metaclass(abc.ABCMeta, AnalogBase)):
         tran_types = ['load', 'casc', 'in', 'sw', 'en', 'tail']
         gnames = ['bias_load', 'bias_casc', 'in', 'clk_sw', 'enable', 'bias_tail']
         g_diffs = [False, False, True, False, False, False]
-        d_diffs = [True, True, True, False, False, False]
-        s_diffs = [False, True, False, False, False, False]
+        up_diffs = [False, True, True, False, False, False]
+        dn_diffs = [True, True, False, False, False, False]
 
         col_l = col_idx + fg_dum + fg_single
         col_r = col_l + fg_sep
 
         warr_dict = {}
-        for tran_type, gname, g_diff, d_diff, s_diff in zip(tran_types, gnames, g_diffs, d_diffs, s_diffs):
+        for tran_type, gname, g_diff, up_diff, dn_diff in zip(tran_types, gnames, g_diffs, up_diffs, dn_diffs):
             if tran_type in tran_info:
                 fg = seg_dict[tran_type]
                 fg_diff, dname, sname, ddir, sdir = tran_info[tran_type]
+                if ddir > 0:
+                    d_diff, s_diff = up_diff, dn_diff
+                else:
+                    d_diff, s_diff = dn_diff, up_diff
                 gname_p, gname_n = self._get_diff_names(gname, g_diff)
                 dname_p, dname_n = self._get_diff_names(dname, d_diff, invert=True)
                 sname_p, sname_n = self._get_diff_names(sname, s_diff, invert=True)
