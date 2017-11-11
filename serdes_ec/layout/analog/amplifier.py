@@ -138,8 +138,8 @@ class DiffAmp(SerdesRXBase):
 
         # construct number of tracks dictionary
         row_names = ['load', 'casc', 'in', 'sw', 'en', 'tail']
-        gtr_lists = [['bias_load'], ['bias_casc'], ['inp', 'inn'], ['bias_sw'], ['enable'], ['bias_tail']]
-        dtr_lists = [['outp', 'outn'], ['midp'], [], ['vddn'], ['tail'], ['tail']]
+        gtr_lists = [['bias'], ['bias'], ['in', 'in'], ['bias'], ['bias'], ['bias']]
+        dtr_lists = [['out', 'out'], ['mid'], [], ['vdd'], ['tail'], ['tail']]
 
         # rename tail row drain net name if enable row exists
         if w_dict.get('en', 0) > 0:

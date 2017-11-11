@@ -548,6 +548,23 @@ class SerdesRXBase(with_metaclass(abc.ABCMeta, AnalogBase)):
         trns = ['ds', 'ds',     'g',         'ds',   'ds',   'g',         'ds',   'g',   'g',   'ds',   'g',
                 'ds',   'g',      'g']
 
+        tr_type_dict = dict(
+            outp='out',
+            outn='out',
+            bias_load='bias',
+            midp='mid',
+            midn='mid',
+            bias_casc='bias',
+            tail='tail',
+            inp='in',
+            inn='in',
+            vddn='vdd',
+            clk_sw='bias',
+            foot='tail',
+            enable='bias',
+            bias_tail='bias',
+        )
+
         # tail net should be connected on enable row if it exists
         if 'enable' in warr_dict:
             rows[6] = 'en'
@@ -558,8 +575,9 @@ class SerdesRXBase(with_metaclass(abc.ABCMeta, AnalogBase)):
             pname, nname = '%sp' % net_base, '%sn' % net_base
             if pname not in tr_indices or nname not in tr_indices:
                 tr_indices = tr_indices.copy()
-                net_list = [pname, nname] if order > 0 else [nname, pname]
-                ntr_used, (netp_idx, netn_idx) = tr_manager.place_wires(hm_layer, net_list)
+                ntr_used, (netp_idx, netn_idx) = tr_manager.place_wires(hm_layer, [net_base, net_base])
+                if order < 0:
+                    netp_idx, netn_idx = netn_idx, netp_idx
                 mos_type, row_idx = self.get_row_index(tran_name)
                 ntr_tot = self.get_num_tracks(mos_type, row_idx, net_type)
                 if ntr_tot < ntr_used:
@@ -573,13 +591,13 @@ class SerdesRXBase(with_metaclass(abc.ABCMeta, AnalogBase)):
         for net_name, row_type, tr_type in zip(nets, rows, trns):
             if net_name in warr_dict:
                 mos_type, row_idx = self.get_row_index(row_type)
-                tr_w = tr_manager.get_width(hm_layer, net_name)
+                tr_w = tr_manager.get_width(hm_layer, tr_type_dict[net_name])
                 if net_name in tr_indices:
                     # use specified relative index
                     tr_idx = tr_indices[net_name]
                 else:
                     # compute default relative index.  Try to use the tracks closest to transistor.
-                    ntr_used, (tr_idx, ) = tr_manager.place_wires(hm_layer, [net_name])
+                    ntr_used, (tr_idx, ) = tr_manager.place_wires(hm_layer, [tr_type_dict[net_name]])
                     ntr_tot = self.get_num_tracks(mos_type, row_idx, tr_type)
                     if ntr_tot < ntr_used:
                         raise ValueError('Need at least %d %s tracks to draw %s track' % (ntr_used, tr_type, net_name))
@@ -602,10 +620,10 @@ class SerdesRXBase(with_metaclass(abc.ABCMeta, AnalogBase)):
         # connect differential input
         inp_warr, inn_warr = self.connect_differential_tracks(warr_dict['inp'], warr_dict['inn'], hm_layer,
                                                               inp_tidx, inn_tidx,
-                                                              width=tr_manager.get_width(hm_layer, 'inp'))
+                                                              width=tr_manager.get_width(hm_layer, 'in'))
         outp_warr, outn_warr = self.connect_differential_tracks(warr_dict['outp'], warr_dict['outn'], hm_layer,
                                                                 outp_tidx, outn_tidx,
-                                                                width=tr_manager.get_width(hm_layer, 'outp'))
+                                                                width=tr_manager.get_width(hm_layer, 'out'))
         result[net_prefix + 'inp'] = inp_warr
         result[net_prefix + 'inn'] = inn_warr
         result[net_prefix + 'outp'] = outp_warr
