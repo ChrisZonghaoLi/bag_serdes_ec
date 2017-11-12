@@ -621,7 +621,7 @@ class SerdesRXBase(with_metaclass(abc.ABCMeta, AnalogBase)):
                     tid = self.make_track_id(mos_type, row_idx, tr_type, tr_idx, width=tr_w)
                     result[net_prefix + net_name] = self.connect_to_tracks(warr_dict[net_name], tid)
 
-        # connect differential input
+        # connect differential input/output
         inp_warr, inn_warr = self.connect_differential_tracks(warr_dict['inp'], warr_dict['inn'], hm_layer,
                                                               inp_tidx, inn_tidx,
                                                               width=tr_manager.get_width(hm_layer, 'in'))

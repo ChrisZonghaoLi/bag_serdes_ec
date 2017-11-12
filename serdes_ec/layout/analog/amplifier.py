@@ -140,6 +140,7 @@ class DiffAmp(SerdesRXBase):
         row_names = ['load', 'casc', 'in', 'sw', 'en', 'tail']
         gtr_lists = [['bias'], ['bias'], ['in', 'in'], ['bias'], ['bias'], ['bias']]
         dtr_lists = [['out', 'out'], ['mid'], [], ['vdd'], ['tail'], ['tail']]
+        dtr_names = [['outp', 'outn'], [('midp', 'midn')], [], ['vddn'], ['tail'], ['tail']]
 
         # rename tail row drain net name if enable row exists
         if w_dict.get('en', 0) > 0:
@@ -148,15 +149,19 @@ class DiffAmp(SerdesRXBase):
         hm_layer = self.mos_conn_layer + 1
         tr_manager = TrackManager(self.grid, tr_widths, tr_spaces)
         g_ntr_dict, ds_ntr_dict, tr_indices = {}, {}, {}
-        for row_name, gtr_list, dtr_list in zip(row_names, gtr_lists, dtr_lists):
+        for row_name, gtr_list, dtr_list, dtr_name_list in zip(row_names, gtr_lists, dtr_lists, dtr_names):
             w_row = w_dict.get(row_name, 0)
             if w_row > 0:
                 num_gtr, _ = tr_manager.place_wires(hm_layer, gtr_list)
                 if dtr_list:
                     dtr_sp = tr_manager.get_space(hm_layer, dtr_list[0])
                     num_dtr, didx_list = tr_manager.place_wires(hm_layer, dtr_list, start_idx=dtr_sp)
-                    for dtr_name, dtr_idx in zip(dtr_list, didx_list):
-                        tr_indices[dtr_name] = dtr_idx
+                    for dtr_name, dtr_idx in zip(dtr_name_list, didx_list):
+                        if isinstance(dtr_name, tuple):
+                            for dtr_n in dtr_name:
+                                tr_indices[dtr_n] = dtr_idx
+                        else:
+                            tr_indices[dtr_name] = dtr_idx
                     num_dtr += 2 * dtr_sp
                 else:
                     num_dtr = 1
