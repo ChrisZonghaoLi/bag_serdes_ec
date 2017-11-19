@@ -35,7 +35,7 @@ if __name__ == '__main__':
 
     impl_lib = 'AAAFOO_STRONGARM'
 
-    with open('test_specs/strongarm.yaml', 'r') as f:
+    with open('specs_test/strongarm.yaml', 'r') as f:
         block_specs = yaml.load(f)
 
     local_dict = locals()
