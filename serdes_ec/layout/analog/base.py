@@ -22,13 +22,6 @@
 #
 ########################################################################################################################
 
-
-from __future__ import (absolute_import, division,
-                        print_function, unicode_literals)
-# noinspection PyUnresolvedReferences,PyCompatibility
-from builtins import *
-from future.utils import with_metaclass
-
 import abc
 from typing import TYPE_CHECKING, Optional, Dict, Any, Set, Tuple, List, Union
 
@@ -323,7 +316,7 @@ class SerdesRXBaseInfo(AnalogBaseInfo):
         return results
 
 
-class SerdesRXBase(with_metaclass(abc.ABCMeta, AnalogBase)):
+class SerdesRXBase(AnalogBase, metaclass=abc.ABCMeta):
     """Subclass of AmplifierBase that draws serdes circuits.
 
     To use this class, :py:meth:`draw_rows` must be the first function called,
