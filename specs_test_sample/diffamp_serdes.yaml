@@ -1,0 +1,42 @@
+impl_lib: 'AAAFOO_TEST_DIFFAMP'
+sch_lib: 'bag_serdes_ec'
+sch_cell: 'diffamp'
+
+routing_grid:
+  layers: [4, 5]
+  spaces: [0.1, 0.1]
+  widths: [0.1, 0.1]
+  bot_dir: 'x'
+
+params:
+  lch: 20.0e-9
+  ptap_w: 6
+  ntap_w: 6
+  w_dict: {load: 4, in: 4, tail: 4}
+  th_dict: {load: 'standard', in: 'standard', tail: 'standard'}
+  seg_dict: {load: 8, in: 4, tail: 8}
+  fg_dum: 4
+  flip_out_sd: False
+  guard_ring_nf: 0
+  top_layer: 4
+  tr_widths:
+    outp: {4: 2}
+    outn: {4: 2}
+    bias_load: {4: 1}
+    tail: {4: 2}
+    inp: {4: 1}
+    inn: {4: 1}
+    bias_tail: {4: 1}
+  tr_spaces:
+    !!python/tuple ['inn', 'inp']: {4: 1}
+    !!python/tuple ['outn', 'outp']: {4: 1}
+  show_pins: True
+  options:
+    end_mode: 15
+    sub_parity: 0
+    sub_integ_htr: False
+
+swp_params:
+  sub_parity: [0]
+  lch: [16.0e-9]
+  guard_ring_nf: [0]

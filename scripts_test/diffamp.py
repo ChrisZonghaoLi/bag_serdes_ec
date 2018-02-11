@@ -22,30 +22,36 @@ def make_tdb(prj, target_lib, specs):
 
 
 def generate(prj, specs, gen_sch=True, run_lvs=False):
-    temp_db = make_tdb(prj, impl_lib, specs)
-    lib_name = specs['lib_name']
-    cell_name = specs['cell_name']
+    impl_lib = specs['impl_lib']
+    sch_lib = specs['sch_lib']
+    sch_cell = specs['sch_cell']
     params = specs['params']
     lch_list = specs['swp_params']['lch']
     gr_nf_list = specs['swp_params']['guard_ring_nf']
+    sub_par_list = specs['swp_params'].get('sub_parity', [0])
+
+    temp_db = make_tdb(prj, impl_lib, specs)
 
     temp_list = []
     name_list = []
-    name_fmt = 'DIFFAMP_L%s_gr%d'
+    name_fmt = 'DIFFAMP_L%s_gr%d_spar%d'
     for gr_nf in gr_nf_list:
         for lch in lch_list:
-            params['lch'] = lch
-            params['guard_ring_nf'] = gr_nf
-            temp = temp_db.new_template(params=params, temp_cls=DiffAmp, debug=False)
-            cur_name = name_fmt % (float_to_si_string(lch), gr_nf)
-            temp_list.append(temp)
-            name_list.append(cur_name)
+            for sub_par in sub_par_list:
+                cur_name = name_fmt % (float_to_si_string(lch), gr_nf, sub_par)
 
-            if gen_sch:
-                dsn = prj.create_design_module(lib_name=lib_name, cell_name=cell_name)
-                dsn.design(**temp.sch_params)
-                print('creating schematic for %s' % cur_name)
-                dsn.implement_design(impl_lib, top_cell_name=cur_name)
+                params['lch'] = lch
+                params['guard_ring_nf'] = gr_nf
+                params['options']['sub_parity'] = sub_par
+                temp = temp_db.new_template(params=params, temp_cls=DiffAmp, debug=False)
+                temp_list.append(temp)
+                name_list.append(cur_name)
+
+                if gen_sch:
+                    dsn = prj.create_design_module(lib_name=sch_lib, cell_name=sch_cell)
+                    dsn.design(**temp.sch_params)
+                    print('creating schematic for %s' % cur_name)
+                    dsn.implement_design(impl_lib, top_cell_name=cur_name)
 
     print('creating layout')
     temp_db.batch_layout(prj, temp_list, name_list)
@@ -62,9 +68,6 @@ def generate(prj, specs, gen_sch=True, run_lvs=False):
 
 
 if __name__ == '__main__':
-
-    impl_lib = 'AAAFOO_DIFFAMP'
-
     with open('specs_test/diffamp_serdes.yaml', 'r') as f:
         block_specs = yaml.load(f)
 
@@ -77,4 +80,4 @@ if __name__ == '__main__':
         print('loading BAG project')
         bprj = local_dict['bprj']
 
-    generate(bprj, block_specs, run_lvs=True)
+    generate(bprj, block_specs, gen_sch=False, run_lvs=False)

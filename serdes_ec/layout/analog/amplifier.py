@@ -81,6 +81,7 @@ class DiffAmp(SerdesRXBase):
             guard_ring_nf=0,
             top_layer=None,
             show_pins=True,
+            options=None,
         )
 
     @classmethod
@@ -108,6 +109,7 @@ class DiffAmp(SerdesRXBase):
             tr_widths='Track width dictionary.',
             tr_spaces='Track spacing dictionary.',
             show_pins='True to create pin labels.',
+            options='AnalogBase options',
         )
 
     def draw_layout(self):
@@ -126,6 +128,10 @@ class DiffAmp(SerdesRXBase):
         tr_widths = self.params['tr_widths']
         tr_spaces = self.params['tr_spaces']
         show_pins = self.params['show_pins']
+        options = self.params['options']
+
+        if options is None:
+            options = {}
 
         # make SerdesRXBaseInfo and compute total number of fingers.
         serdes_info = SerdesRXBaseInfo(self.grid, lch, guard_ring_nf, top_layer=top_layer)
@@ -167,7 +173,7 @@ class DiffAmp(SerdesRXBase):
 
         # draw transistor rows
         self.draw_rows(lch, fg_tot, ptap_w, ntap_w, w_dict, th_dict, g_ntr_dict, ds_ntr_dict,
-                       guard_ring_nf=guard_ring_nf)
+                       guard_ring_nf=guard_ring_nf, **options)
 
         # draw diffamp
         amp_ports, _ = self.draw_diffamp(0, seg_dict, tr_widths=tr_widths, tr_spaces=tr_spaces,
