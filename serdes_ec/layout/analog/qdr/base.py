@@ -232,9 +232,7 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
     def __init__(self, temp_db, lib_name, params, used_names, **kwargs):
         # type: (TemplateDB, str, Dict[str, Any], Set[str], **kwargs) -> None
         AnalogBase.__init__(self, temp_db, lib_name, params, used_names, **kwargs)
-        self._row_lookup = {key: ('nch', idx) for idx, key in enumerate(self.n_name_list)}
-        for idx, key in enumerate(self.p_name_list):
-            self._row_lookup[key] = ('pch', idx)
+        self._row_lookup = None
 
     @property
     def qdr_info(self):
@@ -309,16 +307,21 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
         self.set_layout_info(HybridQDRBaseInfo(self.grid, lch, guard_ring_nf, fg_tot=fg_tot,
                                                **kwargs))
 
+        self._row_lookup = {}
         nw_list, nth_list, n_wires = [], [], []
-        for name in self.n_name_list:
-            nw_list.append(w_dict[name])
-            nth_list.append(th_dict[name])
-            n_wires.append(wire_names[name])
+        for idx, name in enumerate(self.n_name_list):
+            if name in w_dict:
+                nw_list.append(w_dict[name])
+                nth_list.append(th_dict[name])
+                n_wires.append(wire_names[name])
+                self._row_lookup[name] = ('nch', idx)
         pw_list, pth_list, p_wires = [], [], []
-        for name in self.p_name_list:
-            pw_list.append(w_dict[name])
-            pth_list.append(th_dict[name])
-            p_wires.append(wire_names[name])
+        for idx, name in enumerate(self.p_name_list):
+            if name in w_dict:
+                pw_list.append(w_dict[name])
+                pth_list.append(th_dict[name])
+                p_wires.append(wire_names[name])
+                self._row_lookup[name] = ('pch', idx)
 
         n_orient = ['R0'] * len(nw_list)
         p_orient = ['MX'] * len(pw_list)
