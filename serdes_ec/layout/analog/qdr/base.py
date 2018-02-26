@@ -226,8 +226,8 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
     tran_list = [('load0', 'load'), ('load1', 'load'), ('enp0', 'enp'), ('enp1', 'enp'),
                  ('casc', 'casc'), ('in', 'in'), ('enn', 'enn'), ('tail', 'tail')]
     diff_nets = {'mp0', 'mp1', 'out', 'cn'}
-    gate_dict = {'load0': 'clkp', 'load1': 'clkn', 'enp0': 'enp0', 'enp1': 'enp1',
-                 'casc': 'casc', 'in': 'in', 'enn': 'enn', 'tail': 'clkp'}
+    gate_dict = {'load0': 'pclk0', 'load1': 'pclk1', 'enp0': 'enp0', 'enp1': 'enp1',
+                 'casc': 'casc', 'in': 'in', 'enn': 'enn', 'tail': 'nclk'}
 
     def __init__(self, temp_db, lib_name, params, used_names, **kwargs):
         # type: (TemplateDB, str, Dict[str, Any], Set[str], **kwargs) -> None
@@ -391,6 +391,7 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
                        seg_dict,  # type: Dict[str, int]
                        fg_min=0,  # type: int
                        fg_dum=0,  # type: int
+                       idx_dict=None,  # type: Optional[Dict[str, int]]]
                        ):
         # type: (...) -> Tuple[Dict[str, WireArray], Dict[str, Any]]
         """Draw a differential amplifier.
@@ -405,6 +406,8 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
             minimum number of total fingers.
         fg_dum : int
             minimum single-sided number of dummy fingers.
+        idx_dict : Optional[Dict[str, int]]
+            track index dictionary.
 
         Returns
         -------
@@ -413,15 +416,74 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
         amp_info : Dict[str, Any]
             the amplifier layout information dictionary
         """
+        if idx_dict is None:
+            idx_dict = {}
+
         # get layout information
         amp_info = self.qdr_info.get_integ_amp_info(seg_dict, fg_min=fg_min, fg_dum=fg_dum)
+        seg_casc = seg_dict.get('casc', 0)
         fg_tot = amp_info['fg_tot']
-        fg_dum = amp_info['fg_dum']
-        fg_sep = amp_info['fg_sep']
         col_dict = amp_info['col_dict']
         sd_dict = amp_info['sd_dict']
         sd_dir_dict = amp_info['sd_dir_dict']
 
         ports = self._draw_integ_amp_mos(col_idx, fg_tot, seg_dict, col_dict, sd_dict, sd_dir_dict)
 
-        return {}, amp_info
+        # connect wires
+        self.connect_to_substrate('ntap', ports['VDD'])
+        self.connect_to_substrate('ptap', ports['VSS'])
+        # get TrackIDs
+        foot_tid = self.get_wire_id('nch', 0, 'ds', wire_name='tail')
+        tail_tid = self.get_wire_id('nch', 1, 'ds', wire_name='tail')
+        outn_tid = self.get_wire_id('pch', 0, 'ds', wire_idx=0, wire_name='out')
+        outp_tid = self.get_wire_id('pch', 0, 'ds', wire_idx=1, wire_name='out')
+        inn_tid = self.get_wire_id('nch', 2, 'g', wire_idx=0, wire_name='in')
+        inp_tid = self.get_wire_id('nch', 2, 'g', wire_idx=1, wire_name='in')
+        mp_tid = self.get_wire_id('pch', 1, 'ds', wire_name='tail')
+        nclk_tid = self.get_wire_id('nch', 0, 'g', wire_idx=idx_dict.get('nclk', -1))
+        enn_tid = self.get_wire_id('nch', 1, 'g', wire_idx=idx_dict.get('enn', -1))
+        enp0_tid = self.get_wire_id('pch', 0, 'g', wire_idx=idx_dict.get('enp0', 0))
+        enp1_tid = self.get_wire_id('pch', 0, 'g', wire_idx=idx_dict.get('enp1', 1))
+        pclk0_tid = self.get_wire_id('pch', 1, 'g', wire_idx=idx_dict.get('pclk0', 0))
+        pclk1_tid = self.get_wire_id('pch', 1, 'g', wire_idx=idx_dict.get('pclk1', 1))
+
+        # connect intermediate nodes
+        self.connect_to_tracks(ports['foot'], foot_tid)
+        self.connect_to_tracks(ports['tail'], tail_tid)
+        for name in ('mp0p', 'mp0n', 'mp1p', 'mp1n'):
+            self.connect_to_tracks(ports[name], mp_tid)
+
+        # connect gates
+        nclk = self.connect_to_tracks(ports['nclk'], nclk_tid)
+        enn = self.connect_to_tracks(ports['enn'], enn_tid)
+        enp0 = self.connect_to_tracks(ports['enp0'], enp0_tid)
+        enp1 = self.connect_to_tracks(ports['enp1'], enp1_tid)
+        pclk0 = self.connect_to_tracks(ports['pclk0'], pclk0_tid)
+        pclk1 = self.connect_to_tracks(ports['pclk1'], pclk1_tid)
+
+        hm_layer = outp_tid.layer_id
+        out_w = outp_tid.width
+        outp_idx = outp_tid.base_index
+        outn_idx = outn_tid.base_index
+        outp, outn = self.connect_differential_tracks(ports['outp'], ports['outn'], hm_layer,
+                                                      outp_idx, outn_idx, width=out_w)
+        in_w = inp_tid.width
+        inp_idx = inp_tid.base_index
+        inn_idx = inn_tid.base_index
+        inp, inn = self.connect_differential_tracks(ports['inp'], ports['inn'], hm_layer,
+                                                    inp_idx, inn_idx, width=in_w)
+
+        ports = dict(inp=inp, inn=inn, outp=outp, outn=outn,
+                     enp0=enp0, enp1=enp1, pclk0=pclk0, pclk1=pclk1,
+                     enn=enn, nclk=nclk,
+                     )
+
+        # connect cascode if necessary
+        if seg_casc > 0:
+            cn_tid = self.get_wire_id('nch', 2, 'ds', wire_name='tail')
+            casc_tid = self.get_wire_id('nch', 3, 'g', wire_idx=idx_dict.get('casc', -1))
+            self.connect_to_tracks(ports['cn'], cn_tid)
+            casc = self.connect_to_tracks(ports['casc'], casc_tid)
+            ports['casc'] = casc
+
+        return ports, amp_info

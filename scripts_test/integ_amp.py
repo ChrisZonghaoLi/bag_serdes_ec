@@ -89,10 +89,10 @@ class IntegAmp(HybridQDRBase):
         # get track manager and wire names
         tr_manager = TrackManager(self.grid, tr_widths, tr_spaces)
         wire_names = {
-            'tail': dict(g=['clk'], ds=['tail']),
+            'tail': dict(g=['clk', 'clk'], ds=['tail']),
             'enn': dict(g=['en', 'en', 'en'], ds=['tail']),
-            'casc': dict(g=['en'], ds=[]),
             'in': dict(g=['in', 'in'], ds=['tail']),
+            'casc': dict(g=['en'], ds=[]),
             'enp': dict(ds=['out', 'out'], g=['en', 'en', 'en']),
             'load': dict(ds='tail', g=['clk', 'clk']),
         }
@@ -106,7 +106,13 @@ class IntegAmp(HybridQDRBase):
                        wire_names, top_layer=top_layer, **options)
 
         # draw amplifier
-        self.draw_integ_amp(0, seg_dict, fg_dum=fg_dum)
+        ports, _ = self.draw_integ_amp(0, seg_dict, fg_dum=fg_dum)
+        vss_warrs, vdd_warrs = self.fill_dummy()
+
+        for name, warr in ports.items():
+            self.add_pin(name, warr, show=show_pins)
+        self.add_pin('VSS', vss_warrs, show=show_pins)
+        self.add_pin('VDD', vdd_warrs, show=show_pins)
 
 
 def make_tdb(prj, target_lib, specs):
