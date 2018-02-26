@@ -9,7 +9,7 @@ import abc
 from abs_templates_ec.analog_core.base import AnalogBase, AnalogBaseInfo
 
 if TYPE_CHECKING:
-    from bag.layout.routing import TrackManager, RoutingGrid
+    from bag.layout.routing import WireArray, TrackManager, RoutingGrid
     from bag.layout.template import TemplateDB
 
 
@@ -44,14 +44,18 @@ class HybridQDRBaseInfo(AnalogBaseInfo):
         AnalogBaseInfo.__init__(self, grid, lch, guard_ring_nf, top_layer=top_layer,
                                 end_mode=end_mode, min_fg_sep=min_fg_sep, fg_tot=fg_tot, **kwargs)
 
-    def get_integ_amp_info(self, seg_dict):
-        # type: (Dict[str, int]) -> Dict[str, Any]
+    def get_integ_amp_info(self, seg_dict, fg_min=0, fg_dum=0):
+        # type: (Dict[str, int], int, int) -> Dict[str, Any]
         """Compute placement of transistors in the given integrating amplifier.
 
         Parameters
         ----------
         seg_dict : Dict[str, int]
             a dictionary containing number of segments per transistor type.
+        fg_min : int
+            minimum number of fingers.
+        fg_dum : int
+            number of dummy fingers on each side.
 
         Returns
         -------
@@ -91,12 +95,14 @@ class HybridQDRBaseInfo(AnalogBaseInfo):
         seg_center = max(seg_nc, seg_pc)
         seg_single = max(seg_center, seg_enn, seg_tail)
         seg_tot = 2 * seg_single + fg_sep
+        fg_dum = max(fg_dum, -(-(fg_min - seg_tot) // 2))
+        fg_tot = seg_tot + 2 * fg_dum
 
         # compute column index of each transistor
         col_dict = {}
         center_off = (seg_single - seg_center) // 2
         if seg_load > 0:
-            pc_off = center_off + (seg_center - seg_pc) // 2
+            pc_off = fg_dum + center_off + (seg_center - seg_pc) // 2
             load_off = (seg_ps - seg_load) // 2
             enp_off = (seg_ps - seg_enp) // 2
             col_dict['load0'] = pc_off + load_off
@@ -104,52 +110,97 @@ class HybridQDRBaseInfo(AnalogBaseInfo):
             col_dict['enp0'] = pc_off + enp_off
             col_dict['enp1'] = pc_off + seg_pc - enp_off - seg_enp
 
-        nc_off = center_off + (seg_center - seg_nc) // 2
+        nc_off = fg_dum + center_off + (seg_center - seg_nc) // 2
         if seg_casc > 0:
             col_dict['casc'] = nc_off + (seg_nc - seg_casc) // 2
         col_dict['in'] = nc_off + (seg_nc - seg_in) // 2
-        col_dict['enn'] = min(seg_single - seg_enn, col_dict['in'])
-        col_dict['tail'] = min(seg_single - seg_tail, col_dict['enn'])
+        col_dict['enn'] = fg_dum + min(seg_single - seg_enn, col_dict['in'])
+        col_dict['tail'] = fg_dum + min(seg_single - seg_tail, col_dict['enn'])
 
         # compute source-drain junction type for each net
-        sd_dict = {('VDD', 'load0'): 's', ('VDD', 'load1'): 's',
-                   ('mp0', 'load0'): 'd', ('mp1', 'load1'): 'd'}
-        sd_name = 'd' if (col_dict['enp0'] - col_dict['load0']) % 2 == 0 else 's'
-        sd_dict[('mp0', 'enp0')] = sd_dict[('mp1', 'enp1')] = sd_name
-        sd_name = 'd' if sd_name == 's' else 's'
-        sd_dict[('out', 'enp0')] = sd_dict[('out', 'enp1')] = sd_name
+        sd_dict = {('load0', 's'): 'VDD', ('load1', 's'): 'VDD',
+                   ('load0', 'd'): 'mp0', ('load1', 'd'): 'mp1', }
+        sd_dir_dict = {'load0': (2, 0), 'load1': (2, 0), }
+        if (col_dict['enp0'] - col_dict['load0']) % 2 == 0:
+            sd_dict[('enp0', 'd')] = 'mp0'
+            sd_dict[('enp1', 'd')] = 'mp1'
+            sd_dict[('enp0', 's')] = sd_dict[('enp1', 's')] = 'out'
+            sd_name = 's'
+            sd_dir_dict['enp0'] = sd_dir_dict['enp1'] = (0, 2)
+        else:
+            sd_dict[('enp0', 's')] = 'mp0'
+            sd_dict[('enp1', 's')] = 'mp1'
+            sd_dict[('enp0', 'd')] = sd_dict[('enp1', 'd')] = 'out'
+            sd_name = 'd'
+            sd_dir_dict['enp0'] = sd_dir_dict['enp1'] = (2, 0)
         if seg_casc > 0:
             if (col_dict['casc'] - col_dict['enp0']) % 2 == 1:
                 sd_name = 'd' if sd_name == 's' else 's'
-            sd_dict[('out', 'casc')] = sd_name
-            sd_name = 'd' if sd_name == 's' else 's'
-            sd_dict[('cn', 'casc')] = sd_name
+            sd_dict[('casc', sd_name)] = 'out'
+            if sd_name == 'd':
+                sd_dir = (0, 2)
+                sd_name = 's'
+            else:
+                sd_dir = (2, 0)
+                sd_name = 'd'
+            sd_dict[('casc', sd_name)] = 'cn'
+            sd_dir_dict['casc'] = sd_dir
+
             if (col_dict['in'] - col_dict['casc']) % 2 == 1:
                 sd_name = 'd' if sd_name == 's' else 's'
-            sd_dict[('cn', 'in')] = sd_name
-            sd_name = 'd' if sd_name == 's' else 's'
-            sd_dict[('tail', 'in')] = sd_name
+            sd_dict[('in', sd_name)] = 'cn'
+            if sd_name == 'd':
+                sd_dir = (0, 2)
+                sd_name = 's'
+            else:
+                sd_dir = (2, 0)
+                sd_name = 'd'
+            sd_dict[('in', sd_name)] = 'tail'
+            sd_dir_dict['in'] = sd_dir
         else:
             if (col_dict['in'] - col_dict['enp0']) % 2 == 1:
                 sd_name = 'd' if sd_name == 's' else 's'
-            sd_dict[('out', 'in')] = sd_name
-            sd_name = 'd' if sd_name == 's' else 's'
-            sd_dict[('tail', 'in')] = sd_name
+            sd_dict[('in', sd_name)] = 'out'
+            if sd_name == 'd':
+                sd_dir = (0, 2)
+                sd_name = 's'
+            else:
+                sd_dir = (2, 0)
+                sd_name = 'd'
+            sd_dict[('in', sd_name)] = 'tail'
+            sd_dir_dict['in'] = sd_dir
+
         if (col_dict['enn'] - col_dict['in']) % 2 == 1:
             sd_name = 'd' if sd_name == 's' else 's'
-        sd_dict[('tail', 'enn')] = sd_name
-        sd_name = 'd' if sd_name == 's' else 's'
-        sd_dict[('foot', 'enn')] = sd_name
+        sd_dict[('enn', sd_name)] = 'tail'
+        if sd_name == 'd':
+            sd_dir = (0, 2)
+            sd_name = 's'
+        else:
+            sd_dir = (2, 0)
+            sd_name = 'd'
+        sd_dict[('enn', sd_name)] = 'foot'
+        sd_dir_dict['enn'] = sd_dir
+
         if (col_dict['tail'] - col_dict['enn']) % 2 == 1:
             sd_name = 'd' if sd_name == 's' else 's'
-        sd_dict[('foot', 'tail')] = sd_name
-        sd_name = 'd' if sd_name == 's' else 's'
-        sd_dict[('VSS', 'tail')] = sd_name
+        sd_dict[('tail', sd_name)] = 'foot'
+        if sd_name == 'd':
+            sd_dir = (0, 2)
+            sd_name = 's'
+        else:
+            sd_dir = (2, 0)
+            sd_name = 'd'
+        sd_dict[('tail', sd_name)] = 'VSS'
+        sd_dir_dict['tail'] = sd_dir
 
         return dict(
-            seg_tot=seg_tot,
+            fg_tot=fg_tot,
+            fg_dum=fg_dum,
+            fg_sep=fg_sep,
             col_dict=col_dict,
             sd_dict=sd_dict,
+            sd_dir_dict=sd_dir_dict,
         )
 
 
@@ -172,6 +223,11 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
 
     n_name_list = ['tail', 'enn', 'in', 'casc']
     p_name_list = ['enp', 'load']
+    tran_list = [('load0', 'load'), ('load1', 'load'), ('enp0', 'enp'), ('enp1', 'enp'),
+                 ('casc', 'casc'), ('in', 'in'), ('enn', 'enn'), ('tail', 'tail')]
+    diff_nets = {'mp0', 'mp1', 'out', 'cn'}
+    gate_dict = {'load0': 'clkp', 'load1': 'clkn', 'enp0': 'enp0', 'enp1': 'enp1',
+                 'casc': 'casc', 'in': 'in', 'enn': 'enn', 'tail': 'clkp'}
 
     def __init__(self, temp_db, lib_name, params, used_names, **kwargs):
         # type: (TemplateDB, str, Dict[str, Any], Set[str], **kwargs) -> None
@@ -179,6 +235,12 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
         self._row_lookup = {key: ('nch', idx) for idx, key in enumerate(self.n_name_list)}
         for idx, key in enumerate(self.p_name_list):
             self._row_lookup[key] = ('pch', idx)
+
+    @property
+    def qdr_info(self):
+        # type: () -> HybridQDRBaseInfo
+        # noinspection PyTypeChecker
+        return self.layout_info
 
     def get_row_index(self, name):
         # type: (str) -> Tuple[str, int]
@@ -266,3 +328,100 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
                        n_orientations=n_orient, p_orientations=p_orient,
                        guard_ring_nf=guard_ring_nf, tr_manager=tr_manager,
                        wire_names=dict(nch=n_wires, pch=p_wires), **kwargs)
+
+    def _draw_integ_amp_mos(self,  # type: HybridQDRBase
+                            col_idx,  # type: int
+                            fg_tot,  # type: int
+                            seg_dict,  # type: Dict[str, int]
+                            col_dict,  # type: Dict[str, int]
+                            sd_dict,  # type: Dict[Tuple[str, str], str]
+                            sd_dir_dict,  # type: Dict[str, Tuple[int, int]]
+                            net_prefix='',  # type: str
+                            ):
+        # type: (...) -> Dict[str, List[WireArray]]
+        ports = {}
+        for tran_name, tran_row in self.tran_list:
+            seg = seg_dict[tran_row]
+            if seg > 0:
+                # get transistor info
+                mos_type, row_idx = self.get_row_index(tran_row)
+                col = col_dict[tran_name]
+                sdir, ddir = sd_dir_dict[tran_name]
+                colp = col_idx + col
+                coln = col_idx + (fg_tot - col - seg)
+                snet = sd_dict[(tran_name, 's')]
+                dnet = sd_dict[(tran_name, 'd')]
+                # determine net names
+                if snet in self.diff_nets:
+                    snetp = snet + 'p'
+                    snetn = snet + 'n'
+                else:
+                    snetp = snetn = snet
+                if dnet in self.diff_nets:
+                    dnetp = dnet + 'p'
+                    dnetn = dnet + 'n'
+                else:
+                    dnetp = dnetn = dnet
+                # draw transistors
+                mp = self.draw_mos_conn(mos_type, row_idx, colp, seg, sdir, ddir,
+                                        snet=net_prefix + snetp, dnet=net_prefix + dnetp)
+                mn = self.draw_mos_conn(mos_type, row_idx, coln, seg, sdir, ddir,
+                                        snet=net_prefix + snetn, dnet=net_prefix + dnetn)
+                gnet = self.gate_dict[tran_name]
+                # save gate port
+                if tran_name == 'in':
+                    ports[gnet + 'p'] = [mn['g']]
+                    ports[gnet + 'n'] = [mp['g']]
+                else:
+                    ports[gnet] = [mp['g'], mn['g']]
+                # save drain/source ports
+                for name, warr in [(snetp, mp['s']), (snetn, mn['s']),
+                                   (dnetp, mp['d']), (dnetn, mn['d'])]:
+                    if name in ports:
+                        cur_list = ports[name]
+                    else:
+                        cur_list = []
+                        ports[name] = cur_list
+                    cur_list.append(warr)
+
+        return ports
+
+    def draw_integ_amp(self,  # type: HybridQDRBase
+                       col_idx,  # type: int
+                       seg_dict,  # type: Dict[str, int]
+                       fg_min=0,  # type: int
+                       fg_dum=0,  # type: int
+                       ):
+        # type: (...) -> Tuple[Dict[str, WireArray], Dict[str, Any]]
+        """Draw a differential amplifier.
+
+        Parameters
+        ----------
+        col_idx : int
+            the left-most transistor index.  0 is the left-most transistor.
+        seg_dict : Dict[str, int]
+            a dictionary containing number of segments per transistor type.
+        fg_min : int
+            minimum number of total fingers.
+        fg_dum : int
+            minimum single-sided number of dummy fingers.
+
+        Returns
+        -------
+        port_dict : Dict[str, WireArray]
+            a dictionary from connection name to WireArray on horizontal routing layer.
+        amp_info : Dict[str, Any]
+            the amplifier layout information dictionary
+        """
+        # get layout information
+        amp_info = self.qdr_info.get_integ_amp_info(seg_dict, fg_min=fg_min, fg_dum=fg_dum)
+        fg_tot = amp_info['fg_tot']
+        fg_dum = amp_info['fg_dum']
+        fg_sep = amp_info['fg_sep']
+        col_dict = amp_info['col_dict']
+        sd_dict = amp_info['sd_dict']
+        sd_dir_dict = amp_info['sd_dir_dict']
+
+        ports = self._draw_integ_amp_mos(col_idx, fg_tot, seg_dict, col_dict, sd_dict, sd_dir_dict)
+
+        return {}, amp_info
