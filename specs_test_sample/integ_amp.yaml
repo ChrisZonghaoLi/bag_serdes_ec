@@ -1,4 +1,5 @@
-impl_lib: 'AAAFOO_TEST_DIFFAMP'
+impl_lib: 'AAAFOO_TEST_INTEG_AMP'
+impl_cell: 'INTEG_AMP'
 sch_lib: 'bag_serdes_ec'
 sch_cell: 'diffamp'
 

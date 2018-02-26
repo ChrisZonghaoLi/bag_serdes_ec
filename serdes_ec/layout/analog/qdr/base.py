@@ -303,7 +303,7 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
         # pop unsupported arguments
         for name in ['ng_tracks', 'nds_tracks', 'pg_tracks', 'pds_tracks',
                      'n_orientations', 'p_orientations']:
-            kwargs.pop(name)
+            kwargs.pop(name, None)
 
         # make layout information object
         self.set_layout_info(HybridQDRBaseInfo(self.grid, lch, guard_ring_nf, fg_tot=fg_tot,
@@ -341,7 +341,7 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
         # type: (...) -> Dict[str, List[WireArray]]
         ports = {}
         for tran_name, tran_row in self.tran_list:
-            seg = seg_dict[tran_row]
+            seg = seg_dict.get(tran_row, 0)
             if seg > 0:
                 # get transistor info
                 mos_type, row_idx = self.get_row_index(tran_row)
