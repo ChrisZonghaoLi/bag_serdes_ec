@@ -175,23 +175,15 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
         optional parameters.
     """
 
+    n_name_list = ['tail', 'enn', 'in', 'casc']
+    p_name_list = ['enp', 'load']
+
     def __init__(self, temp_db, lib_name, params, used_names, **kwargs):
         # type: (TemplateDB, str, Dict[str, Any], Set[str], **kwargs) -> None
         AnalogBase.__init__(self, temp_db, lib_name, params, used_names, **kwargs)
-        self._serdes_info = None  # type: HybridQDRBase
-        self._row_lookup = {
-            'load': ('pch', 1),
-            'enp': ('pch', 0),
-            'casc': ('nch', 3),
-            'in': ('nch', 2),
-            'enn': ('nch', 1),
-            'tail': ('nch', 0),
-        }
-
-    @property
-    def layout_info(self):
-        # type: () -> HybridQDRBase
-        return self._serdes_info
+        self._row_lookup = {key: ('nch', idx) for idx, key in enumerate(self.n_name_list)}
+        for idx, key in enumerate(self.p_name_list):
+            self._row_lookup[key] = ('pch', idx)
 
     def get_row_index(self, name):
         # type: (str) -> Tuple[str, int]
@@ -457,24 +449,6 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
         # return result
         return result, amp_info
 
-    @staticmethod
-    def _draw_rows_helper(name_list, w_dict, th_dict, g_ntr_dict, ds_ntr_dict):
-        row_idx_lookup = {}
-        w_list, th_list, g_tracks, ds_tracks = [], [], [], []
-        cur_idx = 0
-        for name in name_list:
-            width = w_dict.get(name, 0)
-            if width > 0:
-                thres = th_dict[name]
-                row_idx_lookup[name] = cur_idx
-                w_list.append(width)
-                th_list.append(thres)
-                g_tracks.append(g_ntr_dict.get(name, 1))
-                ds_tracks.append(ds_ntr_dict.get(name, 1))
-                cur_idx += 1
-
-        return row_idx_lookup, w_list, th_list, g_tracks, ds_tracks
-
     def draw_rows(self,
                   lch,  # type: float
                   fg_tot,  # type: int
@@ -482,8 +456,8 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
                   ntap_w,  # type: Union[float, int]
                   w_dict,  # type: Dict[str, Union[float, int]]
                   th_dict,  # type: Dict[str, str]
-                  g_ntr_dict,  # type: Dict[str, int]
-                  ds_ntr_dict,  # type: Dict[str, int]
+                  tr_widths,  # type: Dict[str, Dict[int, int]]
+                  tr_spaces,  # type: Dict[Union[str, Tuple[str, str]], Dict[int, int]]
                   **kwargs  # type: **kwargs
                   ):
         # type: (...) -> None
@@ -500,32 +474,31 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
         ntap_w : Union[float, int]
             nwell substrate contact width.
         w_dict : Dict[str, Union[float, int]]
-            dictionary from transistor type to row width.  Currently supported type names are
-            load, casc, in, sw, en, and tail.
+            dictionary from transistor type to row width.
         th_dict : Dict[str, str]
             dictionary from transistor type to threshold flavor.
-        g_ntr_dict : Dict[str, int]
-            dictionary from transistor type to number of gate tracks.
-        ds_ntr_dict : Dict[str, int]
-            dictionary from transistor type to number of drain/source tracks.
+        tr_widths : Dict[str, Dict[int, int]]
+            the track width dictionary.
+        tr_spaces : Dict[Union[str, Tuple[str, str]], Dict[int, int]]
+            the track space dictionary.
         **kwargs
             any addtional parameters for AnalogBase's draw_base() method.
         """
-        # make SerdesRXBaseInfo
-        guard_ring_nf = kwargs.get('guard_ring_nf', 0)
-        top_layer = kwargs.get('top_layer', None)
-        end_mode = kwargs.get('end_mode', 15)
-        min_fg_sep = kwargs.get('min_fg_sep', 0)
-        self._serdes_info = SerdesRXBaseInfo(self.grid, lch, guard_ring_nf, top_layer=top_layer, end_mode=end_mode,
-                                             min_fg_sep=min_fg_sep, fg_tot=fg_tot)
+        # make layout information object
+        guard_ring_nf = kwargs.pop('guard_ring_nf', 0)
+        self.set_layout_info(HybridQDRBaseInfo(self.grid, lch, guard_ring_nf, fg_tot=fg_tot, **kwargs))
 
-        # figure out row indices for each nmos row type,
-        # and build nw_list/nth_list/ng_tracks/nds_tracks
-        tmp_result = self._draw_rows_helper(['tail', 'en', 'sw', 'in', 'casc'], w_dict, th_dict,
-                                            g_ntr_dict, ds_ntr_dict)
-        self._nrow_idx, nw_list, nth_list, ng_tracks, nds_tracks = tmp_result
-        tmp_result = self._draw_rows_helper(['load'], w_dict, th_dict, g_ntr_dict, ds_ntr_dict)
-        self._prow_idx, pw_list, pth_list, pg_tracks, pds_tracks = tmp_result
+        nw_list, nth_list = [], []
+        for name in self.n_name_list:
+            nw_list.append(w_dict[name])
+            nth_list.append(th_dict[name])
+        pw_list, pth_list = [], []
+        for name in self.p_name_list:
+            pw_list.append(w_dict[name])
+            pth_list.append(th_dict[name])
+
+        # calculate number of horizontal tracks needed.
+        tr_manager = TrackManager(self._serdes_info.grid, tr_widths, tr_spaces)
 
         n_orient = ['R0'] * len(nw_list)
         p_orient = ['MX'] * len(pw_list)
@@ -533,4 +506,4 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
         # draw base
         self.draw_base(lch, fg_tot, ptap_w, ntap_w, nw_list, nth_list, pw_list, pth_list,
                        ng_tracks=ng_tracks, nds_tracks=nds_tracks, pg_tracks=pg_tracks, pds_tracks=pds_tracks,
-                       n_orientations=n_orient, p_orientations=p_orient, **kwargs)
+                       n_orientations=n_orient, p_orientations=p_orient, guard_ring_nf=guard_ring_nf, **kwargs)
