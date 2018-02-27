@@ -91,10 +91,9 @@ class IntegAmp(HybridQDRBase):
         wire_names = {
             'tail': dict(g=['clk', 'clk'], ds=['tail']),
             'enn': dict(g=['en', 'en', 'en'], ds=['tail']),
-            'in': dict(g=['in', 'in'], ds=['tail']),
-            'casc': dict(g=['en'], ds=[]),
+            'in': dict(g=['in', 'in'], ds=[]),
             'enp': dict(ds=['out', 'out'], g=['en', 'en', 'en']),
-            'load': dict(ds='tail', g=['clk', 'clk']),
+            'load': dict(ds=['tail'], g=['clk', 'clk']),
         }
 
         # get total number of fingers
