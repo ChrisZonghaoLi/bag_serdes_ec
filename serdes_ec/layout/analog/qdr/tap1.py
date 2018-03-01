@@ -4,7 +4,9 @@
 
 from typing import TYPE_CHECKING, Dict, Any, Set
 
-from bag.layout.routing import TrackManager
+from itertools import chain
+
+from bag.layout.routing import TrackManager, TrackID
 
 from .base import HybridQDRBaseInfo, HybridQDRBase
 
@@ -94,9 +96,9 @@ class Tap1FB(HybridQDRBase):
         tr_manager = TrackManager(self.grid, tr_widths, tr_spaces)
         wire_names = {
             'tail': dict(g=['clk'], ds=['ntail']),
-            'enn': dict(g=['en'], ds=['ntail']),
+            'nen': dict(g=['en'], ds=['ntail']),
             'in': dict(g=['in', 'in'], ds=[]),
-            'enp': dict(ds=['out', 'out'], g=['en']),
+            'pen': dict(ds=['out', 'out'], g=['en']),
             'load': dict(ds=['ptail'], g=['clk']),
         }
 
@@ -104,6 +106,7 @@ class Tap1FB(HybridQDRBase):
         qdr_info = HybridQDRBaseInfo(self.grid, lch, 0, top_layer=top_layer,
                                      end_mode=end_mode, **options)
         hm_layer = qdr_info.mconn_port_layer + 1
+        vm_layer = hm_layer + 1
         fg_sep_out = qdr_info.get_fg_sep_from_hm_space(tr_manager.get_width(hm_layer, 'out'),
                                                        round_even=True)
         fg_sep_load = qdr_info.get_fg_sep_from_hm_space(tr_manager.get_width(hm_layer, 'en'),
@@ -122,16 +125,45 @@ class Tap1FB(HybridQDRBase):
                        wire_names, top_layer=top_layer, end_mode=end_mode, **options)
 
         # draw amplifier
-        latch_ports, _ = self.draw_integ_amp(fg_duml, seg_latch, fg_dum=0, fg_sep_load=fg_sep_load)
+        lat_ports, _ = self.draw_integ_amp(fg_duml, seg_latch, fg_dum=0,
+                                           fg_sep_load=fg_sep_load, net_prefix='lat_')
         fb_ports, _ = self.draw_integ_amp(fg_duml + fg_latch + fg_sep_out, seg_fb,
-                                          fg_dum=0, fg_sep_load=fg_sep_load)
+                                          fg_dum=0, fg_sep_load=fg_sep_load, net_prefix='fb_')
 
         vss_warrs, vdd_warrs = self.fill_dummy()
 
-        for key, val in latch_ports.items():
-            self.add_pin('latch_' + key, val, show=show_pins)
-        for key, val in fb_ports.items():
-            self.add_pin('fb_' + key, val, show=show_pins)
+        w_vm_en = tr_manager.get_width(vm_layer, 'en')
+
+        for name in ('inp', 'inn'):
+            cur_warr = self.connect_wires([lat_ports[name], fb_ports[name]])
+            self.add_pin(name, cur_warr, show=show_pins)
+
+        nen = self.connect_wires([lat_ports['nen'], fb_ports['nen']])[0]
+        en0_list = []
+        for idx, warr in enumerate(chain(lat_ports['pen1'], fb_ports['pen1'])):
+            mode = -1 if idx % 2 == 0 else 1
+            mtr = self.grid.coord_to_nearest_track(vm_layer, warr.middle, half_track=True,
+                                                   mode=mode)
+            tid = TrackID(vm_layer, mtr, width=w_vm_en)
+            en0_list.append(self.connect_to_tracks([warr, nen], tid))
+        self.add_pin('en0', en0_list, show=show_pins)
+
+        for name, port_name in (('pen0', 'en1'), ('pclk0', 'clkp'), ('pclk1', 'clkn')):
+            warr_list = []
+            for idx, warr in enumerate(chain(lat_ports[name], fb_ports[name])):
+                mode = -1 if idx % 2 == 0 else 1
+                mtr = self.grid.coord_to_nearest_track(vm_layer, warr.middle, half_track=True,
+                                                       mode=mode)
+                tid = TrackID(vm_layer, mtr, width=w_vm_en)
+                warr_list.append(self.connect_to_tracks(warr, tid, min_len_mode=0))
+
+            self.add_pin(port_name, warr_list, show=show_pins)
+
+        self.add_pin('lat_clkp', lat_ports['nclk'], show=show_pins)
+        self.add_pin('fb_clkp', fb_ports['nclk'], show=show_pins)
+        for name in ('outp', 'outn'):
+            for prefix, port in (('lat_', lat_ports), ('fb_', fb_ports)):
+                self.add_pin(prefix + name, port[name], show=show_pins)
 
         self.add_pin('VSS', vss_warrs, show=show_pins)
         self.add_pin('VDD', vdd_warrs, show=show_pins)

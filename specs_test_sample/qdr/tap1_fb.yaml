@@ -16,11 +16,11 @@ params:
   lch: 20.0e-9
   ptap_w: 6
   ntap_w: 6
-  w_dict: {load: 4, enp: 4, in: 4, enn: 4, tail: 4}
-  th_dict: {load: 'standard', enp: 'standard',
-            in: 'standard', enn: 'standard', tail: 'standard'}
-  seg_fb: {load: 4, enp: 4, in: 4, enn: 6, tail: 6}
-  seg_latch: {load: 4, enp: 4, in: 4, enn: 6, tail: 6}
+  w_dict: {load: 4, pen: 4, in: 4, nen: 4, tail: 4}
+  th_dict: {load: 'standard', pen: 'standard',
+            in: 'standard', nen: 'standard', tail: 'standard'}
+  seg_fb: {load: 4, pen: 4, in: 4, nen: 6, tail: 6}
+  seg_latch: {load: 4, pen: 4, in: 4, nen: 6, tail: 6}
   fg_dum: 4
   fg_min: 0
   tr_widths:

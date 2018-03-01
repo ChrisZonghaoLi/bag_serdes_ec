@@ -76,18 +76,18 @@ class HybridQDRBaseInfo(AnalogBaseInfo):
         fg_sep_load = max(fg_sep, fg_sep_load)
 
         seg_load = seg_dict.get('load', 0)
-        seg_enp = seg_dict.get('enp', 0)
+        seg_pen = seg_dict.get('pen', 0)
         seg_casc = seg_dict.get('casc', 0)
         seg_in = seg_dict['in']
-        seg_enn = seg_dict['enn']
+        seg_nen = seg_dict['nen']
         seg_tail = seg_dict['tail']
 
         # calculate PMOS center transistor number of fingers
-        seg_ps = max(seg_enp, seg_load)
+        seg_ps = max(seg_pen, seg_load)
         if seg_load == 0:
             seg_pc = 0
         else:
-            if need_sep or seg_load > seg_enp:
+            if need_sep or seg_load > seg_pen:
                 seg_pc = seg_ps * 2 + fg_sep_load
             else:
                 seg_pc = seg_ps * 2
@@ -96,7 +96,7 @@ class HybridQDRBaseInfo(AnalogBaseInfo):
         seg_nc = max(seg_casc, seg_in)
         # calculate number of center fingers and total size
         seg_center = max(seg_nc, seg_pc)
-        seg_single = max(seg_center, seg_enn, seg_tail)
+        seg_single = max(seg_center, seg_nen, seg_tail)
         seg_tot = 2 * seg_single + fg_sep
         fg_dum = max(fg_dum, -(-(fg_min - seg_tot) // 2))
         fg_tot = seg_tot + 2 * fg_dum
@@ -107,37 +107,37 @@ class HybridQDRBaseInfo(AnalogBaseInfo):
         if seg_load > 0:
             pc_off = fg_dum + center_off + (seg_center - seg_pc) // 2
             load_off = (seg_ps - seg_load) // 2
-            enp_off = (seg_ps - seg_enp) // 2
+            pen_off = (seg_ps - seg_pen) // 2
             col_dict['load0'] = pc_off + load_off
             col_dict['load1'] = pc_off + seg_pc - load_off - seg_load
-            col_dict['enp0'] = pc_off + enp_off
-            col_dict['enp1'] = pc_off + seg_pc - enp_off - seg_enp
+            col_dict['pen0'] = pc_off + pen_off
+            col_dict['pen1'] = pc_off + seg_pc - pen_off - seg_pen
 
         nc_off = fg_dum + center_off + (seg_center - seg_nc) // 2
         if seg_casc > 0:
             col_dict['casc'] = nc_off + (seg_nc - seg_casc) // 2
         col_dict['in'] = nc_off + (seg_nc - seg_in) // 2
-        col_dict['enn'] = fg_dum + min(seg_single - seg_enn, col_dict['in'])
-        col_dict['tail'] = fg_dum + min(seg_single - seg_tail, col_dict['enn'])
+        col_dict['nen'] = fg_dum + min(seg_single - seg_nen, col_dict['in'])
+        col_dict['tail'] = fg_dum + min(seg_single - seg_tail, col_dict['nen'])
 
         # compute source-drain junction type for each net
         sd_dict = {('load0', 's'): 'VDD', ('load1', 's'): 'VDD',
                    ('load0', 'd'): 'mp0', ('load1', 'd'): 'mp1', }
         sd_dir_dict = {'load0': (2, 0), 'load1': (2, 0), }
-        if (col_dict['enp0'] - col_dict['load0']) % 2 == 0:
-            sd_dict[('enp0', 'd')] = 'mp0'
-            sd_dict[('enp1', 'd')] = 'mp1'
-            sd_dict[('enp0', 's')] = sd_dict[('enp1', 's')] = 'out'
+        if (col_dict['pen0'] - col_dict['load0']) % 2 == 0:
+            sd_dict[('pen0', 'd')] = 'mp0'
+            sd_dict[('pen1', 'd')] = 'mp1'
+            sd_dict[('pen0', 's')] = sd_dict[('pen1', 's')] = 'out'
             sd_name = 's'
-            sd_dir_dict['enp0'] = sd_dir_dict['enp1'] = (0, 2)
+            sd_dir_dict['pen0'] = sd_dir_dict['pen1'] = (0, 2)
         else:
-            sd_dict[('enp0', 's')] = 'mp0'
-            sd_dict[('enp1', 's')] = 'mp1'
-            sd_dict[('enp0', 'd')] = sd_dict[('enp1', 'd')] = 'out'
+            sd_dict[('pen0', 's')] = 'mp0'
+            sd_dict[('pen1', 's')] = 'mp1'
+            sd_dict[('pen0', 'd')] = sd_dict[('pen1', 'd')] = 'out'
             sd_name = 'd'
-            sd_dir_dict['enp0'] = sd_dir_dict['enp1'] = (2, 0)
+            sd_dir_dict['pen0'] = sd_dir_dict['pen1'] = (2, 0)
         if seg_casc > 0:
-            if (col_dict['casc'] - col_dict['enp0']) % 2 == 1:
+            if (col_dict['casc'] - col_dict['pen0']) % 2 == 1:
                 sd_name = 'd' if sd_name == 's' else 's'
             sd_dict[('casc', sd_name)] = 'out'
             if sd_name == 'd':
@@ -161,7 +161,7 @@ class HybridQDRBaseInfo(AnalogBaseInfo):
             sd_dict[('in', sd_name)] = 'tail'
             sd_dir_dict['in'] = sd_dir
         else:
-            if (col_dict['in'] - col_dict['enp0']) % 2 == 1:
+            if (col_dict['in'] - col_dict['pen0']) % 2 == 1:
                 sd_name = 'd' if sd_name == 's' else 's'
             sd_dict[('in', sd_name)] = 'out'
             if sd_name == 'd':
@@ -173,19 +173,19 @@ class HybridQDRBaseInfo(AnalogBaseInfo):
             sd_dict[('in', sd_name)] = 'tail'
             sd_dir_dict['in'] = sd_dir
 
-        if (col_dict['enn'] - col_dict['in']) % 2 == 1:
+        if (col_dict['nen'] - col_dict['in']) % 2 == 1:
             sd_name = 'd' if sd_name == 's' else 's'
-        sd_dict[('enn', sd_name)] = 'tail'
+        sd_dict[('nen', sd_name)] = 'tail'
         if sd_name == 'd':
             sd_dir = (0, 2)
             sd_name = 's'
         else:
             sd_dir = (2, 0)
             sd_name = 'd'
-        sd_dict[('enn', sd_name)] = 'foot'
-        sd_dir_dict['enn'] = sd_dir
+        sd_dict[('nen', sd_name)] = 'foot'
+        sd_dir_dict['nen'] = sd_dir
 
-        if (col_dict['tail'] - col_dict['enn']) % 2 == 1:
+        if (col_dict['tail'] - col_dict['nen']) % 2 == 1:
             sd_name = 'd' if sd_name == 's' else 's'
         sd_dict[('tail', sd_name)] = 'foot'
         if sd_name == 'd':
@@ -225,13 +225,13 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
         optional parameters.
     """
 
-    n_name_list = ['tail', 'enn', 'in', 'casc']
-    p_name_list = ['enp', 'load']
-    tran_list = [('load0', 'load'), ('load1', 'load'), ('enp0', 'enp'), ('enp1', 'enp'),
-                 ('casc', 'casc'), ('in', 'in'), ('enn', 'enn'), ('tail', 'tail')]
+    n_name_list = ['tail', 'nen', 'in', 'casc']
+    p_name_list = ['pen', 'load']
+    tran_list = [('load0', 'load'), ('load1', 'load'), ('pen0', 'pen'), ('pen1', 'pen'),
+                 ('casc', 'casc'), ('in', 'in'), ('nen', 'nen'), ('tail', 'tail')]
     diff_nets = {'mp0', 'mp1', 'out', 'cn'}
-    gate_dict = {'load0': 'pclk0', 'load1': 'pclk1', 'enp0': 'enp0', 'enp1': 'enp1',
-                 'casc': 'casc', 'in': 'in', 'enn': 'enn', 'tail': 'nclk'}
+    gate_dict = {'load0': 'pclk0', 'load1': 'pclk1', 'pen0': 'pen0', 'pen1': 'pen1',
+                 'casc': 'casc', 'in': 'in', 'nen': 'nen', 'tail': 'nclk'}
 
     def __init__(self, temp_db, lib_name, params, used_names, **kwargs):
         # type: (TemplateDB, str, Dict[str, Any], Set[str], **kwargs) -> None
@@ -400,6 +400,7 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
                        fg_dum=0,  # type: int
                        fg_sep_load=0,  # type: int
                        idx_dict=None,  # type: Optional[Dict[str, int]]]
+                       net_prefix='',  # type: str
                        ):
         # type: (...) -> Tuple[Dict[str, WireArray], Dict[str, Any]]
         """Draw a differential amplifier.
@@ -418,6 +419,8 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
             number of fingers separating the load reset switches.
         idx_dict : Optional[Dict[str, int]]
             track index dictionary.
+        net_prefix : str
+            the prefix to append to net names.  Defaults to empty string.
 
         Returns
         -------
@@ -438,7 +441,8 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
         sd_dict = amp_info['sd_dict']
         sd_dir_dict = amp_info['sd_dir_dict']
 
-        ports = self._draw_integ_amp_mos(col_idx, fg_tot, seg_dict, col_dict, sd_dict, sd_dir_dict)
+        ports = self._draw_integ_amp_mos(col_idx, fg_tot, seg_dict, col_dict, sd_dict, sd_dir_dict,
+                                         net_prefix=net_prefix)
 
         # connect wires
         self.connect_to_substrate('ntap', ports['VDD'])
@@ -452,9 +456,9 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
         inp_tid = self.get_wire_id('nch', 2, 'g', wire_idx=1, wire_name='in')
         mp_tid = self.get_wire_id('pch', 1, 'ds', wire_name='ptail')
         nclk_tid = self.get_wire_id('nch', 0, 'g', wire_idx=idx_dict.get('nclk', -1))
-        enn_tid = self.get_wire_id('nch', 1, 'g', wire_idx=idx_dict.get('enn', -1))
-        enp0_tid = self.get_wire_id('pch', 0, 'g', wire_idx=idx_dict.get('enp0', 0))
-        enp1_tid = self.get_wire_id('pch', 0, 'g', wire_idx=idx_dict.get('enp1', 0))
+        nen_tid = self.get_wire_id('nch', 1, 'g', wire_idx=idx_dict.get('nen', -1))
+        pen0_tid = self.get_wire_id('pch', 0, 'g', wire_idx=idx_dict.get('pen0', 0))
+        pen1_tid = self.get_wire_id('pch', 0, 'g', wire_idx=idx_dict.get('pen1', 0))
         pclk0_tid = self.get_wire_id('pch', 1, 'g', wire_idx=idx_dict.get('pclk0', 0))
         pclk1_tid = self.get_wire_id('pch', 1, 'g', wire_idx=idx_dict.get('pclk1', 0))
 
@@ -466,9 +470,9 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
 
         # connect gates
         nclk = self.connect_to_tracks(ports['nclk'], nclk_tid)
-        enn = self.connect_to_tracks(ports['enn'], enn_tid)
-        enp0 = [self.connect_to_tracks(p, enp0_tid, min_len_mode=0) for p in ports['enp0']]
-        enp1 = [self.connect_to_tracks(p, enp1_tid, min_len_mode=0) for p in ports['enp1']]
+        nen = self.connect_to_tracks(ports['nen'], nen_tid)
+        pen0 = [self.connect_to_tracks(p, pen0_tid, min_len_mode=0) for p in ports['pen0']]
+        pen1 = [self.connect_to_tracks(p, pen1_tid, min_len_mode=0) for p in ports['pen1']]
         pclk0 = [self.connect_to_tracks(p, pclk0_tid, min_len_mode=0) for p in ports['pclk0']]
         pclk1 = [self.connect_to_tracks(p, pclk1_tid, min_len_mode=0) for p in ports['pclk1']]
 
@@ -485,8 +489,8 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
                                                     inp_idx, inn_idx, width=in_w)
 
         ports = dict(inp=inp, inn=inn, outp=outp, outn=outn,
-                     enp0=enp0, enp1=enp1, pclk0=pclk0, pclk1=pclk1,
-                     enn=enn, nclk=nclk,
+                     pen0=pen0, pen1=pen1, pclk0=pclk0, pclk1=pclk1,
+                     nen=nen, nclk=nclk,
                      )
 
         # connect cascode if necessary
