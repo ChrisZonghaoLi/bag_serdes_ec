@@ -405,7 +405,7 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
                        idx_dict=None,  # type: Optional[Dict[str, int]]]
                        net_prefix='',  # type: str
                        ):
-        # type: (...) -> Tuple[Dict[str, WireArray], Dict[str, Any]]
+        # type: (...) -> Tuple[Dict[str, Union[WireArray, List[WireArray]]], Dict[str, Any]]
         """Draw a differential amplifier.
 
         Parameters
@@ -427,7 +427,7 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
 
         Returns
         -------
-        port_dict : Dict[str, WireArray]
+        port_dict : Dict[str, Union[WireArray, List[WireArray]]]
             a dictionary from connection name to WireArray on horizontal routing layer.
         amp_info : Dict[str, Any]
             the amplifier layout information dictionary
@@ -492,8 +492,8 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
                                                     inp_idx, inn_idx, width=in_w)
 
         ports = dict(inp=inp, inn=inn, outp=outp, outn=outn,
-                     pen0=pen0, pen1=pen1, pclk0=pclk0, pclk1=pclk1,
-                     nen=nen, nclk=nclk,
+                     pen1=pen0, pen0=pen1, clkp=pclk0, clkn=pclk1,
+                     nen0=nen, bias_clkp=nclk,
                      )
 
         # connect cascode if necessary
