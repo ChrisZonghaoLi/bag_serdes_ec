@@ -358,6 +358,9 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
                 coln = col_idx + (fg_tot - col - seg)
                 snet = sd_dict[(tran_name, 's')]
                 dnet = sd_dict[(tran_name, 'd')]
+
+                s_pre = net_prefix if snet != 'VDD' and snet != 'VSS' else ''
+                d_pre = net_prefix if dnet != 'VDD' and dnet != 'VSS' else ''
                 # determine net names
                 if snet in self.diff_nets:
                     snetp = snet + 'p'
@@ -371,9 +374,9 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
                     dnetp = dnetn = dnet
                 # draw transistors
                 mp = self.draw_mos_conn(mos_type, row_idx, colp, seg, sdir, ddir,
-                                        snet=net_prefix + snetp, dnet=net_prefix + dnetp)
+                                        s_net=s_pre + snetp, d_net=d_pre + dnetp)
                 mn = self.draw_mos_conn(mos_type, row_idx, coln, seg, sdir, ddir,
-                                        snet=net_prefix + snetn, dnet=net_prefix + dnetn)
+                                        s_net=s_pre + snetn, d_net=d_pre + dnetn)
                 gnet = self.gate_dict[tran_name]
                 # save gate port
                 if tran_name == 'in':

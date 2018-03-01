@@ -157,7 +157,7 @@ class Tap1FB(HybridQDRBase):
                 tid = TrackID(vm_layer, mtr, width=w_vm_en)
                 warr_list.append(self.connect_to_tracks(warr, tid, min_len_mode=0))
 
-            self.add_pin(port_name, warr_list, show=show_pins)
+            self.add_pin(port_name, warr_list, label=port_name + ':', show=show_pins)
 
         self.add_pin('lat_clkp', lat_ports['nclk'], show=show_pins)
         self.add_pin('fb_clkp', fb_ports['nclk'], show=show_pins)
