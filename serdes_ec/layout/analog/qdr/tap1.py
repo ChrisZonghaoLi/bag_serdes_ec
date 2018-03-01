@@ -93,11 +93,11 @@ class Tap1FB(HybridQDRBase):
         # get track manager and wire names
         tr_manager = TrackManager(self.grid, tr_widths, tr_spaces)
         wire_names = {
-            'tail': dict(g=['clk'], ds=['tail']),
-            'enn': dict(g=['en'], ds=['tail']),
+            'tail': dict(g=['clk'], ds=['ntail']),
+            'enn': dict(g=['en'], ds=['ntail']),
             'in': dict(g=['in', 'in'], ds=[]),
             'enp': dict(ds=['out', 'out'], g=['en']),
-            'load': dict(ds=['tail'], g=['clk']),
+            'load': dict(ds=['ptail'], g=['clk']),
         }
 
         # get total number of fingers
@@ -107,7 +107,9 @@ class Tap1FB(HybridQDRBase):
         latch_info = qdr_info.get_integ_amp_info(seg_latch, fg_dum=0, sep_load=True)
 
         fg_latch = latch_info['fg_tot']
-        fg_sep = qdr_info.min_fg_sep
+        hm_layer = qdr_info.mconn_port_layer + 1
+        fg_sep = qdr_info.get_fg_sep_from_hm_space(tr_manager.get_width(hm_layer, 'out'))
+        fg_sep = -(-fg_sep // 2) * 2
         fg_amp = fb_info['fg_tot'] + fg_latch + fg_sep
         fg_tot = max(fg_amp + 2 * fg_dumr, fg_min)
         fg_duml = fg_tot - fg_dumr - fg_amp

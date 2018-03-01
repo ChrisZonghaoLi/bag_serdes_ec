@@ -27,7 +27,8 @@ params:
     out: {4: 1}
     clk: {4: 1}
     en: {4: 1}
-    tail: {4: 2}
+    ntail: {4: 2}
+    ptail: {4: 1}
     in: {4: 1}
   tr_spaces:
     !!python/tuple ['in', 'in']: {4: 1}
