@@ -1,7 +1,7 @@
 impl_lib: 'AAAFOO_TEST_QDR'
 impl_cell: 'TAP1_FB'
 sch_lib: 'bag_serdes_ec'
-sch_cell: ''
+sch_cell: 'qdr_tap1_feedback'
 
 routing_grid:
   layers: [4, 5]
@@ -9,8 +9,7 @@ routing_grid:
   spaces: [0.1, 0.1]
   bot_dir: 'x'
   width_override:
-    4:
-      2: 0.2
+    4: {2: 0.2}
 
 params:
   lch: 20.0e-9
@@ -20,7 +19,7 @@ params:
   th_dict: {load: 'standard', pen: 'standard',
             in: 'standard', nen: 'standard', tail: 'standard'}
   seg_fb: {load: 4, pen: 4, in: 4, nen: 6, tail: 6}
-  seg_latch: {load: 4, pen: 4, in: 4, nen: 6, tail: 6}
+  seg_lat: {load: 4, pen: 4, in: 4, nen: 6, tail: 6}
   fg_dum: 4
   fg_min: 0
   tr_widths:

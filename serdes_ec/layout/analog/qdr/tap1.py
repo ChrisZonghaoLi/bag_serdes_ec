@@ -62,7 +62,7 @@ class Tap1FB(HybridQDRBase):
             w_dict='NMOS/PMOS width dictionary.',
             th_dict='NMOS/PMOS threshold flavor dictionary.',
             seg_fb='number of segments dictionary for tap1 feedback.',
-            seg_latch='number of segments dictionary for digital latch.',
+            seg_lat='number of segments dictionary for digital latch.',
             fg_dum='Number of single-sided edge dummy fingers.',
             fg_min='Minimum number of fingers total.',
             tr_widths='Track width dictionary.',
@@ -79,7 +79,7 @@ class Tap1FB(HybridQDRBase):
         w_dict = self.params['w_dict']
         th_dict = self.params['th_dict']
         seg_fb = self.params['seg_fb']
-        seg_latch = self.params['seg_latch']
+        seg_lat = self.params['seg_lat']
         fg_dumr = self.params['fg_dum']
         fg_min = self.params['fg_min']
         tr_widths = self.params['tr_widths']
@@ -114,7 +114,7 @@ class Tap1FB(HybridQDRBase):
         fg_sep_load = max(0, fg_sep_load - 2)
 
         fb_info = qdr_info.get_integ_amp_info(seg_fb, fg_dum=0, fg_sep_load=fg_sep_load)
-        latch_info = qdr_info.get_integ_amp_info(seg_latch, fg_dum=0, fg_sep_load=fg_sep_load)
+        latch_info = qdr_info.get_integ_amp_info(seg_lat, fg_dum=0, fg_sep_load=fg_sep_load)
 
         fg_latch = latch_info['fg_tot']
         fg_amp = fb_info['fg_tot'] + fg_latch + fg_sep_out
@@ -125,7 +125,7 @@ class Tap1FB(HybridQDRBase):
                        wire_names, top_layer=top_layer, end_mode=end_mode, **options)
 
         # draw amplifier
-        lat_ports, _ = self.draw_integ_amp(fg_duml, seg_latch, fg_dum=0,
+        lat_ports, _ = self.draw_integ_amp(fg_duml, seg_lat, fg_dum=0,
                                            fg_sep_load=fg_sep_load, net_prefix='lat_')
         fb_ports, _ = self.draw_integ_amp(fg_duml + fg_latch + fg_sep_out, seg_fb,
                                           fg_dum=0, fg_sep_load=fg_sep_load, net_prefix='fb_')
@@ -167,3 +167,13 @@ class Tap1FB(HybridQDRBase):
 
         self.add_pin('VSS', vss_warrs, show=show_pins)
         self.add_pin('VDD', vdd_warrs, show=show_pins)
+
+        # set schematic parameters
+        self._sch_params = dict(
+            lch=lch,
+            w_dict=w_dict,
+            th_dict=th_dict,
+            seg_fb=seg_fb,
+            seg_lat=seg_lat,
+            dum_info=self.get_sch_dummy_info(),
+        )
