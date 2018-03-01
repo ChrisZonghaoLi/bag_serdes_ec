@@ -103,14 +103,18 @@ class Tap1FB(HybridQDRBase):
         # get total number of fingers
         qdr_info = HybridQDRBaseInfo(self.grid, lch, 0, top_layer=top_layer,
                                      end_mode=end_mode, **options)
-        fb_info = qdr_info.get_integ_amp_info(seg_fb, fg_dum=0, sep_load=True)
-        latch_info = qdr_info.get_integ_amp_info(seg_latch, fg_dum=0, sep_load=True)
+        hm_layer = qdr_info.mconn_port_layer + 1
+        fg_sep_out = qdr_info.get_fg_sep_from_hm_space(tr_manager.get_width(hm_layer, 'out'),
+                                                       round_even=True)
+        fg_sep_load = qdr_info.get_fg_sep_from_hm_space(tr_manager.get_width(hm_layer, 'en'),
+                                                        round_even=True)
+        fg_sep_load = max(0, fg_sep_load - 2)
+
+        fb_info = qdr_info.get_integ_amp_info(seg_fb, fg_dum=0, fg_sep_load=fg_sep_load)
+        latch_info = qdr_info.get_integ_amp_info(seg_latch, fg_dum=0, fg_sep_load=fg_sep_load)
 
         fg_latch = latch_info['fg_tot']
-        hm_layer = qdr_info.mconn_port_layer + 1
-        fg_sep = qdr_info.get_fg_sep_from_hm_space(tr_manager.get_width(hm_layer, 'out'),
-                                                   round_even=True)
-        fg_amp = fb_info['fg_tot'] + fg_latch + fg_sep
+        fg_amp = fb_info['fg_tot'] + fg_latch + fg_sep_out
         fg_tot = max(fg_amp + 2 * fg_dumr, fg_min)
         fg_duml = fg_tot - fg_dumr - fg_amp
 
@@ -118,9 +122,9 @@ class Tap1FB(HybridQDRBase):
                        wire_names, top_layer=top_layer, end_mode=end_mode, **options)
 
         # draw amplifier
-        latch_ports, _ = self.draw_integ_amp(fg_duml, seg_latch, fg_dum=0, sep_load=True)
-        fb_ports, _ = self.draw_integ_amp(fg_duml + fg_latch + fg_sep, seg_fb,
-                                          fg_dum=0, sep_load=True)
+        latch_ports, _ = self.draw_integ_amp(fg_duml, seg_latch, fg_dum=0, fg_sep_load=fg_sep_load)
+        fb_ports, _ = self.draw_integ_amp(fg_duml + fg_latch + fg_sep_out, seg_fb,
+                                          fg_dum=0, fg_sep_load=fg_sep_load)
 
         vss_warrs, vdd_warrs = self.fill_dummy()
 

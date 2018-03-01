@@ -44,8 +44,8 @@ class HybridQDRBaseInfo(AnalogBaseInfo):
         AnalogBaseInfo.__init__(self, grid, lch, guard_ring_nf, top_layer=top_layer,
                                 end_mode=end_mode, min_fg_sep=min_fg_sep, fg_tot=fg_tot, **kwargs)
 
-    def get_integ_amp_info(self, seg_dict, fg_min=0, fg_dum=0, sep_load=False):
-        # type: (Dict[str, int], int, int, bool) -> Dict[str, Any]
+    def get_integ_amp_info(self, seg_dict, fg_min=0, fg_dum=0, fg_sep_load=0):
+        # type: (Dict[str, int], int, int, int) -> Dict[str, Any]
         """Compute placement of transistors in the given integrating amplifier.
 
         Parameters
@@ -56,8 +56,8 @@ class HybridQDRBaseInfo(AnalogBaseInfo):
             minimum number of fingers.
         fg_dum : int
             number of dummy fingers on each side.
-        sep_load : bool
-            True to force load separation.
+        fg_sep_load : int
+            number of fingers separating the load reset switches.
 
         Returns
         -------
@@ -71,8 +71,9 @@ class HybridQDRBaseInfo(AnalogBaseInfo):
             sd_dict : Dict[Tuple[str, str], str]
                 a dictionary from net name/transistor tuple to source-drain junction type.
         """
-        need_sep = not self.abut_analog_mos or sep_load
+        need_sep = not self.abut_analog_mos or fg_sep_load > 0
         fg_sep = self.min_fg_sep
+        fg_sep_load = max(fg_sep, fg_sep_load)
 
         seg_load = seg_dict.get('load', 0)
         seg_enp = seg_dict.get('enp', 0)
@@ -87,7 +88,7 @@ class HybridQDRBaseInfo(AnalogBaseInfo):
             seg_pc = 0
         else:
             if need_sep or seg_load > seg_enp:
-                seg_pc = seg_ps * 2 + fg_sep
+                seg_pc = seg_ps * 2 + fg_sep_load
             else:
                 seg_pc = seg_ps * 2
 
@@ -200,6 +201,7 @@ class HybridQDRBaseInfo(AnalogBaseInfo):
             fg_tot=fg_tot,
             fg_dum=fg_dum,
             fg_sep=fg_sep,
+            fg_sep_load=fg_sep_load,
             col_dict=col_dict,
             sd_dict=sd_dict,
             sd_dir_dict=sd_dir_dict,
@@ -396,7 +398,7 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
                        seg_dict,  # type: Dict[str, int]
                        fg_min=0,  # type: int
                        fg_dum=0,  # type: int
-                       sep_load=False,  # type: bool
+                       fg_sep_load=0,  # type: int
                        idx_dict=None,  # type: Optional[Dict[str, int]]]
                        ):
         # type: (...) -> Tuple[Dict[str, WireArray], Dict[str, Any]]
@@ -412,8 +414,8 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
             minimum number of total fingers.
         fg_dum : int
             minimum single-sided number of dummy fingers.
-        sep_load : bool
-            True to force load separation.
+        fg_sep_load : int
+            number of fingers separating the load reset switches.
         idx_dict : Optional[Dict[str, int]]
             track index dictionary.
 
@@ -429,7 +431,7 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
 
         # get layout information
         amp_info = self.qdr_info.get_integ_amp_info(seg_dict, fg_min=fg_min, fg_dum=fg_dum,
-                                                    sep_load=sep_load)
+                                                    fg_sep_load=fg_sep_load)
         seg_casc = seg_dict.get('casc', 0)
         fg_tot = amp_info['fg_tot']
         col_dict = amp_info['col_dict']
