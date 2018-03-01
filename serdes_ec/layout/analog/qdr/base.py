@@ -44,8 +44,8 @@ class HybridQDRBaseInfo(AnalogBaseInfo):
         AnalogBaseInfo.__init__(self, grid, lch, guard_ring_nf, top_layer=top_layer,
                                 end_mode=end_mode, min_fg_sep=min_fg_sep, fg_tot=fg_tot, **kwargs)
 
-    def get_integ_amp_info(self, seg_dict, fg_min=0, fg_dum=0):
-        # type: (Dict[str, int], int, int) -> Dict[str, Any]
+    def get_integ_amp_info(self, seg_dict, fg_min=0, fg_dum=0, sep_load=False):
+        # type: (Dict[str, int], int, int, bool) -> Dict[str, Any]
         """Compute placement of transistors in the given integrating amplifier.
 
         Parameters
@@ -56,6 +56,8 @@ class HybridQDRBaseInfo(AnalogBaseInfo):
             minimum number of fingers.
         fg_dum : int
             number of dummy fingers on each side.
+        sep_load : bool
+            True to force load separation.
 
         Returns
         -------
@@ -69,7 +71,7 @@ class HybridQDRBaseInfo(AnalogBaseInfo):
             sd_dict : Dict[Tuple[str, str], str]
                 a dictionary from net name/transistor tuple to source-drain junction type.
         """
-        need_sep = not self.abut_analog_mos
+        need_sep = not self.abut_analog_mos or sep_load
         fg_sep = self.min_fg_sep
 
         seg_load = seg_dict.get('load', 0)
@@ -118,21 +120,21 @@ class HybridQDRBaseInfo(AnalogBaseInfo):
         col_dict['tail'] = fg_dum + min(seg_single - seg_tail, col_dict['enn'])
 
         # compute source-drain junction type for each net
-        sd_dict = {('load0', 's'): 'VDD', ('load1', 's'): 'VDD',
-                   ('load0', 'd'): 'mp0', ('load1', 'd'): 'mp1', }
-        sd_dir_dict = {'load0': (2, 0), 'load1': (2, 0), }
+        sd_dict = {('load0', 'd'): 'VDD', ('load1', 'd'): 'VDD',
+                   ('load0', 's'): 'mp0', ('load1', 's'): 'mp1', }
+        sd_dir_dict = {'load0': (0, 2), 'load1': (0, 2), }
         if (col_dict['enp0'] - col_dict['load0']) % 2 == 0:
-            sd_dict[('enp0', 'd')] = 'mp0'
-            sd_dict[('enp1', 'd')] = 'mp1'
-            sd_dict[('enp0', 's')] = sd_dict[('enp1', 's')] = 'out'
-            sd_name = 's'
-            sd_dir_dict['enp0'] = sd_dir_dict['enp1'] = (0, 2)
-        else:
             sd_dict[('enp0', 's')] = 'mp0'
             sd_dict[('enp1', 's')] = 'mp1'
             sd_dict[('enp0', 'd')] = sd_dict[('enp1', 'd')] = 'out'
             sd_name = 'd'
             sd_dir_dict['enp0'] = sd_dir_dict['enp1'] = (2, 0)
+        else:
+            sd_dict[('enp0', 'd')] = 'mp0'
+            sd_dict[('enp1', 'd')] = 'mp1'
+            sd_dict[('enp0', 's')] = sd_dict[('enp1', 's')] = 'out'
+            sd_name = 's'
+            sd_dir_dict['enp0'] = sd_dir_dict['enp1'] = (0, 2)
         if seg_casc > 0:
             if (col_dict['casc'] - col_dict['enp0']) % 2 == 1:
                 sd_name = 'd' if sd_name == 's' else 's'
@@ -394,6 +396,7 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
                        seg_dict,  # type: Dict[str, int]
                        fg_min=0,  # type: int
                        fg_dum=0,  # type: int
+                       sep_load=False,  # type: bool
                        idx_dict=None,  # type: Optional[Dict[str, int]]]
                        ):
         # type: (...) -> Tuple[Dict[str, WireArray], Dict[str, Any]]
@@ -409,6 +412,8 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
             minimum number of total fingers.
         fg_dum : int
             minimum single-sided number of dummy fingers.
+        sep_load : bool
+            True to force load separation.
         idx_dict : Optional[Dict[str, int]]
             track index dictionary.
 
@@ -423,7 +428,8 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
             idx_dict = {}
 
         # get layout information
-        amp_info = self.qdr_info.get_integ_amp_info(seg_dict, fg_min=fg_min, fg_dum=fg_dum)
+        amp_info = self.qdr_info.get_integ_amp_info(seg_dict, fg_min=fg_min, fg_dum=fg_dum,
+                                                    sep_load=sep_load)
         seg_casc = seg_dict.get('casc', 0)
         fg_tot = amp_info['fg_tot']
         col_dict = amp_info['col_dict']
@@ -446,23 +452,23 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
         nclk_tid = self.get_wire_id('nch', 0, 'g', wire_idx=idx_dict.get('nclk', -1))
         enn_tid = self.get_wire_id('nch', 1, 'g', wire_idx=idx_dict.get('enn', -1))
         enp0_tid = self.get_wire_id('pch', 0, 'g', wire_idx=idx_dict.get('enp0', 0))
-        enp1_tid = self.get_wire_id('pch', 0, 'g', wire_idx=idx_dict.get('enp1', 1))
+        enp1_tid = self.get_wire_id('pch', 0, 'g', wire_idx=idx_dict.get('enp1', 0))
         pclk0_tid = self.get_wire_id('pch', 1, 'g', wire_idx=idx_dict.get('pclk0', 0))
-        pclk1_tid = self.get_wire_id('pch', 1, 'g', wire_idx=idx_dict.get('pclk1', 1))
+        pclk1_tid = self.get_wire_id('pch', 1, 'g', wire_idx=idx_dict.get('pclk1', 0))
 
         # connect intermediate nodes
-        self.connect_to_tracks(ports['foot'], foot_tid)
-        self.connect_to_tracks(ports['tail'], tail_tid)
+        self.connect_to_tracks(ports['foot'], foot_tid, min_len_mode=0)
+        self.connect_to_tracks(ports['tail'], tail_tid, min_len_mode=0)
         for name in ('mp0p', 'mp0n', 'mp1p', 'mp1n'):
-            self.connect_to_tracks(ports[name], mp_tid)
+            self.connect_to_tracks(ports[name], mp_tid, min_len_mode=0)
 
         # connect gates
         nclk = self.connect_to_tracks(ports['nclk'], nclk_tid)
         enn = self.connect_to_tracks(ports['enn'], enn_tid)
-        enp0 = self.connect_to_tracks(ports['enp0'], enp0_tid)
-        enp1 = self.connect_to_tracks(ports['enp1'], enp1_tid)
-        pclk0 = self.connect_to_tracks(ports['pclk0'], pclk0_tid)
-        pclk1 = self.connect_to_tracks(ports['pclk1'], pclk1_tid)
+        enp0 = [self.connect_to_tracks(p, enp0_tid, min_len_mode=0) for p in ports['enp0']]
+        enp1 = [self.connect_to_tracks(p, enp1_tid, min_len_mode=0) for p in ports['enp1']]
+        pclk0 = [self.connect_to_tracks(p, pclk0_tid, min_len_mode=0) for p in ports['pclk0']]
+        pclk1 = [self.connect_to_tracks(p, pclk1_tid, min_len_mode=0) for p in ports['pclk1']]
 
         hm_layer = outp_tid.layer_id
         out_w = outp_tid.width

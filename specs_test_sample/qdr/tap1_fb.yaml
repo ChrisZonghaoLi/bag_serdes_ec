@@ -1,0 +1,38 @@
+impl_lib: 'AAAFOO_TEST_QDR'
+impl_cell: 'TAP1_FB'
+sch_lib: 'bag_serdes_ec'
+sch_cell: ''
+
+routing_grid:
+  layers: [4, 5]
+  widths: [0.1, 0.1]
+  spaces: [0.1, 0.1]
+  bot_dir: 'x'
+  width_override:
+    4:
+      2: 0.2
+
+params:
+  lch: 20.0e-9
+  ptap_w: 6
+  ntap_w: 6
+  w_dict: {load: 4, enp: 4, in: 4, enn: 4, tail: 4}
+  th_dict: {load: 'standard', enp: 'standard',
+            in: 'standard', enn: 'standard', tail: 'standard'}
+  seg_fb: {load: 4, enp: 4, in: 4, enn: 6, tail: 6}
+  seg_latch: {load: 4, enp: 4, in: 4, enn: 6, tail: 6}
+  fg_dum: 4
+  fg_min: 0
+  tr_widths:
+    out: {4: 1}
+    clk: {4: 1}
+    en: {4: 1}
+    tail: {4: 2}
+    in: {4: 1}
+  tr_spaces:
+    !!python/tuple ['in', 'in']: {4: 1}
+    !!python/tuple ['out', 'out']: {4: 1}
+  show_pins: True
+  end_mode: 12
+  options:
+    sub_integ_htr: False
