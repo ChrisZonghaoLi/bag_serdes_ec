@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Dict, Any, Set
 from itertools import chain
 
 from bag.layout.routing import TrackManager, TrackID
+from bag.layout.template import TemplateBase
 
 from .base import HybridQDRBaseInfo, HybridQDRBase
 
@@ -91,7 +92,6 @@ class Tap1FB(HybridQDRBase):
         show_pins = self.params['show_pins']
         options = self.params['options']
 
-        top_layer = None
         if options is None:
             options = {}
 
@@ -106,10 +106,10 @@ class Tap1FB(HybridQDRBase):
         }
 
         # get total number of fingers
+        hm_layer = self.mos_conn_layer + 1
+        top_layer = vm_layer = hm_layer + 1
         qdr_info = HybridQDRBaseInfo(self.grid, lch, 0, top_layer=top_layer,
                                      end_mode=12, **options)
-        hm_layer = qdr_info.mconn_port_layer + 1
-        vm_layer = hm_layer + 1
         fg_sep_out = qdr_info.get_fg_sep_from_hm_space(tr_manager.get_width(hm_layer, 'out'),
                                                        round_even=True)
         fg_sep_load = qdr_info.get_fg_sep_from_hm_space(tr_manager.get_width(hm_layer, 'en'),
@@ -261,7 +261,6 @@ class Tap1Main(HybridQDRBase):
         is_end = self.params['is_end']
         options = self.params['options']
 
-        top_layer = None
         end_mode = 13 if is_end else 12
         if options is None:
             options = {}
@@ -277,10 +276,10 @@ class Tap1Main(HybridQDRBase):
         }
 
         # get total number of fingers
+        hm_layer = self.mos_conn_layer + 1
+        top_layer = vm_layer = hm_layer + 1
         qdr_info = HybridQDRBaseInfo(self.grid, lch, 0, top_layer=top_layer,
                                      end_mode=end_mode, **options)
-        hm_layer = qdr_info.mconn_port_layer + 1
-        vm_layer = hm_layer + 1
         fg_sep_load = qdr_info.get_fg_sep_from_hm_space(tr_manager.get_width(hm_layer, 'en'),
                                                         round_even=True)
         fg_sep_load = max(0, fg_sep_load - 2)
@@ -337,3 +336,88 @@ class Tap1Main(HybridQDRBase):
             dum_info=self.get_sch_dummy_info(),
         )
         self._fg_tot = fg_tot
+
+
+class Tap1Summer(TemplateBase):
+    """An integrating amplifier.
+
+    Parameters
+    ----------
+    temp_db : TemplateDB
+            the template database.
+    lib_name : str
+        the layout library name.
+    params : Dict[str, Any]
+        the parameter values.
+    used_names : Set[str]
+        a set of already used cell names.
+    **kwargs
+        dictionary of optional parameters.  See documentation of
+        :class:`bag.layout.template.TemplateBase` for details.
+    """
+
+    def __init__(self, temp_db, lib_name, params, used_names, **kwargs):
+        # type: (TemplateDB, str, Dict[str, Any], Set[str], **kwargs) -> None
+        TemplateBase.__init__(self, temp_db, lib_name, params, used_names, **kwargs)
+        self._sch_params = None
+
+    @property
+    def sch_params(self):
+        # type: () -> Dict[str, Any]
+        return self._sch_params
+
+    @classmethod
+    def get_default_param_values(cls):
+        # type: () -> Dict[str, Any]
+        return dict(
+            is_end=False,
+            show_pins=True,
+            options=None,
+        )
+
+    @classmethod
+    def get_params_info(cls):
+        # type: () -> Dict[str, str]
+        return dict(
+            lch='channel length, in meters.',
+            ptap_w='NMOS substrate width, in meters/number of fins.',
+            ntap_w='PMOS substrate width, in meters/number of fins.',
+            w_dict='NMOS/PMOS width dictionary.',
+            th_dict='NMOS/PMOS threshold flavor dictionary.',
+            seg_main='number of segments dictionary for main tap.',
+            seg_fb='number of segments dictionary for tap1 feedback.',
+            seg_lat='number of segments dictionary for digital latch.',
+            fg_dum='Number of single-sided edge dummy fingers.',
+            tr_widths='Track width dictionary.',
+            tr_spaces='Track spacing dictionary.',
+            show_pins='True to create pin labels.',
+            is_end='True if this is the end row.',
+            options='other AnalogBase options',
+        )
+
+    def draw_layout(self):
+        # get parameters
+        fb_params = self.params.copy()
+        del fb_params['seg_main']
+        del fb_params['is_end']
+        main_params = self.params.copy()
+        del main_params['seg_fb']
+        del main_params['seg_lat']
+        main_params['seg_dict'] = main_params['seg_main']
+        del main_params['seg_main']
+
+        # get masters
+        f_master = self.new_template(params=fb_params, temp_cls=Tap1FB)
+        m_master = self.new_template(params=main_params, temp_cls=Tap1Main)
+        fg_min = max(f_master.fg_tot, m_master.fg_tot)
+        f_master = f_master.new_template_with(fg_min=fg_min)
+        m_master = m_master.new_template_with(fg_min=fg_min)
+
+        # place instances
+        y0 = m_master.array_box.height_unit + f_master.array_box.height_unit
+        m_inst = self.add_instance(m_master, 'XMAIN')
+        f_inst = self.add_instance(f_master, 'XFB', loc=(0, y0), orient='MX', unit_mode=True)
+
+        # set size
+        self.array_box = m_inst.array_box.merge(f_inst.array_box)
+        self.set_size_from_array_box(m_master.top_layer)

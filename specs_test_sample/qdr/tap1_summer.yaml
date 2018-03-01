@@ -1,0 +1,38 @@
+impl_lib: 'AAAFOO_TEST_QDR'
+impl_cell: 'TAP1_SUMMER'
+sch_lib: 'bag_serdes_ec'
+sch_cell: 'qdr_tap1_summer'
+
+routing_grid:
+  layers: [4, 5]
+  widths: [0.1, 0.1]
+  spaces: [0.1, 0.1]
+  bot_dir: 'x'
+  width_override:
+    4: {2: 0.2}
+
+params:
+  lch: 20.0e-9
+  ptap_w: 6
+  ntap_w: 6
+  w_dict: {load: 4, pen: 4, in: 4, nen: 4, tail: 4}
+  th_dict: {load: 'standard', pen: 'standard',
+            in: 'standard', nen: 'standard', tail: 'standard'}
+  seg_main: {load: 4, pen: 4, in: 4, nen: 6, tail: 6}
+  seg_fb: {load: 4, pen: 4, in: 4, nen: 6, tail: 6}
+  seg_lat: {load: 4, pen: 4, in: 4, nen: 6, tail: 6}
+  fg_dum: 4
+  tr_widths:
+    out: {4: 1}
+    clk: {4: 1}
+    en: {4: 1}
+    ntail: {4: 2}
+    ptail: {4: 1}
+    in: {4: 1}
+  tr_spaces:
+    !!python/tuple ['in', 'in']: {4: 1}
+    !!python/tuple ['out', 'out']: {4: 1}
+  show_pins: True
+  is_end: False
+  options:
+    sub_integ_htr: False
