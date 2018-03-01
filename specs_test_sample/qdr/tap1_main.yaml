@@ -1,7 +1,7 @@
 impl_lib: 'AAAFOO_TEST_QDR'
-impl_cell: 'TAP1_FB'
+impl_cell: 'TAP1_MAIN'
 sch_lib: 'bag_serdes_ec'
-sch_cell: 'qdr_tap1_feedback'
+sch_cell: 'integ_amp'
 
 routing_grid:
   layers: [4, 5]
@@ -18,8 +18,7 @@ params:
   w_dict: {load: 4, pen: 4, in: 4, nen: 4, tail: 4}
   th_dict: {load: 'standard', pen: 'standard',
             in: 'standard', nen: 'standard', tail: 'standard'}
-  seg_fb: {load: 4, pen: 4, in: 4, nen: 6, tail: 6}
-  seg_lat: {load: 4, pen: 4, in: 4, nen: 6, tail: 6}
+  seg_dict: {load: 4, pen: 4, in: 4, nen: 6, tail: 6}
   fg_dum: 4
   fg_min: 0
   tr_widths:
@@ -33,5 +32,6 @@ params:
     !!python/tuple ['in', 'in']: {4: 1}
     !!python/tuple ['out', 'out']: {4: 1}
   show_pins: True
+  is_end: False
   options:
     sub_integ_htr: False

@@ -58,3 +58,7 @@ class bag_serdes_ec__integ_amp(Module):
             self.instances[inst_name].design(w=w, l=lch, nf=seg, intent=th)
 
         self.design_dummy_transistors(dum_info, 'XDUM', 'VDD', 'VSS')
+        if dum_info is not None:
+            # delete intermediate ports
+            for pin_name in ('pm0p', 'pm0n', 'pm1p', 'pm1n', 'tail', 'foot'):
+                self.remove_pin(pin_name)

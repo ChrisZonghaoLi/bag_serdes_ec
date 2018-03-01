@@ -205,11 +205,17 @@ class Tap1Main(HybridQDRBase):
         # type: (TemplateDB, str, Dict[str, Any], Set[str], **kwargs) -> None
         HybridQDRBase.__init__(self, temp_db, lib_name, params, used_names, **kwargs)
         self._sch_params = None
+        self._fg_tot = None
 
     @property
     def sch_params(self):
         # type: () -> Dict[str, Any]
         return self._sch_params
+
+    @property
+    def fg_tot(self):
+        # type: () -> int
+        return self._fg_tot
 
     @classmethod
     def get_default_param_values(cls):
@@ -300,7 +306,7 @@ class Tap1Main(HybridQDRBase):
 
         nen = ports['nen0']
         en0_list = []
-        for idx, warr in ports['pen0']:
+        for idx, warr in enumerate(ports['pen0']):
             mode = -1 if idx % 2 == 0 else 1
             mtr = self.grid.coord_to_nearest_track(vm_layer, warr.middle, half_track=True,
                                                    mode=mode)
@@ -310,7 +316,7 @@ class Tap1Main(HybridQDRBase):
 
         for name, port_name in (('pen1', 'en1'), ('clkp', 'clkp'), ('clkn', 'clkn')):
             warr_list = []
-            for idx, warr in ports[name]:
+            for idx, warr in enumerate(ports[name]):
                 mode = -1 if idx % 2 == 0 else 1
                 mtr = self.grid.coord_to_nearest_track(vm_layer, warr.middle, half_track=True,
                                                        mode=mode)
@@ -330,3 +336,4 @@ class Tap1Main(HybridQDRBase):
             seg_dict=seg_dict,
             dum_info=self.get_sch_dummy_info(),
         )
+        self._fg_tot = fg_tot
