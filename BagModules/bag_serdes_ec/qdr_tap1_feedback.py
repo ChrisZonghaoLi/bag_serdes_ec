@@ -8,7 +8,8 @@ import pkg_resources
 from bag.design import Module
 
 
-yaml_file = pkg_resources.resource_filename(__name__, os.path.join('netlist_info', 'qdr_tap1_feedback.yaml'))
+yaml_file = pkg_resources.resource_filename(__name__, os.path.join('netlist_info',
+                                                                   'qdr_tap1_feedback.yaml'))
 
 
 # noinspection PyPep8Naming
@@ -24,30 +25,18 @@ class bag_serdes_ec__qdr_tap1_feedback(Module):
     @classmethod
     def get_params_info(cls):
         # type: () -> Dict[str, str]
-        """Returns a dictionary from parameter names to descriptions.
-
-        Returns
-        -------
-        param_info : Optional[Dict[str, str]]
-            dictionary from parameter names to descriptions.
-        """
         return dict(
+            lch='channel length, in meters.',
+            w_dict='NMOS/PMOS width dictionary.',
+            th_dict='NMOS/PMOS threshold flavor dictionary.',
+            seg_fb='number of segments dictionary for feedback amp.',
+            seg_lat='number of segments dictionary for digital latch.',
+            dum_info='The dummy information data structure.',
         )
 
-    def design(self):
-        """To be overridden by subclasses to design this module.
-
-        This method should fill in values for all parameters in
-        self.parameters.  To design instances of this module, you can
-        call their design() method or any other ways you coded.
-
-        To modify schematic structure, call:
-
-        rename_pin()
-        delete_instance()
-        replace_instance_master()
-        reconnect_instance_terminal()
-        restore_instance()
-        array_instance()
-        """
-        pass
+    def design(self, lch, w_dict, th_dict, seg_fb, seg_lat, dum_info):
+        self.instances['XFB'].design(lch=lch, w_dict=w_dict, th_dict=th_dict,
+                                     seg_dict=seg_fb)
+        self.instances['XLAT'].design(lch=lch, w_dict=w_dict, th_dict=th_dict,
+                                      seg_dict=seg_lat)
+        self.design_dummy_transistors(dum_info, 'XDUM', 'VDD', 'VSS')

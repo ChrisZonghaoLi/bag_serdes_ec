@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from typing import Dict
+from typing import Dict, Union
 
 import os
 import pkg_resources
@@ -8,7 +8,8 @@ import pkg_resources
 from bag.design import Module
 
 
-yaml_file = pkg_resources.resource_filename(__name__, os.path.join('netlist_info', 'integ_amp.yaml'))
+yaml_file = pkg_resources.resource_filename(__name__, os.path.join('netlist_info',
+                                                                   'integ_amp.yaml'))
 
 
 # noinspection PyPep8Naming
@@ -24,30 +25,26 @@ class bag_serdes_ec__integ_amp(Module):
     @classmethod
     def get_params_info(cls):
         # type: () -> Dict[str, str]
-        """Returns a dictionary from parameter names to descriptions.
-
-        Returns
-        -------
-        param_info : Optional[Dict[str, str]]
-            dictionary from parameter names to descriptions.
-        """
         return dict(
+            lch='channel length, in meters.',
+            w_dict='NMOS/PMOS width dictionary.',
+            th_dict='NMOS/PMOS threshold flavor dictionary.',
+            seg_dict='number of segments dictionary.',
         )
 
-    def design(self):
-        """To be overridden by subclasses to design this module.
+    def design(self, lch, w_dict, th_dict, seg_dict):
+        # type: (float, Dict[str, Union[float, int]], Dict[str, str], Dict[str, int]) -> None
+        tran_info_list = [('XTAILP', 'tail'), ('XTAILN', 'tail'),
+                          ('XNENP', 'nen'), ('XNENN', 'nen'),
+                          ('XINP', 'in'), ('XINN', 'in'),
+                          ('XPENP0', 'pen'), ('XPENP1', 'pen'),
+                          ('XPENN0', 'pen'), ('XPENN1', 'pen'),
+                          ('XLOADP0', 'load'), ('XLOADP1', 'load'),
+                          ('XLOADN0', 'load'), ('XLOADN1', 'load'),
+                          ]
 
-        This method should fill in values for all parameters in
-        self.parameters.  To design instances of this module, you can
-        call their design() method or any other ways you coded.
-
-        To modify schematic structure, call:
-
-        rename_pin()
-        delete_instance()
-        replace_instance_master()
-        reconnect_instance_terminal()
-        restore_instance()
-        array_instance()
-        """
-        pass
+        for inst_name, inst_type in tran_info_list:
+            w = w_dict[inst_type]
+            th = th_dict[inst_type]
+            seg = seg_dict[inst_type]
+            self.instances[inst_name].design(w=w, l=lch, nf=seg, intent=th)
