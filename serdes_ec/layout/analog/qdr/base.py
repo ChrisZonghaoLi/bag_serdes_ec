@@ -122,17 +122,17 @@ class HybridQDRBaseInfo(AnalogBaseInfo):
 
         # compute source-drain junction type for each net
         sd_dict = {('load0', 's'): 'VDD', ('load1', 's'): 'VDD',
-                   ('load0', 'd'): 'mp0', ('load1', 'd'): 'mp1', }
+                   ('load0', 'd'): 'pm0', ('load1', 'd'): 'pm1', }
         sd_dir_dict = {'load0': (2, 0), 'load1': (2, 0), }
         if (col_dict['pen0'] - col_dict['load0']) % 2 == 0:
-            sd_dict[('pen0', 'd')] = 'mp0'
-            sd_dict[('pen1', 'd')] = 'mp1'
+            sd_dict[('pen0', 'd')] = 'pm0'
+            sd_dict[('pen1', 'd')] = 'pm1'
             sd_dict[('pen0', 's')] = sd_dict[('pen1', 's')] = 'out'
             sd_name = 's'
             sd_dir_dict['pen0'] = sd_dir_dict['pen1'] = (0, 2)
         else:
-            sd_dict[('pen0', 's')] = 'mp0'
-            sd_dict[('pen1', 's')] = 'mp1'
+            sd_dict[('pen0', 's')] = 'pm0'
+            sd_dict[('pen1', 's')] = 'pm1'
             sd_dict[('pen0', 'd')] = sd_dict[('pen1', 'd')] = 'out'
             sd_name = 'd'
             sd_dir_dict['pen0'] = sd_dir_dict['pen1'] = (2, 0)
@@ -229,7 +229,7 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
     p_name_list = ['pen', 'load']
     tran_list = [('load0', 'load'), ('load1', 'load'), ('pen0', 'pen'), ('pen1', 'pen'),
                  ('casc', 'casc'), ('in', 'in'), ('nen', 'nen'), ('tail', 'tail')]
-    diff_nets = {'mp0', 'mp1', 'out', 'cn'}
+    diff_nets = {'pm0', 'pm1', 'out', 'cn'}
     gate_dict = {'load0': 'pclk0', 'load1': 'pclk1', 'pen0': 'pen0', 'pen1': 'pen1',
                  'casc': 'casc', 'in': 'in', 'nen': 'nen', 'tail': 'nclk'}
 
@@ -465,7 +465,7 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
         # connect intermediate nodes
         self.connect_to_tracks(ports['foot'], foot_tid, min_len_mode=0)
         self.connect_to_tracks(ports['tail'], tail_tid, min_len_mode=0)
-        for name in ('mp0p', 'mp0n', 'mp1p', 'mp1n'):
+        for name in ('pm0p', 'pm0n', 'pm1p', 'pm1n'):
             self.connect_to_tracks(ports[name], mp_tid, min_len_mode=0)
 
         # connect gates
