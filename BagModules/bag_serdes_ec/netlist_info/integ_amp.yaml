@@ -2,7 +2,7 @@ lib_name: bag_serdes_ec
 cell_name: integ_amp
 pins: [ "VDD", "VSS", "clkp", "clkn", "bias_clkp", "inp", "inn", "en0", "en1", "outp", "outn", "pm0p", "pm1p", "pm0n", "pm1n", "tail", "foot" ]
 instances:
-  X4:
+  XTAILN:
     lib_name: BAG_prim
     cell_name: nmos4_standard
     instpins:
