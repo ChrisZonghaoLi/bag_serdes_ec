@@ -108,8 +108,8 @@ class Tap1FB(HybridQDRBase):
 
         fg_latch = latch_info['fg_tot']
         hm_layer = qdr_info.mconn_port_layer + 1
-        fg_sep = qdr_info.get_fg_sep_from_hm_space(tr_manager.get_width(hm_layer, 'out'))
-        fg_sep = -(-fg_sep // 2) * 2
+        fg_sep = qdr_info.get_fg_sep_from_hm_space(tr_manager.get_width(hm_layer, 'out'),
+                                                   round_even=True)
         fg_amp = fb_info['fg_tot'] + fg_latch + fg_sep
         fg_tot = max(fg_amp + 2 * fg_dumr, fg_min)
         fg_duml = fg_tot - fg_dumr - fg_amp
