@@ -2,6 +2,26 @@ lib_name: bag_serdes_ec
 cell_name: integ_amp
 pins: [ "VDD", "VSS", "clkp", "clkn", "bias_clkp", "inp", "inn", "en0", "en1", "outp", "outn", "pm0p", "pm1p", "pm0n", "pm1n", "tail", "foot" ]
 instances:
+  XDUM:
+    lib_name: BAG_prim
+    cell_name: nmos4_standard
+    instpins:
+      S:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      D:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      B:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      G:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
   XTAILN:
     lib_name: BAG_prim
     cell_name: nmos4_standard

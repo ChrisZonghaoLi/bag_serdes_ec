@@ -1,0 +1,212 @@
+lib_name: bag_serdes_ec
+cell_name: qdr_tap1_summer
+pins: [ "VDD", "VSS", "inp", "inn", "clkp", "clkn", "m_en0", "m_en1", "f_en0", "f_en1", "m_clkp", "f_clkp", "m_outn", "d_clkp", "f_outn", "d_outp", "d_outn", "m_outp", "f_outp" ]
+instances:
+  XFB:
+    lib_name: bag_serdes_ec
+    cell_name: qdr_tap1_feedback
+    instpins:
+      VSS:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      VDD:
+        direction: inputOutput
+        net_name: "VDD"
+        num_bits: 1
+      fb_outp:
+        direction: output
+        net_name: "f_outp"
+        num_bits: 1
+      fb_outn:
+        direction: output
+        net_name: "f_outn"
+        num_bits: 1
+      lat_outp:
+        direction: output
+        net_name: "d_outp"
+        num_bits: 1
+      lat_outn:
+        direction: output
+        net_name: "d_outn"
+        num_bits: 1
+      clkp:
+        direction: input
+        net_name: "clkp"
+        num_bits: 1
+      clkn:
+        direction: input
+        net_name: "clkn"
+        num_bits: 1
+      inp:
+        direction: input
+        net_name: "m_outp"
+        num_bits: 1
+      inn:
+        direction: input
+        net_name: "m_outn"
+        num_bits: 1
+      en0:
+        direction: input
+        net_name: "f_en0"
+        num_bits: 1
+      en1:
+        direction: input
+        net_name: "f_en1"
+        num_bits: 1
+      fb_clkp:
+        direction: input
+        net_name: "f_clkp"
+        num_bits: 1
+      lat_clkp:
+        direction: input
+        net_name: "d_clkp"
+        num_bits: 1
+  XMAIN:
+    lib_name: bag_serdes_ec
+    cell_name: integ_amp
+    instpins:
+      outp:
+        direction: output
+        net_name: "m_outp"
+        num_bits: 1
+      outn:
+        direction: output
+        net_name: "m_outn"
+        num_bits: 1
+      foot:
+        direction: output
+        net_name: "m_foot"
+        num_bits: 1
+      tail:
+        direction: output
+        net_name: "m_tail"
+        num_bits: 1
+      pm0p:
+        direction: output
+        net_name: "m_pm0p"
+        num_bits: 1
+      pm0n:
+        direction: output
+        net_name: "m_pm0n"
+        num_bits: 1
+      pm1p:
+        direction: output
+        net_name: "m_pm1p"
+        num_bits: 1
+      pm1n:
+        direction: output
+        net_name: "m_pm1n"
+        num_bits: 1
+      bias_clkp:
+        direction: input
+        net_name: "m_clkp"
+        num_bits: 1
+      VSS:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      VDD:
+        direction: inputOutput
+        net_name: "VDD"
+        num_bits: 1
+      clkp:
+        direction: input
+        net_name: "clkp"
+        num_bits: 1
+      clkn:
+        direction: input
+        net_name: "clkn"
+        num_bits: 1
+      inp:
+        direction: input
+        net_name: "inp"
+        num_bits: 1
+      inn:
+        direction: input
+        net_name: "inn"
+        num_bits: 1
+      en0:
+        direction: input
+        net_name: "m_en0"
+        num_bits: 1
+      en1:
+        direction: input
+        net_name: "m_en1"
+        num_bits: 1
+  PIN1:
+    lib_name: basic
+    cell_name: iopin
+    instpins: {}
+  PIN0:
+    lib_name: basic
+    cell_name: iopin
+    instpins: {}
+  PIN12:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN11:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN10:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN9:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN8:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN7:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN6:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN5:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN4:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN3:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN2:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN18:
+    lib_name: basic
+    cell_name: opin
+    instpins: {}
+  PIN17:
+    lib_name: basic
+    cell_name: opin
+    instpins: {}
+  PIN16:
+    lib_name: basic
+    cell_name: opin
+    instpins: {}
+  PIN15:
+    lib_name: basic
+    cell_name: opin
+    instpins: {}
+  PIN14:
+    lib_name: basic
+    cell_name: opin
+    instpins: {}
+  PIN13:
+    lib_name: basic
+    cell_name: opin
+    instpins: {}

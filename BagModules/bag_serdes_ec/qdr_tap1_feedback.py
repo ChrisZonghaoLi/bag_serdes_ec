@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from typing import Dict
+from typing import Dict, Any
 
 import os
 import pkg_resources
@@ -32,6 +32,13 @@ class bag_serdes_ec__qdr_tap1_feedback(Module):
             seg_fb='number of segments dictionary for feedback amp.',
             seg_lat='number of segments dictionary for digital latch.',
             dum_info='The dummy information data structure.',
+        )
+
+    @classmethod
+    def get_default_param_values(cls):
+        # type: () -> Dict[str, Any]
+        return dict(
+            dum_info=None,
         )
 
     def design(self, lch, w_dict, th_dict, seg_fb, seg_lat, dum_info):

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from typing import Dict, Union
+from typing import Dict, Union, Any
 
 import os
 import pkg_resources
@@ -30,9 +30,17 @@ class bag_serdes_ec__integ_amp(Module):
             w_dict='NMOS/PMOS width dictionary.',
             th_dict='NMOS/PMOS threshold flavor dictionary.',
             seg_dict='number of segments dictionary.',
+            dum_info='Dummy information data structure.',
         )
 
-    def design(self, lch, w_dict, th_dict, seg_dict):
+    @classmethod
+    def get_default_param_values(cls):
+        # type: () -> Dict[str, Any]
+        return dict(
+            dum_info=None,
+        )
+
+    def design(self, lch, w_dict, th_dict, seg_dict, dum_info):
         # type: (float, Dict[str, Union[float, int]], Dict[str, str], Dict[str, int]) -> None
         tran_info_list = [('XTAILP', 'tail'), ('XTAILN', 'tail'),
                           ('XNENP', 'nen'), ('XNENN', 'nen'),
@@ -48,3 +56,5 @@ class bag_serdes_ec__integ_amp(Module):
             th = th_dict[inst_type]
             seg = seg_dict[inst_type]
             self.instances[inst_name].design(w=w, l=lch, nf=seg, intent=th)
+
+        self.design_dummy_transistors(dum_info, 'XDUM', 'VDD', 'VSS')
