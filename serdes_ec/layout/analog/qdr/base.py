@@ -116,9 +116,16 @@ class HybridQDRBaseInfo(AnalogBaseInfo):
         nc_off = fg_dum + center_off + (seg_center - seg_nc) // 2
         if seg_casc > 0:
             col_dict['casc'] = nc_off + (seg_nc - seg_casc) // 2
-        col_dict['in'] = nc_off + (seg_nc - seg_in) // 2
-        col_dict['nen'] = fg_dum + min(seg_single - seg_nen, col_dict['in'])
-        col_dict['tail'] = fg_dum + min(seg_single - seg_tail, col_dict['nen'])
+        col_in = nc_off + (seg_nc - seg_in) // 2
+        col_dict['in'] = col_in
+        col_nen = fg_dum + col_in + seg_in - seg_nen
+        if col_nen < col_in:
+            col_nen = fg_dum + min(seg_single - seg_nen, col_in)
+        col_dict['nen'] = col_nen
+        col_tail = fg_dum + col_nen + seg_nen - seg_tail
+        if col_tail < col_nen:
+            col_tail = fg_dum + min(seg_single - seg_tail, col_nen)
+        col_dict['tail'] = col_tail
 
         # compute source-drain junction type for each net
         sd_dict = {('load0', 's'): 'VDD', ('load1', 's'): 'VDD',

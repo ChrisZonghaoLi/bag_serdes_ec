@@ -410,8 +410,10 @@ class Tap1Summer(TemplateBase):
         f_master = self.new_template(params=fb_params, temp_cls=Tap1FB)
         m_master = self.new_template(params=main_params, temp_cls=Tap1Main)
         fg_min = max(f_master.fg_tot, m_master.fg_tot)
-        f_master = f_master.new_template_with(fg_min=fg_min)
-        m_master = m_master.new_template_with(fg_min=fg_min)
+        if f_master.fg_tot < fg_min:
+            f_master = f_master.new_template_with(fg_min=fg_min)
+        if m_master.fg_tot < fg_min:
+            m_master = m_master.new_template_with(fg_min=fg_min)
 
         # place instances
         y0 = m_master.array_box.height_unit + f_master.array_box.height_unit
