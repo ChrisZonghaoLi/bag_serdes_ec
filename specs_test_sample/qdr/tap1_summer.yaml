@@ -29,9 +29,12 @@ params:
     ntail: {4: 2}
     ptail: {4: 1}
     in: {4: 1}
+    sup: {4: 2, 5: 1, 6: 2}
   tr_spaces:
     !!python/tuple ['in', 'in']: {4: 1}
     !!python/tuple ['out', 'out']: {4: 1}
+    !!python/tuple ['clk', 'sup']: {5: 1, 6: 1}
+    !!python/tuple ['clk', 'en']: {6: 1}
   show_pins: True
   is_end: False
   options:

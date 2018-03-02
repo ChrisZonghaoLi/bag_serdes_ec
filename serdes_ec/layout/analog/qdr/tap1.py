@@ -305,7 +305,7 @@ class Tap1Main(HybridQDRBase):
 
         nen = ports['nen0']
         en0_list = []
-        for idx, warr in enumerate(ports['pen0']):
+        for idx, warr in enumerate(ports['pen1']):
             mode = -1 if idx % 2 == 0 else 1
             mtr = self.grid.coord_to_nearest_track(vm_layer, warr.middle, half_track=True,
                                                    mode=mode)
@@ -313,7 +313,7 @@ class Tap1Main(HybridQDRBase):
             en0_list.append(self.connect_to_tracks([warr, nen], tid))
         self.add_pin('en0', en0_list, show=show_pins)
 
-        for name, port_name in (('pen1', 'en1'), ('clkp', 'clkp'), ('clkn', 'clkn')):
+        for name, port_name in (('pen0', 'en1'), ('clkp', 'clkn'), ('clkn', 'clkp')):
             warr_list = []
             for idx, warr in enumerate(ports[name]):
                 mode = -1 if idx % 2 == 0 else 1
@@ -397,10 +397,18 @@ class Tap1Summer(TemplateBase):
 
     def draw_layout(self):
         # get parameters
+        show_pins = self.params['show_pins']
+        tr_widths = self.params['tr_widths']
+        tr_spaces = self.params['tr_spaces']
+
+        tr_manager = TrackManager(self.grid, tr_widths, tr_spaces)
+
         fb_params = self.params.copy()
+        fb_params['show_pins'] = False
         del fb_params['seg_main']
         del fb_params['is_end']
         main_params = self.params.copy()
+        main_params['show_pins'] = False
         del main_params['seg_fb']
         del main_params['seg_lat']
         main_params['seg_dict'] = main_params['seg_main']
@@ -416,10 +424,69 @@ class Tap1Summer(TemplateBase):
             m_master = m_master.new_template_with(fg_min=fg_min)
 
         # place instances
-        y0 = m_master.array_box.height_unit + f_master.array_box.height_unit
-        m_inst = self.add_instance(m_master, 'XMAIN')
-        f_inst = self.add_instance(f_master, 'XFB', loc=(0, y0), orient='MX', unit_mode=True)
+        top_layer = m_master.top_layer + 1
+        _, blk_h = self.grid.get_block_size(top_layer, unit_mode=True, half_blk_y=False)
+        h_blk = m_master.array_box.height_unit + f_master.array_box.height_unit
+        h_tot = -(-h_blk // blk_h) * blk_h
+        h_mid = h_tot // 2
+        y0 = h_mid - m_master.array_box.height_unit
+        y1 = y0 + h_blk
+        m_inst = self.add_instance(m_master, 'XMAIN', loc=(0, y0), unit_mode=True)
+        f_inst = self.add_instance(f_master, 'XFB', loc=(0, y1), orient='MX', unit_mode=True)
 
         # set size
         self.array_box = m_inst.array_box.merge(f_inst.array_box)
-        self.set_size_from_array_box(m_master.top_layer)
+        self.set_size_from_array_box(top_layer)
+
+        # export pins in-place
+        exp_list = [(m_inst, 'outp', 'm_outp', True), (m_inst, 'outn', 'm_outn', True),
+                    (m_inst, 'inp', 'inp', False), (m_inst, 'inn', 'inn', False),
+                    (m_inst, 'bias_clkp', 'm_clkp', False), (f_inst, 'inp', 'm_outp', True),
+                    (f_inst, 'inn', 'm_outn', True), (f_inst, 'fb_clkp', 'f_clkp', False),
+                    (f_inst, 'lat_clkp', 'd_clkp', False), (f_inst, 'fb_outp', 'f_outp', False),
+                    (f_inst, 'fb_outn', 'f_outn', False), (f_inst, 'lat_outp', 'd_outp', False),
+                    (f_inst, 'lat_outn', 'd_outn', False),
+                    ]
+        for inst, port, name, vconn in exp_list:
+            label = name + ':' if vconn else name
+            self.reexport(inst.get_port(port), net_name=name, label=label, show=show_pins)
+
+        # compute VDD/PMOS clks and enables placement
+        _, wire_locs = tr_manager.place_wires(top_layer, ['en', 'clk', 'sup', 'clk', 'en'])
+        vdd_tidx = self.grid.coord_to_track(top_layer, h_mid, unit_mode=True)
+        tr_off = vdd_tidx - wire_locs[2]
+
+        # connect PMOS clocks
+        hm_w_clk = tr_manager.get_width(top_layer, 'clk')
+        clkp_tidx = wire_locs[1] + tr_off
+        clkn_tidx = wire_locs[3] + tr_off
+        clkp_warrs = m_inst.get_all_port_pins('clkp')
+        clkn_warrs = m_inst.get_all_port_pins('clkn')
+        clkp_warrs.extend(f_inst.get_all_port_pins('clkn'))
+        clkn_warrs.extend(f_inst.get_all_port_pins('clkp'))
+
+        clkp, clkn = self.connect_differential_tracks(clkp_warrs, clkn_warrs, top_layer,
+                                                      clkp_tidx, clkn_tidx, width=hm_w_clk)
+        self.add_pin('clkp', clkp, show=show_pins)
+        self.add_pin('clkn', clkn, show=show_pins)
+
+        # connect PMOS enables
+        hm_w_en = tr_manager.get_width(top_layer, 'en')
+        en1_warrs = m_inst.get_all_port_pins('en1')
+        en1_tidx = self.grid.coord_to_nearest_track(top_layer, en1_warrs[0].middle,
+                                                    half_track=True, mode=1)
+        en1_tidx = min(wire_locs[0] + tr_off, en1_tidx)
+        en1_tid = TrackID(top_layer, en1_tidx, width=hm_w_en)
+        self.add_pin('m_en1', self.connect_to_tracks(en1_warrs, en1_tid), show=show_pins)
+        en2_warrs = f_inst.get_all_port_pins('en1')
+        en2_tidx = clkn_tidx + (clkp_tidx - en1_tidx)
+        en2_tid = TrackID(top_layer, en2_tidx, width=hm_w_en)
+        self.add_pin('f_en2', self.connect_to_tracks(en2_warrs, en2_tid), show=show_pins)
+
+        # connect VDD
+        m_vdd = m_inst.get_all_port_pins('VDD')[0]
+        f_vdd = f_inst.get_all_port_pins('VDD')[0]
+        hm_w_vdd = tr_manager.get_width(top_layer, 'sup')
+        vdd = self.add_wires(top_layer, vdd_tidx, m_vdd.lower, m_vdd.upper, width=hm_w_vdd)
+        for warr in (m_vdd, f_vdd, vdd):
+            self.add_pin('VDD', warr, show=show_pins)
