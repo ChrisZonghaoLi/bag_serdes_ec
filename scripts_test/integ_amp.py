@@ -89,11 +89,11 @@ class IntegAmp(HybridQDRBase):
         # get track manager and wire names
         tr_manager = TrackManager(self.grid, tr_widths, tr_spaces)
         wire_names = {
-            'tail': dict(g=['clk', 'clk'], ds=['tail']),
-            'enn': dict(g=['en', 'en', 'en'], ds=['tail']),
+            'tail': dict(g=['clk', 'clk'], ds=['ntail']),
+            'nen': dict(g=['en', 'en', 'en'], ds=['ntail']),
             'in': dict(g=['in', 'in'], ds=[]),
-            'enp': dict(ds=['out', 'out'], g=['en', 'en', 'en']),
-            'load': dict(ds=['tail'], g=['clk', 'clk']),
+            'pen': dict(ds=['out', 'out'], g=['en', 'en', 'en']),
+            'load': dict(ds=['ptail'], g=['clk', 'clk']),
         }
 
         # get total number of fingers
