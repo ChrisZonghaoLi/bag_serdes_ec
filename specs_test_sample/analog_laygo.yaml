@@ -1,0 +1,56 @@
+impl_lib: 'AAAFOO_TEST_INTEG_AMP'
+impl_cell: 'INTEG_AMP'
+
+routing_grid:
+  layers: [4, 5]
+  spaces: [0.1, 0.1]
+  widths: [0.1, 0.1]
+  bot_dir: 'x'
+
+params:
+  lch: 20.0e-9
+  ptap_w: 6
+  ntap_w: 6
+  w_dict: {load: 4, pen: 4, casc: 4, in: 4, nen: 4, tail: 4}
+  th_dict: {load: 'standard', pen: 'standard', casc: 'standard',
+            in: 'standard', nen: 'standard', tail: 'standard'}
+  seg_dict: {load: 8, pen: 8, in: 4, nen: 8, tail: 8}
+  fg_dum: 4
+  guard_ring_nf: 0
+  top_layer: 4
+  tr_widths:
+    out: {4: 2}
+    clk: {4: 1}
+    en: {4: 1}
+    ptail: {4: 1}
+    ntail: {4: 2}
+    in: {4: 1}
+  tr_spaces:
+    !!python/tuple ['in', 'in']: {4: 1}
+    !!python/tuple ['out', 'out']: {4: 1}
+  show_pins: True
+  options:
+    sub_integ_htr: False
+
+
+laygo_params:
+  num_col: 20
+  config:
+    tr_layers: [2, 3]
+    tr_widths: [10, 10]
+    tr_spaces: [10, 10]
+    w_override:
+      2:
+        2: 20
+    lch: !!float 10e-9
+    w_sub: 4
+    min_sub_tracks: {}
+    wp: 4
+    wn: 4
+    thp: 'ulvt'
+    thn: 'ulvt'
+    row_kwargs: [{}, {}]
+    ng_tracks: [2, 2]
+    ngb_tracks: [2, 2]
+    nds_tracks: [2, 2]
+    tr_w_supply: 2
