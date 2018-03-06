@@ -190,7 +190,7 @@ def generate(prj, specs):
     temp1 = temp_db.new_template(params=params, temp_cls=IntegAmp, debug=False)
 
     laygo_params['analog_info'] = temp1.analog_info
-    temp2 = temp_db.new_template(params=params, temp_cls=LaygoDummy, debug=False)
+    temp2 = temp_db.new_template(params=laygo_params, temp_cls=LaygoDummy, debug=False)
 
     temp_list = [temp1, temp2]
     print('creating layout')
