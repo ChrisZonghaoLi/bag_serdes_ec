@@ -49,36 +49,68 @@ class SinClkDivider(LaygoBase):
 
     def draw_layout(self):
         row_layout_info = self.params['row_layout_info']
-        seg_dict = self.params['seg_dict']
+        seg_dict = self.params['seg_dict'].copy()
 
-        num_col = self._get_sr_latch_seg(seg_dict)
+        seg_sr = self._get_sr_latch_info(seg_dict)
 
-        self.set_rows_direct(row_layout_info, num_col=num_col)
+        self.set_rows_direct(row_layout_info, num_col=seg_sr)
+
+        self._draw_sr_latch(0, seg_sr, seg_dict)
 
         self.fill_space()
 
-    def _get_sr_latch_seg(self, seg_dict):
-        seg_nand = 1
-        seg_set = 2
-        seg_sp = 2
+    @classmethod
+    def _get_sr_latch_info(cls, seg_dict):
 
         seg_inv = seg_dict['sr_inv']
         seg_drv = seg_dict['sr_drv']
+        seg_set = seg_dict['sr_set']
+        seg_sp = seg_dict['sr_sp']
+        seg_nand = seg_dict['sr_nand']
 
-        if seg_inv % 2 == 0 or seg_drv % 2 == 0:
-            raise ValueError('This generator only works for even sr_inv or sr_drv.')
+        if seg_inv % 2 != 0 or seg_drv % 2 != 0 or seg_sp % 2 != 0:
+            raise ValueError('This generator only works for even sr_inv/sr_drv/sr_sp.')
+        if seg_set < seg_nand * 2:
+            raise ValueError('This generator only works if seg_set >= seg_nand * 2')
 
         return (seg_inv + seg_drv + seg_sp + seg_set) * 2
 
-    def _draw_sr_latch(self, seg_dict):
-        seg_nand = 1
-        seg_set = 2
-
+    def _draw_sr_latch(self, start, seg_tot, seg_dict):
+        seg_nand = seg_dict['sr_nand']
+        seg_set = seg_dict['sr_set']
+        seg_sp = seg_dict['sr_sp']
         seg_inv = seg_dict['sr_inv']
         seg_drv = seg_dict['sr_drv']
 
-        if seg_inv % 2 == 0 or seg_drv % 2 == 0:
-            raise ValueError('This generator only works for even sr_inv or sr_drv.')
+        stop = start + seg_tot
+        ridx = 1
+        nx = seg_set // 2
+        setl = self.add_laygo_primitive('fg2d', loc=(start, ridx), nx=nx, spx=2)
+        setr = self.add_laygo_primitive('fg2d', loc=(stop - seg_set, ridx), nx=nx, spx=2)
+        delta = seg_set - seg_nand * 2
+        start += delta
+        stop += delta
 
-
-
+        ridx += 1
+        nx = seg_nand
+        nnandl = self.add_laygo_primitive('stack2s', loc=(start, ridx), nx=nx, spx=2)
+        nnandr = self.add_laygo_primitive('stack2s', loc=(stop - seg_nand * 2, ridx),
+                                          nx=nx, spx=2)
+        pnandl = self.add_laygo_primitive('stack2s', loc=(start, ridx + 1), nx=nx, spx=2)
+        pnandr = self.add_laygo_primitive('stack2s', loc=(stop - seg_nand * 2, ridx + 1),
+                                          nx=nx, spx=2)
+        delta = seg_nand * 2 + seg_sp
+        start += delta
+        stop -= delta
+        nx = seg_drv // 2
+        ndrvl = self.add_laygo_primitive('fg2d', loc=(start, ridx), nx=nx, spx=2)
+        ndrvr = self.add_laygo_primitive('fg2d', loc=(stop - seg_drv, ridx), nx=nx, spx=2)
+        pdrvl = self.add_laygo_primitive('fg2d', loc=(start, ridx + 1), nx=nx, spx=2)
+        pdrvr = self.add_laygo_primitive('fg2d', loc=(stop - seg_drv, ridx + 1), nx=nx, spx=2)
+        start += seg_drv
+        stop -= seg_drv
+        nx = seg_inv // 2
+        ninvl = self.add_laygo_primitive('fg2d', loc=(start, ridx), nx=nx, spx=2)
+        ninvr = self.add_laygo_primitive('fg2d', loc=(stop - seg_inv, ridx), nx=nx, spx=2)
+        pinvl = self.add_laygo_primitive('fg2d', loc=(start, ridx + 1), nx=nx, spx=2)
+        pinvr = self.add_laygo_primitive('fg2d', loc=(stop - seg_inv, ridx + 1), nx=nx, spx=2)
