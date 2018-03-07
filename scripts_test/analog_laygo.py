@@ -149,18 +149,18 @@ class LaygoDummy(LaygoBase):
         # type: () -> Dict[str, str]
         return dict(
             config='laygo configuration dictionary.',
-            analog_info='The AnalogBase information dictionary.',
+            row_layout_info='The AnalogBase information dictionary.',
             num_col='Number of laygo olumns.'
         )
 
     def draw_layout(self):
-        analog_info = self.params['analog_info']
+        row_layout_info = self.params['row_layout_info']
         num_col = self.params['num_col']
 
         if num_col is None:
             raise ValueError('num_col must be a positive integer.')
 
-        self.set_rows_analog(analog_info, num_col=num_col)
+        self.set_rows_direct(row_layout_info, num_col=num_col)
         self.fill_space()
 
 
@@ -189,7 +189,7 @@ def generate(prj, specs):
     name_list = [impl_cell, impl_cell + '_LAYGO']
     temp1 = temp_db.new_template(params=params, temp_cls=IntegAmp, debug=False)
 
-    laygo_params['analog_info'] = temp1.analog_info
+    laygo_params['row_layout_info'] = temp1.row_layout_info
     temp2 = temp_db.new_template(params=laygo_params, temp_cls=LaygoDummy, debug=False)
 
     temp_list = [temp1, temp2]
