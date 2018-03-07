@@ -149,7 +149,7 @@ def generate(prj, specs):
 
 
 if __name__ == '__main__':
-    with open('specs_test/sin_clk_divider.yaml', 'r') as f:
+    with open('specs_test/qdr/sin_clk_divider.yaml', 'r') as f:
         block_specs = yaml.load(f)
 
     local_dict = locals()

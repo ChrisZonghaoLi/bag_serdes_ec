@@ -83,7 +83,7 @@ class SinClkDivider(LaygoBase):
         seg_drv = seg_dict['sr_drv']
 
         stop = start + seg_tot
-        ridx = 1
+        ridx = 2
         nx = seg_set // 2
         setl = self.add_laygo_primitive('fg2d', loc=(start, ridx), nx=nx, spx=2)
         setr = self.add_laygo_primitive('fg2d', loc=(stop - seg_set, ridx), nx=nx, spx=2)
