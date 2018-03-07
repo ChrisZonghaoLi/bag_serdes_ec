@@ -8,7 +8,7 @@ from bag.core import BagProject
 from bag.layout.routing import RoutingGrid, TrackManager
 from bag.layout.template import TemplateDB
 
-from serdes_ec.layout.analog.qdr.base import HybridQDRBaseInfo, HybridQDRBase
+from serdes_ec.layout.qdr.base import HybridQDRBaseInfo, HybridQDRBase
 
 
 class IntegAmp(HybridQDRBase):

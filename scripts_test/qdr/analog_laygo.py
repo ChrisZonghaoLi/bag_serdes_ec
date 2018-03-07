@@ -10,7 +10,7 @@ from bag.layout.template import TemplateDB
 
 from abs_templates_ec.laygo.core import LaygoBase
 
-from serdes_ec.layout.analog.qdr.base import HybridQDRBaseInfo, HybridQDRBase
+from serdes_ec.layout.qdr.base import HybridQDRBaseInfo, HybridQDRBase
 
 
 class IntegAmp(HybridQDRBase):
