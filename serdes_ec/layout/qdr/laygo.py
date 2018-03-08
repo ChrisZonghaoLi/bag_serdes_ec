@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Dict, Any, Set
 
 from abs_templates_ec.laygo.core import LaygoBase
 
-from bag.layout.routing import TrackManager
+from bag.layout.routing import TrackManager, TrackID
 
 if TYPE_CHECKING:
     from bag.layout.template import TemplateDB
@@ -129,6 +129,18 @@ class SinClkDivider(LaygoBase):
         pinvr = self.add_laygo_mos(ridx + 1, cidx, seg_inv)
 
         # compute track locations
+        hm_layer = self.conn_layer + 1
+        gb_idx0 = self.get_track_index(3, 'gb', 0)
+        gb_idx1 = self.get_track_index(4, 'gb', 0)
+        ntr = gb_idx1 - gb_idx0 + 1
+        gb_locs = tr_manager.spread_wires(hm_layer, ['', 'out', '', 'out', ''], ntr, 'out',
+                                          alignment=0, start_idx=gb_idx0)
+        ng_start, ng_stop = self.get_track_interval(3, 'g')
+        ng_locs = tr_manager.align_wires(hm_layer, ['', ''], ng_stop - ng_start, alignment=1,
+                                         start_idx=ng_start)
+        pg_start, pg_stop = self.get_track_interval(4, 'g')
+        pg_locs = tr_manager.align_wires(hm_layer, ['', ''], pg_stop - pg_start, alignment=-1,
+                                         start_idx=pg_start)
 
         # gather wires
         vss_list = [inst['s'] for inst in (setl, setr, ndrvl, ndrvr, ninvl, ninvr)]
@@ -139,3 +151,15 @@ class SinClkDivider(LaygoBase):
         r_list = self.connect_wires([ninvr['d'], pinvr['d']])
         nand_vss_list = [nnandl['s'], nnandr['s']]
         nand_vdd_list = [pnandl['s'], pnandr['s']]
+        nand_vss_list.extend(vss_list)
+        nand_vdd_list.extend(vdd_list)
+
+        # connect middle wires
+        hm_w_out = tr_manager.get_width(hm_layer, 'out')
+        q_warr, qb_warr = self.connect_differential_tracks(q_list, qb_list, hm_layer, gb_locs[3],
+                                                           gb_locs[1], width=hm_w_out)
+        self.connect_to_tracks(nand_vss_list, TrackID(hm_layer, gb_locs[0]))
+        self.connect_to_tracks(nand_vdd_list, TrackID(hm_layer, gb_locs[-1]))
+        sr_tid = TrackID(hm_layer, gb_locs[2])
+        self.connect_to_tracks(s_list, sr_tid)
+        self.connect_to_tracks(r_list, sr_tid)
