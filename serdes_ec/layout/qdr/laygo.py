@@ -60,24 +60,50 @@ class SinClkDivider(LaygoBase):
         tr_manager = TrackManager(self.grid, tr_widths, tr_spaces, half_space=True)
 
         blk_sp = seg_dict['blk_sp']
+        seg_inv = self._get_gate_inv_info(seg_dict)
         seg_int = self._get_integ_amp_info(seg_dict)
         seg_sr = self._get_sr_latch_info(seg_dict)
-        num_col = seg_int + seg_sr + blk_sp
+        num_col = seg_inv + seg_int + seg_sr + 2 * blk_sp
 
         self.set_rows_direct(row_layout_info, num_col=num_col)
 
-        vss_ports, vdd_ports = self._draw_substrate(num_col)
-        col_int = 0
+        vss_warr, vdd_warr1, vdd_warr2 = self._draw_substrate(num_col)
+        col_inv = 0
+        col_int = col_inv + seg_inv + blk_sp
         col_sr = col_int + seg_int + blk_sp
+        inv_ports = self._draw_gate_inv(col_inv, seg_inv, seg_dict, tr_manager)
         int_ports = self._draw_integ_amp(col_int, seg_int, seg_dict, tr_manager)
         sr_ports = self._draw_sr_latch(col_sr, seg_sr, seg_dict, tr_manager)
+
+        # connect supply wires
+        vss_warrs = [vss_warr, int_ports['VSS']]
+        vss_warrs.extend(sr_ports['VSS'])
+        vss_warrs.extend(inv_ports['VSS'])
+        vdd_warrs = [vdd_warr1]
+        vdd_warrs.extend(int_ports['VDD'])
+        vdd_warrs.extend(sr_ports['VDD'])
+        self.connect_wires(vss_warrs)
+        self.connect_wires(vdd_warrs)
+        self.connect_wires([vdd_warr2, inv_ports['VDD']])
 
         self.fill_space()
 
     def _draw_substrate(self, num_col):
         nsub = self.add_laygo_mos(0, 0, num_col)
         psub = self.add_laygo_mos(self.num_rows - 1, 0, num_col)
-        return nsub, psub
+        return nsub['VSS_s'], psub['VDD_s'], psub['VDD_d']
+
+    @classmethod
+    def _get_gate_inv_info(cls, seg_dict):
+        seg_pen = seg_dict['inv_pen']
+        seg_inv = seg_dict['inv_inv']
+
+        if seg_inv % 2 != 0:
+            raise ValueError('This generator only works for even inv_inv.')
+        if seg_pen % 4 != 2:
+            raise ValueError('This generator only works for seg_pen = 2 mod 4.')
+
+        return 2 * seg_inv + (seg_pen + 2)
 
     @classmethod
     def _get_integ_amp_info(cls, seg_dict):
@@ -106,6 +132,61 @@ class SinClkDivider(LaygoBase):
         seg_nand_set = max(seg_nand * 2, seg_set)
         return (seg_inv + seg_drv + seg_sp + seg_nand_set) * 2
 
+    def _draw_gate_inv(self, start, seg_tot, seg_dict, tr_manager):
+        seg_pen = seg_dict['inv_pen']
+        seg_inv = seg_dict['inv_inv']
+
+        col_inv = start + (seg_pen + 2) // 2
+        ridx = 3
+        ninvl = self.add_laygo_mos(ridx, col_inv, seg_inv)
+        pinvl = self.add_laygo_mos(ridx + 1, col_inv, seg_inv)
+        col_inv += seg_inv
+        ninvr = self.add_laygo_mos(ridx, col_inv, seg_inv)
+        pinvr = self.add_laygo_mos(ridx + 1, col_inv, seg_inv)
+        pgate = self.add_laygo_mos(ridx + 2, start, seg_tot, gate_loc='s')
+
+        # get track indices
+        hm_layer = self.conn_layer + 1
+        vm_layer = hm_layer + 1
+        hm_w_in = tr_manager.get_width(hm_layer, 'in')
+        hm_w_out = tr_manager.get_width(hm_layer, 'out')
+        vm_w_out = tr_manager.get_width(vm_layer, 'out')
+        in_start, in_stop = self.get_track_interval(3, 'g')
+        nin_locs = tr_manager.spread_wires(hm_layer, ['in', 'in'], in_stop - in_start,
+                                           'in', alignment=1, start_idx=in_start)
+        gb_idx0 = self.get_track_index(3, 'gb', 0)
+        gb_idx1 = self.get_track_index(4, 'gb', 0)
+        ntr = gb_idx1 - gb_idx0 + 1
+        out_locs = tr_manager.spread_wires(hm_layer, ['', 'out', '', 'out', ''], ntr,
+                                           'out', alignment=0, start_idx=gb_idx0)
+        pin_idx0 = self.get_track_index(4, 'g', -1)
+        clk_idx = self.get_track_index(5, 'g', -1)
+        en_idx = clk_idx + 1
+
+        # connect outputs
+        outp = [ninvr['d'], pinvr['d']]
+        outn = [ninvl['d'], pinvl['d']]
+        outp, outn = self.connect_differential_tracks(outp, outn, hm_layer, out_locs[3],
+                                                      out_locs[1], width=hm_w_out)
+
+        # connect inputs
+        ninp, ninn = self.connect_differential_tracks(ninvl['g'], ninvr['g'], hm_layer, nin_locs[1],
+                                                      nin_locs[0], width=hm_w_in)
+        pinp, pinn = self.connect_differential_tracks(pinvl['g'], pinvr['g'], hm_layer, pin_idx0,
+                                                      pin_idx0 + 1, width=hm_w_in)
+
+        # connect enables and clocks
+        num_en = (seg_pen + 2) // 4
+        pgate_warrs = pgate['g'].to_warr_list()
+        en_warrs = pgate_warrs[:num_en] + pgate_warrs[-num_en:]
+        en = self.connect_to_tracks(en_warrs, TrackID(hm_layer, en_idx))
+        clk_warrs = pgate_warrs[num_en:-num_en]
+        clk = self.connect_to_tracks(clk_warrs, TrackID(hm_layer, clk_idx))
+
+        return {'VDD': pgate['d'], 'VSS': [ninvl['s'], ninvr['s']],
+                'outp': outp, 'outn': outn,
+                'en': en, 'clk': clk}
+
     def _draw_integ_amp(self, start, seg_tot, seg_dict, tr_manager):
         seg_rst = seg_dict['int_rst']
         seg_pen = seg_dict['int_pen']
@@ -114,6 +195,7 @@ class SinClkDivider(LaygoBase):
         xleft = self.laygo_info.col_to_coord(start, 'd', unit_mode=True)
         xright = self.laygo_info.col_to_coord(start + seg_tot - 1, 's', unit_mode=True)
 
+        # place instances
         seg_single = seg_tot // 2
         ridx = 1
         nclk = self.add_laygo_mos(ridx, start, seg_tot)
