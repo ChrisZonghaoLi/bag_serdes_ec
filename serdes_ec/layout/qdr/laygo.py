@@ -149,6 +149,7 @@ class SinClkDivider(LaygoBase):
         ng1_tid = TrackID(hm_layer, ng_locs[0])
         pg0_tid = TrackID(hm_layer, pg_locs[0])
         pg1_tid = TrackID(hm_layer, pg_locs[1])
+        setd_tid = self.make_track_id(2, 'gb', 0)
 
         xl = ndrvl['d'].get_bbox_array(self.grid).xc_unit
         xr = ndrvr['d'].get_bbox_array(self.grid).xc_unit
@@ -175,6 +176,7 @@ class SinClkDivider(LaygoBase):
         s_list = self.connect_wires([ninvl['d'], pinvl['d']])
         r_list = self.connect_wires([ninvr['d'], pinvr['d']])
         set_vss_list = [setl['s'], setr['s']]
+        set_vss_list.extend(vss_list)
         nand_vss_list = [nnandl['s'], nnandr['s']]
         nand_vdd_list = [pnandl['s'], pnandr['s']]
         nand_vss_list.extend(vss_list)
@@ -191,18 +193,25 @@ class SinClkDivider(LaygoBase):
         s_warr = self.connect_to_tracks(s_list, sr_tid)
         r_warr = self.connect_to_tracks(r_list, sr_tid)
 
+        # export vss/vdd
+        ports['VSS'] = set_vss_list
+        ports['VDD'] = vdd_list
+
         # connect q/qb
-        for name, vtid, ninst, pinst, warr in [('q', vm_q_tid, nnandl, pnandl, q_warr),
-                                               ('qb', vm_qb_tid, nnandr, pnandr, qb_warr)]:
+        for name, vtid, ninst, pinst, sinst, warr in \
+                [('q', vm_q_tid, nnandl, pnandl, setl, q_warr),
+                 ('qb', vm_qb_tid, nnandr, pnandr, setr, qb_warr)]:
             ng = self.connect_to_tracks(ninst['g1'], ng1_tid)
             pg = self.connect_to_tracks(pinst['g1'], pg1_tid)
-            vm_warr = self.connect_to_tracks([warr, ng, pg], vtid)
+            sd = self.connect_to_tracks(sinst['d'], setd_tid)
+            vm_warr = self.connect_to_tracks([warr, ng, pg, sd], vtid)
             ports[name] = vm_warr
 
         # connect s/r
-        for name, vtid, ninst, pinst, warr in [('s', vm_s_tid, ndrvl, pnandl, s_warr),
-                                               ('r', vm_r_tid, ndrvr, pnandr, r_warr)]:
+        for vtid, ninst, pinst, warr in [(vm_s_tid, ndrvl, pnandl, s_warr),
+                                         (vm_r_tid, ndrvr, pnandr, r_warr)]:
             ng = self.connect_to_tracks(ninst['g'], ng0_tid)
             pg = self.connect_to_tracks(pinst['g0'], pg0_tid)
-            vm_warr = self.connect_to_tracks([warr, pg, ng], vtid)
-            ports[name] = vm_warr
+            self.connect_to_tracks([warr, pg, ng], vtid)
+
+        return ports
