@@ -107,7 +107,54 @@ class SinClkDivider(LaygoBase):
         return (seg_inv + seg_drv + seg_sp + seg_nand_set) * 2
 
     def _draw_integ_amp(self, start, seg_tot, seg_dict, tr_manager):
-        ports = {}
+        seg_rst = seg_dict['int_rst']
+        seg_pen = seg_dict['int_pen']
+        seg_in = seg_dict['int_in']
+
+        seg_single = seg_tot // 2
+        ridx = 1
+        nclk = self.add_laygo_mos(ridx, start, seg_tot)
+        nen = self.add_laygo_mos(ridx + 1, start, seg_tot, gate_loc='s')
+        col_l = start + seg_single - seg_in
+        inl = self.add_laygo_mos(ridx + 2, col_l, seg_in)
+        inr = self.add_laygo_mos(ridx + 2, col_l + seg_in, seg_in)
+        ridx = 4
+        col = start + seg_single - seg_rst - seg_pen
+        penl = self.add_laygo_mos(ridx, col, seg_pen)
+        col += seg_pen
+        rstl = self.add_laygo_mos(ridx, col, seg_rst)
+        col += seg_rst
+        rstr = self.add_laygo_mos(ridx, col, seg_rst)
+        col += seg_rst
+        penr = self.add_laygo_mos(ridx, col, seg_pen)
+
+        ports = {'VSS': nclk['s'], 'VDD': [penl['s'], rstl['s'], rstr['s'], penr['s']]}
+
+        # get track locations
+        hm_layer = self.conn_layer + 1
+        hm_w_tail = tr_manager.get_width(hm_layer, 'tail')
+        hm_w_in = tr_manager.get_width(hm_layer, 'in')
+        tail_off = tr_manager.place_wires(hm_layer, ['tail'])[1][0]
+        in_start, in_stop = self.get_track_interval(3, 'g')
+        in_locs = tr_manager.spread_wires(hm_layer, ['in', 'in'], in_stop - in_start,
+                                          'in', alignment=1, start_idx=in_start)
+
+        # connect intermediate wires
+        tidx = self.get_track_index(1, 'gb', 0)
+        self.connect_to_tracks([nclk['d'], nen['d']],
+                               TrackID(hm_layer, tidx + tail_off, width=hm_w_tail))
+        tidx = self.get_track_index(2, 'gb', 0)
+        self.connect_to_tracks([nen['s'], inl['s'], inr['s']],
+                               TrackID(hm_layer, tidx + tail_off, width=hm_w_tail))
+
+        # connect gate wires
+        clk = self.connect_to_tracks(nclk['g'], self.make_track_id(1, 'g', -1))
+        en = self.connect_to_tracks(nen['g'], self.make_track_id(2, 'g', -1))
+        inp, inn = self.connect_differential_tracks(inl['g'], inr['g'], hm_layer, in_locs[1],
+                                                    in_locs[0], width=hm_w_in)
+        ports['inp'] = inp
+        ports['inn'] = inn
+
         return ports
 
     def _draw_sr_latch(self, start, seg_tot, seg_dict, tr_manager):
