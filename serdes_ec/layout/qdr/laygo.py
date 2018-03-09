@@ -111,6 +111,9 @@ class SinClkDivider(LaygoBase):
         seg_pen = seg_dict['int_pen']
         seg_in = seg_dict['int_in']
 
+        xleft = self.laygo_info.col_to_coord(start, 'd', unit_mode=True)
+        xright = self.laygo_info.col_to_coord(start + seg_tot - 1, 's', unit_mode=True)
+
         seg_single = seg_tot // 2
         ridx = 1
         nclk = self.add_laygo_mos(ridx, start, seg_tot)
@@ -128,16 +131,32 @@ class SinClkDivider(LaygoBase):
         col += seg_rst
         penr = self.add_laygo_mos(ridx, col, seg_pen)
 
-        ports = {'VSS': nclk['s'], 'VDD': [penl['s'], rstl['s'], rstr['s'], penr['s']]}
-
         # get track locations
         hm_layer = self.conn_layer + 1
+        vm_layer = hm_layer + 1
         hm_w_tail = tr_manager.get_width(hm_layer, 'tail')
         hm_w_in = tr_manager.get_width(hm_layer, 'in')
+        hm_w_out = tr_manager.get_width(hm_layer, 'out')
+        vm_w_out = tr_manager.get_width(vm_layer, 'out')
+        vm_w_clk = tr_manager.get_width(vm_layer, 'clk')
         tail_off = tr_manager.place_wires(hm_layer, ['tail'])[1][0]
         in_start, in_stop = self.get_track_interval(3, 'g')
         in_locs = tr_manager.spread_wires(hm_layer, ['in', 'in'], in_stop - in_start,
                                           'in', alignment=1, start_idx=in_start)
+        gb_idx0 = self.get_track_index(3, 'gb', 0)
+        gb_idx1 = self.get_track_index(4, 'gb', 0)
+        ntr = gb_idx1 - gb_idx0 + 1
+        out_locs = tr_manager.spread_wires(hm_layer, ['', 'out', '', 'out', ''], ntr,
+                                           'out', alignment=0, start_idx=gb_idx0)
+        pg_start = self.get_track_interval(4, 'g')[0]
+        pg_locs = tr_manager.place_wires(hm_layer, ['', '', 'in', 'in'], start_idx=pg_start)[1]
+        tleft = self.grid.coord_to_nearest_track(vm_layer, xleft, unit_mode=True, half_track=True,
+                                                 mode=1)
+        tright = self.grid.coord_to_nearest_track(vm_layer, xright, unit_mode=True, half_track=True,
+                                                  mode=-1)
+        ntr = tright - tleft + 1
+        vm_locs = tr_manager.spread_wires(vm_layer, ['', 'out', 'clk', 'out', ''], ntr,
+                                          'out', alignment=0, start_idx=tleft)
 
         # connect intermediate wires
         tidx = self.get_track_index(1, 'gb', 0)
@@ -148,14 +167,35 @@ class SinClkDivider(LaygoBase):
                                TrackID(hm_layer, tidx + tail_off, width=hm_w_tail))
 
         # connect gate wires
-        clk = self.connect_to_tracks(nclk['g'], self.make_track_id(1, 'g', -1))
-        en = self.connect_to_tracks(nen['g'], self.make_track_id(2, 'g', -1))
         inp, inn = self.connect_differential_tracks(inl['g'], inr['g'], hm_layer, in_locs[1],
                                                     in_locs[0], width=hm_w_in)
-        ports['inp'] = inp
-        ports['inn'] = inn
 
-        return ports
+        # connect enables
+        en = self.connect_to_tracks(nen['g'], self.make_track_id(2, 'g', -1))
+        enl = self.connect_to_tracks(penl['g'], TrackID(hm_layer, pg_locs[1]), min_len_mode=0)
+        enr = self.connect_to_tracks(penr['g'], TrackID(hm_layer, pg_locs[1]), min_len_mode=0)
+        enl = self.connect_to_tracks([en, enl], TrackID(vm_layer, vm_locs[0]))
+        enr = self.connect_to_tracks([en, enr], TrackID(vm_layer, vm_locs[-1]))
+
+        # connect clocks
+        clk1 = self.connect_to_tracks(nclk['g'], self.make_track_id(1, 'g', -1))
+        clk2 = self.connect_to_tracks([rstl['g'], rstr['g']], TrackID(hm_layer, pg_locs[0]))
+        clk = self.connect_to_tracks([clk1, clk2], TrackID(vm_layer, vm_locs[2], width=vm_w_clk))
+
+        # connect outputs
+        outp = [inr['d'], rstr['d'], penr['d']]
+        outn = [inl['d'], rstl['d'], penl['d']]
+        outp, outn = self.connect_differential_tracks(outp, outn, hm_layer, out_locs[3],
+                                                      out_locs[1], width=hm_w_out)
+        outp, outn = self.connect_differential_tracks(outp, outn, vm_layer, vm_locs[1], vm_locs[3],
+                                                      width=vm_w_out)
+        outp, outn = self.connect_differential_tracks(outp, outn, hm_layer, pg_locs[3],
+                                                      pg_locs[2], width=hm_w_out)
+
+        return {'VSS': nclk['s'], 'VDD': [penl['s'], rstl['s'], rstr['s'], penr['s']],
+                'inp': inp, 'inn': inn,
+                'outp': outp, 'outn': outn,
+                'en': [enl, enr], 'clk': clk}
 
     def _draw_sr_latch(self, start, seg_tot, seg_dict, tr_manager):
         seg_nand = seg_dict['sr_nand']
@@ -199,19 +239,19 @@ class SinClkDivider(LaygoBase):
         # compute track locations
         hm_layer = self.conn_layer + 1
         vm_layer = hm_layer + 1
-        gb_idx0 = self.get_track_index(3, 'gb', 0)
-        gb_idx1 = self.get_track_index(4, 'gb', 0)
-        ntr = gb_idx1 - gb_idx0 + 1
         hm_w_in = tr_manager.get_width(hm_layer, 'in')
         hm_w_out = tr_manager.get_width(hm_layer, 'out')
         vm_w_out = tr_manager.get_width(vm_layer, 'out')
+        gb_idx0 = self.get_track_index(3, 'gb', 0)
+        gb_idx1 = self.get_track_index(4, 'gb', 0)
+        ntr = gb_idx1 - gb_idx0 + 1
         gb_locs = tr_manager.spread_wires(hm_layer, ['', 'out', '', 'out', ''], ntr, 'out',
                                           alignment=0, start_idx=gb_idx0)
         ng_ntr, ng_locs = tr_manager.place_wires(hm_layer, ['in', 'in', '', ''])
         ng_stop = self.get_track_interval(3, 'g')[1]
         ng_locs = [idx + ng_stop - ng_ntr for idx in ng_locs]
         pg_start = self.get_track_interval(4, 'g')[0]
-        pg_locs = tr_manager.place_wires(hm_layer, ['', '', 'out', 'out'], start_idx=pg_start)[1]
+        pg_locs = tr_manager.place_wires(hm_layer, ['', '', 'in', 'in'], start_idx=pg_start)[1]
         ng0_tid = TrackID(hm_layer, ng_locs[3])
         ng1_tid = TrackID(hm_layer, ng_locs[2])
         pg0_tid = TrackID(hm_layer, pg_locs[0])
