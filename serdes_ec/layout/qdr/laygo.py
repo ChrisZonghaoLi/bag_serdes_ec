@@ -136,20 +136,22 @@ class SinClkDivider(LaygoBase):
         gb_idx0 = self.get_track_index(3, 'gb', 0)
         gb_idx1 = self.get_track_index(4, 'gb', 0)
         ntr = gb_idx1 - gb_idx0 + 1
+        hm_w_in = tr_manager.get_width(hm_layer, 'in')
+        hm_w_out = tr_manager.get_width(hm_layer, 'out')
         vm_w_out = tr_manager.get_width(vm_layer, 'out')
         gb_locs = tr_manager.spread_wires(hm_layer, ['', 'out', '', 'out', ''], ntr, 'out',
                                           alignment=0, start_idx=gb_idx0)
-        ng_start, ng_stop = self.get_track_interval(3, 'g')
-        ng_locs = tr_manager.align_wires(hm_layer, ['', ''], ng_stop - ng_start, alignment=1,
-                                         start_idx=ng_start)
-        pg_start, pg_stop = self.get_track_interval(4, 'g')
-        pg_locs = tr_manager.align_wires(hm_layer, ['', ''], pg_stop - pg_start, alignment=-1,
-                                         start_idx=pg_start)
-        ng0_tid = TrackID(hm_layer, ng_locs[1])
-        ng1_tid = TrackID(hm_layer, ng_locs[0])
+        ng_ntr, ng_locs = tr_manager.place_wires(hm_layer, ['in', 'in', '', ''])
+        ng_stop = self.get_track_interval(3, 'g')[1]
+        ng_locs = [idx + ng_stop - ng_ntr for idx in ng_locs]
+        pg_start = self.get_track_interval(4, 'g')[0]
+        pg_locs = tr_manager.place_wires(hm_layer, ['', '', 'out', 'out'], start_idx=pg_start)[1]
+        ng0_tid = TrackID(hm_layer, ng_locs[3])
+        ng1_tid = TrackID(hm_layer, ng_locs[2])
         pg0_tid = TrackID(hm_layer, pg_locs[0])
         pg1_tid = TrackID(hm_layer, pg_locs[1])
         setd_tid = self.make_track_id(2, 'gb', 0)
+        setg_tid = self.make_track_id(2, 'g', -1)
 
         xl = ndrvl['d'].get_bbox_array(self.grid).xc_unit
         xr = ndrvr['d'].get_bbox_array(self.grid).xc_unit
@@ -167,6 +169,12 @@ class SinClkDivider(LaygoBase):
                                                     unit_mode=True)
         vm_s_tid = TrackID(vm_layer, vm_s_idx)
         vm_r_tid = TrackID(vm_layer, vm_r_idx)
+        xl = ninvl['d'].get_bbox_array(self.grid).xc_unit
+        xr = ninvr['d'].get_bbox_array(self.grid).xc_unit
+        vm_sb_idx = self.grid.coord_to_nearest_track(vm_layer, xl, half_track=True, mode=-1,
+                                                     unit_mode=True)
+        vm_rb_idx = self.grid.coord_to_nearest_track(vm_layer, xr, half_track=True, mode=1,
+                                                     unit_mode=True)
 
         # gather wires
         vss_list = [inst['s'] for inst in (ndrvl, ndrvr, ninvl, ninvr)]
@@ -184,7 +192,6 @@ class SinClkDivider(LaygoBase):
 
         ports = {}
         # connect middle wires
-        hm_w_out = tr_manager.get_width(hm_layer, 'out')
         q_warr, qb_warr = self.connect_differential_tracks(q_list, qb_list, hm_layer, gb_locs[3],
                                                            gb_locs[1], width=hm_w_out)
         self.connect_to_tracks(nand_vss_list, TrackID(hm_layer, gb_locs[0]))
@@ -213,5 +220,23 @@ class SinClkDivider(LaygoBase):
             ng = self.connect_to_tracks(ninst['g'], ng0_tid)
             pg = self.connect_to_tracks(pinst['g0'], pg0_tid)
             self.connect_to_tracks([warr, pg, ng], vtid)
+
+        # connect sb/rb
+        sbb, rbb = self.connect_differential_tracks([nnandr['g0'], ninvl['g']],
+                                                    [nnandl['g0'], ninvr['g']], hm_layer,
+                                                    ng_locs[0], ng_locs[1], width=hm_w_in)
+        sbt, rbt = self.connect_differential_tracks([pdrvr['g'], pinvl['g']],
+                                                    [pdrvl['g'], pinvr['g']], hm_layer,
+                                                    pg_locs[3], pg_locs[2], width=hm_w_out)
+        self.connect_differential_tracks([sbb, sbt], [rbb, rbt], vm_layer,
+                                         vm_sb_idx, vm_rb_idx)
+        ports['sb'] = sbt
+        ports['rb'] = rbt
+
+        # connect scan_r, scan_s
+        scan_r = self.connect_to_tracks(setl['g'], setg_tid, min_len_mode=0)
+        scan_s = self.connect_to_tracks(setr['g'], setg_tid, min_len_mode=0)
+        ports['scan_r'] = scan_r
+        ports['scan_s'] = scan_s
 
         return ports
