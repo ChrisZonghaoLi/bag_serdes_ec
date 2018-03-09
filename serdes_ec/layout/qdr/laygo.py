@@ -133,8 +133,12 @@ class SinClkDivider(LaygoBase):
         return (seg_inv + seg_drv + seg_sp + seg_nand_set) * 2
 
     def _draw_gate_inv(self, start, seg_tot, seg_dict, tr_manager):
+        blk_sp = seg_dict['blk_sp']
         seg_pen = seg_dict['inv_pen']
         seg_inv = seg_dict['inv_inv']
+
+        xleft = self.laygo_info.col_to_coord(start, 's', unit_mode=True)
+        xright = self.laygo_info.col_to_coord(start + seg_tot, 's', unit_mode=True)
 
         col_inv = start + (seg_pen + 2) // 2
         ridx = 3
@@ -150,6 +154,7 @@ class SinClkDivider(LaygoBase):
         vm_layer = hm_layer + 1
         hm_w_in = tr_manager.get_width(hm_layer, 'in')
         hm_w_out = tr_manager.get_width(hm_layer, 'out')
+        vm_w_in = tr_manager.get_width(vm_layer, 'in')
         vm_w_out = tr_manager.get_width(vm_layer, 'out')
         in_start, in_stop = self.get_track_interval(3, 'g')
         nin_locs = tr_manager.spread_wires(hm_layer, ['in', 'in'], in_stop - in_start,
@@ -162,18 +167,37 @@ class SinClkDivider(LaygoBase):
         pin_idx0 = self.get_track_index(4, 'g', -1)
         clk_idx = self.get_track_index(5, 'g', -1)
         en_idx = clk_idx + 1
+        tleft = self.grid.coord_to_nearest_track(vm_layer, xleft, unit_mode=True, half_track=True,
+                                                 mode=1)
+        tright = self.grid.coord_to_nearest_track(vm_layer, xright, unit_mode=True, half_track=True,
+                                                  mode=-1)
+        ntr = tright - tleft + 1
+        vin_locs = tr_manager.align_wires(vm_layer, ['in', 'in'], ntr, alignment=0, start_idx=tleft)
+        xleft = self.laygo_info.col_to_coord(col_inv + seg_inv, 's', unit_mode=True)
+        xright = self.laygo_info.col_to_coord(start + seg_tot + blk_sp, 's', unit_mode=True)
+        tleft = self.grid.coord_to_nearest_track(vm_layer, xleft, unit_mode=True, half_track=True,
+                                                 mode=1)
+        tright = self.grid.coord_to_nearest_track(vm_layer, xright, unit_mode=True, half_track=True,
+                                                  mode=-1)
+        ntr = tright - tleft + 1
+        vout_locs = tr_manager.align_wires(vm_layer, ['out', 'out'], ntr, alignment=0,
+                                           start_idx=tleft)
 
         # connect outputs
         outp = [ninvr['d'], pinvr['d']]
         outn = [ninvl['d'], pinvl['d']]
         outp, outn = self.connect_differential_tracks(outp, outn, hm_layer, out_locs[3],
                                                       out_locs[1], width=hm_w_out)
+        outp, outn = self.connect_differential_tracks(outp, outn, vm_layer, vout_locs[1],
+                                                      vout_locs[0], width=vm_w_out)
 
         # connect inputs
         ninp, ninn = self.connect_differential_tracks(ninvl['g'], ninvr['g'], hm_layer, nin_locs[1],
                                                       nin_locs[0], width=hm_w_in)
         pinp, pinn = self.connect_differential_tracks(pinvl['g'], pinvr['g'], hm_layer, pin_idx0,
                                                       pin_idx0 + 1, width=hm_w_in)
+        inp, inn = self.connect_differential_tracks([ninp, pinp], [ninn, pinn], vm_layer,
+                                                    vin_locs[0], vin_locs[1], width=vm_w_in)
 
         # connect enables and clocks
         num_en = (seg_pen + 2) // 4
@@ -185,6 +209,7 @@ class SinClkDivider(LaygoBase):
 
         return {'VDD': pgate['d'], 'VSS': [ninvl['s'], ninvr['s']],
                 'outp': outp, 'outn': outn,
+                'inp': inp, 'inn': inn,
                 'en': en, 'clk': clk}
 
     def _draw_integ_amp(self, start, seg_tot, seg_dict, tr_manager):
