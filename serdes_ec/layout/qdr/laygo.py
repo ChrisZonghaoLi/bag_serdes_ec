@@ -59,13 +59,18 @@ class SinClkDivider(LaygoBase):
 
         tr_manager = TrackManager(self.grid, tr_widths, tr_spaces, half_space=True)
 
+        blk_sp = seg_dict['blk_sp']
+        seg_int = self._get_integ_amp_info(seg_dict)
         seg_sr = self._get_sr_latch_info(seg_dict)
-        num_col = seg_sr
+        num_col = seg_int + seg_sr + blk_sp
 
         self.set_rows_direct(row_layout_info, num_col=num_col)
 
         vss_ports, vdd_ports = self._draw_substrate(num_col)
-        self._draw_sr_latch(num_col - seg_sr, num_col, seg_dict, tr_manager)
+        col_int = 0
+        col_sr = col_int + seg_int + blk_sp
+        int_ports = self._draw_integ_amp(col_int, seg_int, seg_dict, tr_manager)
+        sr_ports = self._draw_sr_latch(col_sr, seg_sr, seg_dict, tr_manager)
 
         self.fill_space()
 
@@ -75,8 +80,18 @@ class SinClkDivider(LaygoBase):
         return nsub, psub
 
     @classmethod
-    def _get_sr_latch_info(cls, seg_dict):
+    def _get_integ_amp_info(cls, seg_dict):
+        seg_rst = seg_dict['int_rst']
+        seg_pen = seg_dict['int_pen']
+        seg_in = seg_dict['int_in']
 
+        if seg_rst % 2 != 0 or seg_pen % 2 != 0 or seg_in % 2 != 0:
+            raise ValueError('This generator only works for even sr_inv/sr_drv/sr_sp.')
+
+        return 2 * max(seg_in, seg_rst + seg_pen)
+
+    @classmethod
+    def _get_sr_latch_info(cls, seg_dict):
         seg_inv = seg_dict['sr_inv']
         seg_drv = seg_dict['sr_drv']
         seg_set = seg_dict['sr_set']
@@ -90,6 +105,10 @@ class SinClkDivider(LaygoBase):
 
         seg_nand_set = max(seg_nand * 2, seg_set)
         return (seg_inv + seg_drv + seg_sp + seg_nand_set) * 2
+
+    def _draw_integ_amp(self, start, seg_tot, seg_dict, tr_manager):
+        ports = {}
+        return ports
 
     def _draw_sr_latch(self, start, seg_tot, seg_dict, tr_manager):
         seg_nand = seg_dict['sr_nand']

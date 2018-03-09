@@ -43,8 +43,15 @@ params:
         2: 20
     lch: !!float 10e-9
   seg_dict:
+    blk_sp: 2
+    int_rst: 2
+    int_pen: 4
+    int_in: 8
     sr_inv: 2
     sr_drv: 4
     sr_nand: 1
     sr_set: 2
     sr_sp: 2
+  tr_widths: {}
+  tr_spaces: {}
+
