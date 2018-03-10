@@ -8,14 +8,15 @@ import pkg_resources
 from bag.design import Module
 
 
-yaml_file = pkg_resources.resource_filename(__name__, os.path.join('netlist_info', 'sr_latch_bora.yaml'))
+yaml_file = pkg_resources.resource_filename(__name__, os.path.join('netlist_info',
+                                                                   'sr_latch_bora.yaml'))
 
 
 # noinspection PyPep8Naming
 class bag_serdes_ec__sr_latch_bora(Module):
     """Module for library bag_serdes_ec cell sr_latch_bora.
 
-    Fill in high level description here.
+    The Nikolic static SR latch with balanced output delay.
     """
 
     def __init__(self, bag_config, parent=None, prj=None, **kwargs):
@@ -24,30 +25,36 @@ class bag_serdes_ec__sr_latch_bora(Module):
     @classmethod
     def get_params_info(cls):
         # type: () -> Dict[str, str]
-        """Returns a dictionary from parameter names to descriptions.
-
-        Returns
-        -------
-        param_info : Optional[Dict[str, str]]
-            dictionary from parameter names to descriptions.
-        """
         return dict(
+            lch='channel length, in meters.',
+            w_dict='NMOS/PMOS width dictionary.',
+            th_dict='NMOS/PMOS threshold flavor dictionary.',
+            seg_dict='number of segments dictionary.',
         )
 
-    def design(self):
-        """To be overridden by subclasses to design this module.
+    def design(self, lch, w_dict, th_dict, seg_dict):
+        seg_nand = seg_dict['nand']
+        seg_inv = seg_dict['inv']
+        seg_drv = seg_dict['drv']
+        seg_set = seg_dict.get('set', 0)
 
-        This method should fill in values for all parameters in
-        self.parameters.  To design instances of this module, you can
-        call their design() method or any other ways you coded.
+        if seg_set == 0:
+            self.remove_pin('scan_r')
+            self.remove_pin('scan_s')
 
-        To modify schematic structure, call:
-
-        rename_pin()
-        delete_instance()
-        replace_instance_master()
-        reconnect_instance_terminal()
-        restore_instance()
-        array_instance()
-        """
-        pass
+        tran_info = [('XNDL', 'n', seg_drv), ('XNDR', 'n', seg_drv),
+                     ('XNINVL', 'n', seg_inv), ('XNINVR', 'n', seg_inv),
+                     ('XNNL0', 'n', seg_nand), ('XNNL1', 'n', seg_nand),
+                     ('XNNR0', 'n', seg_nand), ('XNNR1', 'n', seg_nand),
+                     ('XPDL', 'p', seg_drv), ('XPDR', 'p', seg_drv),
+                     ('XPINVL', 'p', seg_inv), ('XPINVR', 'p', seg_inv),
+                     ('XPNL0', 'p', seg_nand), ('XPNL1', 'p', seg_nand),
+                     ('XPNR0', 'p', seg_nand), ('XPNR1', 'p', seg_nand),
+                     ('XSL', 's', seg_set), ('XSR', 's', seg_set),
+                     ]
+        for name, row, seg in tran_info:
+            if seg == 0:
+                self.delete_instance(name)
+            w = w_dict[row]
+            th = th_dict[row]
+            self.instances[name].design(w=w, l=lch, nf=seg, intent=th)
