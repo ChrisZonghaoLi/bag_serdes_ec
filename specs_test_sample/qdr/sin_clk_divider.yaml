@@ -1,5 +1,7 @@
 impl_lib: 'AAAFOO_TEST_INTEG_AMP'
 impl_cell: 'SIN_CLK_DIV'
+sch_lib: 'bag_serdes_ec'
+sch_cell: 'div2_sin_clk'
 
 routing_grid:
   layers: [4, 5]

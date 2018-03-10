@@ -78,9 +78,9 @@ class SinClkDivider(LaygoBase):
         col_inv = 0
         col_int = col_inv + seg_inv + blk_sp
         col_sr = col_int + seg_int + blk_sp
-        inv_ports = self._draw_gate_inv(col_inv, seg_inv, seg_dict, tr_manager)
-        int_ports = self._draw_integ_amp(col_int, seg_int, seg_dict, tr_manager)
-        sr_ports, xm_locs = self._draw_sr_latch(col_sr, seg_sr, seg_dict, tr_manager)
+        inv_ports, inv_seg = self._draw_gate_inv(col_inv, seg_inv, seg_dict, tr_manager)
+        int_ports, int_seg = self._draw_integ_amp(col_int, seg_int, seg_dict, tr_manager)
+        sr_ports, xm_locs, sr_params = self._draw_sr_latch(col_sr, seg_sr, seg_dict, tr_manager)
 
         # connect inverters to integ amp
         en_warrs = self.connect_to_track_wires(inv_ports['en'], int_ports['en'])
@@ -91,9 +91,9 @@ class SinClkDivider(LaygoBase):
         tr_w = mp.track_id.width
         mp_tid = mp.track_id.base_index
         mn_tid = mn.track_id.base_index
-        mp, mn = self.connect_differential_tracks(int_ports['mp'], int_ports['mn'],
-                                                  mp.layer_id, mp_tid, mn_tid,
-                                                  width=tr_w, track_upper=tr_upper)
+        self.connect_differential_tracks(int_ports['mp'], int_ports['mn'],
+                                         mp.layer_id, mp_tid, mn_tid,
+                                         width=tr_w, track_upper=tr_upper)
 
         # connect integ amp to sr latch
         sb = self.connect_wires([int_ports['sb'], sr_ports['sb']])
@@ -118,10 +118,9 @@ class SinClkDivider(LaygoBase):
         # fill space
         self.fill_space()
 
+        # add pins
         self.add_pin('en', en_warrs, show=show_pins)
         self.add_pin('clk', clk_warrs, show=show_pins)
-        self.add_pin('mp', mp, show=show_pins)
-        self.add_pin('mn', mn, show=show_pins)
         self.add_pin('sb', sb, show=show_pins)
         self.add_pin('rb', rb, show=show_pins)
         self.add_pin('q', q, show=show_pins)
@@ -130,6 +129,33 @@ class SinClkDivider(LaygoBase):
         self.add_pin('scan_s', sr_ports['scan_s'], show=show_pins)
         self.add_pin('VDD', vdd, show=show_pins)
         self.add_pin('VSS', vss, show=show_pins)
+
+        # compute schematic parameters.
+        n0_info = self.get_row_info(1)
+        n1_info = self.get_row_info(2)
+        n2_info = self.get_row_info(3)
+        p0_info = self.get_row_info(4)
+        p1_info = self.get_row_info(5)
+        inv_seg.update(int_seg)
+        self._sch_params = dict(
+            lch=self.laygo_info.lch,
+            w_dict=dict(
+                n0=n0_info['w_max'],
+                n1=n1_info['w_max'],
+                n2=n2_info['w_max'],
+                p0=p0_info['w_max'],
+                p1=p1_info['w_max'],
+            ),
+            th_dict=dict(
+                n0=n0_info['threshold'],
+                n1=n1_info['threshold'],
+                n2=n2_info['threshold'],
+                p0=p0_info['threshold'],
+                p1=p1_info['threshold'],
+            ),
+            seg_dict=inv_seg,
+            sr_params=sr_params,
+        )
 
     def _draw_substrate(self, num_col):
         nsub = self.add_laygo_mos(0, 0, num_col)
@@ -284,10 +310,17 @@ class SinClkDivider(LaygoBase):
         clk_warrs = pgate_warrs[num_en:-num_en]
         clk = self.connect_to_tracks(clk_warrs, TrackID(hm_layer, clk_idx))
 
-        return {'VDD': pgate['d'], 'VSS': [ninvl['s'], ninvr['s']],
-                'mp': outp, 'mn': outn,
-                'qb': inp, 'q': inn,
-                'en': en, 'clk': clk}
+        ports = {'VDD': pgate['d'], 'VSS': [ninvl['s'], ninvr['s']],
+                 'mp': outp, 'mn': outn,
+                 'qb': inp, 'q': inn,
+                 'en': en, 'clk': clk}
+
+        inv_seg_dict = dict(
+            inv_clk=2 * seg_inv + 2,
+            inv_en=seg_pen,
+            inv_inv=seg_inv,
+        )
+        return ports, inv_seg_dict
 
     def _draw_integ_amp(self, start, seg_tot, seg_dict, tr_manager):
         seg_rst = seg_dict['int_rst']
@@ -376,10 +409,19 @@ class SinClkDivider(LaygoBase):
         outp, outn = self.connect_differential_tracks(outp, outn, hm_layer, pg_locs[3],
                                                       pg_locs[2], width=hm_w_out)
 
-        return {'VSS': nclk['s'], 'VDD': [penl['s'], rstl['s'], rstr['s'], penr['s']],
-                'mp': inp, 'mn': inn,
-                'sb': outn, 'rb': outp,
-                'en': [enl, enr], 'clk': clk}
+        ports = {'VSS': nclk['s'], 'VDD': [penl['s'], rstl['s'], rstr['s'], penr['s']],
+                 'mp': inp, 'mn': inn,
+                 'sb': outn, 'rb': outp,
+                 'en': [enl, enr], 'clk': clk}
+
+        int_seg_dict = dict(
+            int_clk=seg_tot,
+            int_en=seg_tot,
+            int_in=seg_in,
+            int_pen=seg_pen,
+            int_rst=seg_rst,
+        )
+        return ports, int_seg_dict
 
     def _draw_sr_latch(self, start, seg_tot, seg_dict, tr_manager):
         seg_nand = seg_dict['sr_nand']
@@ -537,4 +579,28 @@ class SinClkDivider(LaygoBase):
         ports['scan_r'] = scan_r
         ports['scan_s'] = scan_s
 
-        return ports, xm_locs
+        srow_info = self.get_row_info(2)
+        nrow_info = self.get_row_info(3)
+        prow_info = self.get_row_info(4)
+
+        sr_sch_params = dict(
+            lch=self.laygo_info.lch,
+            w_dict=dict(
+                n=nrow_info['w_max'],
+                p=prow_info['w_max'],
+                s=srow_info['w_max'],
+            ),
+            th_dict=dict(
+                n=nrow_info['threshold'],
+                p=prow_info['threshold'],
+                s=srow_info['threshold'],
+            ),
+            seg_dict=dict(
+                nand=seg_nand,
+                inv=seg_inv,
+                drv=seg_drv,
+                set=seg_set,
+            )
+        )
+
+        return ports, xm_locs, sr_sch_params

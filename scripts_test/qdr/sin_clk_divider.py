@@ -11,6 +11,7 @@ from bag.layout.template import TemplateDB
 from serdes_ec.layout.qdr.base import HybridQDRBaseInfo, HybridQDRBase
 from serdes_ec.layout.qdr.laygo import SinClkDivider
 
+
 class IntegAmp(HybridQDRBase):
     """An integrating amplifier.
 
@@ -128,9 +129,11 @@ def make_tdb(prj, target_lib, specs):
     return tdb
 
 
-def generate(prj, specs):
+def generate(prj, specs, gen_sch=True, run_lvs=False):
     impl_lib = specs['impl_lib']
     impl_cell = specs['impl_cell']
+    sch_lib = specs['sch_lib']
+    sch_cell = specs['sch_cell']
     ana_params = specs['ana_params']
     params = specs['params']
 
@@ -147,6 +150,20 @@ def generate(prj, specs):
     temp_db.batch_layout(prj, temp_list, name_list)
     print('layout done')
 
+    if gen_sch:
+        dsn = prj.create_design_module(lib_name=sch_lib, cell_name=sch_cell)
+        dsn.design(**temp2.sch_params)
+        print('creating schematic')
+        dsn.implement_design(impl_lib, top_cell_name=impl_cell)
+    if run_lvs:
+        print('running lvs')
+        lvs_passed, lvs_log = prj.run_lvs(impl_lib, impl_cell)
+        print('LVS log: %s' % lvs_log)
+        if lvs_passed:
+            print('LVS passed!')
+        else:
+            print('LVS failed...')
+
 
 if __name__ == '__main__':
     with open('specs_test/qdr/sin_clk_divider.yaml', 'r') as f:
@@ -161,4 +178,4 @@ if __name__ == '__main__':
         print('loading BAG project')
         bprj = local_dict['bprj']
 
-    generate(bprj, block_specs)
+    generate(bprj, block_specs, gen_sch=True, run_lvs=True)
