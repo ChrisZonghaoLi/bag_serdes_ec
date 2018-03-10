@@ -96,8 +96,8 @@ class SinClkDivider(LaygoBase):
                                          width=tr_w, track_upper=tr_upper)
 
         # connect integ amp to sr latch
-        sb = self.connect_wires([int_ports['sb'], sr_ports['sb']])
-        rb = self.connect_wires([int_ports['rb'], sr_ports['rb']])
+        self.connect_wires([int_ports['sb'], sr_ports['sb']])
+        self.connect_wires([int_ports['rb'], sr_ports['rb']])
 
         # connect sr latch to inverters
         xm_layer = self.conn_layer + 3
@@ -121,8 +121,6 @@ class SinClkDivider(LaygoBase):
         # add pins
         self.add_pin('en', en_warrs, show=show_pins)
         self.add_pin('clk', clk_warrs, show=show_pins)
-        self.add_pin('sb', sb, show=show_pins)
-        self.add_pin('rb', rb, show=show_pins)
         self.add_pin('q', q, show=show_pins)
         self.add_pin('qb', qb, show=show_pins)
         self.add_pin('scan_r', sr_ports['scan_r'], show=show_pins)
@@ -285,6 +283,10 @@ class SinClkDivider(LaygoBase):
         ntr = tright - tleft + 1
         vout_locs = tr_manager.align_wires(vm_layer, ['in', 'in'], ntr, alignment=0,
                                            start_idx=tleft)
+
+        # connect pmos tail
+        tid = self.make_track_id(5, 'gb', 0)
+        self.connect_to_tracks([pinvl['s'], pinvr['s'], pgate['s']], tid)
 
         # connect outputs
         outp = [ninvr['d'], pinvr['d']]
@@ -488,10 +490,10 @@ class SinClkDivider(LaygoBase):
 
         xl = ndrvl['d'].get_bbox_array(self.grid).xc_unit
         xr = ndrvr['d'].get_bbox_array(self.grid).xc_unit
-        vm_q_idx = self.grid.coord_to_nearest_track(vm_layer, xl, half_track=True, mode=-1,
-                                                    unit_mode=True)
-        vm_qb_idx = self.grid.coord_to_nearest_track(vm_layer, xr, half_track=True, mode=1,
+        vm_qb_idx = self.grid.coord_to_nearest_track(vm_layer, xl, half_track=True, mode=-1,
                                                      unit_mode=True)
+        vm_q_idx = self.grid.coord_to_nearest_track(vm_layer, xr, half_track=True, mode=1,
+                                                    unit_mode=True)
         vm_q_tid = TrackID(vm_layer, vm_q_idx, width=vm_w_out)
         vm_qb_tid = TrackID(vm_layer, vm_qb_idx, width=vm_w_out)
         xl = self.laygo_info.col_to_coord(col_spl, 's', unit_mode=True)
@@ -546,8 +548,8 @@ class SinClkDivider(LaygoBase):
 
         # connect q/qb
         for name, vtid, ninst, pinst, sinst, warr in \
-                [('q', vm_q_tid, nnandl, pnandl, setl, q_warr),
-                 ('qb', vm_qb_tid, nnandr, pnandr, setr, qb_warr)]:
+                [('q', vm_q_tid, nnandr, pnandr, setr, q_warr),
+                 ('qb', vm_qb_tid, nnandl, pnandl, setl, qb_warr)]:
             ng = self.connect_to_tracks(ninst['g1'], ng1_tid)
             pg = self.connect_to_tracks(pinst['g1'], pg1_tid)
             sd = self.connect_to_tracks(sinst['d'], setd_tid)
@@ -574,8 +576,8 @@ class SinClkDivider(LaygoBase):
         ports['rb'] = rbt
 
         # connect scan_r, scan_s
-        scan_r = self.connect_to_tracks(setl['g'], setg_tid, min_len_mode=0)
-        scan_s = self.connect_to_tracks(setr['g'], setg_tid, min_len_mode=0)
+        scan_r = self.connect_to_tracks(setr['g'], setg_tid, min_len_mode=0)
+        scan_s = self.connect_to_tracks(setl['g'], setg_tid, min_len_mode=0)
         ports['scan_r'] = scan_r
         ports['scan_s'] = scan_s
 

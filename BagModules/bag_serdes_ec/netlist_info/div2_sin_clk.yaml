@@ -180,7 +180,7 @@ instances:
         num_bits: 1
       G:
         direction: inputOutput
-        net_name: "CLK"
+        net_name: "clk"
         num_bits: 1
   XPINTL:
     lib_name: BAG_prim
@@ -200,7 +200,7 @@ instances:
         num_bits: 1
       G:
         direction: inputOutput
-        net_name: "CLK"
+        net_name: "clk"
         num_bits: 1
   XINVEN:
     lib_name: BAG_prim
