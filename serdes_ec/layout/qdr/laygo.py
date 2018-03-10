@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Dict, Any, Set
 
 from abs_templates_ec.laygo.core import LaygoBase
 
-from bag.layout.routing import TrackManager, TrackID
+from bag.layout.routing import TrackManager, TrackID, WireArray
 
 if TYPE_CHECKING:
     from bag.layout.template import TemplateDB
@@ -74,7 +74,7 @@ class SinClkDivider(LaygoBase):
 
         self.set_rows_direct(row_layout_info, num_col=num_col)
 
-        vss_warr, vdd_warr1, vdd_warr2 = self._draw_substrate(num_col)
+        vss_w, vdd_w = self._draw_substrate(num_col)
         col_inv = 0
         col_int = col_inv + seg_inv + blk_sp
         col_sr = col_int + seg_int + blk_sp
@@ -108,16 +108,14 @@ class SinClkDivider(LaygoBase):
                                                  xm_locs[0], width=xm_w_q)
 
         # connect supply wires
-        vss_warrs = [vss_warr, int_ports['VSS']]
-        vss_warrs.extend(sr_ports['VSS'])
-        vss_warrs.extend(inv_ports['VSS'])
-        vdd_warrs = [vdd_warr1]
-        vdd_warrs.extend(int_ports['VDD'])
-        vdd_warrs.extend(sr_ports['VDD'])
-        self.connect_wires(vss_warrs)
-        self.connect_wires(vdd_warrs)
-        self.connect_wires([vdd_warr2, inv_ports['VDD']])
+        vss_list = [inv_ports['VSS'], int_ports['VSS'], sr_ports['VSS']]
+        vdd_list = [inv_ports['VDD'], int_ports['VDD'], sr_ports['VDD']]
+        vss_intv = self.get_track_interval(0, 'ds')
+        vdd_intv = self.get_track_interval(self.num_rows - 1, 'ds')
+        vss = self._connect_supply(vss_w, vss_list, vss_intv, tr_manager, round_up=False)
+        vdd = self._connect_supply(vdd_w, vdd_list, vdd_intv, tr_manager, round_up=True)
 
+        # fill space
         self.fill_space()
 
         self.add_pin('en', en_warrs, show=show_pins)
@@ -130,11 +128,48 @@ class SinClkDivider(LaygoBase):
         self.add_pin('qb', qb, show=show_pins)
         self.add_pin('scan_r', sr_ports['scan_r'], show=show_pins)
         self.add_pin('scan_s', sr_ports['scan_s'], show=show_pins)
+        self.add_pin('VDD', vdd, show=show_pins)
+        self.add_pin('VSS', vss, show=show_pins)
 
     def _draw_substrate(self, num_col):
         nsub = self.add_laygo_mos(0, 0, num_col)
         psub = self.add_laygo_mos(self.num_rows - 1, 0, num_col)
-        return nsub['VSS_s'], psub['VDD_s'], psub['VDD_d']
+        return nsub['VSS_s'], psub['VDD_s']
+
+    def _connect_supply(self, sup_warr, sup_list, sup_intv, tr_manager, round_up=False):
+        # gather list of track indices and wires
+        idx_set = set()
+        warr_list = []
+        for sup in sup_list:
+            if isinstance(sup, WireArray):
+                sup = [sup]
+            for warr in sup:
+                warr_list.append(warr)
+                for tid in warr.track_id:
+                    idx_set.add(tid)
+
+        for warr in sup_warr.to_warr_list():
+            tid = warr.track_id.base_index
+            if tid - 1 not in idx_set and tid + 1 not in idx_set:
+                warr_list.append(warr)
+                idx_set.add(tid)
+
+        hm_layer = self.conn_layer + 1
+        vm_layer = hm_layer + 1
+        sup_w = tr_manager.get_width(hm_layer, 'sup')
+        sup_idx = self.grid.get_middle_track(sup_intv[0], sup_intv[1] - 1, round_up=round_up)
+
+        xl = self.laygo_info.col_to_coord(0, 's', unit_mode=True)
+        xr = self.laygo_info.col_to_coord(self.laygo_size[0], 's', unit_mode=True)
+        tl = self.grid.coord_to_nearest_track(vm_layer, xl, half_track=True,
+                                              mode=1, unit_mode=True)
+        tr = self.grid.coord_to_nearest_track(vm_layer, xr, half_track=True,
+                                              mode=-1, unit_mode=True)
+
+        num = int((tr - tl) // 2)
+        tid = TrackID(vm_layer, tl, num=num, pitch=2)
+        sup = self.connect_to_tracks(warr_list, TrackID(hm_layer, sup_idx, width=sup_w))
+        return self.connect_to_tracks(sup, tid, min_len_mode=0)
 
     @classmethod
     def _get_gate_inv_info(cls, seg_dict):
@@ -437,15 +472,7 @@ class SinClkDivider(LaygoBase):
         xm_mid = self.grid.coord_to_nearest_track(xm_layer, ymid, half_track=True, mode=0,
                                                   unit_mode=True)
         xm_locs = tr_manager.place_wires(xm_layer, ['out', 'out'])[1]
-        mid4 = int(round((xm_locs[0] + xm_locs[1]) * 2))
-        if mid4 % 4 == 0:
-            mid = mid4 // 4
-        elif mid4 % 4 == 2:
-            mid = mid4 / 4
-        elif mid4 % 4 == 1:
-            mid = (mid4 - 1) // 4
-        else:
-            mid = (mid4 - 1) / 4
+        mid = self.grid.get_middle_track(xm_locs[0], xm_locs[1])
         xm_locs = [val + xm_mid - mid for val in xm_locs]
 
         # gather wires
