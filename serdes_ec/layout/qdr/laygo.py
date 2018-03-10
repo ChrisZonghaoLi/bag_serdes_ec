@@ -233,14 +233,13 @@ class SinClkDivider(LaygoBase):
         hm_w_in = tr_manager.get_width(hm_layer, 'in')
         hm_w_out = tr_manager.get_width(hm_layer, 'out')
         vm_w_in = tr_manager.get_width(vm_layer, 'in')
-        vm_w_out = tr_manager.get_width(vm_layer, 'out')
         in_start, in_stop = self.get_track_interval(3, 'g')
         nin_locs = tr_manager.spread_wires(hm_layer, ['in', 'in'], in_stop - in_start,
                                            'in', alignment=1, start_idx=in_start)
         gb_idx0 = self.get_track_index(3, 'gb', 0)
         gb_idx1 = self.get_track_index(4, 'gb', 0)
         ntr = gb_idx1 - gb_idx0 + 1
-        out_locs = tr_manager.spread_wires(hm_layer, ['', 'out', '', 'out', ''], ntr,
+        out_locs = tr_manager.spread_wires(hm_layer, ['', 'in', '', 'in', ''], ntr,
                                            'out', alignment=0, start_idx=gb_idx0)
         pin_idx0 = self.get_track_index(4, 'g', -1)
         clk_idx = self.get_track_index(5, 'g', -1)
@@ -258,7 +257,7 @@ class SinClkDivider(LaygoBase):
         tright = self.grid.coord_to_nearest_track(vm_layer, xright, unit_mode=True, half_track=True,
                                                   mode=-1)
         ntr = tright - tleft + 1
-        vout_locs = tr_manager.align_wires(vm_layer, ['out', 'out'], ntr, alignment=0,
+        vout_locs = tr_manager.align_wires(vm_layer, ['in', 'in'], ntr, alignment=0,
                                            start_idx=tleft)
 
         # connect outputs
@@ -267,7 +266,7 @@ class SinClkDivider(LaygoBase):
         outp, outn = self.connect_differential_tracks(outp, outn, hm_layer, out_locs[3],
                                                       out_locs[1], width=hm_w_out)
         outp, outn = self.connect_differential_tracks(outp, outn, vm_layer, vout_locs[1],
-                                                      vout_locs[0], width=vm_w_out)
+                                                      vout_locs[0], width=vm_w_in)
 
         # connect inputs
         ninp, ninn = self.connect_differential_tracks(ninvl['g'], ninvr['g'], hm_layer, nin_locs[1],
