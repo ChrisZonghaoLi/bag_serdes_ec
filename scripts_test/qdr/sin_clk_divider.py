@@ -153,8 +153,10 @@ def generate(prj, specs, gen_sch=True, run_lvs=False):
     if gen_sch:
         dsn = prj.create_design_module(lib_name=sch_lib, cell_name=sch_cell)
         dsn.design(**temp2.sch_params)
-        print('creating schematic')
+        print('creating schematics')
         dsn.implement_design(impl_lib, top_cell_name=impl_cell)
+        print('schematic done.')
+
     if run_lvs:
         print('running lvs')
         lvs_passed, lvs_log = prj.run_lvs(impl_lib, impl_cell)
