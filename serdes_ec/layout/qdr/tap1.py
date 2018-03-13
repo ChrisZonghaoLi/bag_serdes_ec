@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Dict, Any, Set
 
 from itertools import chain
 
+from bag.layout.util import BBox
 from bag.layout.routing import TrackManager, TrackID
 from bag.layout.template import TemplateBase
 
@@ -243,7 +244,7 @@ class Tap1Main(HybridQDRBase):
             tr_widths='Track width dictionary.',
             tr_spaces='Track spacing dictionary.',
             show_pins='True to create pin labels.',
-            is_end='True if this is the end row.',
+            end_mode='The AnalogBase end_mode flag.',
             options='other AnalogBase options',
         )
 
@@ -259,10 +260,9 @@ class Tap1Main(HybridQDRBase):
         tr_widths = self.params['tr_widths']
         tr_spaces = self.params['tr_spaces']
         show_pins = self.params['show_pins']
-        is_end = self.params['is_end']
+        end_mode = self.params['end_mode']
         options = self.params['options']
 
-        end_mode = 13 if is_end else 12
         if options is None:
             options = {}
 
@@ -278,8 +278,8 @@ class Tap1Main(HybridQDRBase):
 
         # get total number of fingers
         hm_layer = self.mos_conn_layer + 1
-        top_layer = vm_layer = hm_layer + 1
-        qdr_info = HybridQDRBaseInfo(self.grid, lch, 0, top_layer=top_layer,
+        vm_layer = hm_layer + 1
+        qdr_info = HybridQDRBaseInfo(self.grid, lch, 0, top_layer=None,
                                      end_mode=end_mode, **options)
         fg_sep_load = qdr_info.get_fg_sep_from_hm_space(tr_manager.get_width(hm_layer, 'en'),
                                                         round_even=True)
@@ -292,7 +292,7 @@ class Tap1Main(HybridQDRBase):
         fg_duml = fg_tot - fg_dumr - fg_amp
 
         self.draw_rows(lch, fg_tot, ptap_w, ntap_w, w_dict, th_dict, tr_manager,
-                       wire_names, top_layer=top_layer, end_mode=end_mode, **options)
+                       wire_names, top_layer=None, end_mode=end_mode, **options)
 
         # draw amplifier
         ports, _ = self.draw_integ_amp(fg_duml, seg_dict, fg_dum=0, fg_sep_load=fg_sep_load)
@@ -361,7 +361,7 @@ class Tap1MainRow(TemplateBase):
         # type: (TemplateDB, str, Dict[str, Any], Set[str], **kwargs) -> None
         TemplateBase.__init__(self, temp_db, lib_name, params, used_names, **kwargs)
         self._sch_params = None
-        self._fg_tot = None
+        self._fg_core = None
 
     @property
     def sch_params(self):
@@ -393,7 +393,7 @@ class Tap1MainRow(TemplateBase):
             fg_dum='Number of single-sided edge dummy fingers.',
             tr_widths='Track width dictionary.',
             tr_spaces='Track spacing dictionary.',
-            fg_min='Minimum number of fingers total.',
+            fg_min='Minimum number of core fingers.',
             is_end='True if this is the end row.',
             show_pins='True to create pin labels.',
             options='other AnalogBase options',
@@ -406,7 +406,9 @@ class Tap1MainRow(TemplateBase):
         show_pins = self.params['show_pins']
         tr_widths = self.params['tr_widths']
         tr_spaces = self.params['tr_spaces']
+        is_end = self.params['is_end']
         fg_min = self.params['fg_min']
+        options = self.params['options']
 
         # get layout masters
         main_params = self.params.copy()
@@ -416,6 +418,12 @@ class Tap1MainRow(TemplateBase):
         main_params['seg_dict'] = main_params['seg_main']
         del main_params['seg_main']
         del main_params['fg_min']
+        if is_end:
+            main_params['end_mode'] = 9
+            div_end_mode = 5
+        else:
+            main_params['end_mode'] = 8
+            div_end_mode = 4
 
         m_master = self.new_template(params=main_params, temp_cls=Tap1Main)
 
@@ -425,18 +433,35 @@ class Tap1MainRow(TemplateBase):
             seg_dict=seg_div,
             tr_widths=tr_widths,
             tr_spaces=tr_spaces,
+            end_mode=div_end_mode,
             show_pins=False,
         )
         d_master = self.new_template(params=div_params, temp_cls=SinClkDivider)
 
+        # compute fg_core, and resize main tap if necessary
+        self._fg_core = m_master.layout_info.fg_core + d_master.laygo_info.core_col
+        if self._fg_core < fg_min:
+            new_fg_tot = m_master.fg_tot + (fg_min - self._fg_core)
+            m_master = m_master.new_template_with(fg_min=new_fg_tot)
+            self._fg_core = fg_min
+
+        # calculate instance placements
+        top_layer = m_master.top_layer + 1
+        blk_w = self.grid.get_block_size(top_layer, unit_mode=True)[0]
+        core_width = d_master.bound_box.width_unit + m_master.bound_box.width_unit
+        tot_width = -(-core_width // blk_w) * blk_w
+        xl = (tot_width - core_width) // 2
+
         # place instances
         top_layer = m_master.top_layer
-        d_inst = self.add_instance(d_master, 'XDIV', loc=(0, 0))
-        m_inst = self.add_instance(m_master, 'XMAIN', loc=(d_master.bound_box.right_unit, 0),
+        d_inst = self.add_instance(d_master, 'XDIV', loc=(xl, 0))
+        m_inst = self.add_instance(m_master, 'XMAIN', loc=(d_inst.bound_box.right_unit, 0),
                                    unit_mode=True)
 
-        self.add_rect('M7', d_inst.array_box)
-        self.add_rect('M8', m_inst.array_box)
+        # set size
+        bnd_box = BBox(0, 0, tot_width, d_inst.bound_box.height_unit,
+                       self.grid.resolution, unit_mode=True)
+        self.set_size_from_bound_box(top_layer, bnd_box)
 
 
 class Tap1Summer(TemplateBase):

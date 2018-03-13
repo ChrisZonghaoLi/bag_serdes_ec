@@ -49,19 +49,24 @@ class SinClkDivider(LaygoBase):
             seg_dict='Number of segments dictionary.',
             tr_widths='Track width dictionary.',
             tr_spaces='Track spacing dictionary.',
+            end_mode='The LaygoBase end_mode flag.',
             show_pins='True to show pins.',
         )
 
     @classmethod
     def get_default_param_values(cls):
         # type: () -> Dict[str, Any]
-        return dict(show_pins=True)
+        return dict(
+            end_mode=None,
+            how_pins=True,
+        )
 
     def draw_layout(self):
         row_layout_info = self.params['row_layout_info']
         seg_dict = self.params['seg_dict'].copy()
         tr_widths = self.params['tr_widths']
         tr_spaces = self.params['tr_spaces']
+        end_mode = self.params['end_mode']
         show_pins = self.params['show_pins']
 
         tr_manager = TrackManager(self.grid, tr_widths, tr_spaces, half_space=True)
@@ -72,7 +77,7 @@ class SinClkDivider(LaygoBase):
         seg_sr = self._get_sr_latch_info(seg_dict)
         num_col = seg_inv + seg_int + seg_sr + 2 * blk_sp
 
-        self.set_rows_direct(row_layout_info, num_col=num_col)
+        self.set_rows_direct(row_layout_info, num_col=num_col, end_mode=end_mode)
 
         vss_w, vdd_w = self._draw_substrate(num_col)
         col_inv = 0
