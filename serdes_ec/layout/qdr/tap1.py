@@ -10,13 +10,14 @@ from bag.layout.routing import TrackManager, TrackID
 from bag.layout.template import TemplateBase
 
 from .base import HybridQDRBaseInfo, HybridQDRBase
+from .laygo import SinClkDivider
 
 if TYPE_CHECKING:
     from bag.layout.template import TemplateDB
 
 
 class Tap1FB(HybridQDRBase):
-    """An integrating amplifier.
+    """tap1 summer DFE feedback Gm and the first digital latch.
 
     Parameters
     ----------
@@ -184,7 +185,7 @@ class Tap1FB(HybridQDRBase):
 
 
 class Tap1Main(HybridQDRBase):
-    """An integrating amplifier.
+    """The DFE tap1 summer main tap.
 
     Parameters
     ----------
@@ -336,6 +337,106 @@ class Tap1Main(HybridQDRBase):
             dum_info=self.get_sch_dummy_info(),
         )
         self._fg_tot = fg_tot
+
+
+class Tap1MainRow(TemplateBase):
+    """The DFE tap1 summer main tap and clock divider.
+
+    Parameters
+    ----------
+    temp_db : TemplateDB
+            the template database.
+    lib_name : str
+        the layout library name.
+    params : Dict[str, Any]
+        the parameter values.
+    used_names : Set[str]
+        a set of already used cell names.
+    **kwargs
+        dictionary of optional parameters.  See documentation of
+        :class:`bag.layout.template.TemplateBase` for details.
+    """
+
+    def __init__(self, temp_db, lib_name, params, used_names, **kwargs):
+        # type: (TemplateDB, str, Dict[str, Any], Set[str], **kwargs) -> None
+        TemplateBase.__init__(self, temp_db, lib_name, params, used_names, **kwargs)
+        self._sch_params = None
+        self._fg_tot = None
+
+    @property
+    def sch_params(self):
+        # type: () -> Dict[str, Any]
+        return self._sch_params
+
+    @classmethod
+    def get_default_param_values(cls):
+        # type: () -> Dict[str, Any]
+        return dict(
+            fg_min=0,
+            is_end=False,
+            show_pins=True,
+            options=None,
+        )
+
+    @classmethod
+    def get_params_info(cls):
+        # type: () -> Dict[str, str]
+        return dict(
+            config='Laygo configuration dictionary for the divider.',
+            lch='channel length, in meters.',
+            ptap_w='NMOS substrate width, in meters/number of fins.',
+            ntap_w='PMOS substrate width, in meters/number of fins.',
+            w_dict='NMOS/PMOS width dictionary.',
+            th_dict='NMOS/PMOS threshold flavor dictionary.',
+            seg_main='number of segments dictionary for main tap.',
+            seg_div='number of segments dictionary for clock divider.',
+            fg_dum='Number of single-sided edge dummy fingers.',
+            tr_widths='Track width dictionary.',
+            tr_spaces='Track spacing dictionary.',
+            fg_min='Minimum number of fingers total.',
+            is_end='True if this is the end row.',
+            show_pins='True to create pin labels.',
+            options='other AnalogBase options',
+        )
+
+    def draw_layout(self):
+        # get parameters
+        config = self.params['config']
+        seg_div = self.params['seg_div']
+        show_pins = self.params['show_pins']
+        tr_widths = self.params['tr_widths']
+        tr_spaces = self.params['tr_spaces']
+        fg_min = self.params['fg_min']
+
+        # get layout masters
+        main_params = self.params.copy()
+        main_params['show_pins'] = False
+        del main_params['config']
+        del main_params['seg_div']
+        main_params['seg_dict'] = main_params['seg_main']
+        del main_params['seg_main']
+        del main_params['fg_min']
+
+        m_master = self.new_template(params=main_params, temp_cls=Tap1Main)
+
+        div_params = dict(
+            config=config,
+            row_layout_info=m_master.row_layout_info,
+            seg_dict=seg_div,
+            tr_widths=tr_widths,
+            tr_spaces=tr_spaces,
+            show_pins=False,
+        )
+        d_master = self.new_template(params=div_params, temp_cls=SinClkDivider)
+
+        # place instances
+        top_layer = m_master.top_layer
+        d_inst = self.add_instance(d_master, 'XDIV', loc=(0, 0))
+        m_inst = self.add_instance(m_master, 'XMAIN', loc=(d_master.bound_box.right_unit, 0),
+                                   unit_mode=True)
+
+        self.add_rect('M7', d_inst.array_box)
+        self.add_rect('M8', m_inst.array_box)
 
 
 class Tap1Summer(TemplateBase):
