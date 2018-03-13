@@ -468,9 +468,9 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
         nclk_tid = self.get_wire_id('nch', 0, 'g', wire_idx=idx_dict.get('nclk', -1))
         nen_tid = self.get_wire_id('nch', 1, 'g', wire_idx=idx_dict.get('nen', -1))
         pen0_tid = self.get_wire_id('pch', 0, 'g', wire_idx=idx_dict.get('pen0', 0))
-        pen1_tid = self.get_wire_id('pch', 0, 'g', wire_idx=idx_dict.get('pen1', 0))
+        pen1_tid = self.get_wire_id('pch', 0, 'g', wire_idx=idx_dict.get('pen1', 1))
         pclk0_tid = self.get_wire_id('pch', 1, 'g', wire_idx=idx_dict.get('pclk0', 0))
-        pclk1_tid = self.get_wire_id('pch', 1, 'g', wire_idx=idx_dict.get('pclk1', 0))
+        pclk1_tid = self.get_wire_id('pch', 1, 'g', wire_idx=idx_dict.get('pclk1', 1))
 
         # connect intermediate nodes
         self.connect_to_tracks(ports['foot'], foot_tid, min_len_mode=0)
@@ -479,14 +479,17 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
             self.connect_to_tracks(ports[name], mp_tid, min_len_mode=0)
 
         # connect gates
+        hm_layer = outp_tid.layer_id
         nclk = self.connect_to_tracks(ports['nclk'], nclk_tid)
         nen = self.connect_to_tracks(ports['nen'], nen_tid)
-        pen0 = [self.connect_to_tracks(p, pen0_tid, min_len_mode=0) for p in ports['pen0']]
-        pen1 = [self.connect_to_tracks(p, pen1_tid, min_len_mode=0) for p in ports['pen1']]
-        pclk0 = [self.connect_to_tracks(p, pclk0_tid, min_len_mode=0) for p in ports['pclk0']]
-        pclk1 = [self.connect_to_tracks(p, pclk1_tid, min_len_mode=0) for p in ports['pclk1']]
 
-        hm_layer = outp_tid.layer_id
+        pen0, pen1 = self.connect_differential_tracks(ports['pen0'], ports['pen1'], hm_layer,
+                                                      pen0_tid.base_index, pen1_tid.base_index,
+                                                      width=pen0_tid.width)
+        pclk0, pclk1 = self.connect_differential_tracks(ports['pclk0'], ports['pclk1'], hm_layer,
+                                                        pclk0_tid.base_index, pclk1_tid.base_index,
+                                                        width=pclk0_tid.width)
+
         out_w = outp_tid.width
         outp_idx = outp_tid.base_index
         outn_idx = outn_tid.base_index
@@ -499,7 +502,7 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
                                                     inp_idx, inn_idx, width=in_w)
 
         ports = dict(inp=inp, inn=inn, outp=outp, outn=outn,
-                     pen1=pen0, pen0=pen1, clkp=pclk0, clkn=pclk1,
+                     pen0=pen0, pen1=pen1, clkn=pclk0, clkp=pclk1,
                      nen0=nen, bias_clkp=nclk,
                      )
 

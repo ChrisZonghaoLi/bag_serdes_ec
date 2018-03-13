@@ -208,6 +208,7 @@ class Tap1Main(HybridQDRBase):
         HybridQDRBase.__init__(self, temp_db, lib_name, params, used_names, **kwargs)
         self._sch_params = None
         self._fg_tot = None
+        self._track_info = None
 
     @property
     def sch_params(self):
@@ -218,6 +219,10 @@ class Tap1Main(HybridQDRBase):
     def fg_tot(self):
         # type: () -> int
         return self._fg_tot
+
+    @property
+    def track_info(self):
+        return self._track_info
 
     @classmethod
     def get_default_param_values(cls):
@@ -275,8 +280,8 @@ class Tap1Main(HybridQDRBase):
             'tail': dict(g=['clk'], ds=['ntail']),
             'nen': dict(g=['en'], ds=['ntail']),
             'in': dict(g=['in', 'in'], ds=[]),
-            'pen': dict(ds=['out', 'out'], g=['en']),
-            'load': dict(ds=['ptail'], g=['clk']),
+            'pen': dict(ds=['out', 'out'], g=['en', 'en']),
+            'load': dict(ds=['ptail'], g=['clk', 'clk']),
         }
 
         # get total number of fingers
@@ -302,18 +307,27 @@ class Tap1Main(HybridQDRBase):
         ports, _ = self.draw_integ_amp(fg_duml, seg_dict, fg_dum=0, fg_sep_load=fg_sep_load)
 
         vss_warrs, vdd_warrs = self.fill_dummy()
+        vss_warr = vss_warrs[0]
+        vdd_warr = vdd_warrs[0]
+        self.add_pin('VSS', vss_warr, show=show_pins)
+        self.add_pin('VDD', vdd_warr, show=show_pins)
+        self._track_info = dict(
+            VSS=(vss_warr.track_id.base_index, vss_warr.track_id.width),
+            VDD=(vdd_warr.track_id.base_index, vdd_warr.track_id.width),
+        )
 
         for name in ('inp', 'inn', 'outp', 'outn', 'bias_clkp'):
-            self.add_pin(name, ports[name], show=show_pins)
+            warr = ports[name]
+            self.add_pin(name, warr, show=show_pins)
+            self._track_info[name] = (warr.track_id.base_index, warr.track_id.width)
 
         self.add_pin('nen0', ports['nen0'], show=show_pins)
-        self.add_pin('pen0', ports['pen1'], show=show_pins)
+        self.add_pin('pen0', ports['pen0'], show=show_pins)
 
-        for name, port_name in (('pen0', 'en1'), ('clkp', 'clkn'), ('clkn', 'clkp')):
+        for name, port_name in (('pen1', 'en1'), ('clkp', 'clkp'), ('clkn', 'clkn')):
             self.add_pin(port_name, ports[name], show=show_pins)
-
-        self.add_pin('VSS', vss_warrs, show=show_pins)
-        self.add_pin('VDD', vdd_warrs, show=show_pins)
+            if port_name == 'clkp' or port_name == 'clkn':
+                self._track_info[port_name] = ports[name]
 
         # set schematic parameters
         self._sch_params = dict(
@@ -399,7 +413,7 @@ class Tap1MainRow(TemplateBase):
 
         # get layout masters
         main_params = self.params.copy()
-        main_params['show_pins'] = False
+        main_params['show_pins'] = True
         del main_params['config']
         del main_params['seg_div']
         main_params['seg_dict'] = main_params['seg_main']
@@ -427,7 +441,7 @@ class Tap1MainRow(TemplateBase):
                 tr_widths=tr_widths,
                 tr_spaces=tr_spaces,
                 end_mode=div_end_mode,
-                show_pins=False,
+                show_pins=True,
             )
             d_master = self.new_template(params=div_params, temp_cls=SinClkDivider)
             self._fg_core = m_master.layout_info.fg_core + d_master.laygo_info.core_col
