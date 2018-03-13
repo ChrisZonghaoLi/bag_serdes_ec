@@ -321,13 +321,16 @@ class Tap1Main(HybridQDRBase):
             self.add_pin(name, warr, show=show_pins)
             self._track_info[name] = (warr.track_id.base_index, warr.track_id.width)
 
-        self.add_pin('nen0', ports['nen0'], show=show_pins)
+        nen0 = ports['nen0']
+        self.add_pin('nen0', nen0, show=show_pins)
         self.add_pin('pen0', ports['pen0'], show=show_pins)
+        self._track_info['nen0'] = (nen0.track_id.base_index, nen0.track_id.width)
 
         for name, port_name in (('pen1', 'en1'), ('clkp', 'clkp'), ('clkn', 'clkn')):
-            self.add_pin(port_name, ports[name], show=show_pins)
+            warr = ports[name]
+            self.add_pin(port_name, warr, show=show_pins)
             if port_name == 'clkp' or port_name == 'clkn':
-                self._track_info[port_name] = ports[name]
+                self._track_info[port_name] = (warr.track_id.base_index, warr.track_id.width)
 
         # set schematic parameters
         self._sch_params = dict(
@@ -373,6 +376,7 @@ class Tap1MainRow(TemplateBase):
     def get_default_param_values(cls):
         # type: () -> Dict[str, Any]
         return dict(
+            div_pos_edge=True,
             fg_min=0,
             is_end=False,
             show_pins=True,
@@ -394,6 +398,7 @@ class Tap1MainRow(TemplateBase):
             fg_dum='Number of single-sided edge dummy fingers.',
             tr_widths='Track width dictionary.',
             tr_spaces='Track spacing dictionary.',
+            div_pos_edge='True if the divider triggers off positive edge of the clock.',
             fg_min='Minimum number of core fingers.',
             is_end='True if this is the end row.',
             show_pins='True to create pin labels.',
@@ -408,6 +413,7 @@ class Tap1MainRow(TemplateBase):
         tr_widths = self.params['tr_widths']
         tr_spaces = self.params['tr_spaces']
         is_end = self.params['is_end']
+        div_pos_edge = self.params['div_pos_edge']
         fg_min = self.params['fg_min']
         options = self.params['options']
 
@@ -434,10 +440,21 @@ class Tap1MainRow(TemplateBase):
             self._fg_core = m_master.layout_info.fg_core
         else:
             m_master = self.new_template(params=main_params, temp_cls=Tap1Main)
+            m_tr_info = m_master.track_info
+            tr_info = dict(
+                VDD=m_tr_info['VDD'],
+                VSS=m_tr_info['VSS'],
+                q=m_tr_info['outp'],
+                qb=m_tr_info['outn'],
+                en=m_tr_info['nen0'],
+                clk=m_tr_info['clkp'] if div_pos_edge else m_tr_info['clkn'],
+            )
+
             div_params = dict(
                 config=config,
                 row_layout_info=m_master.row_layout_info,
                 seg_dict=seg_div,
+                tr_info=tr_info,
                 tr_widths=tr_widths,
                 tr_spaces=tr_spaces,
                 end_mode=div_end_mode,
