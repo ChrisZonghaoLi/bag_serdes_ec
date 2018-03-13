@@ -224,6 +224,7 @@ class Tap1Main(HybridQDRBase):
         # type: () -> Dict[str, Any]
         return dict(
             fg_min=0,
+            top_layer=None,
             is_end=False,
             show_pins=True,
             options=None,
@@ -240,9 +241,10 @@ class Tap1Main(HybridQDRBase):
             th_dict='NMOS/PMOS threshold flavor dictionary.',
             seg_dict='number of segments dictionary.',
             fg_dum='Number of single-sided edge dummy fingers.',
-            fg_min='Minimum number of fingers total.',
             tr_widths='Track width dictionary.',
             tr_spaces='Track spacing dictionary.',
+            fg_min='Minimum number of fingers total.',
+            top_layer='Top layer ID',
             show_pins='True to create pin labels.',
             end_mode='The AnalogBase end_mode flag.',
             options='other AnalogBase options',
@@ -256,9 +258,10 @@ class Tap1Main(HybridQDRBase):
         th_dict = self.params['th_dict']
         seg_dict = self.params['seg_dict']
         fg_dumr = self.params['fg_dum']
-        fg_min = self.params['fg_min']
         tr_widths = self.params['tr_widths']
         tr_spaces = self.params['tr_spaces']
+        fg_min = self.params['fg_min']
+        top_layer = self.params['top_layer']
         show_pins = self.params['show_pins']
         end_mode = self.params['end_mode']
         options = self.params['options']
@@ -278,8 +281,9 @@ class Tap1Main(HybridQDRBase):
 
         # get total number of fingers
         hm_layer = self.mos_conn_layer + 1
-        vm_layer = hm_layer + 1
-        qdr_info = HybridQDRBaseInfo(self.grid, lch, 0, top_layer=None,
+        if top_layer is None:
+            top_layer = hm_layer
+        qdr_info = HybridQDRBaseInfo(self.grid, lch, 0, top_layer=top_layer,
                                      end_mode=end_mode, **options)
         fg_sep_load = qdr_info.get_fg_sep_from_hm_space(tr_manager.get_width(hm_layer, 'en'),
                                                         round_even=True)
@@ -292,38 +296,21 @@ class Tap1Main(HybridQDRBase):
         fg_duml = fg_tot - fg_dumr - fg_amp
 
         self.draw_rows(lch, fg_tot, ptap_w, ntap_w, w_dict, th_dict, tr_manager,
-                       wire_names, top_layer=None, end_mode=end_mode, **options)
+                       wire_names, top_layer=top_layer, end_mode=end_mode, **options)
 
         # draw amplifier
         ports, _ = self.draw_integ_amp(fg_duml, seg_dict, fg_dum=0, fg_sep_load=fg_sep_load)
 
         vss_warrs, vdd_warrs = self.fill_dummy()
 
-        w_vm_en = tr_manager.get_width(vm_layer, 'en')
-
         for name in ('inp', 'inn', 'outp', 'outn', 'bias_clkp'):
             self.add_pin(name, ports[name], show=show_pins)
 
-        nen = ports['nen0']
-        en0_list = []
-        for idx, warr in enumerate(ports['pen1']):
-            mode = -1 if idx % 2 == 0 else 1
-            mtr = self.grid.coord_to_nearest_track(vm_layer, warr.middle, half_track=True,
-                                                   mode=mode)
-            tid = TrackID(vm_layer, mtr, width=w_vm_en)
-            en0_list.append(self.connect_to_tracks([warr, nen], tid))
-        self.add_pin('en0', en0_list, show=show_pins)
+        self.add_pin('nen0', ports['nen0'], show=show_pins)
+        self.add_pin('pen0', ports['pen1'], show=show_pins)
 
         for name, port_name in (('pen0', 'en1'), ('clkp', 'clkn'), ('clkn', 'clkp')):
-            warr_list = []
-            for idx, warr in enumerate(ports[name]):
-                mode = -1 if idx % 2 == 0 else 1
-                mtr = self.grid.coord_to_nearest_track(vm_layer, warr.middle, half_track=True,
-                                                       mode=mode)
-                tid = TrackID(vm_layer, mtr, width=w_vm_en)
-                warr_list.append(self.connect_to_tracks(warr, tid, min_len_mode=0))
-
-            self.add_pin(port_name, warr_list, label=port_name + ':', show=show_pins)
+            self.add_pin(port_name, ports[name], show=show_pins)
 
         self.add_pin('VSS', vss_warrs, show=show_pins)
         self.add_pin('VDD', vdd_warrs, show=show_pins)
@@ -425,43 +412,53 @@ class Tap1MainRow(TemplateBase):
             main_params['end_mode'] = 8
             div_end_mode = 4
 
-        m_master = self.new_template(params=main_params, temp_cls=Tap1Main)
-
-        div_params = dict(
-            config=config,
-            row_layout_info=m_master.row_layout_info,
-            seg_dict=seg_div,
-            tr_widths=tr_widths,
-            tr_spaces=tr_spaces,
-            end_mode=div_end_mode,
-            show_pins=False,
-        )
-        d_master = self.new_template(params=div_params, temp_cls=SinClkDivider)
+        top_layer = HybridQDRBase.get_mos_conn_layer(self.grid.tech_info) + 2
+        if seg_div is None:
+            d_master = None
+            main_params['top_layer'] = top_layer
+            m_master = self.new_template(params=main_params, temp_cls=Tap1Main)
+            self._fg_core = m_master.layout_info.fg_core
+        else:
+            m_master = self.new_template(params=main_params, temp_cls=Tap1Main)
+            div_params = dict(
+                config=config,
+                row_layout_info=m_master.row_layout_info,
+                seg_dict=seg_div,
+                tr_widths=tr_widths,
+                tr_spaces=tr_spaces,
+                end_mode=div_end_mode,
+                show_pins=False,
+            )
+            d_master = self.new_template(params=div_params, temp_cls=SinClkDivider)
+            self._fg_core = m_master.layout_info.fg_core + d_master.laygo_info.core_col
 
         # compute fg_core, and resize main tap if necessary
-        self._fg_core = m_master.layout_info.fg_core + d_master.laygo_info.core_col
         if self._fg_core < fg_min:
             new_fg_tot = m_master.fg_tot + (fg_min - self._fg_core)
             m_master = m_master.new_template_with(fg_min=new_fg_tot)
             self._fg_core = fg_min
 
-        # calculate instance placements
-        top_layer = m_master.top_layer + 1
-        blk_w = self.grid.get_block_size(top_layer, unit_mode=True)[0]
-        core_width = d_master.bound_box.width_unit + m_master.bound_box.width_unit
-        tot_width = -(-core_width // blk_w) * blk_w
-        xl = (tot_width - core_width) // 2
+        # place instances and set bounding box
+        if d_master is None:
+            m_inst = self.add_instance(m_master, 'XMAIN', loc=(0, 0), unit_mode=True)
+            self.set_size_from_bound_box(top_layer, m_inst.bound_box)
+        else:
+            # calculate instance placements
+            blk_w = self.grid.get_block_size(top_layer, unit_mode=True)[0]
+            core_width = d_master.bound_box.width_unit + m_master.bound_box.width_unit
+            tot_width = -(-core_width // blk_w) * blk_w
+            xl = (tot_width - core_width) // 2
 
-        # place instances
-        top_layer = m_master.top_layer
-        d_inst = self.add_instance(d_master, 'XDIV', loc=(xl, 0))
-        m_inst = self.add_instance(m_master, 'XMAIN', loc=(d_inst.bound_box.right_unit, 0),
-                                   unit_mode=True)
+            # place instances
+            top_layer = m_master.top_layer
+            d_inst = self.add_instance(d_master, 'XDIV', loc=(xl, 0))
+            m_inst = self.add_instance(m_master, 'XMAIN', loc=(d_inst.bound_box.right_unit, 0),
+                                       unit_mode=True)
 
-        # set size
-        bnd_box = BBox(0, 0, tot_width, d_inst.bound_box.height_unit,
-                       self.grid.resolution, unit_mode=True)
-        self.set_size_from_bound_box(top_layer, bnd_box)
+            # set size
+            bnd_box = BBox(0, 0, tot_width, d_inst.bound_box.height_unit,
+                           self.grid.resolution, unit_mode=True)
+            self.set_size_from_bound_box(top_layer, bnd_box)
 
 
 class Tap1Summer(TemplateBase):
