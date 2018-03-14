@@ -98,7 +98,7 @@ class Tap1FB(HybridQDRBase):
             options = {}
 
         # get track manager and wire names
-        tr_manager = TrackManager(self.grid, tr_widths, tr_spaces)
+        tr_manager = TrackManager(self.grid, tr_widths, tr_spaces, half_space=True)
         wire_names = {
             'tail': dict(g=['clk'], ds=['ntail']),
             'nen': dict(g=['en'], ds=['ntail']),
@@ -275,7 +275,7 @@ class Tap1Main(HybridQDRBase):
             options = {}
 
         # get track manager and wire names
-        tr_manager = TrackManager(self.grid, tr_widths, tr_spaces)
+        tr_manager = TrackManager(self.grid, tr_widths, tr_spaces, half_space=True)
         wire_names = {
             'tail': dict(g=['clk'], ds=['ntail']),
             'nen': dict(g=['en'], ds=['ntail']),
@@ -415,7 +415,6 @@ class Tap1MainRow(TemplateBase):
         is_end = self.params['is_end']
         div_pos_edge = self.params['div_pos_edge']
         fg_min = self.params['fg_min']
-        options = self.params['options']
 
         # get layout masters
         main_params = self.params.copy()
@@ -585,7 +584,7 @@ class Tap1Summer(TemplateBase):
         tr_widths = self.params['tr_widths']
         tr_spaces = self.params['tr_spaces']
 
-        tr_manager = TrackManager(self.grid, tr_widths, tr_spaces)
+        tr_manager = TrackManager(self.grid, tr_widths, tr_spaces, half_space=True)
 
         fb_params = self.params.copy()
         fb_params['show_pins'] = False
