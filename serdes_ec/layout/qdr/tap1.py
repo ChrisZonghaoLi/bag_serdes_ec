@@ -473,6 +473,12 @@ class Tap1MainRow(TemplateBase):
         if d_master is None:
             m_inst = self.add_instance(m_master, 'XMAIN', loc=(0, 0), unit_mode=True)
             self.set_size_from_bound_box(top_layer, m_inst.bound_box)
+
+            # get pins
+            vdd = m_inst.get_all_port_pins('VDD')
+            vss = m_inst.get_all_port_pins('VSS')
+            clkp = m_inst.get_all_port_pins('clkp')
+            clkn = m_inst.get_all_port_pins('clkn')
         else:
             # calculate instance placements
             blk_w = self.grid.get_block_size(top_layer, unit_mode=True)[0]
@@ -490,6 +496,30 @@ class Tap1MainRow(TemplateBase):
             bnd_box = BBox(0, 0, tot_width, d_inst.bound_box.height_unit,
                            self.grid.resolution, unit_mode=True)
             self.set_size_from_bound_box(top_layer, bnd_box)
+
+            # connect pins between two masters
+            vdd = m_inst.get_all_port_pins('VDD')
+            vss = m_inst.get_all_port_pins('VSS')
+            clkp = m_inst.get_all_port_pins('clkp')
+            clkn = m_inst.get_all_port_pins('clkn')
+
+            vdd.extend(d_inst.get_all_port_pins('VDD'))
+            vss.extend(d_inst.get_all_port_pins('VSS'))
+            vdd = self.connect_wires(vdd)
+            vss = self.connect_wires(vss)
+            if div_pos_edge:
+                clkp.extend(d_inst.get_all_port_pins('clk'))
+                clkp = self.connect_wires(clkp)
+                clkn = self.extend_wires(clkn, lower=clkp[0].lower)
+            else:
+                clkn.extend(d_inst.get_all_port_pins('clk'))
+                clkn = self.connect_wires(clkn)
+                clkp = self.extend_wires(clkp, lower=clkn[0].lower)
+
+        self.add_pin('VDD', vdd, show=show_pins)
+        self.add_pin('VSS', vss, show=show_pins)
+        self.add_pin('clkp', clkp, show=show_pins)
+        self.add_pin('clkn', clkn, show=show_pins)
 
 
 class Tap1Summer(TemplateBase):

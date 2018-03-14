@@ -60,7 +60,7 @@ class SinClkDivider(LaygoBase):
         return dict(
             tr_info=None,
             end_mode=None,
-            how_pins=True,
+            show_pins=True,
         )
 
     def draw_layout(self):
