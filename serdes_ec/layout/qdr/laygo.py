@@ -677,27 +677,36 @@ class SinClkDivider(LaygoBase):
         self.connect_to_tracks([nsetgl, psetgl], TrackID(vm_layer, vm_ssb_idx + 1))
         self.connect_to_tracks([nsetgr, psetgr], TrackID(vm_layer, vm_ss_idx - 1))
 
+        nlrow_info = self.get_row_info(1)
         srow_info = self.get_row_info(2)
         nrow_info = self.get_row_info(3)
         prow_info = self.get_row_info(4)
+        plrow_info = self.get_row_info(5)
 
         sr_sch_params = dict(
             lch=self.laygo_info.lch,
             w_dict=dict(
                 n=nrow_info['w_max'],
-                p=prow_info['w_max'],
+                nl=nlrow_info['w_max'],
                 s=srow_info['w_max'],
+                p=prow_info['w_max'],
+                pl=plrow_info['w_max'],
             ),
             th_dict=dict(
                 n=nrow_info['threshold'],
-                p=prow_info['threshold'],
+                nl=nlrow_info['threshold'],
                 s=srow_info['threshold'],
+                p=prow_info['threshold'],
+                pl=plrow_info['threshold'],
             ),
             seg_dict=dict(
                 nand=seg_nand,
                 inv=seg_inv,
                 drv=seg_drv,
                 set=seg_set,
+                pnor=seg_pnor,
+                nnor=seg_nnor,
+                sinv=seg_sinv,
             )
         )
 

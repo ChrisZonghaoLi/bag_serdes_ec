@@ -37,20 +37,29 @@ class bag_serdes_ec__sr_latch_bora(Module):
         seg_inv = seg_dict['inv']
         seg_drv = seg_dict['drv']
         seg_set = seg_dict.get('set', 0)
+        seg_pnor = seg_dict.get('pnor', 0)
+        seg_nnor = seg_dict.get('nnor', 0)
+        seg_sinv = seg_dict.get('sinv', 0)
 
         if seg_set == 0:
-            self.remove_pin('scan_r')
             self.remove_pin('scan_s')
+            self.remove_pin('en')
 
         tran_info = [('XNDL', 'n', seg_drv), ('XNDR', 'n', seg_drv),
                      ('XNINVL', 'n', seg_inv), ('XNINVR', 'n', seg_inv),
                      ('XNNL0', 'n', seg_nand), ('XNNL1', 'n', seg_nand),
                      ('XNNR0', 'n', seg_nand), ('XNNR1', 'n', seg_nand),
+                     ('XSL', 's', seg_set), ('XSR', 's', seg_set),
+                     ('XNOL0', 'nl', seg_nnor), ('XNOL1', 'nl', seg_nnor),
+                     ('XNOR0', 'nl', seg_nnor), ('XNOR1', 'nl', seg_nnor),
+                     ('XNSINV', 'nl', seg_sinv),
                      ('XPDL', 'p', seg_drv), ('XPDR', 'p', seg_drv),
                      ('XPINVL', 'p', seg_inv), ('XPINVR', 'p', seg_inv),
                      ('XPNL0', 'p', seg_nand), ('XPNL1', 'p', seg_nand),
                      ('XPNR0', 'p', seg_nand), ('XPNR1', 'p', seg_nand),
-                     ('XSL', 's', seg_set), ('XSR', 's', seg_set),
+                     ('XPOL0', 'pl', seg_pnor), ('XPOL1', 'pl', seg_pnor),
+                     ('XPOR0', 'pl', seg_pnor), ('XPOR1', 'pl', seg_pnor),
+                     ('XPSINV', 'pl', seg_sinv),
                      ]
         for name, row, seg in tran_info:
             if seg == 0:
