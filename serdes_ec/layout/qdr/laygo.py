@@ -490,13 +490,14 @@ class SinClkDivider(LaygoBase):
         col_norl = cidx
         nnandl = self.add_laygo_mos(ridx, cidx, seg_nand, gate_loc='s', stack=True)
         pnandl = self.add_laygo_mos(ridx + 1, cidx, seg_nand, gate_loc='s', stack=True)
-        pnorl = self.add_laygo_mos(ridx + 2, cidx, seg_pnor, gate_loc='s', stack=True)
+        pnorl = self.add_laygo_mos(ridx + 2, cidx, seg_pnor, gate_loc='s', stack=True, flip=True)
         cidx = stop - seg_nand_set
         col_spr = cidx - 1
         col_norr = cidx + seg_pnor
         nnandr = self.add_laygo_mos(ridx, cidx, seg_nand, gate_loc='s', stack=True, flip=True)
         pnandr = self.add_laygo_mos(ridx + 1, cidx, seg_nand, gate_loc='s', stack=True, flip=True)
-        pnorr = self.add_laygo_mos(ridx + 2, cidx, seg_pnor, gate_loc='s', stack=True, flip=True)
+        pnorr = self.add_laygo_mos(ridx + 2, cidx, seg_pnor, gate_loc='s', stack=True)
+        psinv = self.add_laygo_mos(ridx + 2, cidx - 1, 1)
         start += seg_nand_set + seg_sp
         stop -= seg_nand_set + seg_sp
 
@@ -518,7 +519,6 @@ class SinClkDivider(LaygoBase):
         else:
             start += seg_inv - (seg_sinv + 2) // 2
         nsinv = self.add_laygo_mos(ridx - 2, start, seg_sinv)
-        psinv = self.add_laygo_mos(ridx + 2, start, seg_sinv)
 
         # compute track locations
         hm_layer = self.conn_layer + 1
@@ -550,6 +550,7 @@ class SinClkDivider(LaygoBase):
         pen_tid = TrackID(hm_layer, psg_tid.base_index + 1)
         pvdd_tid = self.make_track_id(5, 'gb', 0)
         psetg_tid = self.make_track_id(5, 'gb', 1)
+        psetg_tid2 = self.make_track_id(5, 'gb', 2)
 
         xl = ndrvl['d'].get_bbox_array(self.grid).xc_unit
         xr = ndrvr['d'].get_bbox_array(self.grid).xc_unit
@@ -655,14 +656,14 @@ class SinClkDivider(LaygoBase):
         # connect top PMOS logic nets
         scan_ps = self.connect_to_tracks([psinv['g'], pnorr['g0']], psg_tid, min_len_mode=0)
         scan_sb_pg = self.connect_to_tracks(pnorl['g0'], psg_tid, min_len_mode=0)
-        scan_sb_pd = self.connect_to_tracks(psinv['d'], psetg_tid, min_len_mode=-1)
+        scan_sb_pd = self.connect_to_tracks(psinv['s'], psetg_tid, min_len_mode=-1)
         pvdd_list = [pnorl['s'], pnorr['s']]
         pvdd_list.extend(vdd_list)
         self.connect_to_tracks(pvdd_list, pvdd_tid)
         pen = self.connect_to_tracks([pnorl['g1'], pnorr['g1']], pen_tid)
         ports['pen'] = pen
         # connect logic nets to vm layer
-        self.connect_to_tracks([scan_sb_pg, scan_sb_pd], TrackID(vm_layer, vm_qb_idx))
+        self.connect_to_tracks([scan_sb_pg, scan_sb_pd], nen_tid)
         self.connect_to_tracks([scan_sb_pg, scan_sb_ng, scan_sb_nd], TrackID(vm_layer, vm_ssb_idx))
         scan_s = self.connect_to_tracks([scan_ps, scan_ns], TrackID(vm_layer, vm_ss_idx))
         ports['scan_s'] = scan_s
@@ -672,8 +673,8 @@ class SinClkDivider(LaygoBase):
                                         min_len_mode=-1)
         nsetgl = self.connect_to_tracks([setl['g'], nnor1l['d'], nnor2l['d']], nsetg_tid,
                                         min_len_mode=1)
-        psetgr = self.connect_to_tracks(pnorr['d'], psetg_tid, min_len_mode=1)
-        psetgl = self.connect_to_tracks(pnorl['d'], psetg_tid, min_len_mode=-1)
+        psetgr = self.connect_to_tracks(pnorr['d'], psetg_tid2, min_len_mode=-1)
+        psetgl = self.connect_to_tracks(pnorl['d'], psetg_tid, min_len_mode=1)
         self.connect_to_tracks([nsetgl, psetgl], TrackID(vm_layer, vm_ssb_idx + 1))
         self.connect_to_tracks([nsetgr, psetgr], TrackID(vm_layer, vm_ss_idx - 1))
 
@@ -706,7 +707,8 @@ class SinClkDivider(LaygoBase):
                 set=seg_set,
                 pnor=seg_pnor,
                 nnor=seg_nnor,
-                sinv=seg_sinv,
+                nsinv=seg_sinv,
+                psinv=1,
             )
         )
 
