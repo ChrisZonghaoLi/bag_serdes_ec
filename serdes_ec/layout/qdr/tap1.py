@@ -277,7 +277,8 @@ class Tap1Main(HybridQDRBase):
         # get track manager and wire names
         tr_manager = TrackManager(self.grid, tr_widths, tr_spaces, half_space=True)
         wire_names = {
-            'tail': dict(g=['clk'], ds=['ntail']),
+            # TODO: hack tail gate for now, should fix itself later when we specify min height.
+            'tail': dict(g=[1, 'clk'], ds=['ntail']),
             'nen': dict(g=['en'], ds=['ntail']),
             'in': dict(g=['in', 'in'], ds=[]),
             'pen': dict(ds=['out', 'out'], g=['en', 'en']),

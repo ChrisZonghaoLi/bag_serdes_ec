@@ -295,7 +295,7 @@ class SinClkDivider(LaygoBase):
         gb_idx0 = self.get_track_index(3, 'gb', 0)
         gb_idx1 = self.get_track_index(4, 'gb', 0)
         ntr = gb_idx1 - gb_idx0 + 1
-        out_locs = tr_manager.spread_wires(hm_layer, ['', 'in', '', 'in', ''], ntr,
+        out_locs = tr_manager.spread_wires(hm_layer, [1, 'in', 1, 'in', 1], ntr,
                                            'out', alignment=0, start_idx=gb_idx0)
         pin_idx0 = self.get_track_index(4, 'g', -1)
         clk_idx = self.get_track_index(5, 'g', -1)
@@ -397,16 +397,16 @@ class SinClkDivider(LaygoBase):
         gb_idx0 = self.get_track_index(3, 'gb', 0)
         gb_idx1 = self.get_track_index(4, 'gb', 0)
         ntr = gb_idx1 - gb_idx0 + 1
-        out_locs = tr_manager.spread_wires(hm_layer, ['', 'out', '', 'out', ''], ntr,
+        out_locs = tr_manager.spread_wires(hm_layer, [1, 'out', 1, 'out', 1], ntr,
                                            'out', alignment=0, start_idx=gb_idx0)
         pg_start = self.get_track_interval(4, 'g')[0]
-        pg_locs = tr_manager.place_wires(hm_layer, ['', '', 'in', 'in'], start_idx=pg_start)[1]
+        pg_locs = tr_manager.place_wires(hm_layer, [1, 1, 'in', 'in'], start_idx=pg_start)[1]
         tleft = self.grid.coord_to_nearest_track(vm_layer, xleft, unit_mode=True, half_track=True,
                                                  mode=1)
         tright = self.grid.coord_to_nearest_track(vm_layer, xright, unit_mode=True, half_track=True,
                                                   mode=-1)
         ntr = tright - tleft + 1
-        vm_locs = tr_manager.spread_wires(vm_layer, ['', 'out', 'clk', 'out', ''], ntr,
+        vm_locs = tr_manager.spread_wires(vm_layer, [1, 'out', 'clk', 'out', 1], ntr,
                                           'out', alignment=0, start_idx=tleft)
 
         # connect intermediate wires
@@ -466,8 +466,10 @@ class SinClkDivider(LaygoBase):
         seg_pnor = seg_dict.get('sr_pnor', 1)
         seg_nnor = seg_dict.get('sr_nnor', 2)
         seg_sinv = seg_dict.get('sr_sinv', 2)
-        seg_nand_set = max(seg_nand * 2, seg_set)
+        fg_nand = seg_nand * 2
 
+        if seg_set > seg_drv:
+            raise ValueError('Must have sr_set <= sr_drv')
         if seg_pnor > seg_nand:
             raise ValueError('Must have sr_pnor <= sr_nand.')
         if seg_nnor % 2 == 1 or seg_sinv % 2 == 1:
@@ -476,35 +478,33 @@ class SinClkDivider(LaygoBase):
         # place instances
         stop = start + seg_tot
         ridx = 2
-        cidx = start + seg_nand_set - seg_set
-        setl = self.add_laygo_mos(ridx, cidx, seg_set)
-        nnor1l = self.add_laygo_mos(ridx - 1, cidx, seg_nnor)
-        nnor2l = self.add_laygo_mos(ridx - 1, cidx + seg_nnor, seg_nnor)
-        cidx = stop - seg_nand_set + seg_set
-        setr = self.add_laygo_mos(ridx, cidx - seg_set, seg_set)
-        nnor1r = self.add_laygo_mos(ridx - 1, cidx - seg_nnor, seg_nnor)
-        nnor2r = self.add_laygo_mos(ridx - 1, cidx - 2 * seg_nnor, seg_nnor)
         ridx += 1
-        cidx = start + seg_nand_set - seg_nand * 2
+        cidx = start
         col_spl = cidx + seg_nand * 2 + 1
         col_norl = cidx
         nnandl = self.add_laygo_mos(ridx, cidx, seg_nand, gate_loc='s', stack=True)
         pnandl = self.add_laygo_mos(ridx + 1, cidx, seg_nand, gate_loc='s', stack=True)
         pnorl = self.add_laygo_mos(ridx + 2, cidx, seg_pnor, gate_loc='s', stack=True, flip=True)
-        cidx = stop - seg_nand_set
+        nnor1l = self.add_laygo_mos(ridx - 2, cidx, seg_nnor)
+        nnor2l = self.add_laygo_mos(ridx - 2, cidx + seg_nnor, seg_nnor)
+        cidx = stop - fg_nand
         col_spr = cidx - 1
         col_norr = cidx + seg_pnor
         nnandr = self.add_laygo_mos(ridx, cidx, seg_nand, gate_loc='s', stack=True, flip=True)
         pnandr = self.add_laygo_mos(ridx + 1, cidx, seg_nand, gate_loc='s', stack=True, flip=True)
         pnorr = self.add_laygo_mos(ridx + 2, cidx, seg_pnor, gate_loc='s', stack=True)
+        nnor1r = self.add_laygo_mos(ridx - 2, cidx + fg_nand - seg_nnor, seg_nnor)
+        nnor2r = self.add_laygo_mos(ridx - 2, cidx + fg_nand - 2 * seg_nnor, seg_nnor)
         psinv = self.add_laygo_mos(ridx + 2, cidx - 1, 1)
-        start += seg_nand_set + seg_sp
-        stop -= seg_nand_set + seg_sp
+        start += fg_nand + seg_sp
+        stop -= fg_nand + seg_sp
 
         ndrvl = self.add_laygo_mos(ridx, start, seg_drv)
+        setl = self.add_laygo_mos(ridx - 1, start, seg_set)
         pdrvl = self.add_laygo_mos(ridx + 1, start, seg_drv)
         cidx = stop - seg_drv
         ndrvr = self.add_laygo_mos(ridx, cidx, seg_drv)
+        setr = self.add_laygo_mos(ridx - 1, cidx + seg_drv - seg_set, seg_set)
         pdrvr = self.add_laygo_mos(ridx + 1, cidx, seg_drv)
         start += seg_drv
         stop -= seg_drv
@@ -530,13 +530,13 @@ class SinClkDivider(LaygoBase):
         gb_idx0 = self.get_track_index(3, 'gb', 0)
         gb_idx1 = self.get_track_index(4, 'gb', 0)
         ntr = gb_idx1 - gb_idx0 + 1
-        gb_locs = tr_manager.spread_wires(hm_layer, ['', 'out', '', 'out', ''], ntr, 'out',
+        gb_locs = tr_manager.spread_wires(hm_layer, [1, 'out', 1, 'out', 1], ntr, 'out',
                                           alignment=0, start_idx=gb_idx0)
-        ng_ntr, ng_locs = tr_manager.place_wires(hm_layer, ['in', 'in', '', ''])
+        ng_ntr, ng_locs = tr_manager.place_wires(hm_layer, ['in', 'in', 1, 1])
         ng_stop = self.get_track_interval(3, 'g')[1]
         ng_locs = [idx + ng_stop - ng_ntr for idx in ng_locs]
         pg_start = self.get_track_interval(4, 'g')[0]
-        pg_locs = tr_manager.place_wires(hm_layer, ['', '', 'in', 'in'], start_idx=pg_start)[1]
+        pg_locs = tr_manager.place_wires(hm_layer, [1, 1, 'in', 'in'], start_idx=pg_start)[1]
         ng0_tid = TrackID(hm_layer, ng_locs[3])
         ng1_tid = TrackID(hm_layer, ng_locs[2])
         pg0_tid = TrackID(hm_layer, pg_locs[0])
@@ -595,8 +595,8 @@ class SinClkDivider(LaygoBase):
         qb_list = self.connect_wires([inst['d'] for inst in (nnandr, pnandr, ndrvr, pdrvr)])
         s_list = self.connect_wires([ninvr['d'], pinvr['d']])
         r_list = self.connect_wires([ninvl['d'], pinvl['d']])
-        set_vss_list = [setl['s'], setr['s']]
-        set_vss_list.extend(vss_list)
+        nor_vss_list = [nnor1l['s'], nnor2l['s'], nnor1r['s'], nnor2r['s']]
+        nor_vss_list.extend(vss_list)
         nand_vss_list = [nnandl['s'], nnandr['s']]
         nand_vdd_list = [pnandl['s'], pnandr['s']]
         nand_vss_list.extend(vss_list)
@@ -613,7 +613,7 @@ class SinClkDivider(LaygoBase):
         r_warr = self.connect_to_tracks(r_list, sr_tid)
 
         # export vss/vdd
-        ports['VSS'] = set_vss_list
+        ports['VSS'] = nor_vss_list
         ports['VDD'] = vdd_list
 
         # connect q/qb
