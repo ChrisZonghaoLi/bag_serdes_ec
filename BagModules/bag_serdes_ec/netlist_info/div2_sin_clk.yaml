@@ -1,6 +1,6 @@
 lib_name: bag_serdes_ec
 cell_name: div2_sin_clk
-pins: [ "VDD", "VSS", "clk", "en", "scan_r", "scan_s", "q", "qb" ]
+pins: [ "VDD", "VSS", "clk", "en", "scan_s", "q", "qb" ]
 instances:
   XNINTR:
     lib_name: BAG_prim
@@ -294,10 +294,6 @@ instances:
     lib_name: basic
     cell_name: ipin
     instpins: {}
-  PIN4:
-    lib_name: basic
-    cell_name: ipin
-    instpins: {}
   PIN3:
     lib_name: basic
     cell_name: ipin
@@ -318,6 +314,10 @@ instances:
     lib_name: bag_serdes_ec
     cell_name: sr_latch_bora
     instpins:
+      en:
+        direction: input
+        net_name: "en"
+        num_bits: 1
       VSS:
         direction: inputOutput
         net_name: "VSS"
@@ -341,10 +341,6 @@ instances:
       rb:
         direction: input
         net_name: "rb"
-        num_bits: 1
-      scan_r:
-        direction: input
-        net_name: "scan_r"
         num_bits: 1
       scan_s:
         direction: input
