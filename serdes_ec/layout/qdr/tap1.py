@@ -45,9 +45,9 @@ class Tap1FB(HybridQDRBase):
         return self._sch_params
 
     @property
-    def fg_tot(self):
+    def fg_core(self):
         # type: () -> int
-        return self._fg_tot
+        return self._fg_core
 
     @classmethod
     def get_default_param_values(cls):
@@ -70,9 +70,9 @@ class Tap1FB(HybridQDRBase):
             seg_fb='number of segments dictionary for tap1 feedback.',
             seg_lat='number of segments dictionary for digital latch.',
             fg_dum='Number of single-sided edge dummy fingers.',
-            fg_min='Minimum number of core fingers.',
             tr_widths='Track width dictionary.',
             tr_spaces='Track spacing dictionary.',
+            fg_min='Minimum number of core fingers.',
             show_pins='True to create pin labels.',
             options='other AnalogBase options',
         )
@@ -355,6 +355,11 @@ class Tap1MainRow(TemplateBase):
         # type: () -> Dict[str, Any]
         return self._sch_params
 
+    @property
+    def fg_core(self):
+        # type: () -> int
+        return self._fg_core
+
     @classmethod
     def get_default_param_values(cls):
         # type: () -> Dict[str, Any]
@@ -454,6 +459,7 @@ class Tap1MainRow(TemplateBase):
         # place instances and set bounding box
         if d_master is None:
             m_inst = self.add_instance(m_master, 'XMAIN', loc=(0, 0), unit_mode=True)
+            self.array_box = m_inst.array_box
             self.set_size_from_bound_box(top_layer, m_inst.bound_box)
 
             # get pins
@@ -475,8 +481,10 @@ class Tap1MainRow(TemplateBase):
                                        unit_mode=True)
 
             # set size
-            bnd_box = BBox(0, 0, tot_width, d_inst.bound_box.height_unit,
-                           self.grid.resolution, unit_mode=True)
+            res = self.grid.resolution
+            bnd_box = BBox(0, 0, tot_width, d_inst.bound_box.height_unit, res, unit_mode=True)
+            self.array_box = BBox(0, m_inst.array_box.bottom_unit, tot_width,
+                                  m_inst.array_box.top_unit, res, unit_mode=True)
             self.set_size_from_bound_box(top_layer, bnd_box)
 
             # connect pins between two masters
@@ -527,7 +535,7 @@ class Tap1MainRow(TemplateBase):
 
 
 class Tap1Summer(TemplateBase):
-    """An integrating amplifier.
+    """The DFE tap1 Summer.
 
     Parameters
     ----------
@@ -548,16 +556,24 @@ class Tap1Summer(TemplateBase):
         # type: (TemplateDB, str, Dict[str, Any], Set[str], **kwargs) -> None
         TemplateBase.__init__(self, temp_db, lib_name, params, used_names, **kwargs)
         self._sch_params = None
+        self._fg_core = None
 
     @property
     def sch_params(self):
         # type: () -> Dict[str, Any]
         return self._sch_params
 
+    @property
+    def fg_core(self):
+        # type: () -> int
+        return self._fg_core
+
     @classmethod
     def get_default_param_values(cls):
         # type: () -> Dict[str, Any]
         return dict(
+            div_pos_edge=True,
+            fg_min=0,
             is_end=False,
             show_pins=True,
             options=None,
@@ -567,65 +583,74 @@ class Tap1Summer(TemplateBase):
     def get_params_info(cls):
         # type: () -> Dict[str, str]
         return dict(
+            config='Laygo configuration dictionary for the divider.',
             lch='channel length, in meters.',
             ptap_w='NMOS substrate width, in meters/number of fins.',
             ntap_w='PMOS substrate width, in meters/number of fins.',
             w_dict='NMOS/PMOS width dictionary.',
             th_dict='NMOS/PMOS threshold flavor dictionary.',
             seg_main='number of segments dictionary for main tap.',
+            seg_div='number of segments dictionary for clock divider.',
             seg_fb='number of segments dictionary for tap1 feedback.',
             seg_lat='number of segments dictionary for digital latch.',
             fg_dum='Number of single-sided edge dummy fingers.',
             tr_widths='Track width dictionary.',
             tr_spaces='Track spacing dictionary.',
-            show_pins='True to create pin labels.',
+            div_pos_edge='True if the divider triggers off positive edge of the clock.',
+            fg_min='Minimum number of core fingers.',
             is_end='True if this is the end row.',
+            show_pins='True to create pin labels.',
             options='other AnalogBase options',
         )
 
     def draw_layout(self):
         # get parameters
+        config = self.params['config']
+        seg_div = self.params['seg_div']
         show_pins = self.params['show_pins']
         tr_widths = self.params['tr_widths']
         tr_spaces = self.params['tr_spaces']
+        is_end = self.params['is_end']
+        div_pos_edge = self.params['div_pos_edge']
+        fg_min = self.params['fg_min']
 
-        tr_manager = TrackManager(self.grid, tr_widths, tr_spaces, half_space=True)
-
-        fb_params = self.params.copy()
-        fb_params['show_pins'] = False
-        del fb_params['seg_main']
-        del fb_params['is_end']
+        # get layout masters
         main_params = self.params.copy()
-        main_params['show_pins'] = False
+        main_params['show_pins'] = True
         del main_params['seg_fb']
         del main_params['seg_lat']
-        main_params['seg_dict'] = main_params['seg_main']
-        del main_params['seg_main']
+        del main_params['fg_min']
+
+        fb_params = self.params.copy()
+        fb_params['show_pins'] = True
+        del fb_params['config']
+        del fb_params['seg_main']
+        del fb_params['seg_div']
+        del fb_params['div_pos_edge']
+        del fb_params['fg_min']
+        del fb_params['is_end']
 
         # get masters
+        m_master = self.new_template(params=main_params, temp_cls=Tap1MainRow)
         f_master = self.new_template(params=fb_params, temp_cls=Tap1FB)
-        m_master = self.new_template(params=main_params, temp_cls=Tap1Main)
-        fg_min = max(f_master.fg_tot, m_master.fg_tot)
-        if f_master.fg_tot < fg_min:
+
+        fg_min = max(f_master.fg_core, m_master.fg_core)
+        if f_master.fg_core < fg_min:
             f_master = f_master.new_template_with(fg_min=fg_min)
-        if m_master.fg_tot < fg_min:
+        if m_master.fg_core < fg_min:
             m_master = m_master.new_template_with(fg_min=fg_min)
 
         # place instances
-        top_layer = m_master.top_layer + 1
-        _, blk_h = self.grid.get_block_size(top_layer, unit_mode=True, half_blk_y=False)
-        h_blk = m_master.array_box.height_unit + f_master.array_box.height_unit
-        h_tot = -(-h_blk // blk_h) * blk_h
-        h_mid = h_tot // 2
-        y0 = h_mid - m_master.array_box.height_unit
-        y1 = y0 + h_blk
-        m_inst = self.add_instance(m_master, 'XMAIN', loc=(0, y0), unit_mode=True)
-        f_inst = self.add_instance(f_master, 'XFB', loc=(0, y1), orient='MX', unit_mode=True)
+        top_layer = m_master.top_layer
+        m_inst = self.add_instance(m_master, 'XMAIN', loc=(0, 0), unit_mode=True)
+        y0 = m_inst.array_box.top_unit + f_master.array_box.top_unit
+        f_inst = self.add_instance(f_master, 'XFB', loc=(0, y0), orient='MX', unit_mode=True)
 
         # set size
         self.array_box = m_inst.array_box.merge(f_inst.array_box)
-        self.set_size_from_array_box(top_layer)
+        self.set_size_from_bound_box(top_layer, m_inst.bound_box.merge(f_inst.bound_box))
 
+        """
         # export pins in-place
         exp_list = [(m_inst, 'outp', 'm_outp', True), (m_inst, 'outn', 'm_outn', True),
                     (m_inst, 'inp', 'inp', False), (m_inst, 'inn', 'inn', False),
@@ -678,3 +703,4 @@ class Tap1Summer(TemplateBase):
         vdd = self.add_wires(top_layer, vdd_tidx, m_vdd.lower, m_vdd.upper, width=hm_w_vdd)
         for warr in (m_vdd, f_vdd, vdd):
             self.add_pin('VDD', warr, show=show_pins)
+        """
