@@ -4,8 +4,10 @@
 
 from typing import TYPE_CHECKING, Dict, Any, Set
 
+from itertools import chain
+
 from bag.layout.util import BBox
-from bag.layout.routing import TrackManager
+from bag.layout.routing import TrackManager, TrackID
 from bag.layout.template import TemplateBase
 
 from .base import HybridQDRBaseInfo, HybridQDRBase
@@ -671,9 +673,12 @@ class Tap1Summer(TemplateBase):
             exp_list.extend(((m_inst, name, name, False)
                              for name in ['en_div', 'scan_div', 'div', 'divb']))
 
-        for inst, port, name, vconn in exp_list:
+        for inst, port_name, name, vconn in exp_list:
+            port = inst.get_port(port_name)
             label = name + ':' if vconn else name
-            self.reexport(inst.get_port(port), net_name=name, label=label, show=show_pins)
+            self.reexport(port, net_name=name, label=label, show=show_pins)
+            if (port_name == 'outp' or port_name == 'outn') and inst is m_inst:
+                self.reexport(port, net_name=port_name + '_main', show=False)
 
         # set schematic parameters
         self._sch_params = dict(
@@ -742,6 +747,10 @@ class Tap1Column(TemplateBase):
     def draw_layout(self):
         # get parameters
         show_pins = self.params['show_pins']
+        tr_widths = self.params['tr_widths']
+        tr_spaces = self.params['tr_spaces']
+
+        res = self.grid.resolution
 
         # make masters
         div_params = self.params.copy()
@@ -749,8 +758,8 @@ class Tap1Column(TemplateBase):
         div_params['is_end'] = False
         div_params['show_pins'] = False
 
-        divp_master = self.new_template(params=div_params, temp_cls=Tap1Summer)
-        divn_master = divp_master.new_template_with(div_pos_edge=False)
+        divn_master = self.new_template(params=div_params, temp_cls=Tap1Summer)
+        divp_master = divn_master.new_template_with(div_pos_edge=False)
 
         end_params = self.params.copy()
         end_params['seg_div'] = None
@@ -761,7 +770,7 @@ class Tap1Column(TemplateBase):
         end_master = self.new_template(params=end_params, temp_cls=Tap1Summer)
 
         # place instances
-        top_layer = end_master.top_layer
+        vm_layer = top_layer = end_master.top_layer
         inst2 = self.add_instance(end_master, 'X2', loc=(0, 0), unit_mode=True)
         ycur = inst2.array_box.top_unit + divn_master.array_box.top_unit
         inst1 = self.add_instance(divn_master, 'X1', loc=(0, ycur), orient='MX', unit_mode=True)
@@ -769,7 +778,50 @@ class Tap1Column(TemplateBase):
         inst3 = self.add_instance(divp_master, 'X3', loc=(0, ycur), unit_mode=True)
         ycur = inst3.array_box.top_unit + end_master.array_box.top_unit
         inst0 = self.add_instance(end_master, 'X0', loc=(0, ycur), orient='MX', unit_mode=True)
+        inst_list = [inst0, inst1, inst2, inst3]
 
         # set size
         self.set_size_from_bound_box(top_layer, inst2.bound_box.merge(inst0.bound_box))
         self.array_box = self.bound_box
+
+        tr_manager = TrackManager(self.grid, tr_widths, tr_spaces, half_space=True)
+
+        # re-export supply pins
+        vdd_list = list(chain(*(inst.get_all_port_pins('VDD') for inst in inst_list)))
+        vss_list = list(chain(*(inst.get_all_port_pins('VSS') for inst in inst_list)))
+        self.add_pin('VDD', vdd_list, label='VDD:', show=show_pins)
+        self.add_pin('VSS', vss_list, label='VSS:', show=show_pins)
+
+        # draw output wires + shield
+        xr = int(round(vdd_list[0].upper / res))
+        tidx0 = self.grid.find_next_track(vm_layer, xr, mode=1, unit_mode=True)
+        _, out_locs = tr_manager.place_wires(vm_layer, [1, 'out', 'out', 1, 'out', 'out',
+                                                        1, 'out', 'out', 1], start_idx=tidx0)
+
+        outp_warrs = [[], [], [], []]
+        outn_warrs = [[], [], [], []]
+        for idx, inst in enumerate(inst_list):
+            outp_warrs[idx].extend(inst.get_all_port_pins('outp_m'))
+            outn_warrs[idx].extend(inst.get_all_port_pins('outn_m'))
+            nidx = (idx + 1) % 4
+            outp_warrs[nidx].extend(inst.get_all_port_pins('outn_f'))
+            outn_warrs[nidx].extend(inst.get_all_port_pins('outp_f'))
+            self.reexport(inst.get_port('outp_main'), net_name='outp<%d>' % idx, show=show_pins)
+            self.reexport(inst.get_port('outn_main'), net_name='outn<%d>' % idx, show=show_pins)
+
+        out_map = [7, 4, 7, 1]
+        vm_w_out = tr_manager.get_width(vm_layer, 'out')
+        tr_lower = tr_upper = None
+        for outp, outn, idx in zip(outp_warrs, outn_warrs, out_map):
+            trp, trn = self.connect_differential_tracks(outp, outn, vm_layer, out_locs[idx],
+                                                        out_locs[idx + 1], width=vm_w_out)
+            if tr_lower is None:
+                tr_lower = trp.lower
+                tr_upper = trp.upper
+            else:
+                tr_lower = min(tr_lower, trp.lower)
+                tr_upper = max(tr_upper, trp.upper)
+
+        shield_pitch = out_locs[3] - out_locs[0]
+        self.connect_to_tracks(vdd_list, TrackID(vm_layer, out_locs[0], num=4, pitch=shield_pitch),
+                               track_lower=tr_lower, track_upper=tr_upper)
