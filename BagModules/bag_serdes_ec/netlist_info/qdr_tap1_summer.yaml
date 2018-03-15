@@ -1,6 +1,6 @@
 lib_name: bag_serdes_ec
 cell_name: qdr_tap1_summer
-pins: [ "VDD", "VSS", "inp", "inn", "clkp", "clkn", "en1_m", "en0_f", "en1_f", "clkp_m", "clkp_f", "clkp_d", "outp_f", "en_div", "outp_d", "outn_d", "en0_m", "outn_m", "outn_f", "scan_div", "div", "divb", "outp_m" ]
+pins: [ "VDD", "VSS", "inp", "inn", "clkp", "clkn", "en2", "clkn_f", "clkp_m", "clkn_d", "outp_f", "en0", "en_div", "outp_d", "outn_d", "en1", "outn_m", "outn_f", "scan_div", "div", "divb", "outp_m" ]
 instances:
   XFB:
     lib_name: bag_serdes_ec
@@ -32,11 +32,11 @@ instances:
         num_bits: 1
       clkp:
         direction: input
-        net_name: "clkp"
+        net_name: "clkn"
         num_bits: 1
       clkn:
         direction: input
-        net_name: "clkn"
+        net_name: "clkp"
         num_bits: 1
       inp:
         direction: input
@@ -48,19 +48,19 @@ instances:
         num_bits: 1
       en0:
         direction: input
-        net_name: "en0_f"
+        net_name: "en1"
         num_bits: 1
       en1:
         direction: input
-        net_name: "en1_f"
+        net_name: "en2"
         num_bits: 1
       fb_clkp:
         direction: input
-        net_name: "clkp_f"
+        net_name: "clkn_f"
         num_bits: 1
       lat_clkp:
         direction: input
-        net_name: "clkp_d"
+        net_name: "clkn_d"
         num_bits: 1
   PIN1:
     lib_name: basic
@@ -83,10 +83,6 @@ instances:
     cell_name: ipin
     instpins: {}
   PIN10:
-    lib_name: basic
-    cell_name: ipin
-    instpins: {}
-  PIN9:
     lib_name: basic
     cell_name: ipin
     instpins: {}
@@ -176,11 +172,11 @@ instances:
         num_bits: 1
       en1:
         direction: input
-        net_name: "en1_m"
+        net_name: "en1"
         num_bits: 1
       en0:
         direction: input
-        net_name: "en0_m"
+        net_name: "en0"
         num_bits: 1
       bias_clkp:
         direction: input

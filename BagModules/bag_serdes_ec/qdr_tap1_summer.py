@@ -25,30 +25,16 @@ class bag_serdes_ec__qdr_tap1_summer(Module):
     @classmethod
     def get_params_info(cls):
         # type: () -> Dict[str, str]
-        """Returns a dictionary from parameter names to descriptions.
-
-        Returns
-        -------
-        param_info : Optional[Dict[str, str]]
-            dictionary from parameter names to descriptions.
-        """
         return dict(
+            main_params='Main tap parameters.',
+            fb_params='Feedback tap parameters.',
         )
 
-    def design(self):
-        """To be overridden by subclasses to design this module.
+    def design(self, main_params, fb_params):
+        self.instances['XMAIN'].design(**main_params)
+        self.instances['XFB'].design(**fb_params)
 
-        This method should fill in values for all parameters in
-        self.parameters.  To design instances of this module, you can
-        call their design() method or any other ways you coded.
-
-        To modify schematic structure, call:
-
-        rename_pin()
-        delete_instance()
-        replace_instance_master()
-        reconnect_instance_terminal()
-        restore_instance()
-        array_instance()
-        """
-        pass
+        # delete divider pins if they are not there.
+        if 'div' not in self.instances['XMAIN'].master.pin_list:
+            for name in ['div', 'divb', 'en_div', 'scan_div']:
+                self.remove_pin(name)

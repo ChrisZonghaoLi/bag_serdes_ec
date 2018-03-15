@@ -5,7 +5,7 @@
 from typing import TYPE_CHECKING, Dict, Any, Set
 
 from bag.layout.util import BBox
-from bag.layout.routing import TrackManager, TrackID
+from bag.layout.routing import TrackManager
 from bag.layout.template import TemplateBase
 
 from .base import HybridQDRBaseInfo, HybridQDRBase
@@ -605,24 +605,18 @@ class Tap1Summer(TemplateBase):
 
     def draw_layout(self):
         # get parameters
-        config = self.params['config']
         seg_div = self.params['seg_div']
         show_pins = self.params['show_pins']
-        tr_widths = self.params['tr_widths']
-        tr_spaces = self.params['tr_spaces']
-        is_end = self.params['is_end']
-        div_pos_edge = self.params['div_pos_edge']
-        fg_min = self.params['fg_min']
 
         # get layout masters
         main_params = self.params.copy()
-        main_params['show_pins'] = True
+        main_params['show_pins'] = False
         del main_params['seg_fb']
         del main_params['seg_lat']
         del main_params['fg_min']
 
         fb_params = self.params.copy()
-        fb_params['show_pins'] = True
+        fb_params['show_pins'] = False
         del fb_params['config']
         del fb_params['seg_main']
         del fb_params['seg_div']
@@ -650,57 +644,31 @@ class Tap1Summer(TemplateBase):
         self.array_box = m_inst.array_box.merge(f_inst.array_box)
         self.set_size_from_bound_box(top_layer, m_inst.bound_box.merge(f_inst.bound_box))
 
-        """
         # export pins in-place
-        exp_list = [(m_inst, 'outp', 'm_outp', True), (m_inst, 'outn', 'm_outn', True),
+        exp_list = [(m_inst, 'outp', 'outp_m', True), (m_inst, 'outn', 'outn_m', True),
                     (m_inst, 'inp', 'inp', False), (m_inst, 'inn', 'inn', False),
-                    (m_inst, 'bias_clkp', 'm_clkp', False), (f_inst, 'inp', 'm_outp', True),
-                    (f_inst, 'inn', 'm_outn', True), (f_inst, 'fb_clkp', 'f_clkp', False),
-                    (f_inst, 'lat_clkp', 'd_clkp', False), (f_inst, 'fb_outp', 'f_outp', False),
-                    (f_inst, 'fb_outn', 'f_outn', False), (f_inst, 'lat_outp', 'd_outp', False),
-                    (f_inst, 'lat_outn', 'd_outn', False),
+                    (m_inst, 'en0', 'en0', True), (m_inst, 'en1', 'en1', True),
+                    (m_inst, 'VDD', 'VDD', True), (m_inst, 'VSS', 'VSS', True),
+                    (m_inst, 'clkp', 'clkp', True), (m_inst, 'clkn', 'clkn', True),
+                    (m_inst, 'bias_clkp', 'clkp_m', False),
+                    (f_inst, 'inp', 'outp_m', True), (f_inst, 'inn', 'outn_m', True),
+                    (f_inst, 'fb_clkp', 'clkn_f', False), (f_inst, 'lat_clkp', 'clkn_d', False),
+                    (f_inst, 'fb_outp', 'outp_f', False), (f_inst, 'fb_outn', 'outn_f', False),
+                    (f_inst, 'lat_outp', 'outp_d', False), (f_inst, 'lat_outn', 'outn_d', False),
+                    (f_inst, 'en0', 'en1', True), (f_inst, 'en1', 'en2', False),
+                    (f_inst, 'clkp', 'clkn', True), (f_inst, 'clkn', 'clkp', True),
+                    (f_inst, 'VDD', 'VDD', True), (f_inst, 'VSS', 'VSS', True),
                     ]
+        if seg_div is not None:
+            exp_list.extend(((m_inst, name, name, False)
+                             for name in ['en_div', 'scan_div', 'div', 'divb']))
+
         for inst, port, name, vconn in exp_list:
             label = name + ':' if vconn else name
             self.reexport(inst.get_port(port), net_name=name, label=label, show=show_pins)
 
-        # compute VDD/PMOS clks and enables placement
-        _, wire_locs = tr_manager.place_wires(top_layer, ['en', 'clk', 'sup', 'clk', 'en'])
-        vdd_tidx = self.grid.coord_to_track(top_layer, h_mid, unit_mode=True)
-        tr_off = vdd_tidx - wire_locs[2]
-
-        # connect PMOS clocks
-        hm_w_clk = tr_manager.get_width(top_layer, 'clk')
-        clkp_tidx = wire_locs[1] + tr_off
-        clkn_tidx = wire_locs[3] + tr_off
-        clkp_warrs = m_inst.get_all_port_pins('clkp')
-        clkn_warrs = m_inst.get_all_port_pins('clkn')
-        clkp_warrs.extend(f_inst.get_all_port_pins('clkn'))
-        clkn_warrs.extend(f_inst.get_all_port_pins('clkp'))
-
-        clkp, clkn = self.connect_differential_tracks(clkp_warrs, clkn_warrs, top_layer,
-                                                      clkp_tidx, clkn_tidx, width=hm_w_clk)
-        self.add_pin('clkp', clkp, show=show_pins)
-        self.add_pin('clkn', clkn, show=show_pins)
-
-        # connect PMOS enables
-        hm_w_en = tr_manager.get_width(top_layer, 'en')
-        en1_warrs = m_inst.get_all_port_pins('en1')
-        en1_tidx = self.grid.coord_to_nearest_track(top_layer, en1_warrs[0].middle,
-                                                    half_track=True, mode=1)
-        en1_tidx = min(wire_locs[0] + tr_off, en1_tidx)
-        en1_tid = TrackID(top_layer, en1_tidx, width=hm_w_en)
-        self.add_pin('m_en1', self.connect_to_tracks(en1_warrs, en1_tid), show=show_pins)
-        en2_warrs = f_inst.get_all_port_pins('en1')
-        en2_tidx = clkn_tidx + (clkp_tidx - en1_tidx)
-        en2_tid = TrackID(top_layer, en2_tidx, width=hm_w_en)
-        self.add_pin('f_en2', self.connect_to_tracks(en2_warrs, en2_tid), show=show_pins)
-
-        # connect VDD
-        m_vdd = m_inst.get_all_port_pins('VDD')[0]
-        f_vdd = f_inst.get_all_port_pins('VDD')[0]
-        hm_w_vdd = tr_manager.get_width(top_layer, 'sup')
-        vdd = self.add_wires(top_layer, vdd_tidx, m_vdd.lower, m_vdd.upper, width=hm_w_vdd)
-        for warr in (m_vdd, f_vdd, vdd):
-            self.add_pin('VDD', warr, show=show_pins)
-        """
+        # set schematic parameters
+        self._sch_params = dict(
+            main_params=m_master.sch_params,
+            fb_params=f_master.sch_params,
+        )
