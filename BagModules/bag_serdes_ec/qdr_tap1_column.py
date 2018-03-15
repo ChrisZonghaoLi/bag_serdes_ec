@@ -8,7 +8,8 @@ import pkg_resources
 from bag.design import Module
 
 
-yaml_file = pkg_resources.resource_filename(__name__, os.path.join('netlist_info', 'qdr_tap1_column.yaml'))
+yaml_file = pkg_resources.resource_filename(__name__, os.path.join('netlist_info',
+                                                                   'qdr_tap1_column.yaml'))
 
 
 # noinspection PyPep8Naming
@@ -24,30 +25,30 @@ class bag_serdes_ec__qdr_tap1_column(Module):
     @classmethod
     def get_params_info(cls):
         # type: () -> Dict[str, str]
-        """Returns a dictionary from parameter names to descriptions.
-
-        Returns
-        -------
-        param_info : Optional[Dict[str, str]]
-            dictionary from parameter names to descriptions.
-        """
         return dict(
+            main_params='main tap parameters.',
+            div_params='divider parameters.',
+            fb_params='feedback tap parameters.',
         )
 
-    def design(self):
-        """To be overridden by subclasses to design this module.
+    def design(self, main_params, div_params, fb_params):
+        end_row_params = dict(
+            div_pos_edge=True,
+            main_params=main_params,
+            div_params=None,
+        )
+        divp_row_params = dict(
+            div_pos_edge=True,
+            main_params=main_params,
+            div_params=div_params,
+        )
+        divn_row_params = dict(
+            div_pos_edge=False,
+            main_params=main_params,
+            div_params=div_params,
+        )
 
-        This method should fill in values for all parameters in
-        self.parameters.  To design instances of this module, you can
-        call their design() method or any other ways you coded.
-
-        To modify schematic structure, call:
-
-        rename_pin()
-        delete_instance()
-        replace_instance_master()
-        reconnect_instance_terminal()
-        restore_instance()
-        array_instance()
-        """
-        pass
+        self.instances['X0'].design(main_params=end_row_params, fb_params=fb_params)
+        self.instances['X1'].design(main_params=divn_row_params, fb_params=fb_params)
+        self.instances['X2'].design(main_params=end_row_params, fb_params=fb_params)
+        self.instances['X3'].design(main_params=divp_row_params, fb_params=fb_params)
