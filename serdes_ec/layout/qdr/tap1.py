@@ -679,6 +679,8 @@ class Tap1Summer(TemplateBase):
             self.reexport(port, net_name=name, label=label, show=show_pins)
             if (port_name == 'outp' or port_name == 'outn') and inst is m_inst:
                 self.reexport(port, net_name=port_name + '_main', show=False)
+            if (port_name == 'inp' or port_name == 'inn') and inst is f_inst:
+                self.reexport(port, net_name=port_name + '_fb', show=False)
 
         # set schematic parameters
         self._sch_params = dict(
@@ -808,6 +810,8 @@ class Tap1Column(TemplateBase):
             outn_warrs[nidx].extend(inst.get_all_port_pins('outp_f'))
             self.reexport(inst.get_port('outp_main'), net_name='outp<%d>' % idx, show=show_pins)
             self.reexport(inst.get_port('outn_main'), net_name='outn<%d>' % idx, show=show_pins)
+            self.reexport(inst.get_port('inp_fb'), net_name='datap%d' % idx, show=False)
+            self.reexport(inst.get_port('inn_fb'), net_name='datan%d' % idx, show=False)
 
         out_map = [7, 4, 7, 1]
         vm_w_out = tr_manager.get_width(vm_layer, 'out')
