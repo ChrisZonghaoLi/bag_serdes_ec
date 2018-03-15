@@ -408,10 +408,10 @@ class Tap1MainRow(TemplateBase):
         del main_params['seg_main']
         del main_params['fg_min']
         if is_end:
-            main_params['end_mode'] = 9
+            main_params['end_mode'] = 13 if seg_div is None else 9
             div_end_mode = 5
         else:
-            main_params['end_mode'] = 8
+            main_params['end_mode'] = 12 if seg_div is None else 8
             div_end_mode = 4
 
         top_layer = HybridQDRBase.get_mos_conn_layer(self.grid.tech_info) + 2
