@@ -606,6 +606,7 @@ class Tap1Summer(TemplateBase):
     def draw_layout(self):
         # get parameters
         seg_div = self.params['seg_div']
+        fg_min = self.params['fg_min']
         show_pins = self.params['show_pins']
 
         # get layout masters
@@ -613,7 +614,6 @@ class Tap1Summer(TemplateBase):
         main_params['show_pins'] = False
         del main_params['seg_fb']
         del main_params['seg_lat']
-        del main_params['fg_min']
 
         fb_params = self.params.copy()
         fb_params['show_pins'] = False
@@ -621,18 +621,26 @@ class Tap1Summer(TemplateBase):
         del fb_params['seg_main']
         del fb_params['seg_div']
         del fb_params['div_pos_edge']
-        del fb_params['fg_min']
         del fb_params['is_end']
 
         # get masters
-        m_master = self.new_template(params=main_params, temp_cls=Tap1MainRow)
-        f_master = self.new_template(params=fb_params, temp_cls=Tap1FB)
+        if seg_div is None:
+            f_master = self.new_template(params=fb_params, temp_cls=Tap1FB)
+            main_params['fg_min'] = max(fg_min, f_master.fg_core)
+            m_master = self.new_template(params=main_params, temp_cls=Tap1MainRow)
+        else:
+            m_master = self.new_template(params=main_params, temp_cls=Tap1MainRow)
+            fb_params['fg_min'] = max(fg_min, m_master.fg_core)
+            if fb_params['fg_min'] is None:
+                import pdb
+                pdb.set_trace()
+            f_master = self.new_template(params=fb_params, temp_cls=Tap1FB)
 
-        fg_min = max(f_master.fg_core, m_master.fg_core)
-        if f_master.fg_core < fg_min:
-            f_master = f_master.new_template_with(fg_min=fg_min)
-        if m_master.fg_core < fg_min:
-            m_master = m_master.new_template_with(fg_min=fg_min)
+        self._fg_core = max(fg_min, f_master.fg_core, m_master.fg_core)
+        if f_master.fg_core < self._fg_core:
+            f_master = f_master.new_template_with(fg_min=self._fg_core)
+        if m_master.fg_core < self._fg_core:
+            m_master = m_master.new_template_with(fg_min=self._fg_core)
 
         # place instances
         top_layer = m_master.top_layer
@@ -672,3 +680,96 @@ class Tap1Summer(TemplateBase):
             main_params=m_master.sch_params,
             fb_params=f_master.sch_params,
         )
+
+
+class Tap1Column(TemplateBase):
+    """The column of DFE tap1 summers.
+
+    Parameters
+    ----------
+    temp_db : TemplateDB
+            the template database.
+    lib_name : str
+        the layout library name.
+    params : Dict[str, Any]
+        the parameter values.
+    used_names : Set[str]
+        a set of already used cell names.
+    **kwargs
+        dictionary of optional parameters.  See documentation of
+        :class:`bag.layout.template.TemplateBase` for details.
+    """
+
+    def __init__(self, temp_db, lib_name, params, used_names, **kwargs):
+        # type: (TemplateDB, str, Dict[str, Any], Set[str], **kwargs) -> None
+        TemplateBase.__init__(self, temp_db, lib_name, params, used_names, **kwargs)
+        self._sch_params = None
+
+    @property
+    def sch_params(self):
+        # type: () -> Dict[str, Any]
+        return self._sch_params
+
+    @classmethod
+    def get_default_param_values(cls):
+        # type: () -> Dict[str, Any]
+        return dict(
+            show_pins=True,
+            options=None,
+        )
+
+    @classmethod
+    def get_params_info(cls):
+        # type: () -> Dict[str, str]
+        return dict(
+            config='Laygo configuration dictionary for the divider.',
+            lch='channel length, in meters.',
+            ptap_w='NMOS substrate width, in meters/number of fins.',
+            ntap_w='PMOS substrate width, in meters/number of fins.',
+            w_dict='NMOS/PMOS width dictionary.',
+            th_dict='NMOS/PMOS threshold flavor dictionary.',
+            seg_main='number of segments dictionary for main tap.',
+            seg_div='number of segments dictionary for clock divider.',
+            seg_fb='number of segments dictionary for tap1 feedback.',
+            seg_lat='number of segments dictionary for digital latch.',
+            fg_dum='Number of single-sided edge dummy fingers.',
+            tr_widths='Track width dictionary.',
+            tr_spaces='Track spacing dictionary.',
+            show_pins='True to create pin labels.',
+            options='other AnalogBase options',
+        )
+
+    def draw_layout(self):
+        # get parameters
+        show_pins = self.params['show_pins']
+
+        # make masters
+        div_params = self.params.copy()
+        div_params['div_pos_edge'] = True
+        div_params['is_end'] = False
+        div_params['show_pins'] = False
+
+        divp_master = self.new_template(params=div_params, temp_cls=Tap1Summer)
+        divn_master = divp_master.new_template_with(div_pos_edge=False)
+
+        end_params = self.params.copy()
+        end_params['seg_div'] = None
+        end_params['fg_min'] = divp_master.fg_core
+        end_params['is_end'] = True
+        end_params['show_pins'] = False
+
+        end_master = self.new_template(params=end_params, temp_cls=Tap1Summer)
+
+        # place instances
+        top_layer = end_master.top_layer
+        inst2 = self.add_instance(end_master, 'X2', loc=(0, 0), unit_mode=True)
+        ycur = inst2.array_box.top_unit + divn_master.array_box.top_unit
+        inst1 = self.add_instance(divn_master, 'X1', loc=(0, ycur), orient='MX', unit_mode=True)
+        ycur = inst1.array_box.top_unit
+        inst3 = self.add_instance(divp_master, 'X3', loc=(0, ycur), unit_mode=True)
+        ycur = inst3.array_box.top_unit + end_master.array_box.top_unit
+        inst0 = self.add_instance(end_master, 'X0', loc=(0, ycur), orient='MX', unit_mode=True)
+
+        # set size
+        self.set_size_from_bound_box(top_layer, inst2.bound_box.merge(inst0.bound_box))
+        self.array_box = self.bound_box
