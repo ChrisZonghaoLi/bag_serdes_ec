@@ -17,8 +17,8 @@ if TYPE_CHECKING:
     from bag.layout.template import TemplateDB
 
 
-class Tap1FB(HybridQDRBase):
-    """tap1 summer DFE feedback Gm and the first digital latch.
+class Tap1SummerRow(HybridQDRBase):
+    """tap1 summer row
 
     Parameters
     ----------
@@ -56,6 +56,7 @@ class Tap1FB(HybridQDRBase):
         # type: () -> Dict[str, Any]
         return dict(
             fg_min=0,
+            is_end=False,
             show_pins=True,
             options=None,
         )
@@ -69,12 +70,13 @@ class Tap1FB(HybridQDRBase):
             ntap_w='PMOS substrate width, in meters/number of fins.',
             w_dict='NMOS/PMOS width dictionary.',
             th_dict='NMOS/PMOS threshold flavor dictionary.',
-            seg_fb='number of segments dictionary for tap1 feedback.',
-            seg_lat='number of segments dictionary for digital latch.',
+            seg_main='number of segments dictionary for main tap.',
+            seg_fb='number of segments dictionary for feedback tap.',
             fg_dum='Number of single-sided edge dummy fingers.',
             tr_widths='Track width dictionary.',
             tr_spaces='Track spacing dictionary.',
             fg_min='Minimum number of core fingers.',
+            is_end='True if this is the end row.',
             show_pins='True to create pin labels.',
             options='other AnalogBase options',
         )
@@ -85,17 +87,19 @@ class Tap1FB(HybridQDRBase):
         ntap_w = self.params['ntap_w']
         w_dict = self.params['w_dict']
         th_dict = self.params['th_dict']
+        seg_main = self.params['seg_main']
         seg_fb = self.params['seg_fb']
-        seg_lat = self.params['seg_lat']
         fg_dumr = self.params['fg_dum']
-        fg_min = self.params['fg_min']
         tr_widths = self.params['tr_widths']
         tr_spaces = self.params['tr_spaces']
+        fg_min = self.params['fg_min']
+        is_end = self.params['is_end']
         show_pins = self.params['show_pins']
         options = self.params['options']
 
         if options is None:
             options = {}
+        end_mode = 13 if is_end else 12
 
         # get track manager and wire names
         tr_manager = TrackManager(self.grid, tr_widths, tr_spaces, half_space=True)
@@ -111,18 +115,18 @@ class Tap1FB(HybridQDRBase):
         hm_layer = self.mos_conn_layer + 1
         top_layer = hm_layer + 1
         qdr_info = HybridQDRBaseInfo(self.grid, lch, 0, top_layer=top_layer,
-                                     end_mode=12, **options)
+                                     end_mode=end_mode, **options)
         fg_sep_out = qdr_info.get_fg_sep_from_hm_space(tr_manager.get_width(hm_layer, 'out'),
                                                        round_even=True)
         fg_sep_load = qdr_info.get_fg_sep_from_hm_space(tr_manager.get_width(hm_layer, 'en'),
                                                         round_even=True)
         fg_sep_load = max(0, fg_sep_load - 2)
 
+        main_info = qdr_info.get_integ_amp_info(seg_main, fg_dum=0, fg_sep_load=fg_sep_load)
         fb_info = qdr_info.get_integ_amp_info(seg_fb, fg_dum=0, fg_sep_load=fg_sep_load)
-        latch_info = qdr_info.get_integ_amp_info(seg_lat, fg_dum=0, fg_sep_load=fg_sep_load)
 
-        fg_latch = latch_info['fg_tot']
-        fg_amp = fb_info['fg_tot'] + fg_latch + fg_sep_out
+        fg_main = main_info['fg_tot']
+        fg_amp = fg_main + fb_info['fg_tot'] + fg_sep_out
         fg_tot = fg_amp + 2 * fg_dumr
         self._fg_core = qdr_info.get_placement_info(fg_tot).core_fg
         if self._fg_core < fg_min:
@@ -134,26 +138,31 @@ class Tap1FB(HybridQDRBase):
                        wire_names, top_layer=top_layer, end_mode=12, **options)
 
         # draw amplifier
-        lat_ports, _ = self.draw_integ_amp(fg_duml, seg_lat, fg_dum=0,
-                                           fg_sep_load=fg_sep_load, net_prefix='lat_')
-        fb_ports, _ = self.draw_integ_amp(fg_duml + fg_latch + fg_sep_out, seg_fb,
-                                          fg_dum=0, fg_sep_load=fg_sep_load, net_prefix='fb_')
+        main_ports, _ = self.draw_integ_amp(fg_duml, seg_main, fg_dum=0,
+                                            fg_sep_load=fg_sep_load, net_suffix='_m')
+        fb_ports, _ = self.draw_integ_amp(fg_duml + fg_main + fg_sep_out, seg_fb, invert=True,
+                                          fg_dum=0, fg_sep_load=fg_sep_load, net_suffix='_f')
 
         vss_warrs, vdd_warrs = self.fill_dummy()
 
-        for name in ('inp', 'inn', 'en1', 'clkp', 'clkn'):
-            wname = 'pen1' if name == 'en1' else name
-            cur_warr = self.connect_wires([lat_ports[wname], fb_ports[wname]])
-            self.add_pin(name, cur_warr, show=show_pins)
+        for name in ('outp', 'outn', 'en1', 'clkp', 'clkn'):
+            if name == 'en1':
+                wname = 'pen1'
+                port_name = 'en<1>'
+            else:
+                wname = port_name = name
+            cur_warr = self.connect_wires([main_ports[wname], fb_ports[wname]])
+            self.add_pin(port_name, cur_warr, show=show_pins)
         for name in ('pen0', 'nen0'):
-            cur_warr = self.connect_wires([lat_ports[name], fb_ports[name]])
-            self.add_pin('en0', cur_warr, label='en0:', show=show_pins)
+            cur_warr = self.connect_wires([main_ports[name], fb_ports[name]])
+            self.add_pin('en<0>', cur_warr, label='en<0>:', show=show_pins)
 
-        self.add_pin('lat_clkp', lat_ports['bias_clkp'], show=show_pins)
-        self.add_pin('fb_clkp', fb_ports['bias_clkp'], show=show_pins)
-        for name in ('outp', 'outn'):
-            for prefix, port in (('lat_', lat_ports), ('fb_', fb_ports)):
-                self.add_pin(prefix + name, port[name], show=show_pins)
+        self.add_pin('biasp_m', main_ports['biasp'], show=show_pins)
+        self.add_pin('biasp_f', fb_ports['biasp'], show=show_pins)
+        self.add_pin('inp', main_ports['inp'], show=show_pins)
+        self.add_pin('inn', main_ports['inn'], show=show_pins)
+        self.add_pin('fbp', fb_ports['inp'], show=show_pins)
+        self.add_pin('fbn', fb_ports['inn'], show=show_pins)
 
         self.add_pin('VSS', vss_warrs, show=show_pins)
         self.add_pin('VDD', vdd_warrs, show=show_pins)
@@ -163,8 +172,8 @@ class Tap1FB(HybridQDRBase):
             lch=lch,
             w_dict=w_dict,
             th_dict=th_dict,
+            seg_main=seg_main,
             seg_fb=seg_fb,
-            seg_lat=seg_lat,
             dum_info=self.get_sch_dummy_info(),
         )
 

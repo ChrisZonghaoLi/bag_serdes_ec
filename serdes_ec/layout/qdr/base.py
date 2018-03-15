@@ -351,6 +351,7 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
                             sd_dict,  # type: Dict[Tuple[str, str], str]
                             sd_dir_dict,  # type: Dict[str, Tuple[int, int]]
                             net_prefix='',  # type: str
+                            net_suffix='',  # type: str
                             ):
         # type: (...) -> Dict[str, List[WireArray]]
         ports = {}
@@ -366,8 +367,17 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
                 snet = sd_dict[(tran_name, 's')]
                 dnet = sd_dict[(tran_name, 'd')]
 
-                s_pre = net_prefix if snet != 'VDD' and snet != 'VSS' else ''
-                d_pre = net_prefix if dnet != 'VDD' and dnet != 'VSS' else ''
+                if snet != 'VDD' and snet != 'VSS':
+                    s_pre = net_prefix
+                    s_suf = net_suffix
+                else:
+                    s_pre = s_suf = ''
+                if dnet != 'VDD' and dnet != 'VSS':
+                    d_pre = net_prefix
+                    d_suf = net_suffix
+                else:
+                    d_pre = d_suf = ''
+
                 # determine net names
                 if snet in self.diff_nets:
                     snetp = snet + 'p'
@@ -381,9 +391,9 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
                     dnetp = dnetn = dnet
                 # draw transistors
                 mp = self.draw_mos_conn(mos_type, row_idx, colp, seg, sdir, ddir,
-                                        s_net=s_pre + snetp, d_net=d_pre + dnetp)
+                                        s_net=s_pre + snetp + s_suf, d_net=d_pre + dnetp + d_suf)
                 mn = self.draw_mos_conn(mos_type, row_idx, coln, seg, sdir, ddir,
-                                        s_net=s_pre + snetn, d_net=d_pre + dnetn)
+                                        s_net=s_pre + snetn + s_suf, d_net=d_pre + dnetn + d_suf)
                 gnet = self.gate_dict[tran_name]
                 # save gate port
                 if tran_name == 'in':
@@ -406,11 +416,13 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
     def draw_integ_amp(self,  # type: HybridQDRBase
                        col_idx,  # type: int
                        seg_dict,  # type: Dict[str, int]
+                       invert=False,  # type: bool
                        fg_min=0,  # type: int
                        fg_dum=0,  # type: int
                        fg_sep_load=0,  # type: int
                        idx_dict=None,  # type: Optional[Dict[str, int]]]
                        net_prefix='',  # type: str
+                       net_suffix='',  # type: str
                        ):
         # type: (...) -> Tuple[Dict[str, Union[WireArray, List[WireArray]]], Dict[str, Any]]
         """Draw a differential amplifier.
@@ -421,6 +433,8 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
             the left-most transistor index.  0 is the left-most transistor.
         seg_dict : Dict[str, int]
             a dictionary containing number of segments per transistor type.
+        invert : bool
+            True to flip output sign.
         fg_min : int
             minimum number of total fingers.
         fg_dum : int
@@ -431,6 +445,8 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
             track index dictionary.
         net_prefix : str
             the prefix to append to net names.  Defaults to empty string.
+        net_suffix : str
+            the suffix to append to net names.  Defaults to empty string.
 
         Returns
         -------
@@ -452,7 +468,7 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
         sd_dir_dict = amp_info['sd_dir_dict']
 
         ports = self._draw_integ_amp_mos(col_idx, fg_tot, seg_dict, col_dict, sd_dict, sd_dir_dict,
-                                         net_prefix=net_prefix)
+                                         net_prefix=net_prefix, net_suffix=net_suffix)
 
         # connect wires
         self.connect_to_substrate('ntap', ports['VDD'])
@@ -493,7 +509,11 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
         out_w = outp_tid.width
         outp_idx = outp_tid.base_index
         outn_idx = outn_tid.base_index
-        outp, outn = self.connect_differential_tracks(ports['outp'], ports['outn'], hm_layer,
+        if invert:
+            outp_warrs, outn_warrs = ports['outn'], ports['outp']
+        else:
+            outp_warrs, outn_warrs = ports['outp'], ports['outn']
+        outp, outn = self.connect_differential_tracks(outp_warrs, outn_warrs, hm_layer,
                                                       outp_idx, outn_idx, width=out_w)
         in_w = inp_tid.width
         inp_idx = inp_tid.base_index
@@ -503,7 +523,7 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
 
         ports = dict(inp=inp, inn=inn, outp=outp, outn=outn,
                      pen0=pen0, pen1=pen1, clkn=pclk0, clkp=pclk1,
-                     nen0=nen, bias_clkp=nclk,
+                     nen0=nen, biasp=nclk,
                      )
 
         # connect cascode if necessary
