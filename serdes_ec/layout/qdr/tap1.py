@@ -515,6 +515,16 @@ class Tap1MainRow(TemplateBase):
         for name in ('en1', 'outp', 'outn', 'inp', 'inn', 'bias_clkp'):
             self.reexport(m_inst.get_port(name), show=show_pins)
 
+        # set schematic parameters
+        self._sch_params = dict(
+            div_pos_edge=div_pos_edge,
+            main_params=m_master.sch_params,
+        )
+        if d_master is None:
+            self._sch_params['div_params'] = None
+        else:
+            self._sch_params['div_params'] = d_master.sch_params
+
 
 class Tap1Summer(TemplateBase):
     """An integrating amplifier.
