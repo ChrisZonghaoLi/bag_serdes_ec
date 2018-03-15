@@ -62,6 +62,22 @@ instances:
         direction: input
         net_name: "clkn_d"
         num_bits: 1
+  PIN15:
+    lib_name: basic
+    cell_name: iopin
+    instpins: {}
+  PIN14:
+    lib_name: basic
+    cell_name: iopin
+    instpins: {}
+  PIN13:
+    lib_name: basic
+    cell_name: iopin
+    instpins: {}
+  PIN9:
+    lib_name: basic
+    cell_name: iopin
+    instpins: {}
   PIN1:
     lib_name: basic
     cell_name: iopin
@@ -131,22 +147,6 @@ instances:
     cell_name: opin
     instpins: {}
   PIN17:
-    lib_name: basic
-    cell_name: opin
-    instpins: {}
-  PIN16:
-    lib_name: basic
-    cell_name: opin
-    instpins: {}
-  PIN15:
-    lib_name: basic
-    cell_name: opin
-    instpins: {}
-  PIN14:
-    lib_name: basic
-    cell_name: opin
-    instpins: {}
-  PIN13:
     lib_name: basic
     cell_name: opin
     instpins: {}
