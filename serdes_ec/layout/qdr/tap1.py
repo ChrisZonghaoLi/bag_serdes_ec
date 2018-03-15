@@ -419,7 +419,7 @@ class Tap1MainRow(TemplateBase):
 
         # get layout masters
         main_params = self.params.copy()
-        main_params['show_pins'] = True
+        main_params['show_pins'] = False
         del main_params['config']
         del main_params['seg_div']
         main_params['seg_dict'] = main_params['seg_main']
@@ -458,7 +458,7 @@ class Tap1MainRow(TemplateBase):
                 tr_widths=tr_widths,
                 tr_spaces=tr_spaces,
                 end_mode=div_end_mode,
-                show_pins=True,
+                show_pins=False,
             )
             d_master = self.new_template(params=div_params, temp_cls=SinClkDivider)
             self._fg_core = m_master.layout_info.fg_core + d_master.laygo_info.core_col
@@ -516,10 +516,22 @@ class Tap1MainRow(TemplateBase):
                 clkn = self.connect_wires(clkn)
                 clkp = self.extend_wires(clkp, lower=clkn[0].lower)
 
+            # re-export divider pins
+            self.reexport(d_inst.get_port('q'), net_name='div', show=show_pins)
+            self.reexport(d_inst.get_port('qb'), net_name='divb', show=show_pins)
+            self.reexport(d_inst.get_port('en'), net_name='en_div', show=show_pins)
+            self.reexport(d_inst.get_port('scan_s'), net_name='scan_div', show=show_pins)
+
         self.add_pin('VDD', vdd, show=show_pins)
         self.add_pin('VSS', vss, show=show_pins)
         self.add_pin('clkp', clkp, show=show_pins)
         self.add_pin('clkn', clkn, show=show_pins)
+
+        # re-export tap1 pins
+        self.reexport(m_inst.get_port('pen0'), net_name='en0', label='en0:', show=show_pins)
+        self.reexport(m_inst.get_port('nen0'), net_name='en0', label='en0:', show=show_pins)
+        for name in ('en1', 'outp', 'outn', 'inp', 'inn', 'bias_clkp'):
+            self.reexport(m_inst.get_port(name), show=show_pins)
 
 
 class Tap1Summer(TemplateBase):
