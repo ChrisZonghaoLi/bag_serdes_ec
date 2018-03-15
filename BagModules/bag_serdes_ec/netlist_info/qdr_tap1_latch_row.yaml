@@ -1,6 +1,6 @@
 lib_name: bag_serdes_ec
-cell_name: qdr_tap1_main_row
-pins: [ "VDD", "VSS", "inp", "inn", "clkp", "clkn", "en1", "bias_clkp", "outp", "en0", "div", "scan_div", "en_div", "outn", "divb" ]
+cell_name: qdr_tap1_latch_row
+pins: [ "VDD", "VSS", "inp", "inn", "clkp", "clkn", "biasp", "en<1:0>", "outp", "div", "scan_div", "en_div", "outn", "divb" ]
 instances:
   XDIV:
     lib_name: bag_serdes_ec
@@ -34,16 +34,24 @@ instances:
         direction: input
         net_name: "scan_div"
         num_bits: 1
-  XMAIN:
+  XLAT:
     lib_name: bag_serdes_ec
     cell_name: integ_amp
     instpins:
+      en<1:0>:
+        direction: input
+        net_name: "en<1:0>"
+        num_bits: 2
+      biasp:
+        direction: input
+        net_name: "biasp"
+        num_bits: 1
       outp:
-        direction: output
+        direction: inputOutput
         net_name: "outp"
         num_bits: 1
       outn:
-        direction: output
+        direction: inputOutput
         net_name: "outn"
         num_bits: 1
       foot:
@@ -70,10 +78,6 @@ instances:
         direction: output
         net_name: "pm1n"
         num_bits: 1
-      bias_clkp:
-        direction: input
-        net_name: "bias_clkp"
-        num_bits: 1
       VSS:
         direction: inputOutput
         net_name: "VSS"
@@ -98,14 +102,6 @@ instances:
         direction: input
         net_name: "inn"
         num_bits: 1
-      en0:
-        direction: input
-        net_name: "en0"
-        num_bits: 1
-      en1:
-        direction: input
-        net_name: "en1"
-        num_bits: 1
   PIN1:
     lib_name: basic
     cell_name: iopin
@@ -123,10 +119,6 @@ instances:
     cell_name: ipin
     instpins: {}
   PIN10:
-    lib_name: basic
-    cell_name: ipin
-    instpins: {}
-  PIN7:
     lib_name: basic
     cell_name: ipin
     instpins: {}

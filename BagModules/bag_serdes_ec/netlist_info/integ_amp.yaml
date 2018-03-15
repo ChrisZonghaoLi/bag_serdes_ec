@@ -1,6 +1,6 @@
 lib_name: bag_serdes_ec
 cell_name: integ_amp
-pins: [ "VDD", "VSS", "clkp", "clkn", "bias_clkp", "inp", "inn", "en0", "en1", "outp", "outn", "pm0p", "pm1p", "pm0n", "pm1n", "tail", "foot" ]
+pins: [ "VDD", "VSS", "clkp", "clkn", "en<1:0>", "inp", "inn", "outp", "outn", "pm0p", "pm1p", "pm0n", "pm1n", "tail", "foot", "biasp" ]
 instances:
   XDUM:
     lib_name: BAG_prim
@@ -40,7 +40,7 @@ instances:
         num_bits: 1
       G:
         direction: inputOutput
-        net_name: "bias_clkp"
+        net_name: "biasp"
         num_bits: 1
   XTAILP:
     lib_name: BAG_prim
@@ -60,7 +60,7 @@ instances:
         num_bits: 1
       G:
         direction: inputOutput
-        net_name: "bias_clkp"
+        net_name: "biasp"
         num_bits: 1
   XNENN:
     lib_name: BAG_prim
@@ -80,7 +80,7 @@ instances:
         num_bits: 1
       G:
         direction: inputOutput
-        net_name: "en0"
+        net_name: "en<0>"
         num_bits: 1
   XNENP:
     lib_name: BAG_prim
@@ -100,7 +100,7 @@ instances:
         num_bits: 1
       G:
         direction: inputOutput
-        net_name: "en0"
+        net_name: "en<0>"
         num_bits: 1
   XINN:
     lib_name: BAG_prim
@@ -160,7 +160,7 @@ instances:
         num_bits: 1
       G:
         direction: inputOutput
-        net_name: "en0"
+        net_name: "en<0>"
         num_bits: 1
   XPENN1:
     lib_name: BAG_prim
@@ -180,7 +180,7 @@ instances:
         num_bits: 1
       G:
         direction: inputOutput
-        net_name: "en1"
+        net_name: "en<1>"
         num_bits: 1
   XLOADN0:
     lib_name: BAG_prim
@@ -240,7 +240,7 @@ instances:
         num_bits: 1
       G:
         direction: inputOutput
-        net_name: "en0"
+        net_name: "en<0>"
         num_bits: 1
   XPENP1:
     lib_name: BAG_prim
@@ -260,7 +260,7 @@ instances:
         num_bits: 1
       G:
         direction: inputOutput
-        net_name: "en1"
+        net_name: "en<1>"
         num_bits: 1
   XLOADP0:
     lib_name: BAG_prim
@@ -302,6 +302,14 @@ instances:
         direction: inputOutput
         net_name: "clkp"
         num_bits: 1
+  PIN17:
+    lib_name: basic
+    cell_name: iopin
+    instpins: {}
+  PIN18:
+    lib_name: basic
+    cell_name: iopin
+    instpins: {}
   PIN1:
     lib_name: basic
     cell_name: iopin
@@ -309,10 +317,6 @@ instances:
   PIN0:
     lib_name: basic
     cell_name: iopin
-    instpins: {}
-  PIN8:
-    lib_name: basic
-    cell_name: ipin
     instpins: {}
   PIN7:
     lib_name: basic
@@ -359,14 +363,6 @@ instances:
     cell_name: opin
     instpins: {}
   PIN11:
-    lib_name: basic
-    cell_name: opin
-    instpins: {}
-  PIN10:
-    lib_name: basic
-    cell_name: opin
-    instpins: {}
-  PIN9:
     lib_name: basic
     cell_name: opin
     instpins: {}
