@@ -4,8 +4,6 @@
 
 from typing import TYPE_CHECKING, Dict, Any, Set
 
-from itertools import chain
-
 from bag.layout.util import BBox
 from bag.layout.routing import TrackManager, TrackID
 from bag.layout.template import TemplateBase
@@ -39,7 +37,7 @@ class Tap1FB(HybridQDRBase):
         # type: (TemplateDB, str, Dict[str, Any], Set[str], **kwargs) -> None
         HybridQDRBase.__init__(self, temp_db, lib_name, params, used_names, **kwargs)
         self._sch_params = None
-        self._fg_tot = None
+        self._fg_core = None
 
     @property
     def sch_params(self):
@@ -72,7 +70,7 @@ class Tap1FB(HybridQDRBase):
             seg_fb='number of segments dictionary for tap1 feedback.',
             seg_lat='number of segments dictionary for digital latch.',
             fg_dum='Number of single-sided edge dummy fingers.',
-            fg_min='Minimum number of fingers total.',
+            fg_min='Minimum number of core fingers.',
             tr_widths='Track width dictionary.',
             tr_spaces='Track spacing dictionary.',
             show_pins='True to create pin labels.',
@@ -103,13 +101,13 @@ class Tap1FB(HybridQDRBase):
             'tail': dict(g=['clk'], ds=['ntail']),
             'nen': dict(g=['en'], ds=['ntail']),
             'in': dict(g=['in', 'in'], ds=[]),
-            'pen': dict(ds=['out', 'out'], g=['en']),
-            'load': dict(ds=['ptail'], g=['clk']),
+            'pen': dict(ds=['out', 'out'], g=['en', 'en']),
+            'load': dict(ds=['ptail'], g=['clk', 'clk']),
         }
 
         # get total number of fingers
         hm_layer = self.mos_conn_layer + 1
-        top_layer = vm_layer = hm_layer + 1
+        top_layer = hm_layer + 1
         qdr_info = HybridQDRBaseInfo(self.grid, lch, 0, top_layer=top_layer,
                                      end_mode=12, **options)
         fg_sep_out = qdr_info.get_fg_sep_from_hm_space(tr_manager.get_width(hm_layer, 'out'),
@@ -123,7 +121,11 @@ class Tap1FB(HybridQDRBase):
 
         fg_latch = latch_info['fg_tot']
         fg_amp = fb_info['fg_tot'] + fg_latch + fg_sep_out
-        fg_tot = max(fg_amp + 2 * fg_dumr, fg_min)
+        fg_tot = fg_amp + 2 * fg_dumr
+        self._fg_core = qdr_info.get_placement_info(fg_tot).core_fg
+        if self._fg_core < fg_min:
+            fg_tot += (fg_min - self._fg_core)
+            self._fg_core = fg_min
         fg_duml = fg_tot - fg_dumr - fg_amp
 
         self.draw_rows(lch, fg_tot, ptap_w, ntap_w, w_dict, th_dict, tr_manager,
@@ -137,32 +139,13 @@ class Tap1FB(HybridQDRBase):
 
         vss_warrs, vdd_warrs = self.fill_dummy()
 
-        w_vm_en = tr_manager.get_width(vm_layer, 'en')
-
-        for name in ('inp', 'inn'):
-            cur_warr = self.connect_wires([lat_ports[name], fb_ports[name]])
+        for name in ('inp', 'inn', 'en1', 'clkp', 'clkn'):
+            wname = 'pen1' if name == 'en1' else name
+            cur_warr = self.connect_wires([lat_ports[wname], fb_ports[wname]])
             self.add_pin(name, cur_warr, show=show_pins)
-
-        nen = self.connect_wires([lat_ports['nen0'], fb_ports['nen0']])[0]
-        en0_list = []
-        for idx, warr in enumerate(chain(lat_ports['pen0'], fb_ports['pen0'])):
-            mode = -1 if idx % 2 == 0 else 1
-            mtr = self.grid.coord_to_nearest_track(vm_layer, warr.middle, half_track=True,
-                                                   mode=mode)
-            tid = TrackID(vm_layer, mtr, width=w_vm_en)
-            en0_list.append(self.connect_to_tracks([warr, nen], tid))
-        self.add_pin('en0', en0_list, show=show_pins)
-
-        for name, port_name in (('pen1', 'en1'), ('clkp', 'clkp'), ('clkn', 'clkn')):
-            warr_list = []
-            for idx, warr in enumerate(chain(lat_ports[name], fb_ports[name])):
-                mode = -1 if idx % 2 == 0 else 1
-                mtr = self.grid.coord_to_nearest_track(vm_layer, warr.middle, half_track=True,
-                                                       mode=mode)
-                tid = TrackID(vm_layer, mtr, width=w_vm_en)
-                warr_list.append(self.connect_to_tracks(warr, tid, min_len_mode=0))
-
-            self.add_pin(port_name, warr_list, label=port_name + ':', show=show_pins)
+        for name in ('pen0', 'nen0'):
+            cur_warr = self.connect_wires([lat_ports[name], fb_ports[name]])
+            self.add_pin('en0', cur_warr, label='en0:', show=show_pins)
 
         self.add_pin('lat_clkp', lat_ports['bias_clkp'], show=show_pins)
         self.add_pin('fb_clkp', fb_ports['bias_clkp'], show=show_pins)
@@ -182,7 +165,6 @@ class Tap1FB(HybridQDRBase):
             seg_lat=seg_lat,
             dum_info=self.get_sch_dummy_info(),
         )
-        self._fg_tot = fg_tot
 
 
 class Tap1Main(HybridQDRBase):
