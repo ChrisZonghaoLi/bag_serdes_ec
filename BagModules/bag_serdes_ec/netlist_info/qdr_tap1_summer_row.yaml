@@ -1,11 +1,35 @@
 lib_name: bag_serdes_ec
 cell_name: qdr_tap1_summer_row
-pins: [ "VDD", "VSS", "inp", "inn", "clkp", "clkn", "en<1:0>", "biasp_f", "outn", "biasp_m", "fbn", "fbp", "outp" ]
+pins: [ "VDD", "VSS", "inp", "inn", "clkp", "clkn", "setp", "en<1:0>", "biasp_f", "outn", "biasp_m", "fbn", "fbp", "outp", "setn", "pulse" ]
 instances:
   XTAP1:
     lib_name: bag_serdes_ec
     cell_name: integ_amp
     instpins:
+      pulse:
+        direction: input
+        net_name: "pulse"
+        num_bits: 1
+      nmn:
+        direction: output
+        net_name: "nmn_f"
+        num_bits: 1
+      nmp:
+        direction: output
+        net_name: "nmp_f"
+        num_bits: 1
+      casc:
+        direction: input
+        net_name: "VDD"
+        num_bits: 1
+      setn:
+        direction: input
+        net_name: "setn"
+        num_bits: 1
+      setp:
+        direction: input
+        net_name: "setp"
+        num_bits: 1
       en<1:0>:
         direction: input
         net_name: "en<1:0>"
@@ -74,6 +98,30 @@ instances:
     lib_name: bag_serdes_ec
     cell_name: integ_amp
     instpins:
+      pulse:
+        direction: input
+        net_name: "pulse"
+        num_bits: 1
+      nmn:
+        direction: output
+        net_name: "nmn_m"
+        num_bits: 1
+      nmp:
+        direction: output
+        net_name: "nmp_m"
+        num_bits: 1
+      casc:
+        direction: input
+        net_name: "VDD"
+        num_bits: 1
+      setn:
+        direction: input
+        net_name: "setn"
+        num_bits: 1
+      setp:
+        direction: input
+        net_name: "setp"
+        num_bits: 1
       en<1:0>:
         direction: input
         net_name: "en<1:0>"
@@ -146,6 +194,14 @@ instances:
     lib_name: basic
     cell_name: iopin
     instpins: {}
+  PIN16:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN15:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
   PIN12:
     lib_name: basic
     cell_name: ipin
@@ -159,6 +215,10 @@ instances:
     cell_name: ipin
     instpins: {}
   PIN8:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN14:
     lib_name: basic
     cell_name: ipin
     instpins: {}

@@ -1,7 +1,87 @@
 lib_name: bag_serdes_ec
 cell_name: integ_amp
-pins: [ "VDD", "VSS", "clkp", "clkn", "en<1:0>", "inp", "inn", "outp", "outn", "pm0p", "pm1p", "pm0n", "pm1n", "tail", "foot", "biasp" ]
+pins: [ "VDD", "VSS", "clkp", "clkn", "en<1:0>", "inp", "inn", "nmp", "casc", "outp", "outn", "pm0p", "pm1p", "pm0n", "pm1n", "tail", "foot", "biasp", "nmn", "setp", "setn", "pulse" ]
 instances:
+  XSENN:
+    lib_name: BAG_prim
+    cell_name: nmos4_standard
+    instpins:
+      S:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      D:
+        direction: inputOutput
+        net_name: "stail"
+        num_bits: 1
+      B:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      G:
+        direction: inputOutput
+        net_name: "setp"
+        num_bits: 1
+  XSENP:
+    lib_name: BAG_prim
+    cell_name: nmos4_standard
+    instpins:
+      S:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      D:
+        direction: inputOutput
+        net_name: "stail"
+        num_bits: 1
+      B:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      G:
+        direction: inputOutput
+        net_name: "setn"
+        num_bits: 1
+  XSETN:
+    lib_name: BAG_prim
+    cell_name: nmos4_standard
+    instpins:
+      S:
+        direction: inputOutput
+        net_name: "stail"
+        num_bits: 1
+      D:
+        direction: inputOutput
+        net_name: "outn"
+        num_bits: 1
+      B:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      G:
+        direction: inputOutput
+        net_name: "pulse"
+        num_bits: 1
+  XSETP:
+    lib_name: BAG_prim
+    cell_name: nmos4_standard
+    instpins:
+      S:
+        direction: inputOutput
+        net_name: "stail"
+        num_bits: 1
+      D:
+        direction: inputOutput
+        net_name: "outp"
+        num_bits: 1
+      B:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      G:
+        direction: inputOutput
+        net_name: "pulse"
+        num_bits: 1
   XDUM:
     lib_name: BAG_prim
     cell_name: nmos4_standard
@@ -21,6 +101,46 @@ instances:
       G:
         direction: inputOutput
         net_name: "VSS"
+        num_bits: 1
+  XCASP:
+    lib_name: BAG_prim
+    cell_name: nmos4_standard
+    instpins:
+      S:
+        direction: inputOutput
+        net_name: "nmp"
+        num_bits: 1
+      D:
+        direction: inputOutput
+        net_name: "outp"
+        num_bits: 1
+      B:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      G:
+        direction: inputOutput
+        net_name: "casc"
+        num_bits: 1
+  XCASN:
+    lib_name: BAG_prim
+    cell_name: nmos4_standard
+    instpins:
+      S:
+        direction: inputOutput
+        net_name: "nmn"
+        num_bits: 1
+      D:
+        direction: inputOutput
+        net_name: "outn"
+        num_bits: 1
+      B:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      G:
+        direction: inputOutput
+        net_name: "casc"
         num_bits: 1
   XTAILN:
     lib_name: BAG_prim
@@ -112,7 +232,7 @@ instances:
         num_bits: 1
       D:
         direction: inputOutput
-        net_name: "outn"
+        net_name: "nmn"
         num_bits: 1
       B:
         direction: inputOutput
@@ -132,7 +252,7 @@ instances:
         num_bits: 1
       D:
         direction: inputOutput
-        net_name: "outp"
+        net_name: "nmp"
         num_bits: 1
       B:
         direction: inputOutput
@@ -318,6 +438,22 @@ instances:
     lib_name: basic
     cell_name: iopin
     instpins: {}
+  PIN22:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN21:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN10:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN9:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
   PIN7:
     lib_name: basic
     cell_name: ipin
@@ -341,6 +477,14 @@ instances:
   PIN2:
     lib_name: basic
     cell_name: ipin
+    instpins: {}
+  PIN20:
+    lib_name: basic
+    cell_name: opin
+    instpins: {}
+  PIN19:
+    lib_name: basic
+    cell_name: opin
     instpins: {}
   PIN16:
     lib_name: basic

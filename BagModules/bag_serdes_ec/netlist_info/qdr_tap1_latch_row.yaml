@@ -1,6 +1,6 @@
 lib_name: bag_serdes_ec
 cell_name: qdr_tap1_latch_row
-pins: [ "VDD", "VSS", "inp", "inn", "clkp", "clkn", "biasp", "en<1:0>", "outp", "div", "scan_div", "en_div", "outn", "divb" ]
+pins: [ "VDD", "VSS", "inp", "inn", "clkp", "clkn", "biasp", "en3", "en0", "setp", "en<1:0>", "outp", "setn", "div", "scan_div", "en_div", "outn", "divb", "pulse_in", "pulse_out" ]
 instances:
   XDIV:
     lib_name: bag_serdes_ec
@@ -38,6 +38,30 @@ instances:
     lib_name: bag_serdes_ec
     cell_name: integ_amp
     instpins:
+      pulse:
+        direction: input
+        net_name: "pulse_in"
+        num_bits: 1
+      nmn:
+        direction: output
+        net_name: "nmn"
+        num_bits: 1
+      nmp:
+        direction: output
+        net_name: "nmp"
+        num_bits: 1
+      casc:
+        direction: input
+        net_name: "VDD"
+        num_bits: 1
+      setn:
+        direction: input
+        net_name: "setn"
+        num_bits: 1
+      setp:
+        direction: input
+        net_name: "setp"
+        num_bits: 1
       en<1:0>:
         direction: input
         net_name: "en<1:0>"
@@ -110,6 +134,10 @@ instances:
     lib_name: basic
     cell_name: iopin
     instpins: {}
+  PIN23:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
   PIN15:
     lib_name: basic
     cell_name: ipin
@@ -118,7 +146,23 @@ instances:
     lib_name: basic
     cell_name: ipin
     instpins: {}
+  PIN17:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN18:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
   PIN10:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN21:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN22:
     lib_name: basic
     cell_name: ipin
     instpins: {}
@@ -142,6 +186,10 @@ instances:
     lib_name: basic
     cell_name: ipin
     instpins: {}
+  PIN24:
+    lib_name: basic
+    cell_name: opin
+    instpins: {}
   PIN19:
     lib_name: basic
     cell_name: opin
@@ -158,3 +206,31 @@ instances:
     lib_name: basic
     cell_name: opin
     instpins: {}
+  XPULSE:
+    lib_name: bag_serdes_ec
+    cell_name: qdr_rx_set_pulse
+    instpins:
+      en_div:
+        direction: input
+        net_name: "en_div"
+        num_bits: 1
+      VSS:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      VDD:
+        direction: inputOutput
+        net_name: "VDD"
+        num_bits: 1
+      pulse:
+        direction: output
+        net_name: "pulse_out"
+        num_bits: 1
+      en3:
+        direction: input
+        net_name: "en3"
+        num_bits: 1
+      en0:
+        direction: input
+        net_name: "en0"
+        num_bits: 1

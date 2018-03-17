@@ -202,106 +202,6 @@ instances:
         direction: inputOutput
         net_name: "q"
         num_bits: 1
-  XNSINV:
-    lib_name: BAG_prim
-    cell_name: nmos4_standard
-    instpins:
-      S:
-        direction: inputOutput
-        net_name: "VSS"
-        num_bits: 1
-      D:
-        direction: inputOutput
-        net_name: "scan_sb"
-        num_bits: 1
-      B:
-        direction: inputOutput
-        net_name: "VSS"
-        num_bits: 1
-      G:
-        direction: inputOutput
-        net_name: "scan_s"
-        num_bits: 1
-  XNOR0:
-    lib_name: BAG_prim
-    cell_name: nmos4_standard
-    instpins:
-      S:
-        direction: inputOutput
-        net_name: "VSS"
-        num_bits: 1
-      D:
-        direction: inputOutput
-        net_name: "set"
-        num_bits: 1
-      B:
-        direction: inputOutput
-        net_name: "VSS"
-        num_bits: 1
-      G:
-        direction: inputOutput
-        net_name: "en"
-        num_bits: 1
-  XNOR1:
-    lib_name: BAG_prim
-    cell_name: nmos4_standard
-    instpins:
-      S:
-        direction: inputOutput
-        net_name: "VSS"
-        num_bits: 1
-      D:
-        direction: inputOutput
-        net_name: "set"
-        num_bits: 1
-      B:
-        direction: inputOutput
-        net_name: "VSS"
-        num_bits: 1
-      G:
-        direction: inputOutput
-        net_name: "scan_sb"
-        num_bits: 1
-  XNOL0:
-    lib_name: BAG_prim
-    cell_name: nmos4_standard
-    instpins:
-      S:
-        direction: inputOutput
-        net_name: "VSS"
-        num_bits: 1
-      D:
-        direction: inputOutput
-        net_name: "setb"
-        num_bits: 1
-      B:
-        direction: inputOutput
-        net_name: "VSS"
-        num_bits: 1
-      G:
-        direction: inputOutput
-        net_name: "en"
-        num_bits: 1
-  XNOL1:
-    lib_name: BAG_prim
-    cell_name: nmos4_standard
-    instpins:
-      S:
-        direction: inputOutput
-        net_name: "VSS"
-        num_bits: 1
-      D:
-        direction: inputOutput
-        net_name: "setb"
-        num_bits: 1
-      B:
-        direction: inputOutput
-        net_name: "VSS"
-        num_bits: 1
-      G:
-        direction: inputOutput
-        net_name: "scan_s"
-        num_bits: 1
   XPINVR:
     lib_name: BAG_prim
     cell_name: pmos4_standard
@@ -462,106 +362,6 @@ instances:
         direction: inputOutput
         net_name: "s"
         num_bits: 1
-  XPSINV:
-    lib_name: BAG_prim
-    cell_name: pmos4_standard
-    instpins:
-      S:
-        direction: inputOutput
-        net_name: "VDD"
-        num_bits: 1
-      D:
-        direction: inputOutput
-        net_name: "scan_sb"
-        num_bits: 1
-      B:
-        direction: inputOutput
-        net_name: "VDD"
-        num_bits: 1
-      G:
-        direction: inputOutput
-        net_name: "scan_s"
-        num_bits: 1
-  XPOL1:
-    lib_name: BAG_prim
-    cell_name: pmos4_standard
-    instpins:
-      S:
-        direction: inputOutput
-        net_name: "mnorp"
-        num_bits: 1
-      D:
-        direction: inputOutput
-        net_name: "setb"
-        num_bits: 1
-      B:
-        direction: inputOutput
-        net_name: "VDD"
-        num_bits: 1
-      G:
-        direction: inputOutput
-        net_name: "en"
-        num_bits: 1
-  XPOL0:
-    lib_name: BAG_prim
-    cell_name: pmos4_standard
-    instpins:
-      S:
-        direction: inputOutput
-        net_name: "VDD"
-        num_bits: 1
-      D:
-        direction: inputOutput
-        net_name: "mnorp"
-        num_bits: 1
-      B:
-        direction: inputOutput
-        net_name: "VDD"
-        num_bits: 1
-      G:
-        direction: inputOutput
-        net_name: "scan_s"
-        num_bits: 1
-  XPOR1:
-    lib_name: BAG_prim
-    cell_name: pmos4_standard
-    instpins:
-      S:
-        direction: inputOutput
-        net_name: "mnorn"
-        num_bits: 1
-      D:
-        direction: inputOutput
-        net_name: "set"
-        num_bits: 1
-      B:
-        direction: inputOutput
-        net_name: "VDD"
-        num_bits: 1
-      G:
-        direction: inputOutput
-        net_name: "en"
-        num_bits: 1
-  XPOR0:
-    lib_name: BAG_prim
-    cell_name: pmos4_standard
-    instpins:
-      S:
-        direction: inputOutput
-        net_name: "VDD"
-        num_bits: 1
-      D:
-        direction: inputOutput
-        net_name: "mnorn"
-        num_bits: 1
-      B:
-        direction: inputOutput
-        net_name: "VDD"
-        num_bits: 1
-      G:
-        direction: inputOutput
-        net_name: "scan_sb"
-        num_bits: 1
   PIN1:
     lib_name: basic
     cell_name: iopin
@@ -594,3 +394,63 @@ instances:
     lib_name: basic
     cell_name: opin
     instpins: {}
+  XNORR:
+    lib_name: bag_digital_ec
+    cell_name: nor
+    instpins:
+      VSS:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      VDD:
+        direction: inputOutput
+        net_name: "VDD"
+        num_bits: 1
+      out:
+        direction: output
+        net_name: "set"
+        num_bits: 1
+      in<1:0>:
+        direction: input
+        net_name: "en,scan_sb"
+        num_bits: 2
+  XNORL:
+    lib_name: bag_digital_ec
+    cell_name: nor
+    instpins:
+      VSS:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      VDD:
+        direction: inputOutput
+        net_name: "VDD"
+        num_bits: 1
+      out:
+        direction: output
+        net_name: "setb"
+        num_bits: 1
+      in<1:0>:
+        direction: input
+        net_name: "en,scan_s"
+        num_bits: 2
+  XSINV:
+    lib_name: bag_digital_ec
+    cell_name: inv
+    instpins:
+      VSS:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      VDD:
+        direction: inputOutput
+        net_name: "VDD"
+        num_bits: 1
+      out:
+        direction: output
+        net_name: "scan_sb"
+        num_bits: 1
+      in:
+        direction: input
+        net_name: "scan_s"
+        num_bits: 1

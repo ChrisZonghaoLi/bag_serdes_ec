@@ -1,102 +1,30 @@
 lib_name: bag_serdes_ec
 cell_name: qdr_tap1_column
-pins: [ "VDD", "VSS", "inp<3:0>", "inn<3:0>", "biasn_m", "biasp_d", "biasn_d", "bias_f<3:0>", "clkp", "clkn", "en_div", "outp<3:0>", "outn<3:0>", "outp_d<3:0>", "outn_d<3:0>", "scan_div<1:0>", "biasp_m" ]
+pins: [ "VDD", "VSS", "inp<3:0>", "inn<3:0>", "biasn_m", "biasp_d", "biasn_d", "setp<5:4>", "bias_f<3:0>", "clkp", "clkn", "en_div<1:0>", "outp<3:0>", "outn<3:0>", "outp_d<3:0>", "outn_d<3:0>", "scan_div<1:0>", "biasp_m", "setn<5:4>" ]
 instances:
-  X0:
-    lib_name: bag_serdes_ec
-    cell_name: qdr_tap1_summer
-    instpins:
-      fbp:
-        direction: input
-        net_name: "outp<3>"
-        num_bits: 1
-      fbn:
-        direction: input
-        net_name: "outn<3>"
-        num_bits: 1
-      en<2:0>:
-        direction: input
-        net_name: "en<2:0>"
-        num_bits: 3
-      biasp_m:
-        direction: input
-        net_name: "biasp_m"
-        num_bits: 1
-      biasn_d:
-        direction: input
-        net_name: "biasn_d"
-        num_bits: 1
-      biasp_f:
-        direction: input
-        net_name: "bias_f<0>"
-        num_bits: 1
-      div:
-        direction: output
-        net_name: "en<0>"
-        num_bits: 1
-      divb:
-        direction: output
-        net_name: "en<2>"
-        num_bits: 1
-      outn_d:
-        direction: output
-        net_name: "outn_d<1>"
-        num_bits: 1
-      VSS:
-        direction: inputOutput
-        net_name: "VSS"
-        num_bits: 1
-      VDD:
-        direction: inputOutput
-        net_name: "VDD"
-        num_bits: 1
-      scan_div:
-        direction: input
-        net_name: "scan_div<0>"
-        num_bits: 1
-      en_div:
-        direction: input
-        net_name: "en_div"
-        num_bits: 1
-      clkp:
-        direction: input
-        net_name: "clkp"
-        num_bits: 1
-      clkn:
-        direction: input
-        net_name: "clkn"
-        num_bits: 1
-      inp:
-        direction: input
-        net_name: "inp<3>"
-        num_bits: 1
-      inn:
-        direction: input
-        net_name: "inn<3>"
-        num_bits: 1
-      outp_m:
-        direction: output
-        net_name: "outp<0>"
-        num_bits: 1
-      outp_d:
-        direction: output
-        net_name: "outp_d<1>"
-        num_bits: 1
-      outn_m:
-        direction: output
-        net_name: "outn<0>"
-        num_bits: 1
   X2:
     lib_name: bag_serdes_ec
     cell_name: qdr_tap1_summer
     instpins:
+      pulse_out:
+        direction: output
+        net_name: "pulse2"
+        num_bits: 1
+      setn:
+        direction: input
+        net_name: "setn<5>"
+        num_bits: 1
+      setp:
+        direction: input
+        net_name: "setp<5>"
+        num_bits: 1
       div:
         direction: output
-        net_name: "en<1>"
+        net_name: "div2"
         num_bits: 1
       divb:
         direction: output
-        net_name: "en<3>"
+        net_name: "divb2"
         num_bits: 1
       outn_d:
         direction: output
@@ -116,20 +44,24 @@ instances:
         num_bits: 1
       scan_div:
         direction: input
-        net_name: "scan_div<1>"
+        net_name: "scan_div<0>"
         num_bits: 1
       en_div:
         direction: input
-        net_name: "en_div"
+        net_name: "en_div<0>"
         num_bits: 1
       fbn:
         direction: input
         net_name: "outn<1>"
         num_bits: 1
-      en<2:0>:
+      pulse_in:
         direction: input
-        net_name: "en<0>,en<3>,en<2>"
-        num_bits: 3
+        net_name: "pulse"
+        num_bits: 1
+      en<3:0>:
+        direction: input
+        net_name: "en<1:0>,en<3:2>"
+        num_bits: 4
       clkp:
         direction: input
         net_name: "clkp"
@@ -174,6 +106,18 @@ instances:
     lib_name: bag_serdes_ec
     cell_name: qdr_tap1_summer
     instpins:
+      pulse_out:
+        direction: output
+        net_name: "pulse1"
+        num_bits: 1
+      setn:
+        direction: input
+        net_name: "setn<4>"
+        num_bits: 1
+      setp:
+        direction: input
+        net_name: "setp<4>"
+        num_bits: 1
       div:
         direction: output
         net_name: "en<1>"
@@ -204,16 +148,20 @@ instances:
         num_bits: 1
       en_div:
         direction: input
-        net_name: "en_div"
+        net_name: "en_div<1>"
         num_bits: 1
       fbn:
         direction: input
         net_name: "outn<0>"
         num_bits: 1
-      en<2:0>:
+      pulse_in:
         direction: input
-        net_name: "en<3:1>"
-        num_bits: 3
+        net_name: "pulse"
+        num_bits: 1
+      en<3:0>:
+        direction: input
+        net_name: "en<0>,en<3:1>"
+        num_bits: 4
       clkp:
         direction: input
         net_name: "clkn"
@@ -254,10 +202,122 @@ instances:
         direction: output
         net_name: "outn<1>"
         num_bits: 1
+  X0:
+    lib_name: bag_serdes_ec
+    cell_name: qdr_tap1_summer
+    instpins:
+      pulse_out:
+        direction: output
+        net_name: "pulse"
+        num_bits: 1
+      setn:
+        direction: input
+        net_name: "setn<5>"
+        num_bits: 1
+      setp:
+        direction: input
+        net_name: "setp<5>"
+        num_bits: 1
+      pulse_in:
+        direction: input
+        net_name: "pulse"
+        num_bits: 1
+      en<3:0>:
+        direction: input
+        net_name: "en<3:0>"
+        num_bits: 4
+      fbp:
+        direction: input
+        net_name: "outp<3>"
+        num_bits: 1
+      fbn:
+        direction: input
+        net_name: "outn<3>"
+        num_bits: 1
+      biasp_m:
+        direction: input
+        net_name: "biasp_m"
+        num_bits: 1
+      biasn_d:
+        direction: input
+        net_name: "biasn_d"
+        num_bits: 1
+      biasp_f:
+        direction: input
+        net_name: "bias_f<0>"
+        num_bits: 1
+      div:
+        direction: output
+        net_name: "div0"
+        num_bits: 1
+      divb:
+        direction: output
+        net_name: "divb0"
+        num_bits: 1
+      outn_d:
+        direction: output
+        net_name: "outn_d<1>"
+        num_bits: 1
+      VSS:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      VDD:
+        direction: inputOutput
+        net_name: "VDD"
+        num_bits: 1
+      scan_div:
+        direction: input
+        net_name: "scan_div<0>"
+        num_bits: 1
+      en_div:
+        direction: input
+        net_name: "en_div<0>"
+        num_bits: 1
+      clkp:
+        direction: input
+        net_name: "clkp"
+        num_bits: 1
+      clkn:
+        direction: input
+        net_name: "clkn"
+        num_bits: 1
+      inp:
+        direction: input
+        net_name: "inp<3>"
+        num_bits: 1
+      inn:
+        direction: input
+        net_name: "inn<3>"
+        num_bits: 1
+      outp_m:
+        direction: output
+        net_name: "outp<0>"
+        num_bits: 1
+      outp_d:
+        direction: output
+        net_name: "outp_d<1>"
+        num_bits: 1
+      outn_m:
+        direction: output
+        net_name: "outn<0>"
+        num_bits: 1
   X3:
     lib_name: bag_serdes_ec
     cell_name: qdr_tap1_summer
     instpins:
+      pulse_out:
+        direction: output
+        net_name: "pulse3"
+        num_bits: 1
+      setn:
+        direction: input
+        net_name: "setn<4>"
+        num_bits: 1
+      setp:
+        direction: input
+        net_name: "setp<4>"
+        num_bits: 1
       div:
         direction: output
         net_name: "en<0>"
@@ -288,16 +348,20 @@ instances:
         num_bits: 1
       en_div:
         direction: input
-        net_name: "en_div"
+        net_name: "en_div<0>"
         num_bits: 1
       fbn:
         direction: input
         net_name: "outn<2>"
         num_bits: 1
-      en<2:0>:
+      pulse_in:
         direction: input
-        net_name: "en<1>,en<0>,en<3>"
-        num_bits: 3
+        net_name: "pulse"
+        num_bits: 1
+      en<3:0>:
+        direction: input
+        net_name: "en<2:0>,en<3>"
+        num_bits: 4
       clkp:
         direction: input
         net_name: "clkn"
@@ -387,6 +451,14 @@ instances:
     cell_name: ipin
     instpins: {}
   PIN2:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN18:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN19:
     lib_name: basic
     cell_name: ipin
     instpins: {}

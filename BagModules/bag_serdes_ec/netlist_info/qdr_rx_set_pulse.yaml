@@ -1,0 +1,108 @@
+lib_name: bag_serdes_ec
+cell_name: qdr_rx_set_pulse
+pins: [ "VDD", "VSS", "en_div", "en0", "en3", "pulse" ]
+instances:
+  PIN0:
+    lib_name: basic
+    cell_name: iopin
+    instpins: {}
+  PIN1:
+    lib_name: basic
+    cell_name: iopin
+    instpins: {}
+  XINV:
+    lib_name: bag_digital_ec
+    cell_name: inv
+    instpins:
+      VSS:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      VDD:
+        direction: inputOutput
+        net_name: "VDD"
+        num_bits: 1
+      out:
+        direction: output
+        net_name: "pulse"
+        num_bits: 1
+      in:
+        direction: input
+        net_name: "pulseb"
+        num_bits: 1
+  XSRP:
+    lib_name: bag_digital_ec
+    cell_name: nand
+    instpins:
+      VSS:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      VDD:
+        direction: inputOutput
+        net_name: "VDD"
+        num_bits: 1
+      out:
+        direction: output
+        net_name: "q"
+        num_bits: 1
+      in<1:0>:
+        direction: input
+        net_name: "qb,en_div"
+        num_bits: 2
+  XSRN:
+    lib_name: bag_digital_ec
+    cell_name: nand
+    instpins:
+      VSS:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      VDD:
+        direction: inputOutput
+        net_name: "VDD"
+        num_bits: 1
+      out:
+        direction: output
+        net_name: "qb"
+        num_bits: 1
+      in<1:0>:
+        direction: input
+        net_name: "q,en3"
+        num_bits: 2
+  XNAND:
+    lib_name: bag_digital_ec
+    cell_name: nand
+    instpins:
+      VSS:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      VDD:
+        direction: inputOutput
+        net_name: "VDD"
+        num_bits: 1
+      out:
+        direction: output
+        net_name: "pulseb"
+        num_bits: 1
+      in<1:0>:
+        direction: input
+        net_name: "en0,q"
+        num_bits: 2
+  PIN4:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN3:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN2:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN5:
+    lib_name: basic
+    cell_name: opin
+    instpins: {}

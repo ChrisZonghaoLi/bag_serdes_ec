@@ -1,11 +1,35 @@
 lib_name: bag_serdes_ec
 cell_name: qdr_tap1_summer
-pins: [ "VDD", "VSS", "inp", "inn", "clkp", "clkn", "en<2:0>", "biasp_m", "biasn_d", "biasp_f", "outn_m", "fbp", "en_div", "outp_d", "outn_d", "outp_m", "scan_div", "div", "divb", "fbn" ]
+pins: [ "VDD", "VSS", "inp", "inn", "clkp", "clkn", "biasp_m", "biasn_d", "biasp_f", "setp", "outn_m", "fbp", "en_div", "outp_d", "outn_d", "outp_m", "scan_div", "div", "divb", "fbn", "setn", "pulse_in", "pulse_out", "en<3:0>" ]
 instances:
   XLAT:
     lib_name: bag_serdes_ec
     cell_name: qdr_tap1_latch_row
     instpins:
+      pulse_out:
+        direction: output
+        net_name: "pulse_out"
+        num_bits: 1
+      pulse_in:
+        direction: input
+        net_name: "pulse_in"
+        num_bits: 1
+      en0:
+        direction: input
+        net_name: "en<0>"
+        num_bits: 1
+      en3:
+        direction: input
+        net_name: "en<3>"
+        num_bits: 1
+      setp:
+        direction: input
+        net_name: "setp"
+        num_bits: 1
+      setn:
+        direction: input
+        net_name: "setn"
+        num_bits: 1
       en<1:0>:
         direction: input
         net_name: "en<2:1>"
@@ -74,6 +98,18 @@ instances:
     lib_name: basic
     cell_name: ipin
     instpins: {}
+  PIN27:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN28:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN29:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
   PIN12:
     lib_name: basic
     cell_name: ipin
@@ -118,6 +154,10 @@ instances:
     lib_name: basic
     cell_name: ipin
     instpins: {}
+  PIN30:
+    lib_name: basic
+    cell_name: opin
+    instpins: {}
   PIN22:
     lib_name: basic
     cell_name: opin
@@ -146,6 +186,18 @@ instances:
     lib_name: bag_serdes_ec
     cell_name: qdr_tap1_summer_row
     instpins:
+      pulse:
+        direction: input
+        net_name: "pulse_in"
+        num_bits: 1
+      setn:
+        direction: input
+        net_name: "setn"
+        num_bits: 1
+      setp:
+        direction: input
+        net_name: "setp"
+        num_bits: 1
       outn:
         direction: output
         net_name: "outn_m"
