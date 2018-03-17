@@ -101,6 +101,16 @@ class HybridQDRBaseInfo(AnalogBaseInfo):
         fg_dum = max(fg_dum, -(-(fg_min - seg_tot) // 2))
         fg_tot = seg_tot + 2 * fg_dum
 
+        if abs(seg_pc - seg_nc) % 4 == 2:
+            if seg_pc < seg_nc:
+                pcol_delta = 1
+                ncol_delta = 0
+            else:
+                pcol_delta = 0
+                ncol_delta = 1
+        else:
+            pcol_delta = ncol_delta = 0
+
         # compute column index of each transistor
         col_dict = {}
         center_off = (seg_single - seg_center) // 2
@@ -108,15 +118,15 @@ class HybridQDRBaseInfo(AnalogBaseInfo):
             pc_off = fg_dum + center_off + (seg_center - seg_pc) // 2
             load_off = (seg_ps - seg_load) // 2
             pen_off = (seg_ps - seg_pen) // 2
-            col_dict['load0'] = pc_off + load_off
-            col_dict['load1'] = pc_off + seg_pc - load_off - seg_load
-            col_dict['pen0'] = pc_off + pen_off
-            col_dict['pen1'] = pc_off + seg_pc - pen_off - seg_pen
+            col_dict['load0'] = pc_off + load_off + pcol_delta
+            col_dict['load1'] = pc_off + seg_pc - load_off - seg_load + pcol_delta
+            col_dict['pen0'] = pc_off + pen_off + pcol_delta
+            col_dict['pen1'] = pc_off + seg_pc - pen_off - seg_pen + pcol_delta
 
         nc_off = fg_dum + center_off + (seg_center - seg_nc) // 2
         if seg_casc > 0:
-            col_dict['casc'] = nc_off + (seg_nc - seg_casc) // 2
-        col_in = nc_off + (seg_nc - seg_in) // 2
+            col_dict['casc'] = nc_off + (seg_nc - seg_casc) // 2 + ncol_delta
+        col_in = nc_off + (seg_nc - seg_in) // 2 + ncol_delta
         col_dict['in'] = col_in
         col_nen = fg_dum + col_in + seg_in - seg_nen
         if col_nen < col_in:
@@ -128,24 +138,32 @@ class HybridQDRBaseInfo(AnalogBaseInfo):
         col_dict['tail'] = col_tail
 
         # compute source-drain junction type for each net
-        sd_dict = {('load0', 's'): 'VDD', ('load1', 's'): 'VDD',
-                   ('load0', 'd'): 'pm0', ('load1', 'd'): 'pm1', }
-        sd_dir_dict = {'load0': (2, 0), 'load1': (2, 0), }
-        if (col_dict['pen0'] - col_dict['load0']) % 2 == 0:
-            sd_dict[('pen0', 'd')] = 'pm0'
-            sd_dict[('pen1', 'd')] = 'pm1'
-            sd_dict[('pen0', 's')] = sd_dict[('pen1', 's')] = 'out'
-            sd_name = 's'
-            sd_dir_dict['pen0'] = sd_dir_dict['pen1'] = (0, 2)
+        if seg_load > 0:
+            sd_dict = {('load0', 's'): 'VDD', ('load1', 's'): 'VDD',
+                       ('load0', 'd'): 'pm0', ('load1', 'd'): 'pm1', }
+            sd_dir_dict = {'load0': (2, 0), 'load1': (2, 0), }
+            if (col_dict['pen0'] - col_dict['load0']) % 2 == 0:
+                sd_dict[('pen0', 'd')] = 'pm0'
+                sd_dict[('pen1', 'd')] = 'pm1'
+                sd_dict[('pen0', 's')] = sd_dict[('pen1', 's')] = 'out'
+                sd_name = 's'
+                sd_dir_dict['pen0'] = sd_dir_dict['pen1'] = (0, 2)
+            else:
+                sd_dict[('pen0', 's')] = 'pm0'
+                sd_dict[('pen1', 's')] = 'pm1'
+                sd_dict[('pen0', 'd')] = sd_dict[('pen1', 'd')] = 'out'
+                sd_name = 'd'
+                sd_dir_dict['pen0'] = sd_dir_dict['pen1'] = (2, 0)
+            prev_col = col_dict['pen0']
         else:
-            sd_dict[('pen0', 's')] = 'pm0'
-            sd_dict[('pen1', 's')] = 'pm1'
-            sd_dict[('pen0', 'd')] = sd_dict[('pen1', 'd')] = 'out'
+            sd_dict = {}
+            sd_dir_dict = {}
             sd_name = 'd'
-            sd_dir_dict['pen0'] = sd_dir_dict['pen1'] = (2, 0)
+            prev_col = None
         if seg_casc > 0:
-            if (col_dict['casc'] - col_dict['pen0']) % 2 == 1:
+            if prev_col is not None and (col_dict['casc'] - prev_col) % 2 == 1:
                 sd_name = 'd' if sd_name == 's' else 's'
+
             sd_dict[('casc', sd_name)] = 'out'
             if sd_name == 'd':
                 sd_dir = (0, 2)
@@ -168,7 +186,7 @@ class HybridQDRBaseInfo(AnalogBaseInfo):
             sd_dict[('in', sd_name)] = 'tail'
             sd_dir_dict['in'] = sd_dir
         else:
-            if (col_dict['in'] - col_dict['pen0']) % 2 == 1:
+            if prev_col is not None and (col_dict['in'] - prev_col) % 2 == 1:
                 sd_name = 'd' if sd_name == 's' else 's'
             sd_dict[('in', sd_name)] = 'out'
             if sd_name == 'd':
@@ -366,7 +384,6 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
                 coln = col_idx + (fg_tot - col - seg)
                 snet = sd_dict[(tran_name, 's')]
                 dnet = sd_dict[(tran_name, 'd')]
-
                 if snet != 'VDD' and snet != 'VSS':
                     s_pre = net_prefix
                     s_suf = net_suffix
@@ -461,6 +478,7 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
         # get layout information
         amp_info = self.qdr_info.get_integ_amp_info(seg_dict, fg_min=fg_min, fg_dum=fg_dum,
                                                     fg_sep_load=fg_sep_load)
+        seg_load = seg_dict.get('load', 0)
         seg_casc = seg_dict.get('casc', 0)
         fg_tot = amp_info['fg_tot']
         col_dict = amp_info['col_dict']
@@ -471,7 +489,6 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
                                          net_prefix=net_prefix, net_suffix=net_suffix)
 
         # connect wires
-        self.connect_to_substrate('ntap', ports['VDD'])
         self.connect_to_substrate('ptap', ports['VSS'])
         # get TrackIDs
         foot_tid = self.get_wire_id('nch', 0, 'ds', wire_name='ntail')
@@ -483,28 +500,14 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
         mp_tid = self.get_wire_id('pch', 1, 'ds', wire_name='ptail')
         nclk_tid = self.get_wire_id('nch', 0, 'g', wire_idx=idx_dict.get('nclk', -1))
         nen_tid = self.get_wire_id('nch', 1, 'g', wire_idx=idx_dict.get('nen', -1))
-        pen0_tid = self.get_wire_id('pch', 0, 'g', wire_idx=idx_dict.get('pen0', 0))
-        pen1_tid = self.get_wire_id('pch', 0, 'g', wire_idx=idx_dict.get('pen1', 1))
-        pclk0_tid = self.get_wire_id('pch', 1, 'g', wire_idx=idx_dict.get('pclk0', 0))
-        pclk1_tid = self.get_wire_id('pch', 1, 'g', wire_idx=idx_dict.get('pclk1', 1))
 
         # connect intermediate nodes
         self.connect_to_tracks(ports['foot'], foot_tid, min_len_mode=0)
         self.connect_to_tracks(ports['tail'], tail_tid, min_len_mode=0)
-        for name in ('pm0p', 'pm0n', 'pm1p', 'pm1n'):
-            self.connect_to_tracks(ports[name], mp_tid, min_len_mode=0)
-
         # connect gates
         hm_layer = outp_tid.layer_id
         nclk = self.connect_to_tracks(ports['nclk'], nclk_tid)
         nen = self.connect_to_tracks(ports['nen'], nen_tid)
-
-        pen0, pen1 = self.connect_differential_tracks(ports['pen0'], ports['pen1'], hm_layer,
-                                                      pen0_tid.base_index, pen1_tid.base_index,
-                                                      width=pen0_tid.width)
-        pclk0, pclk1 = self.connect_differential_tracks(ports['pclk0'], ports['pclk1'], hm_layer,
-                                                        pclk0_tid.base_index, pclk1_tid.base_index,
-                                                        width=pclk0_tid.width)
 
         out_w = outp_tid.width
         outp_idx = outp_tid.base_index
@@ -521,10 +524,29 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
         inp, inn = self.connect_differential_tracks(ports['inp'], ports['inn'], hm_layer,
                                                     inp_idx, inn_idx, width=in_w)
 
-        ports = dict(inp=inp, inn=inn, outp=outp, outn=outn,
-                     pen0=pen0, pen1=pen1, clkn=pclk0, clkp=pclk1,
-                     nen0=nen, biasp=nclk,
-                     )
+        ans = dict(inp=inp, inn=inn, outp=outp, outn=outn, nen0=nen, biasp=nclk)
+
+        # draw load connections
+        if seg_load > 0:
+            self.connect_to_substrate('ntap', ports['VDD'])
+            for name in ('pm0p', 'pm0n', 'pm1p', 'pm1n'):
+                self.connect_to_tracks(ports[name], mp_tid, min_len_mode=0)
+
+            pen0_tid = self.get_wire_id('pch', 0, 'g', wire_idx=idx_dict.get('pen0', 0))
+            pen1_tid = self.get_wire_id('pch', 0, 'g', wire_idx=idx_dict.get('pen1', 1))
+            pclk0_tid = self.get_wire_id('pch', 1, 'g', wire_idx=idx_dict.get('pclk0', 0))
+            pclk1_tid = self.get_wire_id('pch', 1, 'g', wire_idx=idx_dict.get('pclk1', 1))
+            pen0, pen1 = self.connect_differential_tracks(ports['pen0'], ports['pen1'], hm_layer,
+                                                          pen0_tid.base_index, pen1_tid.base_index,
+                                                          width=pen0_tid.width)
+            pclk0, pclk1 = self.connect_differential_tracks(ports['pclk0'], ports['pclk1'],
+                                                            hm_layer,  pclk0_tid.base_index,
+                                                            pclk1_tid.base_index,
+                                                            width=pclk0_tid.width)
+            ans['pen0'] = pen0
+            ans['pen1'] = pen1
+            ans['clkp'] = pclk1
+            ans['clkn'] = pclk0
 
         # connect cascode if necessary
         if seg_casc > 0:
@@ -532,6 +554,6 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
             casc_tid = self.get_wire_id('nch', 3, 'g', wire_idx=idx_dict.get('casc', -1))
             self.connect_to_tracks(ports['cn'], cn_tid)
             casc = self.connect_to_tracks(ports['casc'], casc_tid)
-            ports['casc'] = casc
+            ans['casc'] = casc
 
-        return ports, amp_info
+        return ans, amp_info

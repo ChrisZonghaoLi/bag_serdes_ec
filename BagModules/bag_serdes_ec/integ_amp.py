@@ -54,8 +54,17 @@ class bag_serdes_ec__integ_amp(Module):
         for inst_name, inst_type in tran_info_list:
             w = w_dict[inst_type]
             th = th_dict[inst_type]
-            seg = seg_dict[inst_type]
-            self.instances[inst_name].design(w=w, l=lch, nf=seg, intent=th)
+            seg = seg_dict.get(inst_type, 0)
+            if seg <= 0:
+                self.delete_instance(inst_name)
+            else:
+                self.instances[inst_name].design(w=w, l=lch, nf=seg, intent=th)
+
+        seg_load = seg_dict.get('load', 0)
+        if seg_load <= 0:
+            for name in ('pm0p', 'pm0n', 'pm1p', 'pm1n', 'VDD', ''):
+                self.remove_pin('pm0p')
+
 
         self.design_dummy_transistors(dum_info, 'XDUM', 'VDD', 'VSS')
         if dum_info is not None:

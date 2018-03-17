@@ -144,6 +144,7 @@ class Tap1SummerRow(HybridQDRBase):
                                           fg_dum=0, fg_sep_load=fg_sep_load, net_suffix='_f')
 
         vss_warrs, vdd_warrs = self.fill_dummy()
+        ports_list = [main_ports, fb_ports]
 
         for name in ('outp', 'outn', 'en1', 'clkp', 'clkn'):
             if name == 'en1':
@@ -151,10 +152,12 @@ class Tap1SummerRow(HybridQDRBase):
                 port_name = 'en<1>'
             else:
                 wname = port_name = name
-            cur_warr = self.connect_wires([main_ports[wname], fb_ports[wname]])
+            wlist = [p[wname] for p in ports_list if wname in p]
+            cur_warr = self.connect_wires(wlist)
             self.add_pin(port_name, cur_warr, show=show_pins)
         for name in ('pen0', 'nen0'):
-            cur_warr = self.connect_wires([main_ports[name], fb_ports[name]])
+            wlist = [p[name] for p in ports_list if name in p]
+            cur_warr = self.connect_wires(wlist)
             self.add_pin('en<0>', cur_warr, label='en<0>:', show=show_pins)
 
         self.add_pin('biasp_m', main_ports['biasp'], show=show_pins)
