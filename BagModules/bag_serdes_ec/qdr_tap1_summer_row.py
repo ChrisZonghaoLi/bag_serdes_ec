@@ -46,6 +46,11 @@ class bag_serdes_ec__qdr_tap1_summer_row(Module):
                                        seg_dict=seg_main)
         self.instances['XTAP1'].design(lch=lch, w_dict=w_dict, th_dict=th_dict,
                                        seg_dict=seg_fb)
+
+        if 'pulse' not in self.instances['XMAIN'].master.pin_list:
+            for name in ('setp', 'setn', 'pulse'):
+                self.remove_pin(name)
+
         net_map = dict(
             outp_m='outp',
             outn_m='outn',
