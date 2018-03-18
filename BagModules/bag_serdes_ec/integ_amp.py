@@ -76,7 +76,7 @@ class bag_serdes_ec__integ_amp(Module):
             for name in ('casc', 'nmp', 'nmn'):
                 self.remove_pin(name)
             self.reconnect_instance_terminal('XINP', 'D', 'outp')
-            self.reconnect_instance_terminal('XINP', 'D', 'outn')
+            self.reconnect_instance_terminal('XINN', 'D', 'outn')
         if seg_load <= 0:
             for name in ('pm0p', 'pm0n', 'pm1p', 'pm1n', 'VDD', ''):
                 self.remove_pin(name)
