@@ -6,6 +6,14 @@ instances:
     lib_name: bag_serdes_ec
     cell_name: integ_amp
     instpins:
+      nsn:
+        direction: output
+        net_name: "nsn_f"
+        num_bits: 1
+      nsp:
+        direction: output
+        net_name: "nsp_f"
+        num_bits: 1
       pulse:
         direction: input
         net_name: "pulse"
@@ -98,6 +106,14 @@ instances:
     lib_name: bag_serdes_ec
     cell_name: integ_amp
     instpins:
+      nsn:
+        direction: output
+        net_name: "nsn_m"
+        num_bits: 1
+      nsp:
+        direction: output
+        net_name: "nsp_m"
+        num_bits: 1
       pulse:
         direction: input
         net_name: "pulse"

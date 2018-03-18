@@ -38,6 +38,14 @@ instances:
     lib_name: bag_serdes_ec
     cell_name: integ_amp
     instpins:
+      nsn:
+        direction: output
+        net_name: "nsn"
+        num_bits: 1
+      nsp:
+        direction: output
+        net_name: "nsp"
+        num_bits: 1
       pulse:
         direction: input
         net_name: "pulse_in"

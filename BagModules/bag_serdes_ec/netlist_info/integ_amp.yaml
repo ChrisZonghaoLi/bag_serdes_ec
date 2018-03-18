@@ -1,6 +1,6 @@
 lib_name: bag_serdes_ec
 cell_name: integ_amp
-pins: [ "VDD", "VSS", "clkp", "clkn", "en<1:0>", "inp", "inn", "nmp", "casc", "outp", "outn", "pm0p", "pm1p", "pm0n", "pm1n", "tail", "foot", "biasp", "nmn", "setp", "setn", "pulse" ]
+pins: [ "VDD", "VSS", "clkp", "clkn", "en<1:0>", "inp", "inn", "nmp", "casc", "outp", "outn", "pm0p", "pm1p", "pm0n", "pm1n", "tail", "foot", "biasp", "nmn", "setp", "setn", "pulse", "nsp", "nsn" ]
 instances:
   XSENN:
     lib_name: BAG_prim
@@ -12,7 +12,7 @@ instances:
         num_bits: 1
       D:
         direction: inputOutput
-        net_name: "stail"
+        net_name: "nsn"
         num_bits: 1
       B:
         direction: inputOutput
@@ -32,7 +32,7 @@ instances:
         num_bits: 1
       D:
         direction: inputOutput
-        net_name: "stail"
+        net_name: "nsp"
         num_bits: 1
       B:
         direction: inputOutput
@@ -48,7 +48,7 @@ instances:
     instpins:
       S:
         direction: inputOutput
-        net_name: "stail"
+        net_name: "nsn"
         num_bits: 1
       D:
         direction: inputOutput
@@ -68,7 +68,7 @@ instances:
     instpins:
       S:
         direction: inputOutput
-        net_name: "stail"
+        net_name: "nsp"
         num_bits: 1
       D:
         direction: inputOutput
@@ -477,6 +477,14 @@ instances:
   PIN2:
     lib_name: basic
     cell_name: ipin
+    instpins: {}
+  PIN24:
+    lib_name: basic
+    cell_name: opin
+    instpins: {}
+  PIN23:
+    lib_name: basic
+    cell_name: opin
     instpins: {}
   PIN20:
     lib_name: basic
