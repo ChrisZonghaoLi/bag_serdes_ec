@@ -42,6 +42,10 @@ class bag_serdes_ec__integ_amp(Module):
 
     def design(self, lch, w_dict, th_dict, seg_dict, dum_info):
         # type: (float, Dict[str, Union[float, int]], Dict[str, str], Dict[str, int]) -> None
+        seg_load = seg_dict.get('load', 0)
+        seg_set = seg_dict.get('set', 0)
+        seg_casc = seg_dict.get('casc', 0)
+
         tran_info_list = [('XTAILP', 'tail'), ('XTAILN', 'tail'),
                           ('XNENP', 'nen'), ('XNENN', 'nen'),
                           ('XINP', 'in'), ('XINN', 'in'),
@@ -49,25 +53,40 @@ class bag_serdes_ec__integ_amp(Module):
                           ('XPENN0', 'pen'), ('XPENN1', 'pen'),
                           ('XLOADP0', 'load'), ('XLOADP1', 'load'),
                           ('XLOADN0', 'load'), ('XLOADN1', 'load'),
+                          ('XCASP', 'casc'), ('XCASN', 'casc'),
+                          ('XSETP', 'in', 'set'), ('XSETN', 'in', 'set'),
+                          ('XSENP', 'nen', 'sen'), ('XSENN', 'nen', 'sen'),
                           ]
 
-        for inst_name, inst_type in tran_info_list:
-            w = w_dict[inst_type]
-            th = th_dict[inst_type]
-            seg = seg_dict.get(inst_type, 0)
+        for inst_info in tran_info_list:
+            if len(inst_info) <= 2:
+                inst_name, inst_type = inst_info
+                inst_seg = inst_type
+            else:
+                inst_name, inst_type, inst_seg = inst_info
+            w = w_dict.get(inst_type, 0)
+            th = th_dict.get(inst_type, 'standard')
+            seg = seg_dict.get(inst_seg, 0)
             if seg <= 0:
                 self.delete_instance(inst_name)
             else:
                 self.instances[inst_name].design(w=w, l=lch, nf=seg, intent=th)
 
-        seg_load = seg_dict.get('load', 0)
+        if seg_casc <= 0:
+            for name in ('casc', 'nmp', 'nmn'):
+                self.remove_pin(name)
+            self.reconnect_instance_terminal('XINP', 'D', 'outp')
+            self.reconnect_instance_terminal('XINP', 'D', 'outn')
         if seg_load <= 0:
             for name in ('pm0p', 'pm0n', 'pm1p', 'pm1n', 'VDD', ''):
-                self.remove_pin('pm0p')
-
+                self.remove_pin(name)
+        if seg_set <= 0:
+            for name in ('setp', 'setn', 'pulse', 'nsp', 'nsn'):
+                self.remove_pin(name)
 
         self.design_dummy_transistors(dum_info, 'XDUM', 'VDD', 'VSS')
         if dum_info is not None:
             # delete intermediate ports
-            for pin_name in ('pm0p', 'pm0n', 'pm1p', 'pm1n', 'tail', 'foot'):
+            for pin_name in ('pm0p', 'pm0n', 'pm1p', 'pm1n', 'tail', 'foot', 'nmp', 'nmn',
+                             'nsp', 'nsn'):
                 self.remove_pin(pin_name)
