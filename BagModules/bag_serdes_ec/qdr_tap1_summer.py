@@ -26,15 +26,25 @@ class bag_serdes_ec__qdr_tap1_summer(Module):
     def get_params_info(cls):
         # type: () -> Dict[str, str]
         return dict(
-            main_params='Main tap parameters.',
-            fb_params='Feedback tap parameters.',
+            sum_params='summer row parameters.',
+            lat_params='latch row parameters.',
         )
 
-    def design(self, main_params, fb_params):
-        self.instances['XMAIN'].design(**main_params)
-        self.instances['XFB'].design(**fb_params)
+    def design(self, sum_params, lat_params):
+        self.instances['XSUM'].design(**sum_params)
+        self.instances['XLAT'].design(**lat_params)
+
+        sum_pins = self.instances['XSUM'].master.pin_list
+        lat_pins = self.instances['XLAT'].master.pin_list
 
         # delete divider pins if they are not there.
-        if 'div' not in self.instances['XMAIN'].master.pin_list:
+        if 'div' not in lat_pins:
             for name in ['div', 'divb', 'en_div', 'scan_div']:
+                self.remove_pin(name)
+        # delete pulse pins if they are not there
+        if 'pulse_out' not in lat_pins:
+            self.remove_pin('pulse_out')
+        # delete initialization pins if they are not needed
+        if 'pulse' not in sum_pins and 'pulse_in' not in lat_pins:
+            for name in ('setp', 'setn', 'pulse_in'):
                 self.remove_pin(name)

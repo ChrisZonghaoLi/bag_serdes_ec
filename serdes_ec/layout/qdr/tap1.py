@@ -616,9 +616,10 @@ class Tap1Summer(TemplateBase):
             w_dict='NMOS/PMOS width dictionary.',
             th_dict='NMOS/PMOS threshold flavor dictionary.',
             seg_main='number of segments dictionary for main tap.',
-            seg_div='number of segments dictionary for clock divider.',
             seg_fb='number of segments dictionary for tap1 feedback.',
             seg_lat='number of segments dictionary for digital latch.',
+            seg_div='number of segments dictionary for clock divider.',
+            seg_pul='number of segments dictionary for pulse generation.',
             fg_dum='Number of single-sided edge dummy fingers.',
             tr_widths='Track width dictionary.',
             tr_spaces='Track spacing dictionary.',
@@ -638,63 +639,61 @@ class Tap1Summer(TemplateBase):
         # get layout masters
         main_params = self.params.copy()
         main_params['show_pins'] = False
-        del main_params['seg_fb']
+        del main_params['config']
         del main_params['seg_lat']
+        del main_params['seg_div']
+        del main_params['seg_pul']
+        del main_params['div_pos_edge']
 
-        fb_params = self.params.copy()
-        fb_params['show_pins'] = False
-        del fb_params['config']
-        del fb_params['seg_main']
-        del fb_params['seg_div']
-        del fb_params['div_pos_edge']
-        del fb_params['is_end']
+        lat_params = self.params.copy()
+        lat_params['show_pins'] = False
+        del lat_params['seg_main']
+        del lat_params['seg_fb']
+        del lat_params['is_end']
 
         # get masters
         if seg_div is None:
-            f_master = self.new_template(params=fb_params, temp_cls=Tap1FB)
-            main_params['fg_min'] = max(fg_min, f_master.fg_core)
-            m_master = self.new_template(params=main_params, temp_cls=Tap1MainRow)
+            l_master = self.new_template(params=lat_params, temp_cls=Tap1LatchRow)
+            main_params['fg_min'] = max(fg_min, l_master.fg_core)
+            m_master = self.new_template(params=main_params, temp_cls=Tap1SummerRow)
         else:
-            m_master = self.new_template(params=main_params, temp_cls=Tap1MainRow)
-            fb_params['fg_min'] = max(fg_min, m_master.fg_core)
-            if fb_params['fg_min'] is None:
-                import pdb
-                pdb.set_trace()
-            f_master = self.new_template(params=fb_params, temp_cls=Tap1FB)
+            m_master = self.new_template(params=main_params, temp_cls=Tap1SummerRow)
+            lat_params['fg_min'] = max(fg_min, m_master.fg_core)
+            l_master = self.new_template(params=lat_params, temp_cls=Tap1LatchRow)
 
-        self._fg_core = max(fg_min, f_master.fg_core, m_master.fg_core)
-        if f_master.fg_core < self._fg_core:
-            f_master = f_master.new_template_with(fg_min=self._fg_core)
+        self._fg_core = max(fg_min, l_master.fg_core, m_master.fg_core)
+        if l_master.fg_core < self._fg_core:
+            l_master = l_master.new_template_with(fg_min=self._fg_core)
         if m_master.fg_core < self._fg_core:
             m_master = m_master.new_template_with(fg_min=self._fg_core)
 
         # place instances
         top_layer = m_master.top_layer
         m_inst = self.add_instance(m_master, 'XMAIN', loc=(0, 0), unit_mode=True)
-        y0 = m_inst.array_box.top_unit + f_master.array_box.top_unit
-        f_inst = self.add_instance(f_master, 'XFB', loc=(0, y0), orient='MX', unit_mode=True)
+        y0 = m_inst.array_box.top_unit + l_master.array_box.top_unit
+        l_inst = self.add_instance(l_master, 'XLAT', loc=(0, y0), orient='MX', unit_mode=True)
 
         # set size
-        self.array_box = m_inst.array_box.merge(f_inst.array_box)
-        self.set_size_from_bound_box(top_layer, m_inst.bound_box.merge(f_inst.bound_box))
+        self.array_box = m_inst.array_box.merge(l_inst.array_box)
+        self.set_size_from_bound_box(top_layer, m_inst.bound_box.merge(l_inst.bound_box))
 
         # export pins in-place
         exp_list = [(m_inst, 'outp', 'outp_m', True), (m_inst, 'outn', 'outn_m', True),
                     (m_inst, 'inp', 'inp', False), (m_inst, 'inn', 'inn', False),
-                    (m_inst, 'en0', 'en0', True), (m_inst, 'en1', 'en1', True),
+                    (m_inst, 'fbp', 'fbp', False), (m_inst, 'fbn', 'fbn', False),
+                    (m_inst, 'en<0>', 'en<0>', True), (m_inst, 'en<1>', 'en<1>', True),
                     (m_inst, 'VDD', 'VDD', True), (m_inst, 'VSS', 'VSS', True),
                     (m_inst, 'clkp', 'clkp', True), (m_inst, 'clkn', 'clkn', True),
-                    (m_inst, 'bias_clkp', 'clkp_m', False),
-                    (f_inst, 'inp', 'outp_m', True), (f_inst, 'inn', 'outn_m', True),
-                    (f_inst, 'fb_clkp', 'clkn_f', False), (f_inst, 'lat_clkp', 'clkn_d', False),
-                    (f_inst, 'fb_outp', 'outp_f', False), (f_inst, 'fb_outn', 'outn_f', False),
-                    (f_inst, 'lat_outp', 'outp_d', False), (f_inst, 'lat_outn', 'outn_d', False),
-                    (f_inst, 'en0', 'en1', True), (f_inst, 'en1', 'en2', False),
-                    (f_inst, 'clkp', 'clkn', True), (f_inst, 'clkn', 'clkp', True),
-                    (f_inst, 'VDD', 'VDD', True), (f_inst, 'VSS', 'VSS', True),
+                    (m_inst, 'biasp_m', 'biasp_m', False), (m_inst, 'biasp_f', 'biasp_f', False),
+                    (l_inst, 'inp', 'outp_m', True), (l_inst, 'inn', 'outn_m', True),
+                    (l_inst, 'outp', 'outp_d', False), (l_inst, 'outn', 'outn_d', False),
+                    (l_inst, 'en<0>', 'en<1>', True), (l_inst, 'en<1>', 'en<2>', False),
+                    (l_inst, 'clkp', 'clkn', True), (l_inst, 'clkn', 'clkp', True),
+                    (l_inst, 'VDD', 'VDD', True), (l_inst, 'VSS', 'VSS', True),
+                    (l_inst, 'biasp', 'biasn_d', False),
                     ]
         if seg_div is not None:
-            exp_list.extend(((m_inst, name, name, False)
+            exp_list.extend(((l_inst, name, name, False)
                              for name in ['en_div', 'scan_div', 'div', 'divb']))
 
         for inst, port_name, name, vconn in exp_list:
@@ -703,13 +702,13 @@ class Tap1Summer(TemplateBase):
             self.reexport(port, net_name=name, label=label, show=show_pins)
             if (port_name == 'outp' or port_name == 'outn') and inst is m_inst:
                 self.reexport(port, net_name=port_name + '_main', show=False)
-            if (port_name == 'inp' or port_name == 'inn') and inst is f_inst:
-                self.reexport(port, net_name=port_name + '_fb', show=False)
+            if (port_name == 'inp' or port_name == 'inn') and inst is l_inst:
+                self.reexport(port, net_name=port_name + '_lat', show=False)
 
         # set schematic parameters
         self._sch_params = dict(
-            main_params=m_master.sch_params,
-            fb_params=f_master.sch_params,
+            sum_params=m_master.sch_params,
+            lat_params=l_master.sch_params,
         )
 
 
