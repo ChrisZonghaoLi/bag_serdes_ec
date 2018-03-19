@@ -7,7 +7,6 @@ import pkg_resources
 
 from bag.design import Module
 
-
 yaml_file = pkg_resources.resource_filename(__name__, os.path.join('netlist_info',
                                                                    'sr_latch_bora.yaml'))
 
@@ -42,25 +41,50 @@ class bag_serdes_ec__sr_latch_bora(Module):
         seg_nsinv = seg_dict.get('nsinv', 0)
         seg_psinv = seg_dict.get('psinv', 0)
 
+        if seg_nand < 1:
+            raise ValueError('seg_nand must be >= 1.')
+
+        # design initialization related blocks
         if seg_set == 0:
             self.remove_pin('scan_s')
             self.remove_pin('en')
+            for inst_name in ('XNORL', 'XNORR', 'XSCINV'):
+                self.delete_instance(inst_name)
+        else:
+            dig_params = dict(
+                nin=2,
+                lch=lch,
+                wp=w_dict['pl'],
+                wn=w_dict['nl'],
+                thp=th_dict['pl'],
+                thn=th_dict['nl'],
+                segp=seg_pnor,
+                segn=seg_nnor,
+            )
+            self.instances['XNORL'].design(**dig_params)
+            self.instances['XNORR'].design(**dig_params)
+            del dig_params['nin']
+            dig_params['segp'] = seg_psinv
+            dig_params['segn'] = seg_nsinv
+            self.instances['XSCINV'].design(**dig_params)
 
+        # design inverters
+        dig_params = dict(
+            lch=lch,
+            wp=w_dict['p'],
+            wn=w_dict['n'],
+            thp=th_dict['p'],
+            thn=th_dict['n'],
+            segp=seg_inv,
+            segn=seg_inv,
+        )
+        self.instances['XRINV'].design(**dig_params)
+        self.instances['XSINV'].design(**dig_params)
+
+        # design transistors
         tran_info = [('XNDL', 'n', seg_drv), ('XNDR', 'n', seg_drv),
-                     ('XNINVL', 'n', seg_inv), ('XNINVR', 'n', seg_inv),
-                     ('XNNL0', 'n', seg_nand), ('XNNL1', 'n', seg_nand),
-                     ('XNNR0', 'n', seg_nand), ('XNNR1', 'n', seg_nand),
                      ('XSL', 's', seg_set), ('XSR', 's', seg_set),
-                     ('XNOL0', 'nl', seg_nnor), ('XNOL1', 'nl', seg_nnor),
-                     ('XNOR0', 'nl', seg_nnor), ('XNOR1', 'nl', seg_nnor),
-                     ('XNSINV', 'nl', seg_nsinv),
                      ('XPDL', 'p', seg_drv), ('XPDR', 'p', seg_drv),
-                     ('XPINVL', 'p', seg_inv), ('XPINVR', 'p', seg_inv),
-                     ('XPNL0', 'p', seg_nand), ('XPNL1', 'p', seg_nand),
-                     ('XPNR0', 'p', seg_nand), ('XPNR1', 'p', seg_nand),
-                     ('XPOL0', 'pl', seg_pnor), ('XPOL1', 'pl', seg_pnor),
-                     ('XPOR0', 'pl', seg_pnor), ('XPOR1', 'pl', seg_pnor),
-                     ('XPSINV', 'pl', seg_psinv),
                      ]
         for name, row, seg in tran_info:
             if seg == 0:
@@ -68,3 +92,25 @@ class bag_serdes_ec__sr_latch_bora(Module):
             w = w_dict[row]
             th = th_dict[row]
             self.instances[name].design(w=w, l=lch, nf=seg, intent=th)
+
+        # design stack transistors
+        tran_info = [('XNNL0', 'n'), ('XNNL1', 'n'),
+                     ('XNNR0', 'n'), ('XNNR1', 'n'),
+                     ('XPNL0', 'p'), ('XPNL1', 'p'),
+                     ('XPNR0', 'p'), ('XPNR1', 'p'),
+                     ]
+        seg_str = '<%d:0>' % seg_nand
+        for name, row in tran_info:
+            w = w_dict[row]
+            th = th_dict[row]
+            self.instances[name].design(w=w, l=lch, nf=1, intent=th)
+            if seg_nand > 1:
+                # parallelize the segments
+                new_name = name + seg_str
+                idx = int(name[4])
+                net = name[1:4] + seg_str
+                if idx == 0:
+                    new_term = dict(D=net)
+                else:
+                    new_term = dict(S=net)
+                self.array_instance(name, [new_name], term_list=[new_term])
