@@ -552,7 +552,9 @@ class Tap1LatchRow(TemplateBase):
             div_pos_edge=div_pos_edge,
             lat_params=l_master.sch_params,
         )
-        if seg_div is None:
+        if d_master is None:
+            self._sch_params['div_params'] = self._sch_params['pul_params'] = None
+        elif seg_div is None:
             self._sch_params['div_params'] = None
             self._sch_params['pul_params'] = d_master.sch_params
         else:
@@ -700,10 +702,9 @@ class Tap1Summer(TemplateBase):
             port = inst.get_port(port_name)
             label = name + ':' if vconn else name
             self.reexport(port, net_name=name, label=label, show=show_pins)
-            if (port_name == 'outp' or port_name == 'outn') and inst is m_inst:
-                self.reexport(port, net_name=port_name + '_main', show=False)
-            if (port_name == 'inp' or port_name == 'inn') and inst is l_inst:
-                self.reexport(port, net_name=port_name + '_lat', show=False)
+            if inst is m_inst:
+                if port_name == 'outp' or port_name == 'outn':
+                    self.reexport(port, net_name=port_name + '_main', show=False)
 
         # set schematic parameters
         self._sch_params = dict(
@@ -759,9 +760,10 @@ class Tap1Column(TemplateBase):
             w_dict='NMOS/PMOS width dictionary.',
             th_dict='NMOS/PMOS threshold flavor dictionary.',
             seg_main='number of segments dictionary for main tap.',
-            seg_div='number of segments dictionary for clock divider.',
             seg_fb='number of segments dictionary for tap1 feedback.',
             seg_lat='number of segments dictionary for digital latch.',
+            seg_div='number of segments dictionary for clock divider.',
+            seg_pul='number of segments dictionary for pulse generation.',
             fg_dum='Number of single-sided edge dummy fingers.',
             tr_widths='Track width dictionary.',
             tr_spaces='Track spacing dictionary.',
@@ -779,30 +781,37 @@ class Tap1Column(TemplateBase):
 
         # make masters
         div_params = self.params.copy()
+        div_params['seg_pul'] = None
         div_params['div_pos_edge'] = True
         div_params['is_end'] = False
         div_params['show_pins'] = False
 
         divn_master = self.new_template(params=div_params, temp_cls=Tap1Summer)
         divp_master = divn_master.new_template_with(div_pos_edge=False)
+        fg_min = divp_master.fg_core
 
         end_params = self.params.copy()
         end_params['seg_div'] = None
-        end_params['fg_min'] = divp_master.fg_core
+        end_params['fg_min'] = fg_min
         end_params['is_end'] = True
         end_params['show_pins'] = False
 
-        end_master = self.new_template(params=end_params, temp_cls=Tap1Summer)
+        endt_master = self.new_template(params=end_params, temp_cls=Tap1Summer)
+        if endt_master.fg_core > fg_min:
+            fg_min = endt_master.fg_core
+            divn_master = divn_master.new_template_with(fg_min=fg_min)
+            divp_master = divp_master.new_template_with(fg_min=fg_min)
+        endb_master = endt_master.new_template_with(seg_pul=None)
 
         # place instances
-        vm_layer = top_layer = end_master.top_layer
-        inst2 = self.add_instance(end_master, 'X2', loc=(0, 0), unit_mode=True)
+        vm_layer = top_layer = endt_master.top_layer
+        inst2 = self.add_instance(endb_master, 'X2', loc=(0, 0), unit_mode=True)
         ycur = inst2.array_box.top_unit + divn_master.array_box.top_unit
         inst1 = self.add_instance(divn_master, 'X1', loc=(0, ycur), orient='MX', unit_mode=True)
         ycur = inst1.array_box.top_unit
         inst3 = self.add_instance(divp_master, 'X3', loc=(0, ycur), unit_mode=True)
-        ycur = inst3.array_box.top_unit + end_master.array_box.top_unit
-        inst0 = self.add_instance(end_master, 'X0', loc=(0, ycur), orient='MX', unit_mode=True)
+        ycur = inst3.array_box.top_unit + endt_master.array_box.top_unit
+        inst0 = self.add_instance(endt_master, 'X0', loc=(0, ycur), orient='MX', unit_mode=True)
         inst_list = [inst0, inst1, inst2, inst3]
 
         # set size
@@ -826,17 +835,18 @@ class Tap1Column(TemplateBase):
         outp_warrs = [[], [], [], []]
         outn_warrs = [[], [], [], []]
         for idx, inst in enumerate(inst_list):
+            pidx = (idx - 1) % 4
+            nidx = (idx + 1) % 4
             outp_warrs[idx].extend(inst.get_all_port_pins('outp_m'))
             outn_warrs[idx].extend(inst.get_all_port_pins('outn_m'))
-            nidx = (idx + 1) % 4
-            outp_warrs[nidx].extend(inst.get_all_port_pins('outn_f'))
-            outn_warrs[nidx].extend(inst.get_all_port_pins('outp_f'))
+            outp_warrs[pidx].extend(inst.get_all_port_pins('fbp'))
+            outn_warrs[pidx].extend(inst.get_all_port_pins('fbn'))
             self.reexport(inst.get_port('outp_main'), net_name='outp<%d>' % idx, show=show_pins)
             self.reexport(inst.get_port('outn_main'), net_name='outn<%d>' % idx, show=show_pins)
-            self.reexport(inst.get_port('inp_fb'), net_name='datap%d' % idx, show=False)
-            self.reexport(inst.get_port('inn_fb'), net_name='datan%d' % idx, show=False)
+            self.reexport(inst.get_port('outp_d'), net_name='outp_d<%d>' % nidx, show=show_pins)
+            self.reexport(inst.get_port('outn_d'), net_name='outp_d<%d>' % nidx, show=show_pins)
 
-        out_map = [7, 4, 7, 1]
+        out_map = [1, 7, 4, 7]
         vm_w_out = tr_manager.get_width(vm_layer, 'out')
         tr_lower = tr_upper = None
         for outp, outn, idx in zip(outp_warrs, outn_warrs, out_map):
