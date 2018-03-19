@@ -296,7 +296,7 @@ class Tap1SummerRow(HybridQDRBase):
         fg_duml = fg_tot - fg_dumr - fg_amp
 
         self.draw_rows(lch, fg_tot, ptap_w, ntap_w, w_dict, th_dict, tr_manager,
-                       wire_names, top_layer=top_layer, end_mode=12, **options)
+                       wire_names, top_layer=top_layer, end_mode=end_mode, **options)
 
         # draw amplifier
         main_ports, _ = self.draw_integ_amp(fg_duml, seg_main, fg_dum=0,
@@ -897,7 +897,7 @@ class Tap1Column(TemplateBase):
             self.reexport(inst.get_port('outp_main'), net_name='outp<%d>' % idx, show=show_pins)
             self.reexport(inst.get_port('outn_main'), net_name='outn<%d>' % idx, show=show_pins)
             self.reexport(inst.get_port('outp_d'), net_name='outp_d<%d>' % nidx, show=show_pins)
-            self.reexport(inst.get_port('outn_d'), net_name='outp_d<%d>' % nidx, show=show_pins)
+            self.reexport(inst.get_port('outn_d'), net_name='outn_d<%d>' % nidx, show=show_pins)
             if idx % 2 == 0:
                 biasm_warrs[0].extend(inst.get_all_port_pins('biasp_m'))
                 biasd_warrs[1].extend(inst.get_all_port_pins('biasn_d'))
@@ -966,3 +966,32 @@ class Tap1Column(TemplateBase):
         self.add_pin('biasn_m', bmn, show=show_pins)
         self.add_pin('biasp_d', bdp, show=show_pins)
         self.add_pin('biasn_d', bdn, show=show_pins)
+
+        # draw en_div/scan wires
+        sp_clk_gnd = out_locs[0] - clk_locs[4]
+        tr_scan = bias_locs[0] - sp_clk_gnd
+        tr_endiv = tr_scan - sp_clk_gnd
+        scan_tid = TrackID(vm_layer, tr_scan)
+        endiv_tid = TrackID(vm_layer, tr_endiv, width=vm_w_clk)
+        scan0 = self.connect_to_tracks(inst3.get_all_port_pins('scan_div'),
+                                       scan_tid, min_len_mode=1)
+        scan1 = self.connect_to_tracks(inst1.get_all_port_pins('scan_div'),
+                                       scan_tid, min_len_mode=-1)
+        endiv0 = self.connect_to_tracks(inst3.get_all_port_pins('en_div'),
+                                        endiv_tid, min_len_mode=1)
+        endiv1 = self.connect_to_tracks(inst1.get_all_port_pins('en_div'),
+                                        endiv_tid, min_len_mode=-1)
+        self.add_pin('scan_div<0>', scan0, show=show_pins)
+        self.add_pin('scan_div<1>', scan1, show=show_pins)
+        self.add_pin('en_div<0>', endiv0, show=show_pins)
+        self.add_pin('en_div<1>', endiv1, show=show_pins)
+
+        # set schematic parameters
+        self._sch_params = dict(
+            sum_params=endb_master.sch_params['sum_params'],
+            lat_params=endb_master.sch_params['lat_params']['lat_params'],
+            lat_div_params=divp_master.sch_params['lat_params']['lat_params'],
+            lat_pul_params=endt_master.sch_params['lat_params']['lat_params'],
+            div_params=divp_master.sch_params['lat_params']['div_params'],
+            pul_params=endt_master.sch_params['lat_params']['pul_params'],
+        )

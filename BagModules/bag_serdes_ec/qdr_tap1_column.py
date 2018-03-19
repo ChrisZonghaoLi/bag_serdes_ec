@@ -27,11 +27,14 @@ class bag_serdes_ec__qdr_tap1_column(Module):
         return dict(
             sum_params='summer row parameters.',
             lat_params='latch parameters.',
+            lat_div_params='latch parameters in the divider row.',
+            lat_pul_params='latch parameters in the pulse row.',
             div_params='divider parameters.',
             pul_params='pulse generation parameters.',
         )
 
-    def design(self, sum_params, lat_params, div_params, pul_params):
+    def design(self, sum_params, lat_params, lat_div_params, lat_pul_params,
+               div_params, pul_params):
         endb_lat_params = dict(
             div_pos_edge=True,
             lat_params=lat_params,
@@ -40,22 +43,27 @@ class bag_serdes_ec__qdr_tap1_column(Module):
         )
         endt_lat_params = dict(
             div_pos_edge=True,
-            lat_params=lat_params,
+            lat_params=lat_pul_params,
             div_params=None,
             pul_params=pul_params,
         )
         divp_lat_params = dict(
             div_pos_edge=True,
-            lat_params=lat_params,
+            lat_params=lat_div_params,
             div_params=div_params,
             pul_params=None,
         )
         divn_lat_params = dict(
             div_pos_edge=False,
-            lat_params=lat_params,
+            lat_params=lat_div_params,
             div_params=div_params,
             pul_params=None,
         )
+
+        if pul_params is None:
+            # remove set pins
+            self.remove_pin('setp<5:4>')
+            self.remove_pin('setn<5:4>')
 
         self.instances['X0'].design(sum_params=sum_params, lat_params=endt_lat_params)
         self.instances['X3'].design(sum_params=sum_params, lat_params=divp_lat_params)
