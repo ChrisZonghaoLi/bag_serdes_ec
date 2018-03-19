@@ -559,11 +559,11 @@ class Tap1LatchRow(TemplateBase):
         hm_layer = inp_warr.track_id.layer_id
         vm_layer = hm_layer + 1
         in_w = inp_warr.track_id.width
-        tr_w = tr_manager.get_width(vm_layer, 'clk')
+        tr_w = tr_manager.get_width(vm_layer, 'en')
         in_xl = int(round(inp_warr.lower / self.grid.resolution))
         via_ext = self.grid.get_via_extensions(hm_layer, in_w, tr_w, unit_mode=True)[0]
         sp_le = self.grid.get_line_end_space(hm_layer, in_w, unit_mode=True)
-        ntr, tr_locs = tr_manager.place_wires(vm_layer, ['clk'] * 4)
+        ntr, tr_locs = tr_manager.place_wires(vm_layer, ['en'] * 4)
         tr_xr = in_xl - sp_le - via_ext
         tr_right = self.grid.find_next_track(vm_layer, tr_xr, tr_width=tr_w, half_track=True,
                                              mode=-1, unit_mode=True)
@@ -837,9 +837,9 @@ class Tap1Column(TemplateBase):
         vm_layer = top_layer = endt_master.top_layer
         inst2 = self.add_instance(endb_master, 'X2', loc=(0, 0), unit_mode=True)
         ycur = inst2.array_box.top_unit + divn_master.array_box.top_unit
-        inst1 = self.add_instance(divn_master, 'X1', loc=(0, ycur), orient='MX', unit_mode=True)
+        inst1 = self.add_instance(divp_master, 'X1', loc=(0, ycur), orient='MX', unit_mode=True)
         ycur = inst1.array_box.top_unit
-        inst3 = self.add_instance(divp_master, 'X3', loc=(0, ycur), unit_mode=True)
+        inst3 = self.add_instance(divn_master, 'X3', loc=(0, ycur), unit_mode=True)
         ycur = inst3.array_box.top_unit + endt_master.array_box.top_unit
         inst0 = self.add_instance(endt_master, 'X0', loc=(0, ycur), orient='MX', unit_mode=True)
         inst_list = [inst0, inst1, inst2, inst3]
@@ -867,6 +867,10 @@ class Tap1Column(TemplateBase):
         outp_warrs = [[], [], [], []]
         outn_warrs = [[], [], [], []]
         en_warrs = [[], [], [], []]
+        biasf_warrs = []
+        clk_warrs = [[], []]
+        biasd_warrs = [[], []]
+        biasm_warrs = [[], []]
         for idx, inst in enumerate(inst_list):
             pidx = (idx - 1) % 4
             nidx = (idx + 1) % 4
@@ -874,6 +878,7 @@ class Tap1Column(TemplateBase):
             outn_warrs[idx].extend(inst.get_all_port_pins('outn_m'))
             outp_warrs[pidx].extend(inst.get_all_port_pins('fbp'))
             outn_warrs[pidx].extend(inst.get_all_port_pins('fbn'))
+            biasf_warrs.extend(inst.get_all_port_pins('biasp_f'))
             for off in range(4):
                 en_pin = 'en<%d>' % off
                 en_idx = (idx + off) % 4
@@ -893,13 +898,16 @@ class Tap1Column(TemplateBase):
             self.reexport(inst.get_port('outn_main'), net_name='outn<%d>' % idx, show=show_pins)
             self.reexport(inst.get_port('outp_d'), net_name='outp_d<%d>' % nidx, show=show_pins)
             self.reexport(inst.get_port('outn_d'), net_name='outp_d<%d>' % nidx, show=show_pins)
-            self.reexport(inst.get_port('biasp_f'), net_name='bias_f<%d>' % idx, show=show_pins)
             if idx % 2 == 0:
-                self.reexport(inst.get_port('biasp_m'), show=show_pins)
-                self.reexport(inst.get_port('biasn_d'), show=show_pins)
+                biasm_warrs[0].extend(inst.get_all_port_pins('biasp_m'))
+                biasd_warrs[1].extend(inst.get_all_port_pins('biasn_d'))
+                clk_warrs[0].extend(inst.get_all_port_pins('clkp'))
+                clk_warrs[1].extend(inst.get_all_port_pins('clkn'))
             else:
-                self.reexport(inst.get_port('biasp_m'), net_name='biasn_m', show=show_pins)
-                self.reexport(inst.get_port('biasn_d'), net_name='biasp_d', show=show_pins)
+                biasm_warrs[1].extend(inst.get_all_port_pins('biasp_m'))
+                biasd_warrs[0].extend(inst.get_all_port_pins('biasn_d'))
+                clk_warrs[1].extend(inst.get_all_port_pins('clkp'))
+                clk_warrs[0].extend(inst.get_all_port_pins('clkn'))
 
         # connect output wires and draw shields
         out_map = [1, 7, 4, 7]
@@ -920,6 +928,41 @@ class Tap1Column(TemplateBase):
                                track_lower=tr_lower, track_upper=tr_upper)
 
         # draw enable wires
-        tr_w = tr_manager.get_width(vm_layer, 'clk')
-        for tr_idx, en_warr in zip(divp_master.en_locs, en_warrs):
-            self.connect_to_tracks(en_warr, TrackID(vm_layer, tr_idx, width=tr_w))
+        en_locs = divp_master.en_locs
+        vm_w_en = tr_manager.get_width(vm_layer, 'en')
+        for tr_idx, en_warr in zip(en_locs, en_warrs):
+            self.connect_to_tracks(en_warr, TrackID(vm_layer, tr_idx, width=vm_w_en))
+
+        # draw clock/bias_f wires
+        vm_w_clk = tr_manager.get_width(vm_layer, 'clk')
+        start_idx0 = en_locs[3] - (vm_w_en - 1) / 2
+        ntr = out_locs[0] + 1 - start_idx0
+        clk_locs = tr_manager.spread_wires(vm_layer, ['en', 'clk', 'clk', 'clk', 'clk', 1],
+                                           ntr, ('clk', ''), alignment=0, start_idx=start_idx0)
+
+        clkn, clkp = self.connect_differential_tracks(clk_warrs[1], clk_warrs[0], vm_layer,
+                                                      clk_locs[1], clk_locs[4], width=vm_w_clk)
+        bf3, bf0 = self.connect_differential_tracks(biasf_warrs[3], biasf_warrs[0], vm_layer,
+                                                    clk_locs[2], clk_locs[3], width=vm_w_clk)
+        bf1, bf2 = self.connect_differential_tracks(biasf_warrs[1], biasf_warrs[2], vm_layer,
+                                                    clk_locs[2], clk_locs[3], width=vm_w_clk)
+        self.add_pin('clkp', clkp, show=show_pins)
+        self.add_pin('clkn', clkn, show=show_pins)
+        self.add_pin('bias_f<0>', bf0, show=show_pins)
+        self.add_pin('bias_f<1>', bf1, show=show_pins)
+        self.add_pin('bias_f<2>', bf2, show=show_pins)
+        self.add_pin('bias_f<3>', bf3, show=show_pins)
+
+        # draw bias_m/bias_d wires
+        sp_clk = clk_locs[2] - clk_locs[1]
+        sp_clk_en = clk_locs[1] - en_locs[3]
+        right_tidx = en_locs[0] - sp_clk_en
+        bias_locs = [right_tidx + idx * sp_clk for idx in range(-3, 1, 1)]
+        bmn, bmp = self.connect_differential_tracks(biasm_warrs[1], biasm_warrs[0], vm_layer,
+                                                    bias_locs[0], bias_locs[3], width=vm_w_clk)
+        bdn, bdp = self.connect_differential_tracks(biasd_warrs[1], biasd_warrs[0], vm_layer,
+                                                    bias_locs[1], bias_locs[2], width=vm_w_clk)
+        self.add_pin('biasp_m', bmp, show=show_pins)
+        self.add_pin('biasn_m', bmn, show=show_pins)
+        self.add_pin('biasp_d', bdp, show=show_pins)
+        self.add_pin('biasn_d', bdn, show=show_pins)
