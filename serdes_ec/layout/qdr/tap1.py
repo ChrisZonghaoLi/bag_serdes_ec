@@ -2,7 +2,7 @@
 
 """This module defines classes needed to build the DFE tap1 summer."""
 
-from typing import TYPE_CHECKING, Dict, Any, Set
+from typing import TYPE_CHECKING, Dict, Any, Set, List, Union
 
 from itertools import chain
 
@@ -365,6 +365,7 @@ class Tap1LatchRow(TemplateBase):
         TemplateBase.__init__(self, temp_db, lib_name, params, used_names, **kwargs)
         self._sch_params = None
         self._fg_core = None
+        self._en_locs = None
 
     @property
     def sch_params(self):
@@ -375,6 +376,11 @@ class Tap1LatchRow(TemplateBase):
     def fg_core(self):
         # type: () -> int
         return self._fg_core
+
+    @property
+    def en_locs(self):
+        # type: () -> List[Union[int, float]]
+        return self._en_locs
 
     @classmethod
     def get_default_param_values(cls):
@@ -444,8 +450,8 @@ class Tap1LatchRow(TemplateBase):
             tr_info = dict(
                 VDD=m_tr_info['VDD'],
                 VSS=m_tr_info['VSS'],
-                q=m_tr_info['outp'],
-                qb=m_tr_info['outn'],
+                q=m_tr_info['inp'],
+                qb=m_tr_info['inn'],
                 en=m_tr_info['nen0'],
                 clk=m_tr_info['clkp'] if div_pos_edge else m_tr_info['clkn'],
             )
@@ -547,6 +553,22 @@ class Tap1LatchRow(TemplateBase):
         for name in ('en<1>', 'outp', 'outn', 'inp', 'inn', 'biasp'):
             self.reexport(m_inst.get_port(name), show=show_pins)
 
+        # compute metal 5 enable track locations
+        tr_manager = TrackManager(self.grid, tr_widths, tr_spaces, half_space=True)
+        inp_warr = m_inst.get_all_port_pins('inp')[0]
+        hm_layer = inp_warr.track_id.layer_id
+        vm_layer = hm_layer + 1
+        in_w = inp_warr.track_id.width
+        tr_w = tr_manager.get_width(vm_layer, 'clk')
+        in_xl = int(round(inp_warr.lower / self.grid.resolution))
+        via_ext = self.grid.get_via_extensions(hm_layer, in_w, tr_w, unit_mode=True)[0]
+        sp_le = self.grid.get_line_end_space(hm_layer, in_w, unit_mode=True)
+        ntr, tr_locs = tr_manager.place_wires(vm_layer, ['clk'] * 4)
+        tr_xr = in_xl - sp_le - via_ext
+        tr_right = self.grid.find_next_track(vm_layer, tr_xr, tr_width=tr_w, half_track=True,
+                                             mode=-1, unit_mode=True)
+        self._en_locs = [tr_idx + tr_right - tr_locs[-1] for tr_idx in tr_locs]
+
         # set schematic parameters
         self._sch_params = dict(
             div_pos_edge=div_pos_edge,
@@ -585,6 +607,7 @@ class Tap1Summer(TemplateBase):
         TemplateBase.__init__(self, temp_db, lib_name, params, used_names, **kwargs)
         self._sch_params = None
         self._fg_core = None
+        self._en_locs = None
 
     @property
     def sch_params(self):
@@ -595,6 +618,11 @@ class Tap1Summer(TemplateBase):
     def fg_core(self):
         # type: () -> int
         return self._fg_core
+
+    @property
+    def en_locs(self):
+        # type: () -> List[Union[int, float]]
+        return self._en_locs
 
     @classmethod
     def get_default_param_values(cls):
@@ -705,6 +733,8 @@ class Tap1Summer(TemplateBase):
             if inst is m_inst:
                 if port_name == 'outp' or port_name == 'outn':
                     self.reexport(port, net_name=port_name + '_main', show=False)
+
+        self._en_locs = l_master.en_locs
 
         # set schematic parameters
         self._sch_params = dict(
@@ -826,14 +856,17 @@ class Tap1Column(TemplateBase):
         self.add_pin('VDD', vdd_list, label='VDD:', show=show_pins)
         self.add_pin('VSS', vss_list, label='VSS:', show=show_pins)
 
-        # draw output wires + shield
+        # draw wires
+        # compute output wire tracks
         xr = int(round(vdd_list[0].upper / res))
         tidx0 = self.grid.find_next_track(vm_layer, xr, mode=1, unit_mode=True)
         _, out_locs = tr_manager.place_wires(vm_layer, [1, 'out', 'out', 1, 'out', 'out',
                                                         1, 'out', 'out', 1], start_idx=tidx0)
 
+        # re-export ports, and gather wires
         outp_warrs = [[], [], [], []]
         outn_warrs = [[], [], [], []]
+        en_warrs = [[], [], [], []]
         for idx, inst in enumerate(inst_list):
             pidx = (idx - 1) % 4
             nidx = (idx + 1) % 4
@@ -841,11 +874,34 @@ class Tap1Column(TemplateBase):
             outn_warrs[idx].extend(inst.get_all_port_pins('outn_m'))
             outp_warrs[pidx].extend(inst.get_all_port_pins('fbp'))
             outn_warrs[pidx].extend(inst.get_all_port_pins('fbn'))
+            for off in range(4):
+                en_pin = 'en<%d>' % off
+                en_idx = (idx + off) % 4
+                if inst.has_port(en_pin):
+                    en_warrs[en_idx].extend(inst.get_all_port_pins(en_pin))
+            if inst.has_port('div'):
+                if idx == 3:
+                    idxp, idxn = 0, 2
+                else:
+                    idxp, idxn = 1, 3
+                en_warrs[idxp].extend(inst.get_all_port_pins('div'))
+                en_warrs[idxn].extend(inst.get_all_port_pins('divb'))
+
+            self.reexport(inst.get_port('inp'), net_name='inp<%d>' % pidx, show=show_pins)
+            self.reexport(inst.get_port('inn'), net_name='inn<%d>' % pidx, show=show_pins)
             self.reexport(inst.get_port('outp_main'), net_name='outp<%d>' % idx, show=show_pins)
             self.reexport(inst.get_port('outn_main'), net_name='outn<%d>' % idx, show=show_pins)
             self.reexport(inst.get_port('outp_d'), net_name='outp_d<%d>' % nidx, show=show_pins)
             self.reexport(inst.get_port('outn_d'), net_name='outp_d<%d>' % nidx, show=show_pins)
+            self.reexport(inst.get_port('biasp_f'), net_name='bias_f<%d>' % idx, show=show_pins)
+            if idx % 2 == 0:
+                self.reexport(inst.get_port('biasp_m'), show=show_pins)
+                self.reexport(inst.get_port('biasn_d'), show=show_pins)
+            else:
+                self.reexport(inst.get_port('biasp_m'), net_name='biasn_m', show=show_pins)
+                self.reexport(inst.get_port('biasn_d'), net_name='biasp_d', show=show_pins)
 
+        # connect output wires and draw shields
         out_map = [1, 7, 4, 7]
         vm_w_out = tr_manager.get_width(vm_layer, 'out')
         tr_lower = tr_upper = None
@@ -862,3 +918,8 @@ class Tap1Column(TemplateBase):
         shield_pitch = out_locs[3] - out_locs[0]
         self.connect_to_tracks(vdd_list, TrackID(vm_layer, out_locs[0], num=4, pitch=shield_pitch),
                                track_lower=tr_lower, track_upper=tr_upper)
+
+        # draw enable wires
+        tr_w = tr_manager.get_width(vm_layer, 'clk')
+        for tr_idx, en_warr in zip(divp_master.en_locs, en_warrs):
+            self.connect_to_tracks(en_warr, TrackID(vm_layer, tr_idx, width=tr_w))
