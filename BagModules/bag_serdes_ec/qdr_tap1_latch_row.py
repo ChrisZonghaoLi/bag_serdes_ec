@@ -8,7 +8,8 @@ import pkg_resources
 from bag.design import Module
 
 
-yaml_file = pkg_resources.resource_filename(__name__, os.path.join('netlist_info', 'qdr_tap1_latch_row.yaml'))
+yaml_file = pkg_resources.resource_filename(__name__, os.path.join('netlist_info',
+                                                                   'qdr_tap1_latch_row.yaml'))
 
 
 # noinspection PyPep8Naming
@@ -24,30 +25,35 @@ class bag_serdes_ec__qdr_tap1_latch_row(Module):
     @classmethod
     def get_params_info(cls):
         # type: () -> Dict[str, str]
-        """Returns a dictionary from parameter names to descriptions.
-
-        Returns
-        -------
-        param_info : Optional[Dict[str, str]]
-            dictionary from parameter names to descriptions.
-        """
         return dict(
+            div_pos_edge='True if the divider block triggers on positive edge.',
+            lat_params='latch parameters.',
+            div_params='divider parameters.',
+            pul_params='pulse generation parameters.',
         )
 
-    def design(self):
-        """To be overridden by subclasses to design this module.
+    def design(self, div_pos_edge, lat_params, div_params, pul_params):
+        # design latch
+        self.instances['XLAT'].design(**lat_params)
+        if 'pulse' not in self.instances['XLAT'].master.pin_list:
+            # delete set pins
+            for name in ('setp', 'setn', 'pulse_in'):
+                self.remove_pin(name)
 
-        This method should fill in values for all parameters in
-        self.parameters.  To design instances of this module, you can
-        call their design() method or any other ways you coded.
+        # design divider
+        if div_params is None:
+            self.delete_instance('XDIV')
+            for name in ('en_div', 'scan_div', 'div', 'divb'):
+                self.remove_pin(name)
+        else:
+            self.instances['XDIV'].design(**div_params)
+            if not div_pos_edge:
+                self.reconnect_instance_terminal('XDIV', 'clk', 'clkn')
 
-        To modify schematic structure, call:
-
-        rename_pin()
-        delete_instance()
-        replace_instance_master()
-        reconnect_instance_terminal()
-        restore_instance()
-        array_instance()
-        """
-        pass
+        # design pulse generation
+        if pul_params is None:
+            self.delete_instance('XPULSE')
+            for name in ('en0', 'en3', 'pulse_out'):
+                self.remove_pin(name)
+        else:
+            self.instances['XPULSE'].design(**pul_params)
