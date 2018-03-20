@@ -50,6 +50,7 @@ class SinClkDivider(LaygoBase):
             tr_widths='Track width dictionary.',
             tr_spaces='Track spacing dictionary.',
             tr_info='output track information dictionary.',
+            fg_min='Minimum number of core fingers.',
             end_mode='The LaygoBase end_mode flag.',
             show_pins='True to show pins.',
         )
@@ -59,6 +60,7 @@ class SinClkDivider(LaygoBase):
         # type: () -> Dict[str, Any]
         return dict(
             tr_info=None,
+            fg_min=0,
             end_mode=None,
             show_pins=True,
         )
@@ -69,6 +71,7 @@ class SinClkDivider(LaygoBase):
         tr_widths = self.params['tr_widths']
         tr_spaces = self.params['tr_spaces']
         tr_info = self.params['tr_info']
+        fg_min = self.params['fg_min']
         end_mode = self.params['end_mode']
         show_pins = self.params['show_pins']
 
@@ -81,7 +84,13 @@ class SinClkDivider(LaygoBase):
         seg_sr = self._get_sr_latch_info(seg_dict)
         num_col = seg_inv + seg_int + seg_sr + 2 * blk_sp
 
-        self.set_rows_direct(row_layout_info, num_col=num_col, end_mode=end_mode)
+        self.set_rows_direct(row_layout_info, end_mode=end_mode)
+
+        # adjust number of columns according to fg_min
+        fg_core = self.laygo_info.get_placement_info(num_col).core_fg
+        if fg_core < fg_min:
+            num_col += (fg_min - fg_core)
+        self.set_laygo_size(num_col)
 
         # draw individual blocks
         vss_w, vdd_w = self._draw_substrate(num_col)

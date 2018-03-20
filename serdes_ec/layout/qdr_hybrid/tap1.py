@@ -10,8 +10,8 @@ from bag.layout.util import BBox
 from bag.layout.routing import TrackManager, TrackID
 from bag.layout.template import TemplateBase
 
+from ..laygo.divider import SinClkDivider
 from .base import HybridQDRBaseInfo, HybridQDRBase
-from serdes_ec.layout.laygo.divider import SinClkDivider
 from .amp import IntegAmp
 
 
@@ -282,6 +282,7 @@ class Tap1LatchRow(TemplateBase):
         top_layer = HybridQDRBase.get_mos_conn_layer(self.grid.tech_info) + 2
         if no_dig:
             d_master = None
+            div_sch_params = pul_sch_params = None
             lat_params['top_layer'] = top_layer
             l_master = self.new_template(params=lat_params, temp_cls=IntegAmp)
             self._fg_core = l_master.layout_info.fg_core
@@ -301,6 +302,7 @@ class Tap1LatchRow(TemplateBase):
                 seg_dig = seg_div
                 dig_cls = SinClkDivider
             else:
+                # TODO: add pulse generator logic here
                 seg_dig = seg_pul
                 dig_cls = SinClkDivider
 
@@ -315,6 +317,12 @@ class Tap1LatchRow(TemplateBase):
                 show_pins=False,
             )
             d_master = self.new_template(params=dig_params, temp_cls=dig_cls)
+            if seg_pul is None:
+                div_sch_params = d_master.sch_params
+                pul_sch_params = None
+            else:
+                div_sch_params = None
+                pul_sch_params = d_master.sch_params
             self._fg_core = l_master.layout_info.fg_core + d_master.laygo_info.core_col
 
         # compute fg_core, and resize main tap if necessary
@@ -324,7 +332,7 @@ class Tap1LatchRow(TemplateBase):
             self._fg_core = fg_min
 
         # place instances and set bounding box
-        if d_master is None:
+        if no_dig:
             m_inst = self.add_instance(l_master, 'XLAT', loc=(0, 0), unit_mode=True)
             self.array_box = m_inst.array_box
             self.set_size_from_bound_box(top_layer, m_inst.bound_box)
@@ -381,7 +389,7 @@ class Tap1LatchRow(TemplateBase):
                 self.reexport(d_inst.get_port('en'), net_name='en_div', show=show_pins)
                 self.reexport(d_inst.get_port('scan_s'), net_name='scan_div', show=show_pins)
             else:
-                # perform connections for pulse generation
+                # TODO: perform connections for pulse generation
                 pass
 
         self.add_pin('VDD', vdd, show=show_pins)
@@ -414,15 +422,9 @@ class Tap1LatchRow(TemplateBase):
         self._sch_params = dict(
             div_pos_edge=div_pos_edge,
             lat_params=l_master.sch_params,
+            div_params=div_sch_params,
+            pul_params=pul_sch_params,
         )
-        if d_master is None:
-            self._sch_params['div_params'] = self._sch_params['pul_params'] = None
-        elif seg_div is None:
-            self._sch_params['div_params'] = None
-            self._sch_params['pul_params'] = d_master.sch_params
-        else:
-            self._sch_params['div_params'] = d_master.sch_params
-            self._sch_params['pul_params'] = None
 
 
 class Tap1Summer(TemplateBase):
