@@ -4,7 +4,6 @@ from typing import TYPE_CHECKING, Dict, Any, Set
 
 """This module defines classes needed to build the Hybrid-QDR FFE/DFE summer."""
 
-
 from bag.layout.template import TemplateBase
 
 from ..laygo.misc import LaygoDummy
@@ -294,8 +293,8 @@ class TapXSummerLast(TemplateBase):
             tr_info = dict(
                 VDD=lat_tr_info['VDD'],
                 VSS=lat_tr_info['VSS'],
-                q=lat_tr_info['inp'],
-                qb=lat_tr_info['inn'],
+                q=lat_tr_info['outp'],
+                qb=lat_tr_info['outn'],
                 en=lat_tr_info['nen0'],
                 clk=lat_tr_info['clkp'] if div_pos_edge else lat_tr_info['clkn'],
             )
@@ -371,3 +370,164 @@ class TapXSummerLast(TemplateBase):
             div_params=div_sch_params,
             pul_params=pul_sch_params,
         )
+
+
+class TapXSummer(TemplateBase):
+    """The DFE tapx summer.
+
+    Parameters
+    ----------
+    temp_db : TemplateDB
+            the template database.
+    lib_name : str
+        the layout library name.
+    params : Dict[str, Any]
+        the parameter values.
+    used_names : Set[str]
+        a set of already used cell names.
+    **kwargs
+        dictionary of optional parameters.  See documentation of
+        :class:`bag.layout.template.TemplateBase` for details.
+    """
+
+    def __init__(self, temp_db, lib_name, params, used_names, **kwargs):
+        # type: (TemplateDB, str, Dict[str, Any], Set[str], **kwargs) -> None
+        TemplateBase.__init__(self, temp_db, lib_name, params, used_names, **kwargs)
+        self._sch_params = None
+
+    @property
+    def sch_params(self):
+        # type: () -> Dict[str, Any]
+        return self._sch_params
+
+    @classmethod
+    def get_default_param_values(cls):
+        # type: () -> Dict[str, Any]
+        return dict(
+            div_pos_edge=True,
+            fg_min_last=0,
+            is_end=False,
+            show_pins=True,
+            options=None,
+        )
+
+    @classmethod
+    def get_params_info(cls):
+        # type: () -> Dict[str, str]
+        return dict(
+            config='Laygo configuration dictionary for the divider.',
+            lch='channel length, in meters.',
+            ptap_w='NMOS substrate width, in meters/number of fins.',
+            ntap_w='PMOS substrate width, in meters/number of fins.',
+            w_sum='NMOS/PMOS width dictionary for summer.',
+            w_lat='NMOS/PMOS width dictionary for latch.',
+            th_sum='NMOS/PMOS threshold flavor dictionary.',
+            th_lat='NMOS/PMOS threshold dictoary for latch.',
+            seg_sum_list='list of segment dictionaries for summer taps.',
+            seg_ffe_list='list of segment dictionaries for FFE latches.',
+            seg_dfe_list='list of segment dictionaries for DFE latches.',
+            flip_sign_list='list of flip_sign values for summer taps.',
+            seg_div='number of segments dictionary for clock divider.',
+            seg_pul='number of segments dictionary for pulse generation.',
+            fg_dum='Number of single-sided edge dummy fingers.',
+            tr_widths='Track width dictionary.',
+            tr_spaces='Track spacing dictionary.',
+            div_pos_edge='True if the divider triggers off positive edge of the clock.',
+            fg_min_last='Minimum number of core fingers for last cell.',
+            is_end='True if this is the end row.',
+            show_pins='True to create pin labels.',
+            options='other AnalogBase options',
+        )
+
+    def draw_layout(self):
+        # get parameters
+        config = self.params['config']
+        lch = self.params['lch']
+        ptap_w = self.params['ptap_w']
+        ntap_w = self.params['ntap_w']
+        w_sum = self.params['w_sum']
+        w_lat = self.params['w_lat']
+        th_sum = self.params['th_sum']
+        th_lat = self.params['th_lat']
+        seg_sum_list = self.params['seg_sum_list']
+        seg_ffe_list = self.params['seg_ffe_list']
+        seg_dfe_list = self.params['seg_dfe_list']
+        flip_sign_list = self.params['flip_sign_list']
+        seg_div = self.params['seg_div']
+        seg_pul = self.params['seg_pul']
+        fg_dum = self.params['fg_dum']
+        tr_widths = self.params['tr_widths']
+        tr_spaces = self.params['tr_spaces']
+        div_pos_edge = self.params['div_pos_edge']
+        fg_min_last = self.params['fg_min_last']
+        is_end = self.params['is_end']
+        show_pins = self.params['show_pins']
+        options = self.params['options']
+
+        num_sum = len(seg_sum_list)
+        num_ffe = len(seg_ffe_list)
+        num_dfe = len(seg_dfe_list) + 1
+        if num_sum != num_ffe + num_dfe or num_sum != len(flip_sign_list):
+            raise ValueError('segment dictionary list length mismatch.')
+        if num_ffe < 1:
+            raise ValueError('Must have at least one FFE (last FFE is main tap).')
+        end_mode = 1 if is_end else 0
+
+        # create layout masters
+        ffe_masters = []
+        for idx in range(num_ffe):
+            seg_ffe = seg_ffe_list[idx]
+            seg_sum = seg_sum_list[idx]
+            flip_sign = flip_sign_list[idx]
+            cur_end_mode = end_mode | 0b0100 if idx == 0 else end_mode
+            cur_params = dict(lch=lch, ptap_w=ptap_w, ntap_w=ntap_w, w_sum=w_sum, w_lat=w_lat,
+                              th_sum=th_sum, th_lat=th_lat, seg_sum=seg_sum, seg_lat=seg_ffe,
+                              fg_dum=fg_dum, tr_widths=tr_widths, tr_spaces=tr_spaces,
+                              flip_sign=flip_sign, end_mode=cur_end_mode,
+                              show_pins=False, options=options,
+                              )
+            ffe_masters.append(self.new_template(params=cur_params, temp_cls=TapXSummerCell))
+
+        dfe_masters = []
+        for idx in range(num_dfe - 1):
+            seg_dfe = seg_dfe_list[idx]
+            seg_sum = seg_sum_list[idx + 1 + num_ffe]
+            flip_sign = flip_sign_list[idx + 1 + num_ffe]
+            cur_params = dict(lch=lch, ptap_w=ptap_w, ntap_w=ntap_w, w_sum=w_sum, w_lat=w_lat,
+                              th_sum=th_sum, th_lat=th_lat, seg_sum=seg_sum, seg_lat=seg_dfe,
+                              fg_dum=fg_dum, tr_widths=tr_widths, tr_spaces=tr_spaces,
+                              flip_sign=flip_sign, end_mode=end_mode,
+                              show_pins=False, options=options,
+                              )
+            dfe_masters.append(self.new_template(params=cur_params, temp_cls=TapXSummerCell))
+
+        main = ffe_masters[-1]
+        last_params = dict(config=config, row_layout_info=main.lat_row_layout_info,
+                           lch=lch, ptap_w=ptap_w, ntap_w=ntap_w, w_sum=w_sum, th_sum=th_sum,
+                           seg_sum=seg_sum_list[num_ffe], seg_div=seg_div, seg_pul=seg_pul,
+                           fg_dum=fg_dum, tr_widths=tr_widths, tr_spaces=tr_spaces,
+                           lat_tr_info=main.lat_track_info, div_pos_edge=div_pos_edge,
+                           flip_sign=flip_sign_list[num_ffe], fg_min=fg_min_last,
+                           end_mode=end_mode | 0b1000, show_pins=False, options=options
+                           )
+        last_master = self.new_template(params=last_params, temp_cls=TapXSummerLast)
+
+        # place instances
+        top_layer = main.top_layer
+        ffe_insts, dfe_insts = [], []
+        x0 = 0
+        for idx, master in enumerate(ffe_masters):
+            inst = self.add_instance(master, 'XFFE%d' % idx, loc=(x0, 0), unit_mode=True)
+            x0 = inst.array_box.right_unit
+            ffe_insts.append(inst)
+        for idx in range(num_dfe - 2, -1, -1):
+            master = dfe_masters[idx]
+            dfe_idx = idx + 3
+            inst = self.add_instance(master, 'XDFE%d' % dfe_idx, loc=(x0, 0), unit_mode=True)
+            x0 = inst.array_box.right_unit
+            dfe_insts.insert(0, inst)
+        inst_last = self.add_instance(last_master, 'XDFE2', loc=(x0, 0), unit_mode=True)
+
+        # set size
+        self.array_box = inst_last.array_box.merge(ffe_insts[0].array_box)
+        self.set_size_from_bound_box(top_layer, inst_last.bound_box.merge(ffe_insts[0].bound_box))

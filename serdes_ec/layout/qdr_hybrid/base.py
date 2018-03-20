@@ -550,9 +550,10 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
 
         # connect cascode if necessary
         if seg_casc > 0:
-            cn_tid = self.get_wire_id('nch', 2, 'ds', wire_name='ntail')
+            cn_tid = self.get_wire_id('nch', 3, 'ds', wire_name='ptail')
             casc_tid = self.get_wire_id('nch', 3, 'g', wire_idx=idx_dict.get('casc', -1))
-            self.connect_to_tracks(ports['cn'], cn_tid)
+            self.connect_to_tracks(ports['cnp'], cn_tid)
+            self.connect_to_tracks(ports['cnn'], cn_tid)
             casc = self.connect_to_tracks(ports['casc'], casc_tid)
             ans['casc'] = casc
 

@@ -157,16 +157,20 @@ class IntegAmp(HybridQDRBase):
 
         nen0 = ports['nen0']
         self.add_pin('nen0', nen0, show=False)
-        self.add_pin('pen0', ports['pen0'], show=False)
-        self.add_pin('en<0>', nen0, label='en<0>:', show=show_pins)
-        self.add_pin('en<0>', ports['pen0'], label='en<0>:', show=show_pins)
         self._track_info['nen0'] = (nen0.track_id.base_index, nen0.track_id.width)
+        if 'pen0' in ports:
+            self.add_pin('pen0', ports['pen0'], show=False)
+            self.add_pin('en<0>', nen0, label='en<0>:', show=show_pins)
+            self.add_pin('en<0>', ports['pen0'], label='en<0>:', show=show_pins)
+        else:
+            self.add_pin('en<0>', nen0, show=show_pins)
 
         for name, port_name in (('pen1', 'en<1>'), ('clkp', 'clkp'), ('clkn', 'clkn')):
-            warr = ports[name]
-            self.add_pin(port_name, warr, show=show_pins)
-            if port_name == 'clkp' or port_name == 'clkn':
-                self._track_info[port_name] = (warr.track_id.base_index, warr.track_id.width)
+            if name in ports:
+                warr = ports[name]
+                self.add_pin(port_name, warr, show=show_pins)
+                if port_name == 'clkp' or port_name == 'clkn':
+                    self._track_info[port_name] = (warr.track_id.base_index, warr.track_id.width)
 
         # set schematic parameters
         self._sch_params = dict(
