@@ -369,18 +369,18 @@ class Tap1LatchRow(TemplateBase):
             clkp = m_inst.get_all_port_pins('clkp')
             clkn = m_inst.get_all_port_pins('clkn')
 
-            vdd.extend(d_inst.get_all_port_pins('VDD'))
-            vss.extend(d_inst.get_all_port_pins('VSS'))
+            vdd.extend(d_inst.port_pins_iter('VDD'))
+            vss.extend(d_inst.port_pins_iter('VSS'))
             vdd = self.connect_wires(vdd)
             vss = self.connect_wires(vss)
             if seg_pul is None:
                 # perform connections for divider
                 if div_pos_edge:
-                    clkp.extend(d_inst.get_all_port_pins('clk'))
+                    clkp.extend(d_inst.port_pins_iter('clk'))
                     clkp = self.connect_wires(clkp)
                     clkn = self.extend_wires(clkn, lower=clkp[0].lower)
                 else:
-                    clkn.extend(d_inst.get_all_port_pins('clk'))
+                    clkn.extend(d_inst.port_pins_iter('clk'))
                     clkn = self.connect_wires(clkn)
                     clkp = self.extend_wires(clkp, lower=clkn[0].lower)
 
@@ -405,7 +405,7 @@ class Tap1LatchRow(TemplateBase):
 
         # compute metal 5 enable track locations
         tr_manager = TrackManager(self.grid, tr_widths, tr_spaces, half_space=True)
-        inp_warr = m_inst.get_all_port_pins('inp')[0]
+        inp_warr = m_inst.get_pin('inp')
         hm_layer = inp_warr.track_id.layer_id
         vm_layer = hm_layer + 1
         in_w = inp_warr.track_id.width
@@ -694,8 +694,8 @@ class Tap1Column(TemplateBase):
         tr_manager = TrackManager(self.grid, tr_widths, tr_spaces, half_space=True)
 
         # re-export supply pins
-        vdd_list = list(chain(*(inst.get_all_port_pins('VDD') for inst in inst_list)))
-        vss_list = list(chain(*(inst.get_all_port_pins('VSS') for inst in inst_list)))
+        vdd_list = list(chain(*(inst.port_pins_iter('VDD') for inst in inst_list)))
+        vss_list = list(chain(*(inst.port_pins_iter('VSS') for inst in inst_list)))
         self.add_pin('VDD', vdd_list, label='VDD:', show=show_pins)
         self.add_pin('VSS', vss_list, label='VSS:', show=show_pins)
 
@@ -717,23 +717,23 @@ class Tap1Column(TemplateBase):
         for idx, inst in enumerate(inst_list):
             pidx = (idx - 1) % 4
             nidx = (idx + 1) % 4
-            outp_warrs[idx].extend(inst.get_all_port_pins('outp_m'))
-            outn_warrs[idx].extend(inst.get_all_port_pins('outn_m'))
-            outp_warrs[pidx].extend(inst.get_all_port_pins('fbp'))
-            outn_warrs[pidx].extend(inst.get_all_port_pins('fbn'))
-            biasf_warrs.extend(inst.get_all_port_pins('biasp_f'))
+            outp_warrs[idx].extend(inst.port_pins_iter('outp_m'))
+            outn_warrs[idx].extend(inst.port_pins_iter('outn_m'))
+            outp_warrs[pidx].extend(inst.port_pins_iter('fbp'))
+            outn_warrs[pidx].extend(inst.port_pins_iter('fbn'))
+            biasf_warrs.extend(inst.port_pins_iter('biasp_f'))
             for off in range(4):
                 en_pin = 'en<%d>' % off
                 en_idx = (idx + off) % 4
                 if inst.has_port(en_pin):
-                    en_warrs[en_idx].extend(inst.get_all_port_pins(en_pin))
+                    en_warrs[en_idx].extend(inst.port_pins_iter(en_pin))
             if inst.has_port('div'):
                 if idx == 3:
                     idxp, idxn = 0, 2
                 else:
                     idxp, idxn = 1, 3
-                en_warrs[idxp].extend(inst.get_all_port_pins('div'))
-                en_warrs[idxn].extend(inst.get_all_port_pins('divb'))
+                en_warrs[idxp].extend(inst.port_pins_iter('div'))
+                en_warrs[idxn].extend(inst.port_pins_iter('divb'))
 
             self.reexport(inst.get_port('inp'), net_name='inp<%d>' % pidx, show=show_pins)
             self.reexport(inst.get_port('inn'), net_name='inn<%d>' % pidx, show=show_pins)
@@ -742,15 +742,15 @@ class Tap1Column(TemplateBase):
             self.reexport(inst.get_port('outp_d'), net_name='outp_d<%d>' % nidx, show=show_pins)
             self.reexport(inst.get_port('outn_d'), net_name='outn_d<%d>' % nidx, show=show_pins)
             if idx % 2 == 0:
-                biasm_warrs[0].extend(inst.get_all_port_pins('biasp_m'))
-                biasd_warrs[1].extend(inst.get_all_port_pins('biasn_d'))
-                clk_warrs[0].extend(inst.get_all_port_pins('clkp'))
-                clk_warrs[1].extend(inst.get_all_port_pins('clkn'))
+                biasm_warrs[0].extend(inst.port_pins_iter('biasp_m'))
+                biasd_warrs[1].extend(inst.port_pins_iter('biasn_d'))
+                clk_warrs[0].extend(inst.port_pins_iter('clkp'))
+                clk_warrs[1].extend(inst.port_pins_iter('clkn'))
             else:
-                biasm_warrs[1].extend(inst.get_all_port_pins('biasp_m'))
-                biasd_warrs[0].extend(inst.get_all_port_pins('biasn_d'))
-                clk_warrs[1].extend(inst.get_all_port_pins('clkp'))
-                clk_warrs[0].extend(inst.get_all_port_pins('clkn'))
+                biasm_warrs[1].extend(inst.port_pins_iter('biasp_m'))
+                biasd_warrs[0].extend(inst.port_pins_iter('biasn_d'))
+                clk_warrs[1].extend(inst.port_pins_iter('clkp'))
+                clk_warrs[0].extend(inst.port_pins_iter('clkn'))
 
         # connect output wires and draw shields
         out_map = [1, 7, 4, 7]
@@ -816,13 +816,13 @@ class Tap1Column(TemplateBase):
         tr_endiv = tr_scan - sp_clk_gnd
         scan_tid = TrackID(vm_layer, tr_scan)
         endiv_tid = TrackID(vm_layer, tr_endiv, width=vm_w_clk)
-        scan0 = self.connect_to_tracks(inst3.get_all_port_pins('scan_div'),
+        scan0 = self.connect_to_tracks(inst3.get_pin('scan_div'),
                                        scan_tid, min_len_mode=1)
-        scan1 = self.connect_to_tracks(inst1.get_all_port_pins('scan_div'),
+        scan1 = self.connect_to_tracks(inst1.get_pin('scan_div'),
                                        scan_tid, min_len_mode=-1)
-        endiv0 = self.connect_to_tracks(inst3.get_all_port_pins('en_div'),
+        endiv0 = self.connect_to_tracks(inst3.get_pin('en_div'),
                                         endiv_tid, min_len_mode=1)
-        endiv1 = self.connect_to_tracks(inst1.get_all_port_pins('en_div'),
+        endiv1 = self.connect_to_tracks(inst1.get_pin('en_div'),
                                         endiv_tid, min_len_mode=-1)
         self.add_pin('scan_div<0>', scan0, show=show_pins)
         self.add_pin('scan_div<1>', scan1, show=show_pins)

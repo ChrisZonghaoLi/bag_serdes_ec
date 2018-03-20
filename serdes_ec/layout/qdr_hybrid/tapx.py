@@ -521,21 +521,34 @@ class TapXSummer(TemplateBase):
         last_master = self.new_template(params=last_params, temp_cls=TapXSummerLast)
 
         # place instances
+        x0 = 0
         top_layer = main.top_layer
         ffe_insts, dfe_insts = [], []
-        x0 = 0
+        vdd_list, vss_list = [], []
         for idx, master in enumerate(ffe_masters):
             inst = self.add_instance(master, 'XFFE%d' % idx, loc=(x0, 0), unit_mode=True)
             x0 = inst.array_box.right_unit
             ffe_insts.append(inst)
+            vdd_list.extend(inst.port_pins_iter('VDD'))
+            vss_list.extend(inst.port_pins_iter('VSS'))
         for idx in range(num_dfe - 2, -1, -1):
             master = dfe_masters[idx]
             dfe_idx = idx + 3
             inst = self.add_instance(master, 'XDFE%d' % dfe_idx, loc=(x0, 0), unit_mode=True)
             x0 = inst.array_box.right_unit
             dfe_insts.insert(0, inst)
+            vdd_list.extend(inst.port_pins_iter('VDD'))
+            vss_list.extend(inst.port_pins_iter('VSS'))
         inst_last = self.add_instance(last_master, 'XDFE2', loc=(x0, 0), unit_mode=True)
-
+        vdd_list.extend(inst_last.port_pins_iter('VDD'))
+        vss_list.extend(inst_last.port_pins_iter('VSS'))
         # set size
         self.array_box = inst_last.array_box.merge(ffe_insts[0].array_box)
         self.set_size_from_bound_box(top_layer, inst_last.bound_box.merge(ffe_insts[0].bound_box))
+
+        # add pins
+        # connect supplies
+        vdd_list = self.connect_wires(vdd_list)
+        vss_list = self.connect_wires(vss_list)
+        self.add_pin('VDD', vdd_list, label='VDD:', show=show_pins)
+        self.add_pin('VSS', vss_list, label='VSS:', show=show_pins)
