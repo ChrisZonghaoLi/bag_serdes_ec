@@ -60,6 +60,7 @@ class TapXSummerCell(TemplateBase):
         return dict(
             flip_sign=False,
             end_mode=12,
+            snap_mode=0,
             show_pins=True,
             options=None,
         )
@@ -82,6 +83,7 @@ class TapXSummerCell(TemplateBase):
             tr_spaces='Track spacing dictionary.',
             flip_sign='True to flip summer output sign.',
             end_mode='The AnalogBase end_mode flag.',
+            snap_mode='The snap_mode parameter for summer tap.',
             show_pins='True to create pin labels.',
             options='other AnalogBase options',
         )
@@ -90,6 +92,7 @@ class TapXSummerCell(TemplateBase):
         # get parameters
         flip_sign = self.params['flip_sign']
         end_mode = self.params['end_mode']
+        snap_mode = self.params['snap_mode']
         show_pins = self.params['show_pins']
 
         # get layout parameters
@@ -102,6 +105,7 @@ class TapXSummerCell(TemplateBase):
             flip_sign=flip_sign,
             show_pins=False,
             end_mode=end_mode,
+            snap_mode=snap_mode,
         )
         lat_params = dict(
             w_dict=self.params['w_lat'],
@@ -111,6 +115,7 @@ class TapXSummerCell(TemplateBase):
             flip_sign=False,
             show_pins=False,
             end_mode=end_mode & 0b1100,
+            snap_mode=0,
         )
         for key in ('lch', 'ptap_w', 'ntap_w', 'fg_dum', 'tr_widths', 'tr_spaces', 'options'):
             sum_params[key] = lat_params[key] = self.params[key]
@@ -263,6 +268,7 @@ class TapXSummerLast(TemplateBase):
             flip_sign=flip_sign,
             show_pins=False,
             end_mode=end_mode,
+            snap_mode=2,
         )
         for key in ('lch', 'ptap_w', 'ntap_w', 'fg_dum', 'tr_widths', 'tr_spaces', 'options'):
             sum_params[key] = self.params[key]
@@ -479,11 +485,12 @@ class TapXSummer(TemplateBase):
             seg_ffe = seg_ffe_list[idx]
             seg_sum = seg_sum_list[idx]
             flip_sign = flip_sign_list[idx]
-            cur_end_mode = end_mode | 0b0100 if idx == 0 else end_mode
+            cur_end = end_mode | 0b0100 if idx == 0 else end_mode
+            cur_snap = 0 if idx == num_ffe - 1 else 2
             cur_params = dict(lch=lch, ptap_w=ptap_w, ntap_w=ntap_w, w_sum=w_sum, w_lat=w_lat,
                               th_sum=th_sum, th_lat=th_lat, seg_sum=seg_sum, seg_lat=seg_ffe,
                               fg_dum=fg_dum, tr_widths=tr_widths, tr_spaces=tr_spaces,
-                              flip_sign=flip_sign, end_mode=cur_end_mode,
+                              flip_sign=flip_sign, end_mode=cur_end, snap_mode=cur_snap,
                               show_pins=False, options=options,
                               )
             ffe_masters.append(self.new_template(params=cur_params, temp_cls=TapXSummerCell))
@@ -493,10 +500,11 @@ class TapXSummer(TemplateBase):
             seg_dfe = seg_dfe_list[idx]
             seg_sum = seg_sum_list[idx + 1 + num_ffe]
             flip_sign = flip_sign_list[idx + 1 + num_ffe]
+            cur_snap = 0 if idx == num_dfe - 2 else -2
             cur_params = dict(lch=lch, ptap_w=ptap_w, ntap_w=ntap_w, w_sum=w_sum, w_lat=w_lat,
                               th_sum=th_sum, th_lat=th_lat, seg_sum=seg_sum, seg_lat=seg_dfe,
                               fg_dum=fg_dum, tr_widths=tr_widths, tr_spaces=tr_spaces,
-                              flip_sign=flip_sign, end_mode=end_mode,
+                              flip_sign=flip_sign, end_mode=end_mode, snap_mode=cur_snap,
                               show_pins=False, options=options,
                               )
             dfe_masters.append(self.new_template(params=cur_params, temp_cls=TapXSummerCell))

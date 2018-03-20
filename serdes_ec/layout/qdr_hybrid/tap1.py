@@ -271,6 +271,7 @@ class Tap1LatchRow(TemplateBase):
         # get layout masters
         lat_params = self.params.copy()
         lat_params['show_pins'] = False
+        lat_params['snap_mode'] = 2
         del lat_params['config']
         del lat_params['seg_div']
         lat_params['seg_dict'] = lat_params['seg_lat']

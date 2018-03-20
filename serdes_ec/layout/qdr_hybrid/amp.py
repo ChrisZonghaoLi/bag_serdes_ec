@@ -61,6 +61,7 @@ class IntegAmp(HybridQDRBase):
             top_layer=None,
             show_pins=True,
             end_mode=15,
+            snap_mode=0,
             options=None,
         )
 
@@ -82,6 +83,7 @@ class IntegAmp(HybridQDRBase):
             top_layer='Top layer ID',
             show_pins='True to create pin labels.',
             end_mode='The AnalogBase end_mode flag.',
+            snap_mode='Where to snap the amplifier.  < 0 for left, 0 for center, > 0 for right.',
             options='other AnalogBase options',
         )
 
@@ -92,7 +94,7 @@ class IntegAmp(HybridQDRBase):
         w_dict = self.params['w_dict']
         th_dict = self.params['th_dict']
         seg_dict = self.params['seg_dict']
-        fg_dumr = self.params['fg_dum']
+        fg_dum = self.params['fg_dum']
         tr_widths = self.params['tr_widths']
         tr_spaces = self.params['tr_spaces']
         flip_sign = self.params['flip_sign']
@@ -100,6 +102,7 @@ class IntegAmp(HybridQDRBase):
         top_layer = self.params['top_layer']
         show_pins = self.params['show_pins']
         end_mode = self.params['end_mode']
+        snap_mode = self.params['snap_mode']
         options = self.params['options']
 
         if options is None:
@@ -130,8 +133,16 @@ class IntegAmp(HybridQDRBase):
         amp_info = qdr_info.get_integ_amp_info(seg_dict, fg_dum=0, fg_sep_load=fg_sep_load)
 
         fg_amp = amp_info['fg_tot']
-        fg_tot = max(fg_amp + 2 * fg_dumr, fg_min)
-        fg_duml = fg_tot - fg_dumr - fg_amp
+        fg_tot = max(fg_amp + 2 * fg_dum, fg_min)
+        if snap_mode == -2:
+            fg_duml = fg_dum
+        elif snap_mode == 2:
+            fg_duml = fg_tot - fg_dum - fg_amp
+        else:
+            if snap_mode <= 0:
+                fg_duml = (fg_tot - fg_amp) // 2
+            else:
+                fg_duml = fg_tot - (fg_tot - fg_amp) // 2 - fg_amp
 
         self.draw_rows(lch, fg_tot, ptap_w, ntap_w, w_dict, th_dict, tr_manager, wire_names,
                        top_layer=top_layer, end_mode=end_mode, **options)
