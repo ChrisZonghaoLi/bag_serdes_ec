@@ -6,7 +6,7 @@ from bag.core import BagProject
 from bag.layout.routing import RoutingGrid
 from bag.layout.template import TemplateDB
 
-from serdes_ec.layout.qdr.tap1 import IntegAmp
+from serdes_ec.layout.qdr.amp import IntegAmp
 
 
 def make_tdb(prj, target_lib, specs):
