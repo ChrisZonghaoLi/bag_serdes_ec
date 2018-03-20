@@ -8,7 +8,8 @@ import pkg_resources
 from bag.design import Module
 
 
-yaml_file = pkg_resources.resource_filename(__name__, os.path.join('netlist_info', 'qdr_tapx_summer_cell.yaml'))
+yaml_file = pkg_resources.resource_filename(__name__, os.path.join('netlist_info',
+                                                                   'qdr_tapx_summer_cell.yaml'))
 
 
 # noinspection PyPep8Naming
@@ -24,30 +25,21 @@ class bag_serdes_ec__qdr_tapx_summer_cell(Module):
     @classmethod
     def get_params_info(cls):
         # type: () -> Dict[str, str]
-        """Returns a dictionary from parameter names to descriptions.
-
-        Returns
-        -------
-        param_info : Optional[Dict[str, str]]
-            dictionary from parameter names to descriptions.
-        """
         return dict(
+            sum_params='summer tap parameters.',
+            lat_params='latch parameters.',
         )
 
-    def design(self):
-        """To be overridden by subclasses to design this module.
+    def design(self, sum_params, lat_params):
+        # design instances
+        self.instances['XSUM'].design(**sum_params)
+        self.instances['XLAT'].design(**lat_params)
 
-        This method should fill in values for all parameters in
-        self.parameters.  To design instances of this module, you can
-        call their design() method or any other ways you coded.
-
-        To modify schematic structure, call:
-
-        rename_pin()
-        delete_instance()
-        replace_instance_master()
-        reconnect_instance_terminal()
-        restore_instance()
-        array_instance()
-        """
-        pass
+        # remove unused pins
+        s_pins = self.instances['XSUM'].master.pin_list
+        l_pins = self.instances['XLAT'].master.pin_list
+        if 'casc' not in s_pins:
+            self.remove_pin('casc')
+        if 'pulse' not in s_pins and 'pulse' not in l_pins:
+            for name in ('setp', 'setn', 'pulse'):
+                self.remove_pin(name)

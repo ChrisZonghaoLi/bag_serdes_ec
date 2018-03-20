@@ -56,6 +56,7 @@ class IntegAmp(HybridQDRBase):
     def get_default_param_values(cls):
         # type: () -> Dict[str, Any]
         return dict(
+            flip_sign=False,
             fg_min=0,
             top_layer=None,
             show_pins=True,
@@ -76,6 +77,7 @@ class IntegAmp(HybridQDRBase):
             fg_dum='Number of single-sided edge dummy fingers.',
             tr_widths='Track width dictionary.',
             tr_spaces='Track spacing dictionary.',
+            flip_sign='True to flip summer output sign.',
             fg_min='Minimum number of fingers total.',
             top_layer='Top layer ID',
             show_pins='True to create pin labels.',
@@ -93,6 +95,7 @@ class IntegAmp(HybridQDRBase):
         fg_dumr = self.params['fg_dum']
         tr_widths = self.params['tr_widths']
         tr_spaces = self.params['tr_spaces']
+        flip_sign = self.params['flip_sign']
         fg_min = self.params['fg_min']
         top_layer = self.params['top_layer']
         show_pins = self.params['show_pins']
@@ -130,11 +133,12 @@ class IntegAmp(HybridQDRBase):
         fg_tot = max(fg_amp + 2 * fg_dumr, fg_min)
         fg_duml = fg_tot - fg_dumr - fg_amp
 
-        self.draw_rows(lch, fg_tot, ptap_w, ntap_w, w_dict, th_dict, tr_manager,
-                       wire_names, top_layer=top_layer, end_mode=end_mode, **options)
+        self.draw_rows(lch, fg_tot, ptap_w, ntap_w, w_dict, th_dict, tr_manager, wire_names,
+                       top_layer=top_layer, end_mode=end_mode, **options)
 
         # draw amplifier
-        ports, _ = self.draw_integ_amp(fg_duml, seg_dict, fg_dum=0, fg_sep_load=fg_sep_load)
+        ports, _ = self.draw_integ_amp(fg_duml, seg_dict, invert=flip_sign,
+                                       fg_dum=0, fg_sep_load=fg_sep_load)
 
         vss_warrs, vdd_warrs = self.fill_dummy()
         vss_warr = vss_warrs[0]
@@ -170,6 +174,7 @@ class IntegAmp(HybridQDRBase):
             w_dict=w_dict,
             th_dict=th_dict,
             seg_dict=seg_dict,
+            flip_sign=flip_sign,
             dum_info=self.get_sch_dummy_info(),
         )
         self._fg_tot = fg_tot

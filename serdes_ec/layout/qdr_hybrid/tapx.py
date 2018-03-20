@@ -46,6 +46,7 @@ class TapXSummerCell(TemplateBase):
     def get_default_param_values(cls):
         # type: () -> Dict[str, Any]
         return dict(
+            flip_sign=False,
             end_mode=12,
             show_pins=True,
             options=None,
@@ -67,6 +68,7 @@ class TapXSummerCell(TemplateBase):
             fg_dum='Number of single-sided edge dummy fingers.',
             tr_widths='Track width dictionary.',
             tr_spaces='Track spacing dictionary.',
+            flip_sign='True to flip summer output sign.',
             end_mode='The AnalogBase end_mode flag.',
             show_pins='True to create pin labels.',
             options='other AnalogBase options',
@@ -74,6 +76,7 @@ class TapXSummerCell(TemplateBase):
 
     def draw_layout(self):
         # get parameters
+        flip_sign = self.params['flip_sign']
         end_mode = self.params['end_mode']
         show_pins = self.params['show_pins']
 
@@ -84,6 +87,7 @@ class TapXSummerCell(TemplateBase):
             th_dict=self.params['th_sum'],
             seg_dict=self.params['seg_sum'],
             top_layer=top_layer,
+            flip_sign=flip_sign,
             show_pins=False,
             end_mode=end_mode,
         )
@@ -92,6 +96,7 @@ class TapXSummerCell(TemplateBase):
             th_dict=self.params['th_lat'],
             seg_dict=self.params['seg_lat'],
             top_layer=top_layer,
+            flip_sign=False,
             show_pins=False,
             end_mode=end_mode & 0b1100,
         )
@@ -128,7 +133,7 @@ class TapXSummerCell(TemplateBase):
                     (l_inst, 'clkp', 'clkp', True), (l_inst, 'clkn', 'clkn', True),
                     (l_inst, 'inp', 'inp', False), (l_inst, 'inn', 'inn', False),
                     (l_inst, 'biasp', 'biasp_l', False),
-                    (l_inst, 'en<0>', 'en<0>', False), (l_inst, 'en<1>', 'en<1>', True),
+                    (l_inst, 'en<0>', 'en<0>', True), (l_inst, 'en<1>', 'en<1>', True),
                     (l_inst, 'setp', 'setp', False), (l_inst, 'setn', 'setn', False),
                     (l_inst, 'pulse', 'pulse', False),
                     (l_inst, 'outp', 'outp_l', True), (l_inst, 'outn', 'outn_l', True),

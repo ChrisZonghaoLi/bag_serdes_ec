@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from typing import Dict, Union, Any
+from typing import Dict, Any
 
 import os
 import pkg_resources
@@ -30,6 +30,7 @@ class bag_serdes_ec__integ_amp(Module):
             w_dict='NMOS/PMOS width dictionary.',
             th_dict='NMOS/PMOS threshold flavor dictionary.',
             seg_dict='number of segments dictionary.',
+            flip_sign='True to flip output sign.',
             dum_info='Dummy information data structure.',
         )
 
@@ -37,11 +38,11 @@ class bag_serdes_ec__integ_amp(Module):
     def get_default_param_values(cls):
         # type: () -> Dict[str, Any]
         return dict(
+            flip_sign=False,
             dum_info=None,
         )
 
-    def design(self, lch, w_dict, th_dict, seg_dict, dum_info):
-        # type: (float, Dict[str, Union[float, int]], Dict[str, str], Dict[str, int]) -> None
+    def design(self, lch, w_dict, th_dict, seg_dict, flip_sign, dum_info):
         seg_load = seg_dict.get('load', 0)
         seg_set = seg_dict.get('set', 0)
         seg_casc = seg_dict.get('casc', 0)
@@ -57,6 +58,8 @@ class bag_serdes_ec__integ_amp(Module):
                           ('XSETP', 'in', 'set'), ('XSETN', 'in', 'set'),
                           ('XSENP', 'nen', 'sen'), ('XSENN', 'nen', 'sen'),
                           ]
+
+        outp_name, outn_name = ('outn', 'outp') if flip_sign else ('outp', 'outn')
 
         for inst_info in tran_info_list:
             if len(inst_info) <= 2:
@@ -75,14 +78,27 @@ class bag_serdes_ec__integ_amp(Module):
         if seg_casc <= 0:
             for name in ('casc', 'nmp', 'nmn'):
                 self.remove_pin(name)
-            self.reconnect_instance_terminal('XINP', 'D', 'outp')
-            self.reconnect_instance_terminal('XINN', 'D', 'outn')
+            self.reconnect_instance_terminal('XINP', 'D', outp_name)
+            self.reconnect_instance_terminal('XINN', 'D', outn_name)
+        elif flip_sign:
+            self.reconnect_instance_terminal('XCASP', 'D', outp_name)
+            self.reconnect_instance_terminal('XCASN', 'D', outn_name)
+
         if seg_load <= 0:
             for name in ('pm0p', 'pm0n', 'pm1p', 'pm1n', 'VDD', ''):
                 self.remove_pin(name)
+        elif flip_sign:
+            self.reconnect_instance_terminal('XPENP0', 'D', outp_name)
+            self.reconnect_instance_terminal('XPENP1', 'D', outp_name)
+            self.reconnect_instance_terminal('XPENN0', 'D', outn_name)
+            self.reconnect_instance_terminal('XPENN1', 'D', outn_name)
+
         if seg_set <= 0:
             for name in ('setp', 'setn', 'pulse', 'nsp', 'nsn'):
                 self.remove_pin(name)
+        elif flip_sign:
+            self.reconnect_instance_terminal('XSETP', 'D', outp_name)
+            self.reconnect_instance_terminal('XSETN', 'D', outn_name)
 
         self.design_dummy_transistors(dum_info, 'XDUM', 'VDD', 'VSS')
         if dum_info is not None:
