@@ -43,8 +43,10 @@ class bag_serdes_ec__qdr_tapx_summer_last(Module):
         # design divider
         if div_params is None:
             self.delete_instance('XDIV')
-            for name in ('en_div', 'scan_div', 'div', 'divb'):
+            for name in ('scan_div', 'div', 'divb'):
                 self.remove_pin(name)
+            if pul_params is None:
+                self.remove_pin('en_div')
         else:
             self.instances['XDIV'].design(**div_params)
             if not div_pos_edge:

@@ -481,6 +481,7 @@ class TapXSummer(TemplateBase):
 
         # create layout masters
         ffe_masters = []
+        ffe_sch_params = []
         for idx in range(num_ffe):
             seg_ffe = seg_ffe_list[idx]
             seg_sum = seg_sum_list[idx]
@@ -493,9 +494,12 @@ class TapXSummer(TemplateBase):
                               flip_sign=flip_sign, end_mode=cur_end, snap_mode=cur_snap,
                               show_pins=False, options=options,
                               )
-            ffe_masters.append(self.new_template(params=cur_params, temp_cls=TapXSummerCell))
+            cur_master = self.new_template(params=cur_params, temp_cls=TapXSummerCell)
+            ffe_masters.append(cur_master)
+            ffe_sch_params.append(cur_master.sch_params)
 
         dfe_masters = []
+        dfe_sch_params = []
         for idx in range(num_dfe - 1):
             seg_dfe = seg_dfe_list[idx]
             seg_sum = seg_sum_list[idx + 1 + num_ffe]
@@ -507,7 +511,9 @@ class TapXSummer(TemplateBase):
                               flip_sign=flip_sign, end_mode=end_mode, snap_mode=cur_snap,
                               show_pins=False, options=options,
                               )
+            cur_master = self.new_template(params=cur_params, temp_cls=TapXSummerCell)
             dfe_masters.append(self.new_template(params=cur_params, temp_cls=TapXSummerCell))
+            dfe_sch_params.append(cur_master.sch_params)
 
         main = ffe_masters[-1]
         last_params = dict(config=config, row_layout_info=main.lat_row_layout_info,
@@ -519,6 +525,7 @@ class TapXSummer(TemplateBase):
                            end_mode=end_mode | 0b1000, show_pins=False, options=options
                            )
         last_master = self.new_template(params=last_params, temp_cls=TapXSummerLast)
+        last_sch_params = last_master.sch_params
 
         # place instances
         x0 = 0
@@ -573,8 +580,10 @@ class TapXSummer(TemplateBase):
             # TODO: handle setp/setn/pulse pins
             outs_warrs[0].append(inst.get_pin('outp_s'))
             outs_warrs[1].append(inst.get_pin('outn_s'))
-            self.reexport(inst.get_port('outp_l'), net_name='outp_a<%d>' % idx, show=show_pins)
-            self.reexport(inst.get_port('outn_l'), net_name='outn_a<%d>' % idx, show=show_pins)
+            self.reexport(inst.get_port('outp_l'), net_name='outp_a<%d>' % idx,
+                          label='outp_a<%d>:' % idx, show=show_pins)
+            self.reexport(inst.get_port('outn_l'), net_name='outn_a<%d>' % idx,
+                          label='outn_a<%d>:' % idx, show=show_pins)
 
         # export/collect DFE pins
         biasd_list = []
@@ -594,9 +603,9 @@ class TapXSummer(TemplateBase):
             outs_warrs[0].append(inst.get_pin('outp_s'))
             outs_warrs[1].append(inst.get_pin('outn_s'))
             self.reexport(inst.get_port('outp_l'), net_name='outp_d<%d>' % (idx + 1),
-                          show=show_pins)
+                          label='outp_d<%d>:' % (idx + 1), show=show_pins)
             self.reexport(inst.get_port('outn_l'), net_name='outn_d<%d>' % (idx + 1),
-                          show=show_pins)
+                          label='outn_d<%d>:' % (idx + 1), show=show_pins)
 
         # export/collect last summer tap pins
         self.reexport(instl.get_port('inp'), net_name='inp_d<0>', show=show_pins)
@@ -637,3 +646,9 @@ class TapXSummer(TemplateBase):
                 en_warr = self.connect_wires(en_warr)
                 name = 'en<%d>' % idx
                 self.add_pin(name, en_warr, label=name + ':', show=show_pins)
+
+        self._sch_params = dict(
+            ffe_params_list=ffe_sch_params,
+            dfe_params_list=dfe_sch_params,
+            last_params=last_sch_params,
+        )
