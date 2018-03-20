@@ -231,7 +231,7 @@ class SinClkDivider(LaygoBase):
         tr = self.grid.coord_to_nearest_track(vm_layer, xr, half_track=True,
                                               mode=-1, unit_mode=True)
 
-        num = int((tr - tl) // 2)
+        num = int((tr - tl + 2) // 2)
         tid = TrackID(vm_layer, tl, num=num, pitch=2)
         sup = self.connect_to_tracks(warr_list, TrackID(hm_layer, sup_idx, width=sup_w))
         return self.connect_to_tracks(sup, tid, min_len_mode=0)

@@ -38,6 +38,7 @@ class TapXSummerCell(TemplateBase):
         TemplateBase.__init__(self, temp_db, lib_name, params, used_names, **kwargs)
         self._sch_params = None
         self._lat_row_layout_info = None
+        self._lat_track_info = None
 
     @property
     def sch_params(self):
@@ -46,7 +47,13 @@ class TapXSummerCell(TemplateBase):
 
     @property
     def lat_row_layout_info(self):
+        # type: () -> Dict[str, Any]
         return self._lat_row_layout_info
+
+    @property
+    def lat_track_info(self):
+        # type: () -> Dict[str, Any]
+        return self._lat_track_info
 
     @classmethod
     def get_default_param_values(cls):
@@ -158,6 +165,7 @@ class TapXSummerCell(TemplateBase):
             lat_params=l_master.sch_params,
         )
         self._lat_row_layout_info = l_master.row_layout_info
+        self._lat_track_info = l_master.track_info
 
 
 class TapXSummerLast(TemplateBase):
@@ -223,7 +231,7 @@ class TapXSummerLast(TemplateBase):
             fg_dum='Number of single-sided edge dummy fingers.',
             tr_widths='Track width dictionary.',
             tr_spaces='Track spacing dictionary.',
-            tr_info='output track information dictionary.',
+            lat_tr_info='latch output track information dictionary.',
             div_pos_edge='True if the divider triggers off positive edge of the clock.',
             flip_sign='True to flip summer output sign.',
             fg_min='Minimum number of core fingers.',
@@ -237,7 +245,7 @@ class TapXSummerLast(TemplateBase):
         row_layout_info = self.params['row_layout_info']
         seg_div = self.params['seg_div']
         seg_pul = self.params['seg_pul']
-        tr_info = self.params['tr_info']
+        lat_tr_info = self.params['lat_tr_info']
         div_pos_edge = self.params['div_pos_edge']
         flip_sign = self.params['flip_sign']
         fg_min = self.params['fg_min']
@@ -283,6 +291,14 @@ class TapXSummerLast(TemplateBase):
             div_sch_params = pul_sch_params = None
         else:
             # draw divider
+            tr_info = dict(
+                VDD=lat_tr_info['VDD'],
+                VSS=lat_tr_info['VSS'],
+                q=lat_tr_info['inp'],
+                qb=lat_tr_info['inn'],
+                en=lat_tr_info['nen0'],
+                clk=lat_tr_info['clkp'] if div_pos_edge else lat_tr_info['clkn'],
+            )
             dig_params['seg_dict'] = seg_div
             dig_params['tr_info'] = tr_info
             dig_params['fg_min'] = fg_min
