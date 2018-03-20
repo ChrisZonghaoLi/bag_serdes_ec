@@ -1,16 +1,17 @@
 # -*- coding: utf-8 -*-
 
-from typing import Dict, Any, Set
+from typing import TYPE_CHECKING, Dict, Any, Set
 
 import yaml
 
 from bag.core import BagProject
-from bag.layout.routing import RoutingGrid
-from bag.layout.template import TemplateDB
 
 from abs_templates_ec.laygo.core import LaygoBase
 
 from serdes_ec.layout.qdr_hybrid.amp import IntegAmp
+
+if TYPE_CHECKING:
+    from bag.layout.template import TemplateDB
 
 
 class LaygoDummy(LaygoBase):
@@ -61,27 +62,14 @@ class LaygoDummy(LaygoBase):
         self.fill_space()
 
 
-def make_tdb(prj, target_lib, specs):
-    grid_specs = specs['routing_grid']
-    layers = grid_specs['layers']
-    widths = grid_specs['widths']
-    spaces = grid_specs['spaces']
-    bot_dir = grid_specs['bot_dir']
-    width_override = grid_specs.get('width_override', None)
-
-    routing_grid = RoutingGrid(prj.tech_info, layers, spaces, widths, bot_dir,
-                               width_override=width_override)
-    tdb = TemplateDB('template_libs.def', routing_grid, target_lib, use_cybagoa=True)
-    return tdb
-
-
-def generate(prj, specs):
+def generate(prj, specs, use_cybagoa=False):
     impl_lib = specs['impl_lib']
     impl_cell = specs['impl_cell']
+    grid_specs = specs['routing_grid']
     params = specs['params']
     laygo_params = specs['laygo_params']
 
-    temp_db = make_tdb(prj, impl_lib, specs)
+    temp_db = prj.make_template_db(impl_lib, grid_specs, use_cybagoa=use_cybagoa)
 
     name_list = [impl_cell, impl_cell + '_LAYGO']
     temp1 = temp_db.new_template(params=params, temp_cls=IntegAmp, debug=False)
@@ -108,4 +96,4 @@ if __name__ == '__main__':
         print('loading BAG project')
         bprj = local_dict['bprj']
 
-    generate(bprj, block_specs)
+    generate(bprj, block_specs, use_cybagoa=True)

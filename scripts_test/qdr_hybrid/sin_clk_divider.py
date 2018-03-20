@@ -3,63 +3,23 @@
 import yaml
 
 from bag.core import BagProject
-from bag.layout.routing import RoutingGrid
-from bag.layout.template import TemplateDB
 
 from serdes_ec.layout.qdr_hybrid.tap1 import IntegAmp
 from serdes_ec.layout.qdr_hybrid.laygo import SinClkDivider
 
 
-def make_tdb(prj, target_lib, specs):
-    grid_specs = specs['routing_grid']
-    layers = grid_specs['layers']
-    widths = grid_specs['widths']
-    spaces = grid_specs['spaces']
-    bot_dir = grid_specs['bot_dir']
-    width_override = grid_specs.get('width_override', None)
-
-    routing_grid = RoutingGrid(prj.tech_info, layers, spaces, widths, bot_dir,
-                               width_override=width_override)
-    tdb = TemplateDB('template_libs.def', routing_grid, target_lib, use_cybagoa=True)
-    return tdb
-
-
-def generate(prj, specs, gen_sch=True, run_lvs=False):
+def generate(prj, specs, gen_sch=True, run_lvs=False, use_cybagoa=False):
     impl_lib = specs['impl_lib']
-    impl_cell = specs['impl_cell']
-    sch_lib = specs['sch_lib']
-    sch_cell = specs['sch_cell']
+    grid_specs = specs['routing_grid']
     ana_params = specs['ana_params']
     params = specs['params']
 
-    temp_db = make_tdb(prj, impl_lib, specs)
-
-    name_list = [impl_cell]
+    temp_db = prj.make_template_db(impl_lib, grid_specs)
     temp1 = temp_db.new_template(params=ana_params, temp_cls=IntegAmp, debug=False)
 
     params['row_layout_info'] = temp1.row_layout_info
-    temp2 = temp_db.new_template(params=params, temp_cls=SinClkDivider, debug=False)
-
-    temp_list = [temp2]
-    print('creating layout')
-    temp_db.batch_layout(prj, temp_list, name_list)
-    print('layout done')
-
-    if gen_sch:
-        dsn = prj.create_design_module(lib_name=sch_lib, cell_name=sch_cell)
-        dsn.design(**temp2.sch_params)
-        print('creating schematics')
-        dsn.implement_design(impl_lib, top_cell_name=impl_cell)
-        print('schematic done.')
-
-    if run_lvs:
-        print('running lvs')
-        lvs_passed, lvs_log = prj.run_lvs(impl_lib, impl_cell)
-        print('LVS log: %s' % lvs_log)
-        if lvs_passed:
-            print('LVS passed!')
-        else:
-            print('LVS failed...')
+    prj.generate_cell(specs, SinClkDivider, gen_sch=gen_sch, run_lvs=run_lvs,
+                      use_cybagoa=use_cybagoa)
 
 
 if __name__ == '__main__':
@@ -75,5 +35,5 @@ if __name__ == '__main__':
         print('loading BAG project')
         bprj = local_dict['bprj']
 
-    # generate(bprj, block_specs, gen_sch=False, run_lvs=False)
-    generate(bprj, block_specs, gen_sch=True, run_lvs=False)
+    # generate(bprj, block_specs, gen_sch=False, run_lvs=False, use_cybagoa=True)
+    generate(bprj, block_specs, gen_sch=True, run_lvs=False, use_cybagoa=True)

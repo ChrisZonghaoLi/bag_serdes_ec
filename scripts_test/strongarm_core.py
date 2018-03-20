@@ -3,41 +3,11 @@
 import yaml
 
 from bag.core import BagProject
-from bag.layout import RoutingGrid, TemplateDB
 
 from serdes_ec.layout.laygo.strongarm import StrongArmLatch
 
 
-def make_tdb(prj, target_lib, specs):
-    grid_specs = specs['routing_grid']
-    layers = grid_specs['layers']
-    widths = grid_specs['widths']
-    spaces = grid_specs['spaces']
-    bot_dir = grid_specs['bot_dir']
-    width_override = grid_specs.get('width_override', None)
-
-    routing_grid = RoutingGrid(prj.tech_info, layers, spaces, widths, bot_dir,
-                               width_override=width_override)
-    tdb = TemplateDB('template_libs.def', routing_grid, target_lib, use_cybagoa=True)
-    return tdb
-
-
-
-def generate(prj, specs):
-    temp_db = make_tdb(prj, impl_lib, specs)
-    params = specs['params']
-
-    temp = temp_db.new_template(params=params, temp_cls=StrongArmLatch, debug=False)
-
-    print('creating layout')
-    temp_db.batch_layout(prj, [temp], ['STRONGARM_LATCH'])
-    print('done')
-
-
 if __name__ == '__main__':
-
-    impl_lib = 'AAAFOO_STRONGARM'
-
     with open('specs_test/strongarm_core.yaml', 'r') as f:
         block_specs = yaml.load(f)
 
@@ -50,4 +20,4 @@ if __name__ == '__main__':
         print('loading BAG project')
         bprj = local_dict['bprj']
 
-    generate(bprj, block_specs)
+    bprj.generate_cell(block_specs, StrongArmLatch, gen_sch=False, run_lvs=False, use_cybagoa=True)
