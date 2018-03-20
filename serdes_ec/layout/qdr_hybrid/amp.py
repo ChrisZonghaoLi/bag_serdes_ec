@@ -126,11 +126,11 @@ class IntegAmp(HybridQDRBase):
             top_layer = hm_layer
         qdr_info = HybridQDRBaseInfo(self.grid, lch, 0, top_layer=top_layer,
                                      end_mode=end_mode, **options)
-        fg_sep_load = qdr_info.get_fg_sep_from_hm_space(tr_manager.get_width(hm_layer, 'en'),
-                                                        round_even=True)
-        fg_sep_load = max(0, fg_sep_load - 2)
+        fg_sep_hm = qdr_info.get_fg_sep_from_hm_space(tr_manager.get_width(hm_layer, 'en'),
+                                                      round_even=True)
+        fg_sep_hm = max(0, fg_sep_hm)
 
-        amp_info = qdr_info.get_integ_amp_info(seg_dict, fg_dum=0, fg_sep_load=fg_sep_load)
+        amp_info = qdr_info.get_integ_amp_info(seg_dict, fg_dum=0, fg_sep_hm=fg_sep_hm)
 
         fg_amp = amp_info['fg_tot']
         fg_tot = max(fg_amp + 2 * fg_dum, fg_min)
@@ -149,7 +149,7 @@ class IntegAmp(HybridQDRBase):
 
         # draw amplifier
         ports, _ = self.draw_integ_amp(fg_duml, seg_dict, invert=flip_sign,
-                                       fg_dum=0, fg_sep_load=fg_sep_load)
+                                       fg_dum=0, fg_sep_hm=fg_sep_hm)
 
         vss_warrs, vdd_warrs = self.fill_dummy()
         vss_warr = vss_warrs[0]

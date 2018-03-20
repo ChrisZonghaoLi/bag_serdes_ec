@@ -44,7 +44,7 @@ class HybridQDRBaseInfo(AnalogBaseInfo):
         AnalogBaseInfo.__init__(self, grid, lch, guard_ring_nf, top_layer=top_layer,
                                 end_mode=end_mode, min_fg_sep=min_fg_sep, fg_tot=fg_tot, **kwargs)
 
-    def get_integ_amp_info(self, seg_dict, fg_min=0, fg_dum=0, fg_sep_load=0):
+    def get_integ_amp_info(self, seg_dict, fg_min=0, fg_dum=0, fg_sep_hm=0):
         # type: (Dict[str, int], int, int, int) -> Dict[str, Any]
         """Compute placement of transistors in the given integrating amplifier.
 
@@ -56,7 +56,7 @@ class HybridQDRBaseInfo(AnalogBaseInfo):
             minimum number of fingers.
         fg_dum : int
             number of dummy fingers on each side.
-        fg_sep_load : int
+        fg_sep_hm : int
             number of fingers separating the load reset switches.
 
         Returns
@@ -71,9 +71,8 @@ class HybridQDRBaseInfo(AnalogBaseInfo):
             sd_dict : Dict[Tuple[str, str], str]
                 a dictionary from net name/transistor tuple to source-drain junction type.
         """
-        need_sep = not self.abut_analog_mos or fg_sep_load > 0
         fg_sep = self.min_fg_sep
-        fg_sep_load = max(fg_sep, fg_sep_load)
+        fg_sep_load = max(0, fg_sep_hm - 2)
 
         seg_load = seg_dict.get('load', 0)
         seg_pen = seg_dict.get('pen', 0)
@@ -86,11 +85,16 @@ class HybridQDRBaseInfo(AnalogBaseInfo):
         seg_ps = max(seg_pen, seg_load)
         if seg_load == 0:
             seg_pc = 0
+            fg_sep_load = 0
         else:
-            if need_sep or seg_load > seg_pen:
-                seg_pc = seg_ps * 2 + fg_sep_load
+            if not self.abut_analog_mos or fg_sep_load > 0 or seg_load > seg_pen:
+                fg_sep_load = max(fg_sep_load, fg_sep)
             else:
-                seg_pc = seg_ps * 2
+                fg_sep_load = 0
+            seg_pc = seg_ps * 2 + fg_sep_load
+
+        if seg_casc > 0:
+            fg_sep = max(fg_sep, fg_sep_hm)
 
         # calculate NMOS center transistor number of fingers
         seg_nc = max(seg_casc, seg_in)
@@ -436,7 +440,7 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
                        invert=False,  # type: bool
                        fg_min=0,  # type: int
                        fg_dum=0,  # type: int
-                       fg_sep_load=0,  # type: int
+                       fg_sep_hm=0,  # type: int
                        idx_dict=None,  # type: Optional[Dict[str, int]]]
                        net_prefix='',  # type: str
                        net_suffix='',  # type: str
@@ -456,7 +460,7 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
             minimum number of total fingers.
         fg_dum : int
             minimum single-sided number of dummy fingers.
-        fg_sep_load : int
+        fg_sep_hm : int
             number of fingers separating the load reset switches.
         idx_dict : Optional[Dict[str, int]]
             track index dictionary.
@@ -477,7 +481,7 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
 
         # get layout information
         amp_info = self.qdr_info.get_integ_amp_info(seg_dict, fg_min=fg_min, fg_dum=fg_dum,
-                                                    fg_sep_load=fg_sep_load)
+                                                    fg_sep_hm=fg_sep_hm)
         seg_load = seg_dict.get('load', 0)
         seg_casc = seg_dict.get('casc', 0)
         fg_tot = amp_info['fg_tot']
