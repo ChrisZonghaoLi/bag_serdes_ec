@@ -109,6 +109,7 @@ class IntegAmp(HybridQDRBase):
             'tail': dict(g=[1, 'clk'], ds=['ntail']),
             'nen': dict(g=['en'], ds=['ntail']),
             'in': dict(g=['in', 'in'], ds=[]),
+            'casc': dict(g=['casc'], ds=['ptail']),
             'pen': dict(ds=['out', 'out'], g=['en', 'en']),
             'load': dict(ds=['ptail'], g=['clk', 'clk']),
         }

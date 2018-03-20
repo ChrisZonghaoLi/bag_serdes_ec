@@ -571,9 +571,8 @@ class Tap1Summer(TemplateBase):
             port = inst.get_port(port_name)
             label = name + ':' if vconn else name
             self.reexport(port, net_name=name, label=label, show=show_pins)
-            if inst is m_inst:
-                if port_name == 'outp' or port_name == 'outn':
-                    self.reexport(port, net_name=port_name + '_main', show=False)
+            if inst is m_inst and (port_name == 'outp' or port_name == 'outn'):
+                self.reexport(port, net_name=port_name + '_main', show=False)
 
         self._en_locs = l_master.en_locs
 

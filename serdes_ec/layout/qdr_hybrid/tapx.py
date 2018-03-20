@@ -84,7 +84,7 @@ class TapXSummerCell(TemplateBase):
             th_dict=self.params['th_sum'],
             seg_dict=self.params['seg_sum'],
             top_layer=top_layer,
-            show_pins=True,
+            show_pins=False,
             end_mode=end_mode,
         )
         lat_params = dict(
@@ -92,12 +92,11 @@ class TapXSummerCell(TemplateBase):
             th_dict=self.params['th_lat'],
             seg_dict=self.params['seg_lat'],
             top_layer=top_layer,
-            show_pins=True,
+            show_pins=False,
             end_mode=end_mode & 0b1100,
         )
         for key in ('lch', 'ptap_w', 'ntap_w', 'fg_dum', 'tr_widths', 'tr_spaces', 'options'):
-            val = self.params['key']
-            sum_params[key] = lat_params[key] = val
+            sum_params[key] = lat_params[key] = self.params[key]
 
         # get masters
         l_master = self.new_template(params=lat_params, temp_cls=IntegAmp)
@@ -116,34 +115,34 @@ class TapXSummerCell(TemplateBase):
         self.array_box = s_inst.array_box.merge(l_inst.array_box)
         self.set_size_from_bound_box(top_layer, s_inst.bound_box.merge(l_inst.bound_box))
 
-        """"
         # export pins in-place
-        exp_list = [(s_inst, 'outp', 'outp_m', True), (s_inst, 'outn', 'outn_m', True),
-                    (s_inst, 'inp', 'inp', False), (s_inst, 'inn', 'inn', False),
-                    (s_inst, 'fbp', 'fbp', False), (s_inst, 'fbn', 'fbn', False),
-                    (s_inst, 'en<0>', 'en<0>', True), (s_inst, 'en<1>', 'en<1>', True),
+        exp_list = [(s_inst, 'clkp', 'clkn', True), (s_inst, 'clkn', 'clkp', True),
+                    (s_inst, 'casc', 'casc', False),
+                    (s_inst, 'inp', 'outp_l', True), (s_inst, 'inn', 'outn_l', True),
+                    (s_inst, 'biasp', 'biasn_s', False),
+                    (s_inst, 'en<0>', 'en<1>', True), (s_inst, 'en<1>', 'en<2>', False),
+                    (s_inst, 'setp', 'setp', False), (s_inst, 'setn', 'setn', False),
+                    (s_inst, 'pulse', 'pulse', False),
+                    (s_inst, 'outp', 'outp_s', False), (s_inst, 'outn', 'outn_s', False),
                     (s_inst, 'VDD', 'VDD', True), (s_inst, 'VSS', 'VSS', True),
-                    (s_inst, 'clkp', 'clkp', True), (s_inst, 'clkn', 'clkn', True),
-                    (s_inst, 'biasp_m', 'biasp_m', False), (s_inst, 'biasp_f', 'biasp_f', False),
-                    (l_inst, 'inp', 'outp_m', True), (l_inst, 'inn', 'outn_m', True),
-                    (l_inst, 'outp', 'outp_d', False), (l_inst, 'outn', 'outn_d', False),
-                    (l_inst, 'en<0>', 'en<1>', True), (l_inst, 'en<1>', 'en<2>', False),
-                    (l_inst, 'clkp', 'clkn', True), (l_inst, 'clkn', 'clkp', True),
+                    (l_inst, 'clkp', 'clkp', True), (l_inst, 'clkn', 'clkn', True),
+                    (l_inst, 'inp', 'inp', False), (l_inst, 'inn', 'inn', False),
+                    (l_inst, 'biasp', 'biasp_l', False),
+                    (l_inst, 'en<0>', 'en<0>', False), (l_inst, 'en<1>', 'en<1>', True),
+                    (l_inst, 'setp', 'setp', False), (l_inst, 'setn', 'setn', False),
+                    (l_inst, 'pulse', 'pulse', False),
+                    (l_inst, 'outp', 'outp_l', True), (l_inst, 'outn', 'outn_l', True),
                     (l_inst, 'VDD', 'VDD', True), (l_inst, 'VSS', 'VSS', True),
-                    (l_inst, 'biasp', 'biasn_d', False),
                     ]
 
         for inst, port_name, name, vconn in exp_list:
-            port = inst.get_port(port_name)
-            label = name + ':' if vconn else name
-            self.reexport(port, net_name=name, label=label, show=show_pins)
-            if inst is s_inst:
-                if port_name == 'outp' or port_name == 'outn':
-                    self.reexport(port, net_name=port_name + '_main', show=False)
+            if inst.has_port(port_name):
+                port = inst.get_port(port_name)
+                label = name + ':' if vconn else name
+                self.reexport(port, net_name=name, label=label, show=show_pins)
 
         # set schematic parameters
         self._sch_params = dict(
             sum_params=s_master.sch_params,
             lat_params=l_master.sch_params,
         )
-        """
