@@ -6,7 +6,7 @@ from bag.core import BagProject
 from bag.layout.routing import RoutingGrid
 from bag.layout.template import TemplateDB
 
-from serdes_ec.layout.qdr.tap1 import Tap1SummerRow
+from serdes_ec.layout.qdr_hybrid.tap1 import Tap1SummerRow
 
 
 def make_tdb(prj, target_lib, specs):
@@ -55,7 +55,7 @@ def generate(prj, specs, gen_sch=True, run_lvs=False):
 
 
 if __name__ == '__main__':
-    with open('specs_test/qdr/tap1_summer_row.yaml', 'r') as f:
+    with open('specs_test/qdr_hybrid/tap1_summer_row.yaml', 'r') as f:
         block_specs = yaml.load(f)
 
     local_dict = locals()

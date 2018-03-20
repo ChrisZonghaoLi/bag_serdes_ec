@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-"""This module defines classes needed to build the DFE tap1 summer."""
+"""This module defines amplifier generators based on HybridQDRBase."""
 
 from typing import TYPE_CHECKING, Dict, Any, Set
 

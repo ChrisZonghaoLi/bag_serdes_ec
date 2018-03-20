@@ -6,7 +6,8 @@ from bag.core import BagProject
 from bag.layout.routing import RoutingGrid
 from bag.layout.template import TemplateDB
 
-from serdes_ec.layout.qdr.tap1 import Tap1LatchRow
+from serdes_ec.layout.qdr_hybrid.tap1 import IntegAmp
+from serdes_ec.layout.qdr_hybrid.laygo import SinClkDivider
 
 
 def make_tdb(prj, target_lib, specs):
@@ -28,22 +29,29 @@ def generate(prj, specs, gen_sch=True, run_lvs=False):
     impl_cell = specs['impl_cell']
     sch_lib = specs['sch_lib']
     sch_cell = specs['sch_cell']
+    ana_params = specs['ana_params']
     params = specs['params']
 
     temp_db = make_tdb(prj, impl_lib, specs)
 
     name_list = [impl_cell]
-    temp = temp_db.new_template(params=params, temp_cls=Tap1LatchRow, debug=False)
-    temp_list = [temp]
+    temp1 = temp_db.new_template(params=ana_params, temp_cls=IntegAmp, debug=False)
+
+    params['row_layout_info'] = temp1.row_layout_info
+    temp2 = temp_db.new_template(params=params, temp_cls=SinClkDivider, debug=False)
+
+    temp_list = [temp2]
     print('creating layout')
     temp_db.batch_layout(prj, temp_list, name_list)
     print('layout done')
 
     if gen_sch:
         dsn = prj.create_design_module(lib_name=sch_lib, cell_name=sch_cell)
-        dsn.design(**temp.sch_params)
-        print('creating schematic')
+        dsn.design(**temp2.sch_params)
+        print('creating schematics')
         dsn.implement_design(impl_lib, top_cell_name=impl_cell)
+        print('schematic done.')
+
     if run_lvs:
         print('running lvs')
         lvs_passed, lvs_log = prj.run_lvs(impl_lib, impl_cell)
@@ -55,7 +63,7 @@ def generate(prj, specs, gen_sch=True, run_lvs=False):
 
 
 if __name__ == '__main__':
-    with open('specs_test/qdr/tap1_latch_row.yaml', 'r') as f:
+    with open('specs_test/qdr_hybrid/sin_clk_divider.yaml', 'r') as f:
         block_specs = yaml.load(f)
 
     local_dict = locals()

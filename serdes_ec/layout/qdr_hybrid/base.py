@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-"""This module defines HybridQDRBaseInfo and HybridQDRBase, which draws hybrid QDR serdes blocks."""
+"""This module defines HybridQDRBaseInfo and HybridQDRBase, which draws Hybrid-QDR serdes blocks."""
 
 from typing import TYPE_CHECKING, Optional, Dict, Any, Set, Tuple, List, Union
 

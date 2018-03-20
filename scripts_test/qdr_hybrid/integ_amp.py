@@ -6,7 +6,7 @@ from bag.core import BagProject
 from bag.layout.routing import RoutingGrid
 from bag.layout.template import TemplateDB
 
-from serdes_ec.layout.qdr.tap1 import Tap1Summer
+from serdes_ec.layout.qdr_hybrid.amp import IntegAmp
 
 
 def make_tdb(prj, target_lib, specs):
@@ -33,7 +33,7 @@ def generate(prj, specs, gen_sch=True, run_lvs=False):
     temp_db = make_tdb(prj, impl_lib, specs)
 
     name_list = [impl_cell]
-    temp = temp_db.new_template(params=params, temp_cls=Tap1Summer, debug=False)
+    temp = temp_db.new_template(params=params, temp_cls=IntegAmp, debug=False)
     temp_list = [temp]
     print('creating layout')
     temp_db.batch_layout(prj, temp_list, name_list)
@@ -55,7 +55,7 @@ def generate(prj, specs, gen_sch=True, run_lvs=False):
 
 
 if __name__ == '__main__':
-    with open('specs_test/qdr/tap1_summer.yaml', 'r') as f:
+    with open('specs_test/qdr_hybrid/integ_amp.yaml', 'r') as f:
         block_specs = yaml.load(f)
 
     local_dict = locals()

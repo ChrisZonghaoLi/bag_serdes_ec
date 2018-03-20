@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-"""This module contains LaygoBase templates used in QDR receiver."""
+"""This module contains LaygoBase templates used in Hybrid-QDR receiver."""
 
 from typing import TYPE_CHECKING, Dict, Any, Set
 
