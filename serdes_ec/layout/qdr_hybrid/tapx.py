@@ -539,12 +539,12 @@ class TapXSummer(TemplateBase):
             dfe_insts.insert(0, inst)
             vdd_list.extend(inst.port_pins_iter('VDD'))
             vss_list.extend(inst.port_pins_iter('VSS'))
-        inst_last = self.add_instance(last_master, 'XDFE2', loc=(x0, 0), unit_mode=True)
-        vdd_list.extend(inst_last.port_pins_iter('VDD'))
-        vss_list.extend(inst_last.port_pins_iter('VSS'))
+        instl = self.add_instance(last_master, 'XDFE2', loc=(x0, 0), unit_mode=True)
+        vdd_list.extend(instl.port_pins_iter('VDD'))
+        vss_list.extend(instl.port_pins_iter('VSS'))
         # set size
-        self.array_box = inst_last.array_box.merge(ffe_insts[0].array_box)
-        self.set_size_from_bound_box(top_layer, inst_last.bound_box.merge(ffe_insts[0].bound_box))
+        self.array_box = instl.array_box.merge(ffe_insts[0].array_box)
+        self.set_size_from_bound_box(top_layer, instl.bound_box.merge(ffe_insts[0].bound_box))
 
         # add pins
         # connect supplies
@@ -552,3 +552,88 @@ class TapXSummer(TemplateBase):
         vss_list = self.connect_wires(vss_list)
         self.add_pin('VDD', vdd_list, label='VDD:', show=show_pins)
         self.add_pin('VSS', vss_list, label='VSS:', show=show_pins)
+
+        # export/collect FFE pins
+        biasm_list, biasa_list, clkp_list, clkn_list = [], [], [], []
+        outs_warrs = [[], []]
+        en_warrs = [[], [], [], []]
+        for idx, inst in enumerate(ffe_insts):
+            if inst.has_port('casc'):
+                self.reexport(inst.get_port('casc'), net_name='casc<%d>' % idx, show=show_pins)
+            biasm_list.append(inst.get_pin('biasn_s'))
+            self.reexport(inst.get_port('inp'), net_name='inp_a<%d>' % idx, show=show_pins)
+            self.reexport(inst.get_port('inn'), net_name='inn_a<%d>' % idx, show=show_pins)
+            biasa_list.append(inst.get_pin('biasp_l'))
+            clkp_list.extend(inst.port_pins_iter('clkp'))
+            clkn_list.extend(inst.port_pins_iter('clkn'))
+            en_warrs[0].extend(inst.port_pins_iter('en<0>'))
+            en_warrs[1].extend(inst.port_pins_iter('en<1>'))
+            if inst.has_port('en<2>'):
+                en_warrs[2].extend(inst.port_pins_iter('en<2>'))
+            # TODO: handle setp/setn/pulse pins
+            outs_warrs[0].append(inst.get_pin('outp_s'))
+            outs_warrs[1].append(inst.get_pin('outn_s'))
+            self.reexport(inst.get_port('outp_l'), net_name='outp_a<%d>' % idx, show=show_pins)
+            self.reexport(inst.get_port('outn_l'), net_name='outn_a<%d>' % idx, show=show_pins)
+
+        # export/collect DFE pins
+        biasd_list = []
+        for idx, inst in enumerate(dfe_insts):
+            self.reexport(inst.get_port('biasn_s'), net_name='biasn_s<%d>' % (idx + 1),
+                          show=show_pins)
+            self.reexport(inst.get_port('inp'), net_name='inp_d<%d>' % (idx + 1), show=show_pins)
+            self.reexport(inst.get_port('inn'), net_name='inn_d<%d>' % (idx + 1), show=show_pins)
+            biasd_list.append(inst.get_pin('biasp_l'))
+            clkp_list.extend(inst.port_pins_iter('clkp'))
+            clkn_list.extend(inst.port_pins_iter('clkn'))
+            en_warrs[0].extend(inst.port_pins_iter('en<0>'))
+            en_warrs[1].extend(inst.port_pins_iter('en<1>'))
+            if inst.has_port('en<2>'):
+                en_warrs[2].extend(inst.port_pins_iter('en<2>'))
+            # TODO: handle setp/setn/pulse pins
+            outs_warrs[0].append(inst.get_pin('outp_s'))
+            outs_warrs[1].append(inst.get_pin('outn_s'))
+            self.reexport(inst.get_port('outp_l'), net_name='outp_d<%d>' % (idx + 1),
+                          show=show_pins)
+            self.reexport(inst.get_port('outn_l'), net_name='outn_d<%d>' % (idx + 1),
+                          show=show_pins)
+
+        # export/collect last summer tap pins
+        self.reexport(instl.get_port('inp'), net_name='inp_d<0>', show=show_pins)
+        self.reexport(instl.get_port('inn'), net_name='inn_d<0>', show=show_pins)
+        self.reexport(instl.get_port('biasn'), net_name='biasn_s<0>', show=show_pins)
+        en_warrs[1].extend(instl.port_pins_iter('en<1>'))
+        if instl.has_port('en<2>'):
+            en_warrs[2].extend(instl.port_pins_iter('en<2>'))
+        # TODO: handle setp/setn/pulse pins
+        if instl.has_port('clkp'):
+            clkp_list.extend(instl.port_pins_iter('clkp'))
+            clkn_list.extend(instl.port_pins_iter('clkn'))
+        if instl.has_port('div'):
+            for name in ('en_div', 'scan_div', 'div', 'divb'):
+                self.reexport(instl.get_port(name), show=show_pins)
+        # TODO: handle pulse generation pins
+        outs_warrs[0].append(instl.get_pin('outp'))
+        outs_warrs[1].append(instl.get_pin('outn'))
+
+        # connect wires and add pins
+        biasm = self.connect_wires(biasm_list)
+        biasa = self.connect_wires(biasa_list)
+        biasd = self.connect_wires(biasd_list)
+        clkp = self.connect_wires(clkp_list)
+        clkn = self.connect_wires(clkn_list)
+        outsp = self.connect_wires(outs_warrs[0])
+        outsn = self.connect_wires(outs_warrs[1])
+        self.add_pin('biasn_m', biasm, show=show_pins)
+        self.add_pin('biasp_a', biasa, show=show_pins)
+        self.add_pin('biasp_d', biasd, show=show_pins)
+        self.add_pin('clkp', clkp, label='clkp:', show=show_pins)
+        self.add_pin('clkn', clkn, label='clkn:', show=show_pins)
+        self.add_pin('outp_s', outsp, show=show_pins)
+        self.add_pin('outn_s', outsn, show=show_pins)
+
+        for idx, en_warr in enumerate(en_warrs):
+            if en_warr:
+                en_warr = self.connect_wires(en_warr)
+                name = 'en<%d>' % idx
+                self.add_pin(name, en_warr, label=name + ':', show=show_pins)

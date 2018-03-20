@@ -1,6 +1,6 @@
 lib_name: bag_serdes_ec
 cell_name: qdr_tapx_summer
-pins: [ "VDD", "VSS", "setp", "setn", "casc", "pulse_in", "biasn_s", "biasp_a", "biasn_m", "biasp_d", "inp_a", "inn_a", "inp_d", "inn_d", "clkp", "clkn", "inp_l", "outp_s", "outn_s", "outp_a", "outn_a", "outp_d", "outn_d", "en<3:0>", "inn_l", "en_div", "scan_div", "div", "divb", "pulse_out" ]
+pins: [ "VDD", "VSS", "setp", "setn", "casc", "pulse_in", "biasn_s", "biasp_a", "biasn_m", "biasp_d", "inp_a", "inn_a", "inp_d", "inn_d", "clkp", "clkn", "outp_s", "outn_s", "outp_a", "outn_a", "outp_d", "outn_d", "en<3:0>", "en_div", "scan_div", "div", "divb", "pulse_out" ]
 instances:
   XDFE:
     lib_name: bag_serdes_ec
@@ -159,14 +159,6 @@ instances:
     cell_name: ipin
     instpins: {}
   PIN27:
-    lib_name: basic
-    cell_name: ipin
-    instpins: {}
-  PIN26:
-    lib_name: basic
-    cell_name: ipin
-    instpins: {}
-  PIN25:
     lib_name: basic
     cell_name: ipin
     instpins: {}
@@ -336,11 +328,11 @@ instances:
         num_bits: 1
       inn:
         direction: input
-        net_name: "inn_l"
+        net_name: "inn_d"
         num_bits: 1
       inp:
         direction: input
-        net_name: "inp_l"
+        net_name: "inp_d"
         num_bits: 1
       pulse_in:
         direction: input
