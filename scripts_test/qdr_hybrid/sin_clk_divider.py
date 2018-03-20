@@ -5,7 +5,7 @@ import yaml
 from bag.core import BagProject
 
 from serdes_ec.layout.qdr_hybrid.tap1 import IntegAmp
-from serdes_ec.layout.qdr_hybrid.laygo import SinClkDivider
+from serdes_ec.layout.laygo.divider import SinClkDivider
 
 
 def generate(prj, specs, gen_sch=True, run_lvs=False, use_cybagoa=False):

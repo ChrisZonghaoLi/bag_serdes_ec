@@ -11,7 +11,7 @@ from bag.layout.routing import TrackManager, TrackID
 from bag.layout.template import TemplateBase
 
 from .base import HybridQDRBaseInfo, HybridQDRBase
-from .laygo import SinClkDivider
+from serdes_ec.layout.laygo.divider import SinClkDivider
 from .amp import IntegAmp
 
 
