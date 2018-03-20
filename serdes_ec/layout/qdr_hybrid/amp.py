@@ -176,7 +176,8 @@ class IntegAmp(HybridQDRBase):
         else:
             self.add_pin('en<0>', nen0, show=show_pins)
 
-        for name, port_name in (('pen1', 'en<1>'), ('clkp', 'clkp'), ('clkn', 'clkn')):
+        for name, port_name in (('pen1', 'en<1>'), ('clkp', 'clkp'), ('clkn', 'clkn'),
+                                ('casc', 'casc')):
             if name in ports:
                 warr = ports[name]
                 self.add_pin(port_name, warr, show=show_pins)

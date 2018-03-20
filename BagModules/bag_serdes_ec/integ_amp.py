@@ -85,7 +85,7 @@ class bag_serdes_ec__integ_amp(Module):
             self.reconnect_instance_terminal('XCASN', 'D', outn_name)
 
         if seg_load <= 0:
-            for name in ('pm0p', 'pm0n', 'pm1p', 'pm1n', 'VDD', ''):
+            for name in ('pm0p', 'pm0n', 'pm1p', 'pm1n', 'clkp', 'clkn'):
                 self.remove_pin(name)
         elif flip_sign:
             self.reconnect_instance_terminal('XPENP0', 'D', outp_name)

@@ -171,12 +171,12 @@ class HybridQDRBaseInfo(AnalogBaseInfo):
             else:
                 sd_dir = (2, 0)
                 sd_name = 'd'
-            sd_dict[('casc', sd_name)] = 'cn'
+            sd_dict[('casc', sd_name)] = 'nm'
             sd_dir_dict['casc'] = sd_dir
 
             if (col_dict['in'] - col_dict['casc']) % 2 == 1:
                 sd_name = 'd' if sd_name == 's' else 's'
-            sd_dict[('in', sd_name)] = 'cn'
+            sd_dict[('in', sd_name)] = 'nm'
             if sd_name == 'd':
                 sd_dir = (0, 2)
                 sd_name = 's'
@@ -254,7 +254,7 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
     p_name_list = ['pen', 'load']
     tran_list = [('load0', 'load'), ('load1', 'load'), ('pen0', 'pen'), ('pen1', 'pen'),
                  ('casc', 'casc'), ('in', 'in'), ('nen', 'nen'), ('tail', 'tail')]
-    diff_nets = {'pm0', 'pm1', 'out', 'cn'}
+    diff_nets = {'pm0', 'pm1', 'out', 'nm'}
     gate_dict = {'load0': 'pclk0', 'load1': 'pclk1', 'pen0': 'pen0', 'pen1': 'pen1',
                  'casc': 'casc', 'in': 'in', 'nen': 'nen', 'tail': 'nclk'}
 
@@ -550,10 +550,10 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
 
         # connect cascode if necessary
         if seg_casc > 0:
-            cn_tid = self.get_wire_id('nch', 3, 'ds', wire_name='ptail')
+            nm_tid = self.get_wire_id('nch', 3, 'ds', wire_name='ptail')
             casc_tid = self.get_wire_id('nch', 3, 'g', wire_idx=idx_dict.get('casc', -1))
-            self.connect_to_tracks(ports['cnp'], cn_tid)
-            self.connect_to_tracks(ports['cnn'], cn_tid)
+            self.connect_to_tracks(ports['nmp'], nm_tid)
+            self.connect_to_tracks(ports['nmn'], nm_tid)
             casc = self.connect_to_tracks(ports['casc'], casc_tid)
             ans['casc'] = casc
 
