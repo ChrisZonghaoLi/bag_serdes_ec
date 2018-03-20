@@ -1,0 +1,244 @@
+lib_name: bag_serdes_ec
+cell_name: qdr_tapx_summer_last
+pins: [ "outn", "outp", "en3", "biasn", "div", "setn", "setp", "scan_div", "en_div", "inn", "inp", "clkn", "clkp", "VSS", "VDD", "en0", "pulse_out", "pulse_in", "divb", "en<2:1>" ]
+instances:
+  PIN0:
+    lib_name: basic
+    cell_name: iopin
+    instpins: {}
+  PIN1:
+    lib_name: basic
+    cell_name: iopin
+    instpins: {}
+  PIN18:
+    lib_name: basic
+    cell_name: iopin
+    instpins: {}
+  PIN17:
+    lib_name: basic
+    cell_name: iopin
+    instpins: {}
+  PIN20:
+    lib_name: basic
+    cell_name: opin
+    instpins: {}
+  PIN12:
+    lib_name: basic
+    cell_name: opin
+    instpins: {}
+  PIN16:
+    lib_name: basic
+    cell_name: opin
+    instpins: {}
+  PIN19:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN9:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN2:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN3:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN4:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN5:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN11:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN6:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN13:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN14:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN15:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN8:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN7:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  XSUM:
+    lib_name: bag_serdes_ec
+    cell_name: integ_amp
+    instpins:
+      nsn:
+        direction: output
+        net_name: "nsn"
+        num_bits: 1
+      nsp:
+        direction: output
+        net_name: "nsp"
+        num_bits: 1
+      pulse:
+        direction: input
+        net_name: "pulse_in"
+        num_bits: 1
+      nmn:
+        direction: output
+        net_name: "nmn"
+        num_bits: 1
+      nmp:
+        direction: output
+        net_name: "nmp"
+        num_bits: 1
+      casc:
+        direction: input
+        net_name: "VDD"
+        num_bits: 1
+      setn:
+        direction: input
+        net_name: "setn"
+        num_bits: 1
+      setp:
+        direction: input
+        net_name: "setp"
+        num_bits: 1
+      VSS:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      VDD:
+        direction: inputOutput
+        net_name: "VDD"
+        num_bits: 1
+      outp:
+        direction: inputOutput
+        net_name: "outp"
+        num_bits: 1
+      outn:
+        direction: inputOutput
+        net_name: "outn"
+        num_bits: 1
+      foot:
+        direction: output
+        net_name: "foot"
+        num_bits: 1
+      tail:
+        direction: output
+        net_name: "tail"
+        num_bits: 1
+      pm0p:
+        direction: output
+        net_name: "pm0p"
+        num_bits: 1
+      pm0n:
+        direction: output
+        net_name: "pm0n"
+        num_bits: 1
+      pm1p:
+        direction: output
+        net_name: "pm1p"
+        num_bits: 1
+      pm1n:
+        direction: output
+        net_name: "pm1n"
+        num_bits: 1
+      clkp:
+        direction: input
+        net_name: "clkn"
+        num_bits: 1
+      clkn:
+        direction: input
+        net_name: "clkp"
+        num_bits: 1
+      inp:
+        direction: input
+        net_name: "inp"
+        num_bits: 1
+      inn:
+        direction: input
+        net_name: "inn"
+        num_bits: 1
+      en<1:0>:
+        direction: input
+        net_name: "en<2:1>"
+        num_bits: 2
+      biasp:
+        direction: input
+        net_name: "biasn"
+        num_bits: 1
+  XPULSE:
+    lib_name: bag_serdes_ec
+    cell_name: qdr_rx_set_pulse
+    instpins:
+      en_div:
+        direction: input
+        net_name: "en_div"
+        num_bits: 1
+      VSS:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      VDD:
+        direction: inputOutput
+        net_name: "VDD"
+        num_bits: 1
+      pulse:
+        direction: output
+        net_name: "pulse_out"
+        num_bits: 1
+      en3:
+        direction: input
+        net_name: "en3"
+        num_bits: 1
+      en0:
+        direction: input
+        net_name: "en0"
+        num_bits: 1
+  XDIV:
+    lib_name: bag_serdes_ec
+    cell_name: div2_sin_clk
+    instpins:
+      VSS:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      VDD:
+        direction: inputOutput
+        net_name: "VDD"
+        num_bits: 1
+      q:
+        direction: output
+        net_name: "div"
+        num_bits: 1
+      qb:
+        direction: output
+        net_name: "divb"
+        num_bits: 1
+      clk:
+        direction: input
+        net_name: "clkp"
+        num_bits: 1
+      en:
+        direction: input
+        net_name: "en_div"
+        num_bits: 1
+      scan_s:
+        direction: input
+        net_name: "scan_div"
+        num_bits: 1

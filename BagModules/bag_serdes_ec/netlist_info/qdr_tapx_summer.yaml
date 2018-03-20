@@ -1,0 +1,360 @@
+lib_name: bag_serdes_ec
+cell_name: qdr_tapx_summer
+pins: [ "VDD", "VSS", "setp", "setn", "casc", "pulse_in", "biasn_s", "biasp_a", "biasn_m", "biasp_d", "inp_a", "inn_a", "inp_d", "inn_d", "clkp", "clkn", "inp_l", "outp_s", "outn_s", "outp_a", "outn_a", "outp_d", "outn_d", "en<3:0>", "inn_l", "en_div", "scan_div", "div", "divb", "pulse_out" ]
+instances:
+  XDFE:
+    lib_name: bag_serdes_ec
+    cell_name: qdr_tapx_summer_cell
+    instpins:
+      VSS:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      VDD:
+        direction: inputOutput
+        net_name: "VDD"
+        num_bits: 1
+      outn_l:
+        direction: output
+        net_name: "outn_d"
+        num_bits: 1
+      outn_s:
+        direction: inputOutput
+        net_name: "outn_s"
+        num_bits: 1
+      outp_l:
+        direction: output
+        net_name: "outp_d"
+        num_bits: 1
+      outp_s:
+        direction: inputOutput
+        net_name: "outp_s"
+        num_bits: 1
+      biasn_s:
+        direction: input
+        net_name: "biasn_s"
+        num_bits: 1
+      biasp_l:
+        direction: input
+        net_name: "biasp_d"
+        num_bits: 1
+      casc:
+        direction: input
+        net_name: "VDD"
+        num_bits: 1
+      clkn:
+        direction: input
+        net_name: "clkn"
+        num_bits: 1
+      clkp:
+        direction: input
+        net_name: "clkp"
+        num_bits: 1
+      en<2:0>:
+        direction: input
+        net_name: "en<2:0>"
+        num_bits: 3
+      inn:
+        direction: input
+        net_name: "inn_d"
+        num_bits: 1
+      inp:
+        direction: input
+        net_name: "inp_d"
+        num_bits: 1
+      pulse:
+        direction: input
+        net_name: "pulse_in"
+        num_bits: 1
+      setn:
+        direction: input
+        net_name: "setn"
+        num_bits: 1
+      setp:
+        direction: input
+        net_name: "setp"
+        num_bits: 1
+  XFFE:
+    lib_name: bag_serdes_ec
+    cell_name: qdr_tapx_summer_cell
+    instpins:
+      VSS:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      VDD:
+        direction: inputOutput
+        net_name: "VDD"
+        num_bits: 1
+      outn_l:
+        direction: output
+        net_name: "outn_a"
+        num_bits: 1
+      outn_s:
+        direction: inputOutput
+        net_name: "outn_s"
+        num_bits: 1
+      outp_l:
+        direction: output
+        net_name: "outp_a"
+        num_bits: 1
+      outp_s:
+        direction: inputOutput
+        net_name: "outp_s"
+        num_bits: 1
+      biasn_s:
+        direction: input
+        net_name: "biasn_m"
+        num_bits: 1
+      biasp_l:
+        direction: input
+        net_name: "biasp_a"
+        num_bits: 1
+      casc:
+        direction: input
+        net_name: "casc"
+        num_bits: 1
+      clkn:
+        direction: input
+        net_name: "clkn"
+        num_bits: 1
+      clkp:
+        direction: input
+        net_name: "clkp"
+        num_bits: 1
+      en<2:0>:
+        direction: input
+        net_name: "en<2:0>"
+        num_bits: 3
+      inn:
+        direction: input
+        net_name: "inn_a"
+        num_bits: 1
+      inp:
+        direction: input
+        net_name: "inp_a"
+        num_bits: 1
+      pulse:
+        direction: input
+        net_name: "pulse_in"
+        num_bits: 1
+      setn:
+        direction: input
+        net_name: "setn"
+        num_bits: 1
+      setp:
+        direction: input
+        net_name: "setp"
+        num_bits: 1
+  PIN1:
+    lib_name: basic
+    cell_name: iopin
+    instpins: {}
+  PIN0:
+    lib_name: basic
+    cell_name: iopin
+    instpins: {}
+  PIN28:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN27:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN26:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN25:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN18:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN17:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN16:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN15:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN14:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN13:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN12:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN11:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN10:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN9:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN8:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN7:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN6:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN5:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN4:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN3:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN2:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN31:
+    lib_name: basic
+    cell_name: opin
+    instpins: {}
+  PIN30:
+    lib_name: basic
+    cell_name: opin
+    instpins: {}
+  PIN29:
+    lib_name: basic
+    cell_name: opin
+    instpins: {}
+  PIN24:
+    lib_name: basic
+    cell_name: opin
+    instpins: {}
+  PIN23:
+    lib_name: basic
+    cell_name: opin
+    instpins: {}
+  PIN22:
+    lib_name: basic
+    cell_name: opin
+    instpins: {}
+  PIN21:
+    lib_name: basic
+    cell_name: opin
+    instpins: {}
+  PIN20:
+    lib_name: basic
+    cell_name: opin
+    instpins: {}
+  PIN19:
+    lib_name: basic
+    cell_name: opin
+    instpins: {}
+  XLAST:
+    lib_name: bag_serdes_ec
+    cell_name: qdr_tapx_summer_last
+    instpins:
+      VSS:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      VDD:
+        direction: inputOutput
+        net_name: "VDD"
+        num_bits: 1
+      div:
+        direction: output
+        net_name: "div"
+        num_bits: 1
+      divb:
+        direction: output
+        net_name: "divb"
+        num_bits: 1
+      pulse_out:
+        direction: output
+        net_name: "pulse_out"
+        num_bits: 1
+      outp:
+        direction: inputOutput
+        net_name: "outp_s"
+        num_bits: 1
+      outn:
+        direction: inputOutput
+        net_name: "outn_s"
+        num_bits: 1
+      biasn:
+        direction: input
+        net_name: "biasn_s"
+        num_bits: 1
+      clkn:
+        direction: input
+        net_name: "clkn"
+        num_bits: 1
+      clkp:
+        direction: input
+        net_name: "clkp"
+        num_bits: 1
+      en0:
+        direction: input
+        net_name: "en<0>"
+        num_bits: 1
+      en3:
+        direction: input
+        net_name: "en<3>"
+        num_bits: 1
+      en<2:1>:
+        direction: input
+        net_name: "en<2:1>"
+        num_bits: 2
+      en_div:
+        direction: input
+        net_name: "en_div"
+        num_bits: 1
+      inn:
+        direction: input
+        net_name: "inn_l"
+        num_bits: 1
+      inp:
+        direction: input
+        net_name: "inp_l"
+        num_bits: 1
+      pulse_in:
+        direction: input
+        net_name: "pulse_in"
+        num_bits: 1
+      scan_div:
+        direction: input
+        net_name: "scan_div"
+        num_bits: 1
+      setn:
+        direction: input
+        net_name: "setn"
+        num_bits: 1
+      setp:
+        direction: input
+        net_name: "setp"
+        num_bits: 1
