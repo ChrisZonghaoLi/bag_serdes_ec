@@ -4,11 +4,11 @@ import yaml
 
 from bag.core import BagProject
 
-from serdes_ec.layout.qdr_hybrid.tap1 import Tap1Summer
+from serdes_ec.layout.qdr_hybrid.tapx import TapXSummerCell
 
 
 if __name__ == '__main__':
-    with open('specs_test/qdr_hybrid/tap1_summer.yaml', 'r') as f:
+    with open('specs_test/qdr_hybrid/tapx_summer_cell.yaml', 'r') as f:
         block_specs = yaml.load(f)
 
     local_dict = locals()
@@ -20,5 +20,5 @@ if __name__ == '__main__':
         print('loading BAG project')
         bprj = local_dict['bprj']
 
-    # bprj.generate_cell(block_specs, Tap1Summer, gen_sch=False, run_lvs=False, use_cybagoa=True)
-    bprj.generate_cell(block_specs, Tap1Summer, gen_sch=True, run_lvs=False, use_cybagoa=True)
+    bprj.generate_cell(block_specs, TapXSummerCell, gen_sch=False, run_lvs=False, use_cybagoa=True)
+    # bprj.generate_cell(block_specs, TapXSummerCell, gen_sch=True, run_lvs=False, use_cybagoa=True)
