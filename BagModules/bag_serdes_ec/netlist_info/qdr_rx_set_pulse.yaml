@@ -68,7 +68,7 @@ instances:
         num_bits: 1
       in<1:0>:
         direction: input
-        net_name: "q,en3"
+        net_name: "q,en0"
         num_bits: 2
   XNAND:
     lib_name: bag_digital_ec
@@ -88,7 +88,7 @@ instances:
         num_bits: 1
       in<1:0>:
         direction: input
-        net_name: "en0,q"
+        net_name: "en3,q"
         num_bits: 2
   PIN4:
     lib_name: basic

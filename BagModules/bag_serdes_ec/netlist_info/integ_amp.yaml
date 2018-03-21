@@ -1,6 +1,6 @@
 lib_name: bag_serdes_ec
 cell_name: integ_amp
-pins: [ "VDD", "VSS", "clkp", "clkn", "en<1:0>", "inp", "inn", "nmp", "casc", "outp", "outn", "pm0p", "pm1p", "pm0n", "pm1n", "tail", "foot", "biasp", "nmn", "setp", "setn", "pulse", "nsp", "nsn" ]
+pins: [ "VDD", "VSS", "clkp", "clkn", "inp", "inn", "nmp", "casc", "outp", "outn", "pm0p", "pm1p", "pm0n", "pm1n", "tail", "foot", "biasp", "nmn", "setp", "setn", "pulse", "nsp", "nsn", "en<3:2>" ]
 instances:
   XSENN:
     lib_name: BAG_prim
@@ -200,7 +200,7 @@ instances:
         num_bits: 1
       G:
         direction: inputOutput
-        net_name: "en<0>"
+        net_name: "en<2>"
         num_bits: 1
   XNENP:
     lib_name: BAG_prim
@@ -220,7 +220,7 @@ instances:
         num_bits: 1
       G:
         direction: inputOutput
-        net_name: "en<0>"
+        net_name: "en<3>"
         num_bits: 1
   XINN:
     lib_name: BAG_prim
@@ -280,7 +280,7 @@ instances:
         num_bits: 1
       G:
         direction: inputOutput
-        net_name: "en<0>"
+        net_name: "en<3>"
         num_bits: 1
   XPENN1:
     lib_name: BAG_prim
@@ -300,7 +300,7 @@ instances:
         num_bits: 1
       G:
         direction: inputOutput
-        net_name: "en<1>"
+        net_name: "en<2>"
         num_bits: 1
   XLOADN0:
     lib_name: BAG_prim
@@ -360,7 +360,7 @@ instances:
         num_bits: 1
       G:
         direction: inputOutput
-        net_name: "en<0>"
+        net_name: "en<3>"
         num_bits: 1
   XPENP1:
     lib_name: BAG_prim
@@ -380,7 +380,7 @@ instances:
         num_bits: 1
       G:
         direction: inputOutput
-        net_name: "en<1>"
+        net_name: "en<2>"
         num_bits: 1
   XLOADP0:
     lib_name: BAG_prim

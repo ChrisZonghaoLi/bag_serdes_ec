@@ -1,11 +1,15 @@
 lib_name: bag_serdes_ec
 cell_name: qdr_tap1_summer_row
-pins: [ "VDD", "VSS", "inp", "inn", "clkp", "clkn", "setp", "en<1:0>", "biasp_f", "outn", "biasp_m", "fbn", "fbp", "outp", "setn", "pulse" ]
+pins: [ "VDD", "VSS", "inp", "inn", "clkp", "clkn", "setp", "biasp_f", "outn", "biasp_m", "fbn", "fbp", "outp", "setn", "pulse", "en<3:2>" ]
 instances:
   XTAP1:
     lib_name: bag_serdes_ec
     cell_name: integ_amp
     instpins:
+      en<3:2>:
+        direction: input
+        net_name: "en<3:2>"
+        num_bits: 2
       nsn:
         direction: output
         net_name: "nsn_f"
@@ -38,10 +42,6 @@ instances:
         direction: input
         net_name: "setp"
         num_bits: 1
-      en<1:0>:
-        direction: input
-        net_name: "en<1:0>"
-        num_bits: 2
       biasp:
         direction: input
         net_name: "biasp_f"
@@ -106,6 +106,10 @@ instances:
     lib_name: bag_serdes_ec
     cell_name: integ_amp
     instpins:
+      en<3:2>:
+        direction: input
+        net_name: "en<3:2>"
+        num_bits: 2
       nsn:
         direction: output
         net_name: "nsn_m"
@@ -138,10 +142,6 @@ instances:
         direction: input
         net_name: "setp"
         num_bits: 1
-      en<1:0>:
-        direction: input
-        net_name: "en<1:0>"
-        num_bits: 2
       biasp:
         direction: input
         net_name: "biasp_m"

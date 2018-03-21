@@ -86,6 +86,10 @@ instances:
     lib_name: bag_serdes_ec
     cell_name: integ_amp
     instpins:
+      en<3:2>:
+        direction: input
+        net_name: "en<2:1>"
+        num_bits: 2
       nsn:
         direction: output
         net_name: "nsn"
@@ -174,10 +178,6 @@ instances:
         direction: input
         net_name: "inn"
         num_bits: 1
-      en<1:0>:
-        direction: input
-        net_name: "en<2:1>"
-        num_bits: 2
       biasp:
         direction: input
         net_name: "biasn"

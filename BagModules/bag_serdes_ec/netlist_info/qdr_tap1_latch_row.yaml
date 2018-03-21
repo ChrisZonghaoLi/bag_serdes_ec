@@ -1,6 +1,6 @@
 lib_name: bag_serdes_ec
 cell_name: qdr_tap1_latch_row
-pins: [ "VDD", "VSS", "inp", "inn", "clkp", "clkn", "biasp", "en3", "en0", "setp", "en<1:0>", "outp", "setn", "div", "scan_div", "en_div", "outn", "divb", "pulse_in", "pulse_out" ]
+pins: [ "VDD", "VSS", "inp", "inn", "clkp", "clkn", "biasp", "en3", "en0", "setp", "outp", "setn", "div", "scan_div", "en_div", "outn", "divb", "pulse_in", "pulse_out", "en<3:2>" ]
 instances:
   XDIV:
     lib_name: bag_serdes_ec
@@ -38,6 +38,10 @@ instances:
     lib_name: bag_serdes_ec
     cell_name: integ_amp
     instpins:
+      en<3:2>:
+        direction: input
+        net_name: "en<3:2>"
+        num_bits: 2
       nsn:
         direction: output
         net_name: "nsn"
@@ -70,10 +74,6 @@ instances:
         direction: input
         net_name: "setp"
         num_bits: 1
-      en<1:0>:
-        direction: input
-        net_name: "en<1:0>"
-        num_bits: 2
       biasp:
         direction: input
         net_name: "biasp"

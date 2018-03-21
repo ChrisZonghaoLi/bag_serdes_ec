@@ -6,6 +6,10 @@ instances:
     lib_name: bag_serdes_ec
     cell_name: qdr_tapx_summer_cell
     instpins:
+      en<3:1>:
+        direction: input
+        net_name: "en<3:1>"
+        num_bits: 3
       VSS:
         direction: inputOutput
         net_name: "VSS"
@@ -50,10 +54,6 @@ instances:
         direction: input
         net_name: "clkp"
         num_bits: 1
-      en<2:0>:
-        direction: input
-        net_name: "en<2:0>"
-        num_bits: 3
       inn:
         direction: input
         net_name: "inn_d"
@@ -78,6 +78,10 @@ instances:
     lib_name: bag_serdes_ec
     cell_name: qdr_tapx_summer_cell
     instpins:
+      en<3:1>:
+        direction: input
+        net_name: "en<3:1>"
+        num_bits: 3
       VSS:
         direction: inputOutput
         net_name: "VSS"
@@ -122,10 +126,6 @@ instances:
         direction: input
         net_name: "clkp"
         num_bits: 1
-      en<2:0>:
-        direction: input
-        net_name: "en<2:0>"
-        num_bits: 3
       inn:
         direction: input
         net_name: "inn_a"

@@ -6,6 +6,10 @@ instances:
     lib_name: bag_serdes_ec
     cell_name: qdr_tap1_latch_row
     instpins:
+      en<3:2>:
+        direction: input
+        net_name: "en<2:1>"
+        num_bits: 2
       pulse_out:
         direction: output
         net_name: "pulse_out"
@@ -30,10 +34,6 @@ instances:
         direction: input
         net_name: "setn"
         num_bits: 1
-      en<1:0>:
-        direction: input
-        net_name: "en<2:1>"
-        num_bits: 2
       biasp:
         direction: input
         net_name: "biasn_d"
@@ -186,6 +186,10 @@ instances:
     lib_name: bag_serdes_ec
     cell_name: qdr_tap1_summer_row
     instpins:
+      en<3:2>:
+        direction: input
+        net_name: "en<3:2>"
+        num_bits: 2
       pulse:
         direction: input
         net_name: "pulse_in"
@@ -210,10 +214,6 @@ instances:
         direction: input
         net_name: "fbn"
         num_bits: 1
-      en<1:0>:
-        direction: input
-        net_name: "en<1:0>"
-        num_bits: 2
       biasp_m:
         direction: input
         net_name: "biasp_m"
