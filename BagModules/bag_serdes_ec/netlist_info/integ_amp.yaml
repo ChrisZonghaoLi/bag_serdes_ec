@@ -200,7 +200,7 @@ instances:
         num_bits: 1
       G:
         direction: inputOutput
-        net_name: "en<2>"
+        net_name: "en<3>"
         num_bits: 1
   XNENP:
     lib_name: BAG_prim

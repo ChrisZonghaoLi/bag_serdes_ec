@@ -528,7 +528,7 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
         inp, inn = self.connect_differential_tracks(ports['inp'], ports['inn'], hm_layer,
                                                     inp_idx, inn_idx, width=in_w)
 
-        ans = dict(inp=inp, inn=inn, outp=outp, outn=outn, nen0=nen, biasp=nclk)
+        ans = dict(inp=inp, inn=inn, outp=outp, outn=outn, nen3=nen, biasp=nclk)
 
         # draw load connections
         if seg_load > 0:
@@ -547,8 +547,8 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
                                                             hm_layer,  pclk0_tid.base_index,
                                                             pclk1_tid.base_index,
                                                             width=pclk0_tid.width)
-            ans['pen0'] = pen0
-            ans['pen1'] = pen1
+            ans['pen3'] = pen0
+            ans['pen2'] = pen1
             ans['clkp'] = pclk1
             ans['clkn'] = pclk0
 
