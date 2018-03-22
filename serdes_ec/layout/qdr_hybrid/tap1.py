@@ -678,17 +678,17 @@ class Tap1Column(TemplateBase):
 
         # place instances
         vm_layer = top_layer = endt_master.top_layer
-        inst2 = self.add_instance(endb_master, 'X1', loc=(0, 0), unit_mode=True)
-        ycur = inst2.array_box.top_unit + divn_master.array_box.top_unit
-        inst1 = self.add_instance(divp_master, 'X2', loc=(0, ycur), orient='MX', unit_mode=True)
-        ycur = inst1.array_box.top_unit
-        inst3 = self.add_instance(divn_master, 'X0', loc=(0, ycur), unit_mode=True)
-        ycur = inst3.array_box.top_unit + endt_master.array_box.top_unit
-        inst0 = self.add_instance(endt_master, 'X3', loc=(0, ycur), orient='MX', unit_mode=True)
+        inst1 = self.add_instance(endb_master, 'X1', loc=(0, 0), unit_mode=True)
+        ycur = inst1.array_box.top_unit + divn_master.array_box.top_unit
+        inst2 = self.add_instance(divp_master, 'X2', loc=(0, ycur), orient='MX', unit_mode=True)
+        ycur = inst2.array_box.top_unit
+        inst0 = self.add_instance(divn_master, 'X0', loc=(0, ycur), unit_mode=True)
+        ycur = inst0.array_box.top_unit + endt_master.array_box.top_unit
+        inst3 = self.add_instance(endt_master, 'X3', loc=(0, ycur), orient='MX', unit_mode=True)
         inst_list = [inst0, inst1, inst2, inst3]
 
         # set size
-        self.set_size_from_bound_box(top_layer, inst2.bound_box.merge(inst0.bound_box))
+        self.set_size_from_bound_box(top_layer, inst1.bound_box.merge(inst3.bound_box))
         self.array_box = self.bound_box
 
         tr_manager = TrackManager(self.grid, tr_widths, tr_spaces, half_space=True)
@@ -715,8 +715,8 @@ class Tap1Column(TemplateBase):
         biasd_warrs = [[], []]
         biasm_warrs = [[], []]
         for idx, inst in enumerate(inst_list):
-            pidx = (idx - 1) % 4
-            nidx = (idx + 1) % 4
+            pidx = (idx + 1) % 4
+            nidx = (idx - 1) % 4
             outp_warrs[idx].extend(inst.port_pins_iter('outp_m'))
             outn_warrs[idx].extend(inst.port_pins_iter('outn_m'))
             outp_warrs[pidx].extend(inst.port_pins_iter('fbp'))
@@ -724,14 +724,14 @@ class Tap1Column(TemplateBase):
             biasf_warrs.extend(inst.port_pins_iter('biasp_f'))
             for off in range(4):
                 en_pin = 'en<%d>' % off
-                en_idx = (idx + off) % 4
+                en_idx = (off + idx + 1) % 4
                 if inst.has_port(en_pin):
                     en_warrs[en_idx].extend(inst.port_pins_iter(en_pin))
             if inst.has_port('div'):
-                if idx == 3:
-                    idxp, idxn = 0, 2
+                if idx == 0:
+                    idxp, idxn = 3, 1
                 else:
-                    idxp, idxn = 1, 3
+                    idxp, idxn = 2, 0
                 en_warrs[idxp].extend(inst.port_pins_iter('div'))
                 en_warrs[idxn].extend(inst.port_pins_iter('divb'))
 
@@ -741,7 +741,7 @@ class Tap1Column(TemplateBase):
             self.reexport(inst.get_port('outn_main'), net_name='outn<%d>' % idx, show=show_pins)
             self.reexport(inst.get_port('outp_d'), net_name='outp_d<%d>' % nidx, show=show_pins)
             self.reexport(inst.get_port('outn_d'), net_name='outn_d<%d>' % nidx, show=show_pins)
-            if idx % 2 == 0:
+            if idx % 2 == 1:
                 biasm_warrs[0].extend(inst.port_pins_iter('biasp_m'))
                 biasd_warrs[1].extend(inst.port_pins_iter('biasn_d'))
                 clk_warrs[0].extend(inst.port_pins_iter('clkp'))
@@ -753,7 +753,7 @@ class Tap1Column(TemplateBase):
                 clk_warrs[0].extend(inst.port_pins_iter('clkn'))
 
         # connect output wires and draw shields
-        out_map = [1, 7, 4, 7]
+        out_map = [7, 4, 7, 1]
         vm_w_out = tr_manager.get_width(vm_layer, 'out')
         tr_lower = tr_upper = None
         for outp, outn, idx in zip(outp_warrs, outn_warrs, out_map):
@@ -785,9 +785,9 @@ class Tap1Column(TemplateBase):
 
         clkn, clkp = self.connect_differential_tracks(clk_warrs[1], clk_warrs[0], vm_layer,
                                                       clk_locs[1], clk_locs[4], width=vm_w_clk)
-        bf3, bf0 = self.connect_differential_tracks(biasf_warrs[3], biasf_warrs[0], vm_layer,
+        bf0, bf3 = self.connect_differential_tracks(biasf_warrs[0], biasf_warrs[3], vm_layer,
                                                     clk_locs[2], clk_locs[3], width=vm_w_clk)
-        bf1, bf2 = self.connect_differential_tracks(biasf_warrs[1], biasf_warrs[2], vm_layer,
+        bf2, bf1 = self.connect_differential_tracks(biasf_warrs[2], biasf_warrs[1], vm_layer,
                                                     clk_locs[2], clk_locs[3], width=vm_w_clk)
         self.add_pin('clkp', clkp, show=show_pins)
         self.add_pin('clkn', clkn, show=show_pins)
@@ -816,18 +816,18 @@ class Tap1Column(TemplateBase):
         tr_endiv = tr_scan - sp_clk_gnd
         scan_tid = TrackID(vm_layer, tr_scan)
         endiv_tid = TrackID(vm_layer, tr_endiv, width=vm_w_clk)
-        scan0 = self.connect_to_tracks(inst3.get_pin('scan_div'),
+        scan3 = self.connect_to_tracks(inst0.get_pin('scan_div'),
                                        scan_tid, min_len_mode=1)
-        scan1 = self.connect_to_tracks(inst1.get_pin('scan_div'),
+        scan2 = self.connect_to_tracks(inst2.get_pin('scan_div'),
                                        scan_tid, min_len_mode=-1)
-        endiv0 = self.connect_to_tracks(inst3.get_pin('en_div'),
+        endiv3 = self.connect_to_tracks(inst0.get_pin('en_div'),
                                         endiv_tid, min_len_mode=1)
-        endiv1 = self.connect_to_tracks(inst1.get_pin('en_div'),
+        endiv2 = self.connect_to_tracks(inst2.get_pin('en_div'),
                                         endiv_tid, min_len_mode=-1)
-        self.add_pin('scan_div<0>', scan0, show=show_pins)
-        self.add_pin('scan_div<1>', scan1, show=show_pins)
-        self.add_pin('en_div<0>', endiv0, show=show_pins)
-        self.add_pin('en_div<1>', endiv1, show=show_pins)
+        self.add_pin('scan_div<3>', scan3, show=show_pins)
+        self.add_pin('scan_div<2>', scan2, show=show_pins)
+        self.add_pin('en_div<3>', endiv3, show=show_pins)
+        self.add_pin('en_div<2>', endiv2, show=show_pins)
 
         # set schematic parameters
         self._sch_params = dict(

@@ -65,7 +65,7 @@ class bag_serdes_ec__qdr_tap1_column(Module):
             self.remove_pin('setp<5:4>')
             self.remove_pin('setn<5:4>')
 
-        self.instances['X0'].design(sum_params=sum_params, lat_params=endt_lat_params)
-        self.instances['X3'].design(sum_params=sum_params, lat_params=divp_lat_params)
-        self.instances['X1'].design(sum_params=sum_params, lat_params=divn_lat_params)
-        self.instances['X2'].design(sum_params=sum_params, lat_params=endb_lat_params)
+        self.instances['X3'].design(sum_params=sum_params, lat_params=endt_lat_params)
+        self.instances['X0'].design(sum_params=sum_params, lat_params=divp_lat_params)
+        self.instances['X2'].design(sum_params=sum_params, lat_params=divn_lat_params)
+        self.instances['X1'].design(sum_params=sum_params, lat_params=endb_lat_params)
