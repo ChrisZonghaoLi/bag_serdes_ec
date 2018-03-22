@@ -1,6 +1,6 @@
 lib_name: bag_serdes_ec
 cell_name: qdr_tap1_column
-pins: [ "VDD", "VSS", "inp<3:0>", "inn<3:0>", "biasn_m", "biasp_d", "biasn_d", "setp<5:4>", "bias_f<3:0>", "clkp", "clkn", "scan_div<3:2>", "outp<3:0>", "outn<3:0>", "outp_d<3:0>", "outn_d<3:0>", "biasp_m", "setn<5:4>", "en_div<3:2>" ]
+pins: [ "VDD", "VSS", "inp<3:0>", "inn<3:0>", "biasn_m", "biasp_d", "biasn_d", "setn<1:0>", "bias_f<3:0>", "clkp", "clkn", "scan_div<3:2>", "outp<3:0>", "outn<3:0>", "outp_d<3:0>", "outn_d<3:0>", "setp<1:0>", "biasp_m", "en_div<3:2>" ]
 instances:
   X1:
     lib_name: bag_serdes_ec
@@ -12,11 +12,11 @@ instances:
         num_bits: 1
       setn:
         direction: input
-        net_name: "setn<5>"
+        net_name: "setn<0>"
         num_bits: 1
       setp:
         direction: input
-        net_name: "setp<5>"
+        net_name: "setp<0>"
         num_bits: 1
       div:
         direction: output
@@ -112,11 +112,11 @@ instances:
         num_bits: 1
       setn:
         direction: input
-        net_name: "setn<4>"
+        net_name: "setn<1>"
         num_bits: 1
       setp:
         direction: input
-        net_name: "setp<4>"
+        net_name: "setp<1>"
         num_bits: 1
       div:
         direction: output
@@ -212,11 +212,11 @@ instances:
         num_bits: 1
       setn:
         direction: input
-        net_name: "setn<5>"
+        net_name: "setn<0>"
         num_bits: 1
       setp:
         direction: input
-        net_name: "setp<5>"
+        net_name: "setp<0>"
         num_bits: 1
       pulse_in:
         direction: input
@@ -312,11 +312,11 @@ instances:
         num_bits: 1
       setn:
         direction: input
-        net_name: "setn<4>"
+        net_name: "setn<1>"
         num_bits: 1
       setp:
         direction: input
-        net_name: "setp<4>"
+        net_name: "setp<1>"
         num_bits: 1
       div:
         direction: output
