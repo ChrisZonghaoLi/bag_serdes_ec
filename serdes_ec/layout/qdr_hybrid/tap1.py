@@ -148,19 +148,19 @@ class Tap1SummerRow(HybridQDRBase):
         vss_warrs, vdd_warrs = self.fill_dummy()
         ports_list = [main_ports, fb_ports]
 
-        for name in ('outp', 'outn', 'en1', 'clkp', 'clkn'):
-            if name == 'en1':
-                wname = 'pen1'
-                port_name = 'en<1>'
+        for name in ('outp', 'outn', 'en2', 'clkp', 'clkn'):
+            if name == 'en2':
+                wname = 'pen2'
+                port_name = 'en<2>'
             else:
                 wname = port_name = name
             wlist = [p[wname] for p in ports_list if wname in p]
             cur_warr = self.connect_wires(wlist)
             self.add_pin(port_name, cur_warr, show=show_pins)
-        for name in ('pen0', 'nen0'):
+        for name in ('pen3', 'nen3'):
             wlist = [p[name] for p in ports_list if name in p]
             cur_warr = self.connect_wires(wlist)
-            self.add_pin('en<0>', cur_warr, label='en<0>:', show=show_pins)
+            self.add_pin('en<3>', cur_warr, label='en<3>:', show=show_pins)
 
         self.add_pin('biasp_m', main_ports['biasp'], show=show_pins)
         self.add_pin('biasp_f', fb_ports['biasp'], show=show_pins)
@@ -555,13 +555,13 @@ class Tap1Summer(TemplateBase):
         exp_list = [(m_inst, 'outp', 'outp_m', True), (m_inst, 'outn', 'outn_m', True),
                     (m_inst, 'inp', 'inp', False), (m_inst, 'inn', 'inn', False),
                     (m_inst, 'fbp', 'fbp', False), (m_inst, 'fbn', 'fbn', False),
-                    (m_inst, 'en<0>', 'en<0>', True), (m_inst, 'en<1>', 'en<1>', True),
+                    (m_inst, 'en<3>', 'en<3>', True), (m_inst, 'en<2>', 'en<2>', True),
                     (m_inst, 'VDD', 'VDD', True), (m_inst, 'VSS', 'VSS', True),
                     (m_inst, 'clkp', 'clkp', True), (m_inst, 'clkn', 'clkn', True),
                     (m_inst, 'biasp_m', 'biasp_m', False), (m_inst, 'biasp_f', 'biasp_f', False),
                     (l_inst, 'inp', 'outp_m', True), (l_inst, 'inn', 'outn_m', True),
                     (l_inst, 'outp', 'outp_d', False), (l_inst, 'outn', 'outn_d', False),
-                    (l_inst, 'en<0>', 'en<1>', True), (l_inst, 'en<1>', 'en<2>', False),
+                    (l_inst, 'en<3>', 'en<2>', True), (l_inst, 'en<2>', 'en<1>', False),
                     (l_inst, 'clkp', 'clkn', True), (l_inst, 'clkn', 'clkp', True),
                     (l_inst, 'VDD', 'VDD', True), (l_inst, 'VSS', 'VSS', True),
                     (l_inst, 'biasp', 'biasn_d', False),
@@ -678,13 +678,13 @@ class Tap1Column(TemplateBase):
 
         # place instances
         vm_layer = top_layer = endt_master.top_layer
-        inst2 = self.add_instance(endb_master, 'X2', loc=(0, 0), unit_mode=True)
+        inst2 = self.add_instance(endb_master, 'X1', loc=(0, 0), unit_mode=True)
         ycur = inst2.array_box.top_unit + divn_master.array_box.top_unit
-        inst1 = self.add_instance(divp_master, 'X1', loc=(0, ycur), orient='MX', unit_mode=True)
+        inst1 = self.add_instance(divp_master, 'X2', loc=(0, ycur), orient='MX', unit_mode=True)
         ycur = inst1.array_box.top_unit
-        inst3 = self.add_instance(divn_master, 'X3', loc=(0, ycur), unit_mode=True)
+        inst3 = self.add_instance(divn_master, 'X0', loc=(0, ycur), unit_mode=True)
         ycur = inst3.array_box.top_unit + endt_master.array_box.top_unit
-        inst0 = self.add_instance(endt_master, 'X0', loc=(0, ycur), orient='MX', unit_mode=True)
+        inst0 = self.add_instance(endt_master, 'X3', loc=(0, ycur), orient='MX', unit_mode=True)
         inst_list = [inst0, inst1, inst2, inst3]
 
         # set size
