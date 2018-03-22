@@ -38,4 +38,4 @@ if __name__ == '__main__':
         bprj = local_dict['bprj']
 
     # generate(bprj, block_specs, gen_sch=False, run_lvs=False, use_cybagoa=True)
-    generate(bprj, block_specs, gen_sch=True, run_lvs=False, use_cybagoa=True)
+    generate(bprj, block_specs, gen_sch=True, run_lvs=True, use_cybagoa=True)
