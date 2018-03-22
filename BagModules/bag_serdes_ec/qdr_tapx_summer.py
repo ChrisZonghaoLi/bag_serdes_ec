@@ -52,12 +52,13 @@ class bag_serdes_ec__qdr_tapx_summer(Module):
         # compute term list
         term_list, name_list = [], []
         for idx in range(num_ffe):
-            term_dict = dict(inp='inp_a<%d>' % idx, inn='inn_a<%d>' % idx,
-                             outp_l='outp_a<%d>' % idx, outn_l='outn_a<%d>' % idx)
+            fidx = num_ffe - 1 - idx
+            term_dict = dict(inp='inp_a<%d>' % fidx, inn='inn_a<%d>' % fidx,
+                             outp_l='outp_a<%d>' % fidx, outn_l='outn_a<%d>' % fidx)
             if idx != num_ffe - 1:
-                term_dict['casc'] = 'casc<%d>' % idx
+                term_dict['casc'] = 'casc<%d>' % fidx
             term_list.append(term_dict)
-            name_list.append('XFFE%d' % idx)
+            name_list.append('XFFE%d' % fidx)
         # array instance, and design
         self.array_instance('XFFE', name_list, term_list=term_list)
         for idx, ffe_params in enumerate(ffe_params_list):
@@ -71,11 +72,11 @@ class bag_serdes_ec__qdr_tapx_summer(Module):
             self.remove_pin('biasp_d')
             self.remove_pin('outp_d')
             self.remove_pin('outn_d')
-            d_arr = '<0>'
+            d_arr = '<2>'
             do_arr = None
         else:
-            d_arr = '<%d:0>' % num_dfe
-            do_arr = '<1>' if num_dfe == 1 else ('<%d:1>' % num_dfe)
+            d_arr = '<%d:2>' % (num_dfe + 2)
+            do_arr = '<3>' if num_dfe == 1 else ('<%d:3>' % (num_dfe + 2))
         for base_name in ('inp_d', 'inn_d', 'biasn_s'):
             self.rename_pin(base_name, base_name + d_arr)
         self.rename_pin('outp_d', 'outp_d' + do_arr)
@@ -84,8 +85,8 @@ class bag_serdes_ec__qdr_tapx_summer(Module):
         if num_dfe > 0:
             # compute term list
             term_list, name_list = [], []
-            for idx in range(num_dfe):
-                didx = idx + 1
+            for idx in range(num_dfe - 1, -1, -1):
+                didx = idx + 3
                 term_dict = dict(inp='inp_d<%d>' % didx, inn='inn_d<%d>' % didx,
                                  outp_l='outp_d<%d>' % didx, outn_l='outn_d<%d>' % didx,
                                  biasn_s='biasn_s<%d>' % didx)
@@ -94,12 +95,12 @@ class bag_serdes_ec__qdr_tapx_summer(Module):
             # array instance, and design
             self.array_instance('XDFE', name_list, term_list=term_list)
             for idx, dfe_params in enumerate(dfe_params_list):
-                self.instances['XDFE'][idx].design(**dfe_params)
+                self.instances['XDFE'][num_dfe - 1 - idx].design(**dfe_params)
 
         # design last cell
-        self.reconnect_instance_terminal('XLAST', 'inp', 'inp_d<0>')
-        self.reconnect_instance_terminal('XLAST', 'inn', 'inn_d<0>')
-        self.reconnect_instance_terminal('XLAST', 'biasn', 'biasn_s<0>')
+        self.reconnect_instance_terminal('XLAST', 'inp', 'inp_d<2>')
+        self.reconnect_instance_terminal('XLAST', 'inn', 'inn_d<2>')
+        self.reconnect_instance_terminal('XLAST', 'biasn', 'biasn_s<2>')
         self.instances['XLAST'].design(**last_params)
 
         # remove pins if not needed
