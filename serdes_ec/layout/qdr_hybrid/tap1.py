@@ -660,8 +660,7 @@ class Tap1Column(TemplateBase):
         div_params['show_pins'] = False
 
         divn_master = self.new_template(params=div_params, temp_cls=Tap1Summer)
-        divp_master = divn_master.new_template_with(div_pos_edge=False)
-        fg_min = divp_master.fg_core
+        fg_min = divn_master.fg_core
 
         end_params = self.params.copy()
         end_params['seg_div'] = None
@@ -673,7 +672,7 @@ class Tap1Column(TemplateBase):
         if endt_master.fg_core > fg_min:
             fg_min = endt_master.fg_core
             divn_master = divn_master.new_template_with(fg_min=fg_min)
-            divp_master = divp_master.new_template_with(fg_min=fg_min)
+        divp_master = divn_master.new_template_with(div_pos_edge=False)
         endb_master = endt_master.new_template_with(seg_pul=None)
 
         # place instances

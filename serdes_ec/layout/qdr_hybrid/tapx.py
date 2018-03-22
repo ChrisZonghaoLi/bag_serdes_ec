@@ -1,10 +1,13 @@
 # -*- coding: utf-8 -*-
 
-from typing import TYPE_CHECKING, Dict, Any, Set
-
 """This module defines classes needed to build the Hybrid-QDR FFE/DFE summer."""
 
+from typing import TYPE_CHECKING, Dict, Any, Set
+
+from itertools import chain
+
 from bag.layout.template import TemplateBase
+from bag.layout.routing.base import TrackManager
 
 from ..laygo.misc import LaygoDummy
 from ..laygo.divider import SinClkDivider
@@ -376,6 +379,7 @@ class TapXSummerLast(TemplateBase):
             div_params=div_sch_params,
             pul_params=pul_sch_params,
         )
+        self._fg_core = s_master.layout_info.fg_core
 
 
 class TapXSummer(TemplateBase):
@@ -400,11 +404,16 @@ class TapXSummer(TemplateBase):
         # type: (TemplateDB, str, Dict[str, Any], Set[str], **kwargs) -> None
         TemplateBase.__init__(self, temp_db, lib_name, params, used_names, **kwargs)
         self._sch_params = None
+        self._fg_core_last = None
 
     @property
     def sch_params(self):
         # type: () -> Dict[str, Any]
         return self._sch_params
+
+    @property
+    def fg_core_last(self):
+        return self._fg_core_last
 
     @classmethod
     def get_default_param_values(cls):
@@ -653,3 +662,160 @@ class TapXSummer(TemplateBase):
             dfe_params_list=dfe_sch_params,
             last_params=last_sch_params,
         )
+        self._fg_core_last = last_master.fg_core
+
+
+class TapXColumn(TemplateBase):
+    """The column of DFE tap1 summers.
+
+    Parameters
+    ----------
+    temp_db : TemplateDB
+            the template database.
+    lib_name : str
+        the layout library name.
+    params : Dict[str, Any]
+        the parameter values.
+    used_names : Set[str]
+        a set of already used cell names.
+    **kwargs
+        dictionary of optional parameters.  See documentation of
+        :class:`bag.layout.template.TemplateBase` for details.
+    """
+
+    def __init__(self, temp_db, lib_name, params, used_names, **kwargs):
+        # type: (TemplateDB, str, Dict[str, Any], Set[str], **kwargs) -> None
+        TemplateBase.__init__(self, temp_db, lib_name, params, used_names, **kwargs)
+        self._sch_params = None
+
+    @property
+    def sch_params(self):
+        # type: () -> Dict[str, Any]
+        return self._sch_params
+
+    @classmethod
+    def get_default_param_values(cls):
+        # type: () -> Dict[str, Any]
+        return dict(
+            show_pins=True,
+            options=None,
+        )
+
+    @classmethod
+    def get_params_info(cls):
+        # type: () -> Dict[str, str]
+        return dict(
+            config='Laygo configuration dictionary for the divider.',
+            lch='channel length, in meters.',
+            ptap_w='NMOS substrate width, in meters/number of fins.',
+            ntap_w='PMOS substrate width, in meters/number of fins.',
+            w_sum='NMOS/PMOS width dictionary for summer.',
+            w_lat='NMOS/PMOS width dictionary for latch.',
+            th_sum='NMOS/PMOS threshold flavor dictionary.',
+            th_lat='NMOS/PMOS threshold dictoary for latch.',
+            seg_sum_list='list of segment dictionaries for summer taps.',
+            seg_ffe_list='list of segment dictionaries for FFE latches.',
+            seg_dfe_list='list of segment dictionaries for DFE latches.',
+            flip_sign_list='list of flip_sign values for summer taps.',
+            seg_div='number of segments dictionary for clock divider.',
+            seg_pul='number of segments dictionary for pulse generation.',
+            fg_dum='Number of single-sided edge dummy fingers.',
+            tr_widths='Track width dictionary.',
+            tr_spaces='Track spacing dictionary.',
+            show_pins='True to create pin labels.',
+            options='other AnalogBase options',
+        )
+
+    def draw_layout(self):
+        # get parameters
+        show_pins = self.params['show_pins']
+        tr_widths = self.params['tr_widths']
+        tr_spaces = self.params['tr_spaces']
+
+        res = self.grid.resolution
+
+        # make masters
+        div_params = self.params.copy()
+        div_params['seg_pul'] = None
+        div_params['div_pos_edge'] = True
+        div_params['is_end'] = False
+        div_params['show_pins'] = False
+
+        divn_master = self.new_template(params=div_params, temp_cls=TapXSummer)
+        fg_min_last = divn_master.fg_core_last
+
+        end_params = self.params.copy()
+        end_params['seg_div'] = None
+        end_params['fg_min_last'] = fg_min_last
+        end_params['is_end'] = True
+        end_params['show_pins'] = False
+
+        endb_master = self.new_template(params=end_params, temp_cls=TapXSummer)
+        if endb_master.fg_core_last > fg_min_last:
+            fg_min_last = endb_master.fg_core_last
+            divn_master = divn_master.new_template_with(fg_min_last=fg_min_last)
+
+        divp_master = divn_master.new_template_with(div_pos_edge=False)
+        endt_master = endb_master.new_template_with(seg_pul=None)
+
+        # place instances
+        vm_layer = top_layer = endt_master.top_layer
+        inst3 = self.add_instance(endb_master, 'X3', loc=(0, 0), unit_mode=True)
+        ycur = inst3.array_box.top_unit + divn_master.array_box.top_unit
+        inst0 = self.add_instance(divp_master, 'X0', loc=(0, ycur), orient='MX', unit_mode=True)
+        ycur = inst0.array_box.top_unit
+        inst2 = self.add_instance(divn_master, 'X2', loc=(0, ycur), unit_mode=True)
+        ycur = inst2.array_box.top_unit + endt_master.array_box.top_unit
+        inst1 = self.add_instance(endt_master, 'X1', loc=(0, ycur), orient='MX', unit_mode=True)
+        inst_list = [inst0, inst1, inst2, inst3]
+
+        # set size
+        self.set_size_from_bound_box(top_layer, inst1.bound_box.merge(inst3.bound_box))
+        self.array_box = self.bound_box
+
+        # re-export supply pins
+        vdd_list = list(chain(*(inst.port_pins_iter('VDD') for inst in inst_list)))
+        vss_list = list(chain(*(inst.port_pins_iter('VSS') for inst in inst_list)))
+        self.add_pin('VDD', vdd_list, label='VDD:', show=show_pins)
+        self.add_pin('VSS', vss_list, label='VSS:', show=show_pins)
+
+        # draw wires
+        tr_manager = TrackManager(self.grid, tr_widths, tr_spaces, half_space=True)
+
+        # re-export ports, and gather wires
+        en_warrs = [[], [], [], []]
+        biasm_warrs = [0, 0, 0, 0]
+        clk_warrs = [[], []]
+        biasa_warrs = [[], []]
+        biasd_warrs = [[], []]
+        for idx, inst in enumerate(inst_list):
+            pidx = (idx + 1) % 4
+            nidx = (idx - 1) % 4
+            biasm_warrs[nidx] = inst.get_pin('biasn_m')
+            for off in range(4):
+                en_pin = 'en<%d>' % off
+                en_idx = (off + idx + 1) % 4
+                if inst.has_port(en_pin):
+                    en_warrs[en_idx].extend(inst.port_pins_iter(en_pin))
+            if inst.has_port('div'):
+                if idx == 0:
+                    idxp, idxn = 3, 1
+                else:
+                    idxp, idxn = 2, 0
+                en_warrs[idxp].extend(inst.port_pins_iter('div'))
+                en_warrs[idxn].extend(inst.port_pins_iter('divb'))
+
+            self.reexport(inst.get_port('outp_s'), net_name='outp<%d>' % nidx, show=show_pins)
+            self.reexport(inst.get_port('outn_s'), net_name='outn<%d>' % nidx, show=show_pins)
+            self.reexport(inst.get_port('inp_d<2>'), net_name='inp_d<%d>' % pidx, show=show_pins)
+            self.reexport(inst.get_port('inn_d<2>'), net_name='inn_d<%d>' % pidx, show=show_pins)
+            if idx % 2 == 1:
+                biasa_warrs[0].extend(inst.port_pins_iter('biasp_a'))
+                biasd_warrs[0].extend(inst.port_pins_iter('biasp_d'))
+                clk_warrs[0].extend(inst.port_pins_iter('clkp'))
+                clk_warrs[1].extend(inst.port_pins_iter('clkn'))
+            else:
+                biasa_warrs[1].extend(inst.port_pins_iter('biasp_a'))
+                biasd_warrs[1].extend(inst.port_pins_iter('biasp_d'))
+                clk_warrs[1].extend(inst.port_pins_iter('clkp'))
+                clk_warrs[0].extend(inst.port_pins_iter('clkn'))
