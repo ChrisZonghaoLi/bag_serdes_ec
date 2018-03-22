@@ -42,27 +42,26 @@ class bag_serdes_ec__qdr_tapx_summer(Module):
             a_arr = '<0>'
         else:
             if num_ffe == 2:
-                self.rename_pin('casc', 'casc<0>')
+                self.rename_pin('casc', 'casc<1>')
             else:
-                self.rename_pin('casc', 'casc<%d:0>' % (num_ffe - 2))
+                self.rename_pin('casc', 'casc<%d:1>' % (num_ffe - 1))
             a_arr = '<%d:0>' % (num_ffe - 1)
 
         for base_name in ('inp_a', 'inn_a', 'outp_a', 'outn_a'):
             self.rename_pin(base_name, base_name + a_arr)
         # compute term list
         term_list, name_list = [], []
-        for idx in range(num_ffe):
-            fidx = num_ffe - 1 - idx
+        for fidx in range(num_ffe - 1, -1, -1):
             term_dict = dict(inp='inp_a<%d>' % fidx, inn='inn_a<%d>' % fidx,
                              outp_l='outp_a<%d>' % fidx, outn_l='outn_a<%d>' % fidx)
-            if idx != num_ffe - 1:
+            if fidx != 0:
                 term_dict['casc'] = 'casc<%d>' % fidx
             term_list.append(term_dict)
             name_list.append('XFFE%d' % fidx)
         # array instance, and design
         self.array_instance('XFFE', name_list, term_list=term_list)
         for idx, ffe_params in enumerate(ffe_params_list):
-            self.instances['XFFE'][idx].design(**ffe_params)
+            self.instances['XFFE'][num_ffe - 1 - idx].design(**ffe_params)
 
         # design DFE
         # rename/remove pins/instances
@@ -104,7 +103,7 @@ class bag_serdes_ec__qdr_tapx_summer(Module):
         self.instances['XLAST'].design(**last_params)
 
         # remove pins if not needed
-        if 'pulse' not in self.instances['XFFE'][-1].master.pin_list:
+        if 'pulse' not in self.instances['XFFE'][0].master.pin_list:
             self.remove_pin('setp')
             self.remove_pin('setn')
             self.remove_pin('pulse_in')

@@ -486,8 +486,8 @@ class TapXSummer(TemplateBase):
             seg_ffe = seg_ffe_list[idx]
             seg_sum = seg_sum_list[idx]
             flip_sign = flip_sign_list[idx]
-            cur_end = end_mode | 0b0100 if idx == 0 else end_mode
-            cur_snap = 0 if idx == num_ffe - 1 else 2
+            cur_end = end_mode | 0b0100 if idx == num_ffe - 1 else end_mode
+            cur_snap = 0 if idx == 0 else 2
             cur_params = dict(lch=lch, ptap_w=ptap_w, ntap_w=ntap_w, w_sum=w_sum, w_lat=w_lat,
                               th_sum=th_sum, th_lat=th_lat, seg_sum=seg_sum, seg_lat=seg_ffe,
                               fg_dum=fg_dum, tr_widths=tr_widths, tr_spaces=tr_spaces,
@@ -515,7 +515,7 @@ class TapXSummer(TemplateBase):
             dfe_masters.append(self.new_template(params=cur_params, temp_cls=TapXSummerCell))
             dfe_sch_params.append(cur_master.sch_params)
 
-        main = ffe_masters[-1]
+        main = ffe_masters[0]
         last_params = dict(config=config, row_layout_info=main.lat_row_layout_info,
                            lch=lch, ptap_w=ptap_w, ntap_w=ntap_w, w_sum=w_sum, th_sum=th_sum,
                            seg_sum=seg_sum_list[num_ffe], seg_div=seg_div, seg_pul=seg_pul,
@@ -532,16 +532,16 @@ class TapXSummer(TemplateBase):
         top_layer = main.top_layer
         ffe_insts, dfe_insts = [], []
         vdd_list, vss_list = [], []
-        for idx, master in enumerate(ffe_masters):
-            inst = self.add_instance(master, 'XFFE%d' % idx, loc=(x0, 0), unit_mode=True)
+        for fidx in range(num_ffe - 1, -1, -1):
+            master = ffe_masters[fidx]
+            inst = self.add_instance(master, 'XFFE%d' % fidx, loc=(x0, 0), unit_mode=True)
             x0 = inst.array_box.right_unit
-            ffe_insts.append(inst)
+            ffe_insts.insert(0, inst)
             vdd_list.extend(inst.port_pins_iter('VDD'))
             vss_list.extend(inst.port_pins_iter('VSS'))
-        for idx in range(num_dfe - 2, -1, -1):
-            master = dfe_masters[idx]
-            dfe_idx = idx + 3
-            inst = self.add_instance(master, 'XDFE%d' % dfe_idx, loc=(x0, 0), unit_mode=True)
+        for didx in range(num_dfe + 1, 2, -1):
+            master = dfe_masters[didx - 3]
+            inst = self.add_instance(master, 'XDFE%d' % didx, loc=(x0, 0), unit_mode=True)
             x0 = inst.array_box.right_unit
             dfe_insts.insert(0, inst)
             vdd_list.extend(inst.port_pins_iter('VDD'))
@@ -550,8 +550,8 @@ class TapXSummer(TemplateBase):
         vdd_list.extend(instl.port_pins_iter('VDD'))
         vss_list.extend(instl.port_pins_iter('VSS'))
         # set size
-        self.array_box = instl.array_box.merge(ffe_insts[0].array_box)
-        self.set_size_from_bound_box(top_layer, instl.bound_box.merge(ffe_insts[0].bound_box))
+        self.array_box = instl.array_box.merge(ffe_insts[-1].array_box)
+        self.set_size_from_bound_box(top_layer, instl.bound_box.merge(ffe_insts[-1].bound_box))
 
         # add pins
         # connect supplies
@@ -564,56 +564,57 @@ class TapXSummer(TemplateBase):
         biasm_list, biasa_list, clkp_list, clkn_list = [], [], [], []
         outs_warrs = [[], []]
         en_warrs = [[], [], [], []]
-        for idx, inst in enumerate(ffe_insts):
+        for fidx, inst in enumerate(ffe_insts):
             if inst.has_port('casc'):
-                self.reexport(inst.get_port('casc'), net_name='casc<%d>' % idx, show=show_pins)
+                self.reexport(inst.get_port('casc'), net_name='casc<%d>' % fidx, show=show_pins)
             biasm_list.append(inst.get_pin('biasn_s'))
-            self.reexport(inst.get_port('inp'), net_name='inp_a<%d>' % idx, show=show_pins)
-            self.reexport(inst.get_port('inn'), net_name='inn_a<%d>' % idx, show=show_pins)
+            self.reexport(inst.get_port('inp'), net_name='inp_a<%d>' % fidx, show=show_pins)
+            self.reexport(inst.get_port('inn'), net_name='inn_a<%d>' % fidx, show=show_pins)
             biasa_list.append(inst.get_pin('biasp_l'))
             clkp_list.extend(inst.port_pins_iter('clkp'))
             clkn_list.extend(inst.port_pins_iter('clkn'))
-            en_warrs[0].extend(inst.port_pins_iter('en<0>'))
-            en_warrs[1].extend(inst.port_pins_iter('en<1>'))
-            if inst.has_port('en<2>'):
-                en_warrs[2].extend(inst.port_pins_iter('en<2>'))
+            en_warrs[3].extend(inst.port_pins_iter('en<3>'))
+            en_warrs[2].extend(inst.port_pins_iter('en<2>'))
+            if inst.has_port('en<1>'):
+                en_warrs[1].extend(inst.port_pins_iter('en<1>'))
             # TODO: handle setp/setn/pulse pins
             outs_warrs[0].append(inst.get_pin('outp_s'))
             outs_warrs[1].append(inst.get_pin('outn_s'))
-            self.reexport(inst.get_port('outp_l'), net_name='outp_a<%d>' % idx,
-                          label='outp_a<%d>:' % idx, show=show_pins)
-            self.reexport(inst.get_port('outn_l'), net_name='outn_a<%d>' % idx,
-                          label='outn_a<%d>:' % idx, show=show_pins)
+            self.reexport(inst.get_port('outp_l'), net_name='outp_a<%d>' % fidx,
+                          label='outp_a<%d>:' % fidx, show=show_pins)
+            self.reexport(inst.get_port('outn_l'), net_name='outn_a<%d>' % fidx,
+                          label='outn_a<%d>:' % fidx, show=show_pins)
 
         # export/collect DFE pins
         biasd_list = []
         for idx, inst in enumerate(dfe_insts):
-            self.reexport(inst.get_port('biasn_s'), net_name='biasn_s<%d>' % (idx + 1),
+            didx = idx + 3
+            self.reexport(inst.get_port('biasn_s'), net_name='biasn_s<%d>' % didx,
                           show=show_pins)
-            self.reexport(inst.get_port('inp'), net_name='inp_d<%d>' % (idx + 1), show=show_pins)
-            self.reexport(inst.get_port('inn'), net_name='inn_d<%d>' % (idx + 1), show=show_pins)
+            self.reexport(inst.get_port('inp'), net_name='inp_d<%d>' % didx, show=show_pins)
+            self.reexport(inst.get_port('inn'), net_name='inn_d<%d>' % didx, show=show_pins)
             biasd_list.append(inst.get_pin('biasp_l'))
             clkp_list.extend(inst.port_pins_iter('clkp'))
             clkn_list.extend(inst.port_pins_iter('clkn'))
-            en_warrs[0].extend(inst.port_pins_iter('en<0>'))
-            en_warrs[1].extend(inst.port_pins_iter('en<1>'))
-            if inst.has_port('en<2>'):
-                en_warrs[2].extend(inst.port_pins_iter('en<2>'))
+            en_warrs[3].extend(inst.port_pins_iter('en<3>'))
+            en_warrs[2].extend(inst.port_pins_iter('en<2>'))
+            if inst.has_port('en<1>'):
+                en_warrs[1].extend(inst.port_pins_iter('en1>'))
             # TODO: handle setp/setn/pulse pins
             outs_warrs[0].append(inst.get_pin('outp_s'))
             outs_warrs[1].append(inst.get_pin('outn_s'))
-            self.reexport(inst.get_port('outp_l'), net_name='outp_d<%d>' % (idx + 1),
-                          label='outp_d<%d>:' % (idx + 1), show=show_pins)
-            self.reexport(inst.get_port('outn_l'), net_name='outn_d<%d>' % (idx + 1),
-                          label='outn_d<%d>:' % (idx + 1), show=show_pins)
+            self.reexport(inst.get_port('outp_l'), net_name='outp_d<%d>' % didx,
+                          label='outp_d<%d>:' % didx, show=show_pins)
+            self.reexport(inst.get_port('outn_l'), net_name='outn_d<%d>' % didx,
+                          label='outn_d<%d>:' % didx, show=show_pins)
 
         # export/collect last summer tap pins
-        self.reexport(instl.get_port('inp'), net_name='inp_d<0>', show=show_pins)
-        self.reexport(instl.get_port('inn'), net_name='inn_d<0>', show=show_pins)
-        self.reexport(instl.get_port('biasn'), net_name='biasn_s<0>', show=show_pins)
-        en_warrs[1].extend(instl.port_pins_iter('en<1>'))
-        if instl.has_port('en<2>'):
-            en_warrs[2].extend(instl.port_pins_iter('en<2>'))
+        self.reexport(instl.get_port('inp'), net_name='inp_d<2>', show=show_pins)
+        self.reexport(instl.get_port('inn'), net_name='inn_d<2>', show=show_pins)
+        self.reexport(instl.get_port('biasn'), net_name='biasn_s<2>', show=show_pins)
+        en_warrs[2].extend(instl.port_pins_iter('en<2>'))
+        if instl.has_port('en<1>'):
+            en_warrs[1].extend(instl.port_pins_iter('en<1>'))
         # TODO: handle setp/setn/pulse pins
         if instl.has_port('clkp'):
             clkp_list.extend(instl.port_pins_iter('clkp'))
