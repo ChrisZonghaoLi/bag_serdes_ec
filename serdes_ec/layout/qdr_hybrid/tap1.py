@@ -120,12 +120,12 @@ class Tap1SummerRow(HybridQDRBase):
                                      end_mode=end_mode, **options)
         fg_sep_out = qdr_info.get_fg_sep_from_hm_space(tr_manager.get_width(hm_layer, 'out'),
                                                        round_even=True)
-        fg_sep_load = qdr_info.get_fg_sep_from_hm_space(tr_manager.get_width(hm_layer, 'en'),
-                                                        round_even=True)
-        fg_sep_load = max(0, fg_sep_load - 2)
+        fg_sep_hm = qdr_info.get_fg_sep_from_hm_space(tr_manager.get_width(hm_layer, 'en'),
+                                                      round_even=True)
+        fg_sep_hm = max(0, fg_sep_hm)
 
-        main_info = qdr_info.get_integ_amp_info(seg_main, fg_dum=0, fg_sep_hm=fg_sep_load)
-        fb_info = qdr_info.get_integ_amp_info(seg_fb, fg_dum=0, fg_sep_hm=fg_sep_load)
+        main_info = qdr_info.get_integ_amp_info(seg_main, fg_dum=0, fg_sep_hm=fg_sep_hm)
+        fb_info = qdr_info.get_integ_amp_info(seg_fb, fg_dum=0, fg_sep_hm=fg_sep_hm)
 
         fg_main = main_info['fg_tot']
         fg_amp = fg_main + fb_info['fg_tot'] + fg_sep_out
@@ -141,9 +141,9 @@ class Tap1SummerRow(HybridQDRBase):
 
         # draw amplifier
         main_ports, _ = self.draw_integ_amp(fg_duml, seg_main, fg_dum=0,
-                                            fg_sep_hm=fg_sep_load, net_suffix='_m')
+                                            fg_sep_hm=fg_sep_hm, net_suffix='_m')
         fb_ports, _ = self.draw_integ_amp(fg_duml + fg_main + fg_sep_out, seg_fb, invert=True,
-                                          fg_dum=0, fg_sep_hm=fg_sep_load, net_suffix='_f')
+                                          fg_dum=0, fg_sep_hm=fg_sep_hm, net_suffix='_f')
 
         vss_warrs, vdd_warrs = self.fill_dummy()
         ports_list = [main_ports, fb_ports]
