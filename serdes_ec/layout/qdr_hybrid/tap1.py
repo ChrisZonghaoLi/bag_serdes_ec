@@ -295,7 +295,7 @@ class Tap1LatchRow(TemplateBase):
                 VSS=m_tr_info['VSS'],
                 q=m_tr_info['inp'],
                 qb=m_tr_info['inn'],
-                en=m_tr_info['nen0'],
+                en=m_tr_info['nen3'],
                 clk=m_tr_info['clkp'] if div_pos_edge else m_tr_info['clkn'],
             )
 
@@ -399,8 +399,8 @@ class Tap1LatchRow(TemplateBase):
         self.add_pin('clkn', clkn, show=show_pins)
 
         # re-export tap1 pins
-        self.reexport(m_inst.get_port('en<0>'), label='en<0>:', show=show_pins)
-        for name in ('en<1>', 'outp', 'outn', 'inp', 'inn', 'biasp'):
+        self.reexport(m_inst.get_port('en<3>'), label='en<3>:', show=show_pins)
+        for name in ('en<2>', 'outp', 'outn', 'inp', 'inn', 'biasp'):
             self.reexport(m_inst.get_port(name), show=show_pins)
 
         # compute metal 5 enable track locations
