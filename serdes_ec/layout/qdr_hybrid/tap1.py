@@ -779,15 +779,15 @@ class Tap1Column(TemplateBase):
         vm_w_clk = tr_manager.get_width(vm_layer, 'clk')
         start_idx0 = en_locs[3] - (vm_w_en - 1) / 2
         ntr = out_locs[0] + 1 - start_idx0
-        clk_locs = tr_manager.spread_wires(vm_layer, ['en', 'clk', 'clk', 'clk', 'clk', 1],
+        clk_locs = tr_manager.spread_wires(vm_layer, ['en', 1, 'clk', 'clk', 'clk', 'clk', 1],
                                            ntr, ('clk', ''), alignment=0, start_idx=start_idx0)
 
         clkn, clkp = self.connect_differential_tracks(clk_warrs[1], clk_warrs[0], vm_layer,
-                                                      clk_locs[1], clk_locs[4], width=vm_w_clk)
+                                                      clk_locs[2], clk_locs[5], width=vm_w_clk)
         bf0, bf3 = self.connect_differential_tracks(biasf_warrs[0], biasf_warrs[3], vm_layer,
-                                                    clk_locs[2], clk_locs[3], width=vm_w_clk)
+                                                    clk_locs[3], clk_locs[4], width=vm_w_clk)
         bf2, bf1 = self.connect_differential_tracks(biasf_warrs[2], biasf_warrs[1], vm_layer,
-                                                    clk_locs[2], clk_locs[3], width=vm_w_clk)
+                                                    clk_locs[3], clk_locs[4], width=vm_w_clk)
         self.add_pin('clkp', clkp, show=show_pins)
         self.add_pin('clkn', clkn, show=show_pins)
         self.add_pin('bias_f<0>', bf0, show=show_pins)
@@ -796,8 +796,8 @@ class Tap1Column(TemplateBase):
         self.add_pin('bias_f<3>', bf3, show=show_pins)
 
         # draw bias_m/bias_d wires
-        sp_clk = clk_locs[2] - clk_locs[1]
-        sp_clk_en = clk_locs[1] - en_locs[3]
+        sp_clk = clk_locs[3] - clk_locs[2]
+        sp_clk_en = clk_locs[2] - en_locs[3]
         right_tidx = en_locs[0] - sp_clk_en
         bias_locs = [right_tidx + idx * sp_clk for idx in range(-3, 1, 1)]
         bmn, bmp = self.connect_differential_tracks(biasm_warrs[1], biasm_warrs[0], vm_layer,
