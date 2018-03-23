@@ -77,15 +77,20 @@ class HybridQDRBaseInfo(AnalogBaseInfo):
         seg_load = seg_dict.get('load', 0)
         seg_pen = seg_dict.get('pen', 0)
         seg_casc = seg_dict.get('casc', 0)
+        seg_but = seg_dict.get('but', 0)
         seg_in = seg_dict['in']
         seg_nen = seg_dict['nen']
         seg_tail = seg_dict['tail']
+
+        if seg_casc > 0 < seg_but:
+            raise ValueError('Cannot have both cascode transistor and butterfly switch.')
+        if seg_load > 0 and seg_but > 0:
+            raise ValueError('Cannot have both butterfly switch and load.')
 
         # calculate PMOS center transistor number of fingers
         seg_ps = max(seg_pen, seg_load)
         if seg_load == 0:
             seg_pc = 0
-            fg_sep_load = 0
         else:
             if not self.abut_analog_mos or fg_sep_load > 0 or seg_load > seg_pen:
                 fg_sep_load = max(fg_sep_load, fg_sep)
@@ -93,11 +98,19 @@ class HybridQDRBaseInfo(AnalogBaseInfo):
                 fg_sep_load = 0
             seg_pc = seg_ps * 2 + fg_sep_load
 
-        if seg_casc > 0:
+        if seg_casc > 0 or seg_but > 0:
             fg_sep = max(fg_sep, fg_sep_hm)
 
         # calculate NMOS center transistor number of fingers
-        seg_nc = max(seg_casc, seg_in)
+        if seg_but > 0:
+            if self.abut_analog_mos:
+                seg_but_tot = 2 * seg_but
+            else:
+                seg_but_tot = 2 * seg_but + fg_sep
+        else:
+            seg_but_tot = 0
+        seg_nc = max(seg_casc, seg_in, seg_but_tot)
+
         # calculate number of center fingers and total size
         seg_center = max(seg_nc, seg_pc)
         seg_single = max(seg_center, seg_nen, seg_tail)
@@ -130,6 +143,10 @@ class HybridQDRBaseInfo(AnalogBaseInfo):
         nc_off = fg_dum + center_off + (seg_center - seg_nc) // 2
         if seg_casc > 0:
             col_dict['casc'] = nc_off + (seg_nc - seg_casc) // 2 + ncol_delta
+        elif seg_but > 0:
+            col_dict['but0'] = nc_off + pcol_delta
+            col_dict['but1'] = nc_off + seg_nc - seg_but + pcol_delta
+
         col_in = nc_off + (seg_nc - seg_in) // 2 + ncol_delta
         col_dict['in'] = col_in
         col_nen = fg_dum + col_in + seg_in - seg_nen
@@ -190,9 +207,20 @@ class HybridQDRBaseInfo(AnalogBaseInfo):
             sd_dict[('in', sd_name)] = 'tail'
             sd_dir_dict['in'] = sd_dir
         else:
+            if seg_but > 0:
+                sd_dict[('but0', 'd')] = sd_dict[('but1', 'd')] = 'out'
+                sd_dir = (0, 2)
+                sd_name = 's'
+                sd_dict[('but0', sd_name)] = sd_dict[('but1', sd_name)] = 'nm'
+                sd_dir_dict['but0'] = sd_dir_dict['but1'] = sd_dir
+                prev_col = col_dict['but0']
+                in_sd = 'nm'
+            else:
+                in_sd = 'out'
+
             if prev_col is not None and (col_dict['in'] - prev_col) % 2 == 1:
                 sd_name = 'd' if sd_name == 's' else 's'
-            sd_dict[('in', sd_name)] = 'out'
+            sd_dict[('in', sd_name)] = in_sd
             if sd_name == 'd':
                 sd_dir = (0, 2)
                 sd_name = 's'
@@ -230,7 +258,6 @@ class HybridQDRBaseInfo(AnalogBaseInfo):
             fg_tot=fg_tot,
             fg_dum=fg_dum,
             fg_sep=fg_sep,
-            fg_sep_load=fg_sep_load,
             col_dict=col_dict,
             sd_dict=sd_dict,
             sd_dir_dict=sd_dir_dict,
@@ -257,10 +284,12 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
     n_name_list = ['tail', 'nen', 'in', 'casc']
     p_name_list = ['pen', 'load']
     tran_list = [('load0', 'load'), ('load1', 'load'), ('pen0', 'pen'), ('pen1', 'pen'),
-                 ('casc', 'casc'), ('in', 'in'), ('nen', 'nen'), ('tail', 'tail')]
+                 ('casc', 'casc'), ('but0', 'but'), ('but1', 'but'), ('in', 'in'),
+                 ('nen', 'nen'), ('tail', 'tail')]
     diff_nets = {'pm0', 'pm1', 'out', 'nm'}
     gate_dict = {'load0': 'pclk0', 'load1': 'pclk1', 'pen0': 'pen0', 'pen1': 'pen1',
-                 'casc': 'casc', 'in': 'in', 'nen': 'nen', 'tail': 'nclk'}
+                 'casc': 'casc', 'in': 'in', 'nen': 'nen', 'tail': 'nclk',
+                 'but0': 'casc<0>', 'but1': 'casc<1>'}
 
     def __init__(self, temp_db, lib_name, params, used_names, **kwargs):
         # type: (TemplateDB, str, Dict[str, Any], Set[str], **kwargs) -> None
@@ -289,6 +318,8 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
         row_idx : int
             the row index.
         """
+        if name == 'but':
+            name = 'casc'
         if name not in self._row_lookup:
             raise ValueError('row %s not found.' % name)
         return self._row_lookup[name]
@@ -410,6 +441,10 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
                     dnetn = dnet + 'n'
                 else:
                     dnetp = dnetn = dnet
+                if tran_name == 'but1':
+                    # flip butterfly switch1 drain
+                    dnetn, dnetp = dnetp, dnetn
+
                 # draw transistors
                 mp = self.draw_mos_conn(mos_type, row_idx, colp, seg, sdir, ddir,
                                         s_net=s_pre + snetp + s_suf, d_net=d_pre + dnetp + d_suf)
@@ -484,6 +519,7 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
                                                     fg_sep_hm=fg_sep_hm)
         seg_load = seg_dict.get('load', 0)
         seg_casc = seg_dict.get('casc', 0)
+        seg_but = seg_dict.get('but', 0)
         fg_tot = amp_info['fg_tot']
         col_dict = amp_info['col_dict']
         sd_dict = amp_info['sd_dict']
@@ -560,5 +596,16 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
             self.connect_to_tracks(ports['nmn'], nm_tid)
             casc = self.connect_to_tracks(ports['casc'], casc_tid)
             ans['casc'] = casc
+        elif seg_but > 0:
+            nm_tid = self.get_wire_id('nch', 3, 'ds', wire_name='ptail')
+            cascp_idx = self.get_wire_id('nch', 3, 'g', wire_idx=-1).base_index
+            cascn_idx = self.get_wire_id('nch', 3, 'g', wire_idx=-2).base_index
+            self.connect_to_tracks(ports['nmp'], nm_tid)
+            self.connect_to_tracks(ports['nmn'], nm_tid)
+
+            casc0, casc1 = self.connect_differential_tracks(ports['casc<0>'], ports['casc<1>'],
+                                                            hm_layer, cascp_idx, cascn_idx)
+            ans['casc<0>'] = casc0
+            ans['casc<1>'] = casc1
 
         return ans, amp_info

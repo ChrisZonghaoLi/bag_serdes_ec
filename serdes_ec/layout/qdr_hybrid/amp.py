@@ -57,6 +57,7 @@ class IntegAmp(HybridQDRBase):
         # type: () -> Dict[str, Any]
         return dict(
             flip_sign=False,
+            but_sw=False,
             top_layer=None,
             show_pins=True,
             end_mode=15,
@@ -78,6 +79,7 @@ class IntegAmp(HybridQDRBase):
             tr_widths='Track width dictionary.',
             tr_spaces='Track spacing dictionary.',
             flip_sign='True to flip summer output sign.',
+            but_sw='True to reserve space for butterfly switch.',
             top_layer='Top layer ID',
             show_pins='True to create pin labels.',
             end_mode='The AnalogBase end_mode flag.',
@@ -96,6 +98,7 @@ class IntegAmp(HybridQDRBase):
         tr_widths = self.params['tr_widths']
         tr_spaces = self.params['tr_spaces']
         flip_sign = self.params['flip_sign']
+        but_sw = self.params['but_sw']
         top_layer = self.params['top_layer']
         show_pins = self.params['show_pins']
         end_mode = self.params['end_mode']
@@ -104,6 +107,11 @@ class IntegAmp(HybridQDRBase):
         if options is None:
             options = {}
 
+        if but_sw:
+            casc_g = [1, 1]
+        else:
+            casc_g = [1]
+
         # get track manager and wire names
         tr_manager = TrackManager(self.grid, tr_widths, tr_spaces, half_space=True)
         wire_names = {
@@ -111,7 +119,7 @@ class IntegAmp(HybridQDRBase):
             'tail': dict(g=[1, 'clk'], ds=['ntail']),
             'nen': dict(g=['en'], ds=['ntail']),
             'in': dict(g=['in', 'in'], ds=[]),
-            'casc': dict(g=['casc'], ds=['ptail']),
+            'casc': dict(g=casc_g, ds=['ptail']),
             'pen': dict(ds=['out', 'out'], g=['en', 'en']),
             'load': dict(ds=['ptail'], g=['clk', 'clk']),
         }
@@ -163,7 +171,8 @@ class IntegAmp(HybridQDRBase):
             self.add_pin('en<3>', nen3, show=show_pins)
 
         for name, port_name in (('pen2', 'en<2>'), ('clkp', 'clkp'), ('clkn', 'clkn'),
-                                ('casc', 'casc')):
+                                ('casc', 'casc'), ('casc<0>', 'casc<0>'),
+                                ('casc<1>', 'casc<1>')):
             if name in ports:
                 warr = ports[name]
                 self.add_pin(port_name, warr, show=show_pins)
