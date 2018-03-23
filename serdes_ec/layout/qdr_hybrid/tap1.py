@@ -378,11 +378,11 @@ class Tap1LatchRow(TemplateBase):
                 if div_pos_edge:
                     clkp.extend(d_inst.port_pins_iter('clk'))
                     clkp = self.connect_wires(clkp)
-                    clkn = self.extend_wires(clkn, lower=clkp[0].lower)
+                    clkn = self.extend_wires(clkn, lower=clkp[0].lower_unit, unit_mode=True)
                 else:
                     clkn.extend(d_inst.port_pins_iter('clk'))
                     clkn = self.connect_wires(clkn)
-                    clkp = self.extend_wires(clkp, lower=clkn[0].lower)
+                    clkp = self.extend_wires(clkp, lower=clkn[0].lower_unit, unit_mode=True)
 
                 # re-export divider pins
                 self.reexport(d_inst.get_port('q'), net_name='div', show=show_pins)
@@ -410,7 +410,7 @@ class Tap1LatchRow(TemplateBase):
         vm_layer = hm_layer + 1
         in_w = inp_warr.track_id.width
         tr_w = tr_manager.get_width(vm_layer, 'en')
-        in_xl = int(round(inp_warr.lower / self.grid.resolution))
+        in_xl = inp_warr.lower_unit
         via_ext = self.grid.get_via_extensions(hm_layer, in_w, tr_w, unit_mode=True)[0]
         sp_le = self.grid.get_line_end_space(hm_layer, in_w, unit_mode=True)
         ntr, tr_locs = tr_manager.place_wires(vm_layer, ['en'] * 4)
@@ -650,8 +650,6 @@ class Tap1Column(TemplateBase):
         tr_widths = self.params['tr_widths']
         tr_spaces = self.params['tr_spaces']
 
-        res = self.grid.resolution
-
         # make masters
         div_params = self.params.copy()
         div_params['seg_pul'] = None
@@ -695,12 +693,12 @@ class Tap1Column(TemplateBase):
         # re-export supply pins
         vdd_list = list(chain(*(inst.port_pins_iter('VDD') for inst in inst_list)))
         vss_list = list(chain(*(inst.port_pins_iter('VSS') for inst in inst_list)))
-        self.add_pin('VDD', vdd_list, label='VDD:', show=show_pins)
-        self.add_pin('VSS', vss_list, label='VSS:', show=show_pins)
+        self.add_pin('VDD', vdd_list, show=show_pins)
+        self.add_pin('VSS', vss_list, show=show_pins)
 
         # draw wires
         # compute output wire tracks
-        xr = int(round(vdd_list[0].upper / res))
+        xr = vdd_list[0].upper_unit
         tidx0 = self.grid.find_next_track(vm_layer, xr, mode=1, unit_mode=True)
         _, out_locs = tr_manager.place_wires(vm_layer, [1, 'out', 'out', 1, 'out', 'out',
                                                         1, 'out', 'out', 1], start_idx=tidx0)
@@ -754,20 +752,11 @@ class Tap1Column(TemplateBase):
         # connect output wires and draw shields
         out_map = [7, 4, 7, 1]
         vm_w_out = tr_manager.get_width(vm_layer, 'out')
-        tr_lower = tr_upper = None
         for outp, outn, idx in zip(outp_warrs, outn_warrs, out_map):
-            trp, trn = self.connect_differential_tracks(outp, outn, vm_layer, out_locs[idx],
-                                                        out_locs[idx + 1], width=vm_w_out)
-            if tr_lower is None:
-                tr_lower = trp.lower
-                tr_upper = trp.upper
-            else:
-                tr_lower = min(tr_lower, trp.lower)
-                tr_upper = max(tr_upper, trp.upper)
+            self.connect_differential_tracks(outp, outn, vm_layer, out_locs[idx],
+                                             out_locs[idx + 1], width=vm_w_out)
 
         shield_pitch = out_locs[3] - out_locs[0]
-        self.connect_to_tracks(vdd_list, TrackID(vm_layer, out_locs[0], num=4, pitch=shield_pitch),
-                               track_lower=tr_lower, track_upper=tr_upper)
 
         # draw enable wires
         en_locs = divp_master.en_locs
@@ -780,7 +769,7 @@ class Tap1Column(TemplateBase):
         start_idx0 = en_locs[3] - (vm_w_en - 1) / 2
         ntr = out_locs[0] + 1 - start_idx0
         clk_locs = tr_manager.spread_wires(vm_layer, ['en', 1, 'clk', 'clk', 'clk', 'clk', 1],
-                                           ntr, ('clk', ''), alignment=0, start_idx=start_idx0)
+                                           ntr, ('clk', ''), alignment=1, start_idx=start_idx0)
 
         clkn, clkp = self.connect_differential_tracks(clk_warrs[1], clk_warrs[0], vm_layer,
                                                       clk_locs[2], clk_locs[5], width=vm_w_clk)
@@ -796,10 +785,20 @@ class Tap1Column(TemplateBase):
         self.add_pin('bias_f<3>', bf3, show=show_pins)
 
         # draw bias_m/bias_d wires
+        shield_tidr = tr_manager.get_next_track(vm_layer, en_locs[0], 'en', 1, up=False)
         sp_clk = clk_locs[3] - clk_locs[2]
-        sp_clk_en = clk_locs[2] - en_locs[3]
-        right_tidx = en_locs[0] - sp_clk_en
+        sp_clk_shield = clk_locs[2] - clk_locs[1]
+        right_tidx = shield_tidr - sp_clk_shield
         bias_locs = [right_tidx + idx * sp_clk for idx in range(-3, 1, 1)]
+        shield_tidl = bias_locs[0] - sp_clk_shield
+        # draw shields
+        sh_tid = TrackID(vm_layer, shield_tidl, num=2, pitch=shield_tidr - shield_tidl)
+        sh_warrs = self.connect_to_tracks(vss_list, sh_tid, unit_mode=True)
+        tr_lower, tr_upper = sh_warrs.lower_unit, sh_warrs.upper_unit
+        self.connect_to_tracks(vdd_list, TrackID(vm_layer, out_locs[0], num=4, pitch=shield_pitch),
+                               track_lower=tr_lower, track_upper=tr_upper, unit_mode=True)
+        self.connect_to_tracks(vdd_list, TrackID(vm_layer, clk_locs[1]),
+                               track_lower=tr_lower, track_upper=tr_upper, unit_mode=True)
         bmn, bmp = self.connect_differential_tracks(biasm_warrs[1], biasm_warrs[0], vm_layer,
                                                     bias_locs[0], bias_locs[3], width=vm_w_clk)
         bdn, bdp = self.connect_differential_tracks(biasd_warrs[1], biasd_warrs[0], vm_layer,
@@ -810,9 +809,8 @@ class Tap1Column(TemplateBase):
         self.add_pin('biasn_d', bdn, show=show_pins)
 
         # draw en_div/scan wires
-        sp_clk_gnd = out_locs[0] - clk_locs[4]
-        tr_scan = bias_locs[0] - sp_clk_gnd
-        tr_endiv = tr_scan - sp_clk_gnd
+        tr_scan = shield_tidl - 1
+        tr_endiv = tr_scan - sp_clk_shield
         scan_tid = TrackID(vm_layer, tr_scan)
         endiv_tid = TrackID(vm_layer, tr_endiv, width=vm_w_clk)
         scan3 = self.connect_to_tracks(inst0.get_pin('scan_div'),
