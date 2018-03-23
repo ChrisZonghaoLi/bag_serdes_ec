@@ -750,13 +750,12 @@ class Tap1Column(TemplateBase):
                 clk_warrs[0].extend(inst.port_pins_iter('clkn'))
 
         # connect output wires and draw shields
-        out_map = [7, 4, 7, 1]
+        out_map = [4, 4, 1, 1]
         vm_w_out = tr_manager.get_width(vm_layer, 'out')
         for outp, outn, idx in zip(outp_warrs, outn_warrs, out_map):
             self.connect_differential_tracks(outp, outn, vm_layer, out_locs[idx],
                                              out_locs[idx + 1], width=vm_w_out)
 
-        shield_pitch = out_locs[3] - out_locs[0]
 
         # draw enable wires
         en_locs = divp_master.en_locs
@@ -795,7 +794,8 @@ class Tap1Column(TemplateBase):
         sh_tid = TrackID(vm_layer, shield_tidl, num=2, pitch=shield_tidr - shield_tidl)
         sh_warrs = self.connect_to_tracks(vss_list, sh_tid, unit_mode=True)
         tr_lower, tr_upper = sh_warrs.lower_unit, sh_warrs.upper_unit
-        self.connect_to_tracks(vdd_list, TrackID(vm_layer, out_locs[0], num=4, pitch=shield_pitch),
+        shield_pitch = out_locs[3] - out_locs[0]
+        self.connect_to_tracks(vdd_list, TrackID(vm_layer, out_locs[0], num=3, pitch=shield_pitch),
                                track_lower=tr_lower, track_upper=tr_upper, unit_mode=True)
         self.connect_to_tracks(vdd_list, TrackID(vm_layer, clk_locs[1]),
                                track_lower=tr_lower, track_upper=tr_upper, unit_mode=True)
