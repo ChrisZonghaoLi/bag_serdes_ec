@@ -106,6 +106,7 @@ class TapXSummerCell(TemplateBase):
             seg_dict=self.params['seg_sum'],
             top_layer=top_layer,
             flip_sign=flip_sign,
+            but_sw=True,
             show_pins=False,
             end_mode=end_mode,
         )
@@ -115,6 +116,7 @@ class TapXSummerCell(TemplateBase):
             seg_dict=self.params['seg_lat'],
             top_layer=top_layer,
             flip_sign=False,
+            but_sw=False,
             show_pins=False,
             end_mode=end_mode & 0b1100,
         )
@@ -151,6 +153,7 @@ class TapXSummerCell(TemplateBase):
         # export pins in-place
         exp_list = [(s_inst, 'clkp', 'clkn', True), (s_inst, 'clkn', 'clkp', True),
                     (s_inst, 'casc', 'casc', False),
+                    (s_inst, 'casc<1>', 'casc<1>', False), (s_inst, 'casc<0>', 'casc<0>', False),
                     (s_inst, 'inp', 'outp_l', True), (s_inst, 'inn', 'outn_l', True),
                     (s_inst, 'biasp', 'biasn_s', False),
                     (s_inst, 'en<3>', 'en<2>', True), (s_inst, 'en<2>', 'en<1>', False),

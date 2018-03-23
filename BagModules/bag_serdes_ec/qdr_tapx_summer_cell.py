@@ -38,8 +38,12 @@ class bag_serdes_ec__qdr_tapx_summer_cell(Module):
         # remove unused pins
         s_pins = self.instances['XSUM'].master.pin_list
         l_pins = self.instances['XLAT'].master.pin_list
-        if 'casc' not in s_pins:
-            self.remove_pin('casc')
+        if 'casc' in s_pins:
+            self.rename_pin('casc<1:0>', 'casc')
+            self.reconnect_instance_terminal('XSUM', 'casc', 'casc')
+        elif 'casc<1:0>' not in s_pins:
+            self.remove_pin('casc<1:0>')
+
         if 'pulse' not in s_pins and 'pulse' not in l_pins:
             for name in ('setp', 'setn', 'pulse'):
                 self.remove_pin(name)
