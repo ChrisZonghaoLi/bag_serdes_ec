@@ -6,6 +6,10 @@ instances:
     lib_name: bag_serdes_ec
     cell_name: integ_amp
     instpins:
+      casc<1:0>:
+        direction: input
+        net_name: "VSS,VDD"
+        num_bits: 2
       en<3:2>:
         direction: input
         net_name: "en<3:2>"
@@ -29,10 +33,6 @@ instances:
       nmp:
         direction: output
         net_name: "nmp_f"
-        num_bits: 1
-      casc:
-        direction: input
-        net_name: "VDD"
         num_bits: 1
       setn:
         direction: input
@@ -106,6 +106,10 @@ instances:
     lib_name: bag_serdes_ec
     cell_name: integ_amp
     instpins:
+      casc<1:0>:
+        direction: input
+        net_name: "VSS,VDD"
+        num_bits: 2
       en<3:2>:
         direction: input
         net_name: "en<3:2>"
@@ -129,10 +133,6 @@ instances:
       nmp:
         direction: output
         net_name: "nmp_m"
-        num_bits: 1
-      casc:
-        direction: input
-        net_name: "VDD"
         num_bits: 1
       setn:
         direction: input

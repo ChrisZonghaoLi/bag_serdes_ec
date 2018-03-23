@@ -1,11 +1,15 @@
 lib_name: bag_serdes_ec
 cell_name: qdr_tapx_column
-pins: [ "VDD", "VSS", "clkp", "clkn", "casc<3:0>", "inn_a", "inp_d<3:0>", "biasp_a", "biasn_a", "bias_s<3:0>", "bias_m<3:0>", "setp", "biasp_d", "biasn_d", "inp_a", "inn_d<3:0>", "en_div<1:0>", "scan_div<1:0>", "outp<3:0>", "outn<3:0>", "setn" ]
+pins: [ "VDD", "VSS", "clkp", "clkn", "casc<3:0>", "inn_a", "inp_d<3:0>", "biasp_a", "biasn_a", "bias_s<3:0>", "bias_m<3:0>", "setp", "sgnp<3:0>", "biasp_d", "biasn_d", "inp_a", "inn_d<3:0>", "en_div<1:0>", "scan_div<1:0>", "outp<3:0>", "outn<3:0>", "setn", "sgnn<3:0>" ]
 instances:
   X3:
     lib_name: bag_serdes_ec
     cell_name: qdr_tapx_summer
     instpins:
+      sgn<1:0>:
+        direction: input
+        net_name: "sgnn<2>,sgnp<2>"
+        num_bits: 2
       div:
         direction: output
         net_name: "div3"
@@ -122,6 +126,10 @@ instances:
     lib_name: bag_serdes_ec
     cell_name: qdr_tapx_summer
     instpins:
+      sgn<1:0>:
+        direction: input
+        net_name: "sgnn<3>,sgnp<3>"
+        num_bits: 2
       div:
         direction: output
         net_name: "en<3>"
@@ -238,6 +246,10 @@ instances:
     lib_name: bag_serdes_ec
     cell_name: qdr_tapx_summer
     instpins:
+      sgn<1:0>:
+        direction: input
+        net_name: "sgnn<1>,sgnp<1>"
+        num_bits: 2
       div:
         direction: output
         net_name: "en<2>"
@@ -354,6 +366,10 @@ instances:
     lib_name: bag_serdes_ec
     cell_name: qdr_tapx_summer
     instpins:
+      sgn<1:0>:
+        direction: input
+        net_name: "sgnn<0>,sgnp<0>"
+        num_bits: 2
       div:
         direction: output
         net_name: "div1"
@@ -473,6 +489,14 @@ instances:
   PIN0:
     lib_name: basic
     cell_name: iopin
+    instpins: {}
+  PIN25:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN24:
+    lib_name: basic
+    cell_name: ipin
     instpins: {}
   PIN22:
     lib_name: basic

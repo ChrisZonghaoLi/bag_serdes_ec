@@ -1,11 +1,15 @@
 lib_name: bag_serdes_ec
 cell_name: qdr_tapx_summer_cell
-pins: [ "VDD", "VSS", "clkp", "clkn", "inp", "inn", "outp_l", "outn_l", "outp_s", "outn_s", "casc", "biasp_l", "biasn_s", "setp", "setn", "pulse", "en<3:1>" ]
+pins: [ "VDD", "VSS", "clkp", "clkn", "inp", "inn", "outp_l", "outn_l", "outp_s", "outn_s", "casc<1:0>", "biasp_l", "biasn_s", "setp", "setn", "pulse", "en<3:1>" ]
 instances:
   XLAT:
     lib_name: bag_serdes_ec
     cell_name: integ_amp
     instpins:
+      casc<1:0>:
+        direction: input
+        net_name: "VSS,VDD"
+        num_bits: 2
       en<3:2>:
         direction: input
         net_name: "en<3:2>"
@@ -29,10 +33,6 @@ instances:
       nmp:
         direction: output
         net_name: "nmp_l"
-        num_bits: 1
-      casc:
-        direction: input
-        net_name: "casc"
         num_bits: 1
       setn:
         direction: input
@@ -106,6 +106,10 @@ instances:
     lib_name: bag_serdes_ec
     cell_name: integ_amp
     instpins:
+      casc<1:0>:
+        direction: input
+        net_name: "casc<1:0>"
+        num_bits: 2
       en<3:2>:
         direction: input
         net_name: "en<2:1>"
@@ -129,10 +133,6 @@ instances:
       nmp:
         direction: output
         net_name: "nmp_s"
-        num_bits: 1
-      casc:
-        direction: input
-        net_name: "casc"
         num_bits: 1
       setn:
         direction: input

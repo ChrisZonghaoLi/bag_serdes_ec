@@ -1,7 +1,47 @@
 lib_name: bag_serdes_ec
 cell_name: integ_amp
-pins: [ "VDD", "VSS", "clkp", "clkn", "inp", "inn", "nmp", "casc", "outp", "outn", "pm0p", "pm1p", "pm0n", "pm1n", "tail", "foot", "biasp", "nmn", "setp", "setn", "pulse", "nsp", "nsn", "en<3:2>" ]
+pins: [ "VDD", "VSS", "clkp", "clkn", "inp", "inn", "nmp", "casc<1:0>", "outp", "outn", "pm0p", "pm1p", "pm0n", "pm1n", "tail", "foot", "biasp", "nmn", "setp", "setn", "pulse", "nsp", "nsn", "en<3:2>" ]
 instances:
+  XCASN1:
+    lib_name: BAG_prim
+    cell_name: nmos4_standard
+    instpins:
+      S:
+        direction: inputOutput
+        net_name: "nmn"
+        num_bits: 1
+      D:
+        direction: inputOutput
+        net_name: "outp"
+        num_bits: 1
+      B:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      G:
+        direction: inputOutput
+        net_name: "casc<1>"
+        num_bits: 1
+  XCASP1:
+    lib_name: BAG_prim
+    cell_name: nmos4_standard
+    instpins:
+      S:
+        direction: inputOutput
+        net_name: "nmp"
+        num_bits: 1
+      D:
+        direction: inputOutput
+        net_name: "outn"
+        num_bits: 1
+      B:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      G:
+        direction: inputOutput
+        net_name: "casc<1>"
+        num_bits: 1
   XSENN:
     lib_name: BAG_prim
     cell_name: nmos4_standard
@@ -102,7 +142,7 @@ instances:
         direction: inputOutput
         net_name: "VSS"
         num_bits: 1
-  XCASP:
+  XCASP0:
     lib_name: BAG_prim
     cell_name: nmos4_standard
     instpins:
@@ -120,9 +160,9 @@ instances:
         num_bits: 1
       G:
         direction: inputOutput
-        net_name: "casc"
+        net_name: "casc<0>"
         num_bits: 1
-  XCASN:
+  XCASN0:
     lib_name: BAG_prim
     cell_name: nmos4_standard
     instpins:
@@ -140,7 +180,7 @@ instances:
         num_bits: 1
       G:
         direction: inputOutput
-        net_name: "casc"
+        net_name: "casc<0>"
         num_bits: 1
   XTAILN:
     lib_name: BAG_prim

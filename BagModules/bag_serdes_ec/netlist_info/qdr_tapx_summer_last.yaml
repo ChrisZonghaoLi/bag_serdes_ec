@@ -1,6 +1,6 @@
 lib_name: bag_serdes_ec
 cell_name: qdr_tapx_summer_last
-pins: [ "outn", "outp", "en3", "biasn", "div", "setn", "setp", "scan_div", "en_div", "inn", "inp", "clkn", "clkp", "VSS", "VDD", "en0", "pulse_out", "pulse_in", "divb", "en<2:1>" ]
+pins: [ "outn", "outp", "en3", "biasn", "div", "setn", "setp", "scan_div", "en_div", "casc<1:0>", "inn", "inp", "clkn", "clkp", "VSS", "VDD", "en0", "pulse_out", "pulse_in", "divb", "en<2:1>" ]
 instances:
   PIN0:
     lib_name: basic
@@ -29,6 +29,10 @@ instances:
   PIN16:
     lib_name: basic
     cell_name: opin
+    instpins: {}
+  PIN21:
+    lib_name: basic
+    cell_name: ipin
     instpins: {}
   PIN19:
     lib_name: basic
@@ -86,6 +90,10 @@ instances:
     lib_name: bag_serdes_ec
     cell_name: integ_amp
     instpins:
+      casc<1:0>:
+        direction: input
+        net_name: "casc<1:0>"
+        num_bits: 2
       en<3:2>:
         direction: input
         net_name: "en<2:1>"
@@ -109,10 +117,6 @@ instances:
       nmp:
         direction: output
         net_name: "nmp"
-        num_bits: 1
-      casc:
-        direction: input
-        net_name: "VDD"
         num_bits: 1
       setn:
         direction: input
