@@ -260,6 +260,7 @@ class Tap1LatchRow(TemplateBase):
         config = self.params['config']
         seg_div = self.params['seg_div']
         seg_pul = self.params['seg_pul']
+        fg_dum = self.params['fg_dum']
         show_pins = self.params['show_pins']
         tr_widths = self.params['tr_widths']
         tr_spaces = self.params['tr_spaces']
@@ -270,14 +271,15 @@ class Tap1LatchRow(TemplateBase):
 
         # get layout masters
         lat_params = self.params.copy()
-        lat_params['show_pins'] = False
-        lat_params['snap_mode'] = 2
         del lat_params['config']
         del lat_params['seg_div']
-        lat_params['seg_dict'] = lat_params['seg_lat']
         del lat_params['seg_lat']
         del lat_params['fg_min']
+        del lat_params['fg_dum']
+        lat_params['seg_dict'] = self.params['seg_lat']
+        lat_params['show_pins'] = False
         lat_params['end_mode'] = 12 if no_dig else 8
+        lat_params['fg_duml'] = lat_params['fg_dumr'] = fg_dum
         dig_end_mode = 4
 
         top_layer = HybridQDRBase.get_mos_conn_layer(self.grid.tech_info) + 2
@@ -328,8 +330,10 @@ class Tap1LatchRow(TemplateBase):
 
         # compute fg_core, and resize main tap if necessary
         if self._fg_core < fg_min:
-            new_fg_tot = l_master.fg_tot + (fg_min - self._fg_core)
-            l_master = l_master.new_template_with(fg_min=new_fg_tot)
+            fg_inc = fg_min - self._fg_core
+            fg_duml = fg_dum + fg_inc // 2
+            fg_dumr = 2 * fg_dum + fg_inc - fg_duml
+            l_master = l_master.new_template_with(fg_duml=fg_duml, fg_dumr=fg_dumr)
             self._fg_core = fg_min
 
         # place instances and set bounding box
@@ -755,7 +759,6 @@ class Tap1Column(TemplateBase):
         for outp, outn, idx in zip(outp_warrs, outn_warrs, out_map):
             self.connect_differential_tracks(outp, outn, vm_layer, out_locs[idx],
                                              out_locs[idx + 1], width=vm_w_out)
-
 
         # draw enable wires
         en_locs = divp_master.en_locs

@@ -63,7 +63,6 @@ class TapXSummerCell(TemplateBase):
         return dict(
             flip_sign=False,
             end_mode=12,
-            snap_mode=0,
             show_pins=True,
             options=None,
         )
@@ -81,21 +80,22 @@ class TapXSummerCell(TemplateBase):
             th_lat='NMOS/PMOS threshold dictoary for latch.',
             seg_sum='number of segments dictionary for summer tap.',
             seg_lat='number of segments dictionary for latch.',
-            fg_dum='Number of single-sided edge dummy fingers.',
+            fg_duml='Number of left edge dummy fingers.',
+            fg_dumr='Number of right edge dummy fingers.',
             tr_widths='Track width dictionary.',
             tr_spaces='Track spacing dictionary.',
             flip_sign='True to flip summer output sign.',
             end_mode='The AnalogBase end_mode flag.',
-            snap_mode='The snap_mode parameter for summer tap.',
             show_pins='True to create pin labels.',
             options='other AnalogBase options',
         )
 
     def draw_layout(self):
         # get parameters
+        fg_duml = self.params['fg_duml']
+        fg_dumr = self.params['fg_dumr']
         flip_sign = self.params['flip_sign']
         end_mode = self.params['end_mode']
-        snap_mode = self.params['snap_mode']
         show_pins = self.params['show_pins']
 
         # get layout parameters
@@ -108,7 +108,6 @@ class TapXSummerCell(TemplateBase):
             flip_sign=flip_sign,
             show_pins=False,
             end_mode=end_mode,
-            snap_mode=snap_mode,
         )
         lat_params = dict(
             w_dict=self.params['w_lat'],
@@ -118,18 +117,27 @@ class TapXSummerCell(TemplateBase):
             flip_sign=False,
             show_pins=False,
             end_mode=end_mode & 0b1100,
-            snap_mode=0,
         )
-        for key in ('lch', 'ptap_w', 'ntap_w', 'fg_dum', 'tr_widths', 'tr_spaces', 'options'):
+        for key in ('lch', 'ptap_w', 'ntap_w', 'fg_duml', 'fg_dumr', 'tr_widths',
+                    'tr_spaces', 'options'):
             sum_params[key] = lat_params[key] = self.params[key]
 
         # get masters
         l_master = self.new_template(params=lat_params, temp_cls=IntegAmp)
-        sum_params['fg_min'] = l_master.fg_tot
         s_master = self.new_template(params=sum_params, temp_cls=IntegAmp)
         if l_master.fg_tot < s_master.fg_tot:
             # update latch master
-            l_master = l_master.new_template_with(fg_min=s_master.fg_tot)
+            fg_inc = s_master.fg_tot - l_master.fg_tot
+            fg_inc2 = fg_inc // 2
+            fg_duml2 = fg_duml + fg_inc2
+            fg_dumr2 = fg_dumr + fg_inc - fg_inc2
+            l_master = l_master.new_template_with(fg_duml=fg_duml2, fg_dumr=fg_dumr2)
+        elif s_master.fg_tot < l_master.fg_tot:
+            fg_inc = l_master.fg_tot - s_master.fg_tot
+            fg_inc2 = fg_inc // 2
+            fg_duml2 = fg_duml + fg_inc2
+            fg_dumr2 = fg_dumr + fg_inc - fg_inc2
+            s_master = s_master.new_template_with(fg_duml=fg_duml2, fg_dumr=fg_dumr2)
 
         # place instances
         s_inst = self.add_instance(s_master, 'XSUM', loc=(0, 0), unit_mode=True)
@@ -235,7 +243,8 @@ class TapXSummerLast(TemplateBase):
             seg_sum='number of segments dictionary for summer tap.',
             seg_div='number of segments dictionary for clock divider.',
             seg_pul='number of segments dictionary for pulse generation.',
-            fg_dum='Number of single-sided edge dummy fingers.',
+            fg_duml='Number of left edge dummy fingers.',
+            fg_dumr='Number of right edge dummy fingers.',
             tr_widths='Track width dictionary.',
             tr_spaces='Track spacing dictionary.',
             lat_tr_info='latch output track information dictionary.',
@@ -252,6 +261,8 @@ class TapXSummerLast(TemplateBase):
         row_layout_info = self.params['row_layout_info']
         seg_div = self.params['seg_div']
         seg_pul = self.params['seg_pul']
+        fg_duml = self.params['fg_duml']
+        fg_dumr = self.params['fg_dumr']
         lat_tr_info = self.params['lat_tr_info']
         div_pos_edge = self.params['div_pos_edge']
         flip_sign = self.params['flip_sign']
@@ -271,9 +282,9 @@ class TapXSummerLast(TemplateBase):
             flip_sign=flip_sign,
             show_pins=False,
             end_mode=end_mode,
-            snap_mode=2,
         )
-        for key in ('lch', 'ptap_w', 'ntap_w', 'fg_dum', 'tr_widths', 'tr_spaces', 'options'):
+        for key in ('lch', 'ptap_w', 'ntap_w', 'fg_duml', 'fg_dumr',
+                    'tr_widths', 'tr_spaces', 'options'):
             sum_params[key] = self.params[key]
 
         s_master = self.new_template(params=sum_params, temp_cls=IntegAmp)
@@ -291,8 +302,11 @@ class TapXSummerLast(TemplateBase):
         if no_dig:
             # no digital block, draw LaygoDummy
             if fg_core < fg_min:
-                new_fg_min = s_master.fg_tot + (fg_min - fg_core)
-                s_master = s_master.new_template_with(fg_min=new_fg_min)
+                fg_inc = fg_min - fg_core
+                fg_inc2 = fg_inc // 2
+                fg_duml2 = fg_duml + fg_inc2
+                fg_dumr2 = fg_dumr + fg_inc - fg_inc2
+                s_master = s_master.new_template_with(fg_duml=fg_duml2, fg_dumr=fg_dumr2)
 
             tr_info = dict(
                 VDD=lat_tr_info['VDD'],
@@ -321,8 +335,11 @@ class TapXSummerLast(TemplateBase):
             fg_min = max(fg_min, d_master.laygo_info.core_col)
 
             if fg_core < fg_min:
-                new_fg_min = s_master.fg_tot + (fg_min - fg_core)
-                s_master = s_master.new_template_with(fg_min=new_fg_min)
+                fg_inc = fg_min - fg_core
+                fg_inc2 = fg_inc // 2
+                fg_duml2 = fg_duml + fg_inc2
+                fg_dumr2 = fg_dumr + fg_inc - fg_inc2
+                s_master = s_master.new_template_with(fg_duml=fg_duml2, fg_dumr=fg_dumr2)
 
         # TODO: add pulse generator logic here
 
@@ -501,11 +518,10 @@ class TapXSummer(TemplateBase):
             seg_sum = seg_sum_list[idx]
             flip_sign = flip_sign_list[idx]
             cur_end = end_mode | 0b0100 if idx == num_ffe - 1 else end_mode
-            cur_snap = 0 if idx == 0 else 2
             cur_params = dict(lch=lch, ptap_w=ptap_w, ntap_w=ntap_w, w_sum=w_sum, w_lat=w_lat,
                               th_sum=th_sum, th_lat=th_lat, seg_sum=seg_sum, seg_lat=seg_ffe,
-                              fg_dum=fg_dum, tr_widths=tr_widths, tr_spaces=tr_spaces,
-                              flip_sign=flip_sign, end_mode=cur_end, snap_mode=cur_snap,
+                              fg_duml=fg_dum, fg_dumr=fg_dum, tr_widths=tr_widths,
+                              tr_spaces=tr_spaces, flip_sign=flip_sign, end_mode=cur_end,
                               show_pins=False, options=options,
                               )
             cur_master = self.new_template(params=cur_params, temp_cls=TapXSummerCell)
@@ -518,11 +534,10 @@ class TapXSummer(TemplateBase):
             seg_dfe = seg_dfe_list[idx]
             seg_sum = seg_sum_list[idx + 1 + num_ffe]
             flip_sign = flip_sign_list[idx + 1 + num_ffe]
-            cur_snap = 0 if idx == num_dfe - 2 else -2
             cur_params = dict(lch=lch, ptap_w=ptap_w, ntap_w=ntap_w, w_sum=w_sum, w_lat=w_lat,
                               th_sum=th_sum, th_lat=th_lat, seg_sum=seg_sum, seg_lat=seg_dfe,
-                              fg_dum=fg_dum, tr_widths=tr_widths, tr_spaces=tr_spaces,
-                              flip_sign=flip_sign, end_mode=end_mode, snap_mode=cur_snap,
+                              fg_duml=fg_dum, fg_dumr=fg_dum, tr_widths=tr_widths,
+                              tr_spaces=tr_spaces, flip_sign=flip_sign, end_mode=end_mode,
                               show_pins=False, options=options,
                               )
             cur_master = self.new_template(params=cur_params, temp_cls=TapXSummerCell)
@@ -533,7 +548,7 @@ class TapXSummer(TemplateBase):
         last_params = dict(config=config, row_layout_info=main.lat_row_layout_info,
                            lch=lch, ptap_w=ptap_w, ntap_w=ntap_w, w_sum=w_sum, th_sum=th_sum,
                            seg_sum=seg_sum_list[num_ffe], seg_div=seg_div, seg_pul=seg_pul,
-                           fg_dum=fg_dum, tr_widths=tr_widths, tr_spaces=tr_spaces,
+                           fg_duml=fg_dum, fg_dumr=fg_dum, tr_widths=tr_widths, tr_spaces=tr_spaces,
                            lat_tr_info=main.lat_track_info, div_pos_edge=div_pos_edge,
                            flip_sign=flip_sign_list[num_ffe], fg_min=fg_min_last,
                            end_mode=end_mode | 0b1000, show_pins=False, options=options
