@@ -50,6 +50,7 @@ class LaygoDummy(LaygoBase):
             num_col='Number of laygo olumns.',
             tr_widths='Track width dictionary.',
             tr_spaces='Track spacing dictionary.',
+            tr_info='supply track information dictionary.',
             end_mode='The LaygoBase end_mode flag.',
             show_pins='True to show pins.',
         )
@@ -58,6 +59,7 @@ class LaygoDummy(LaygoBase):
     def get_default_param_values(cls):
         # type: () -> Dict[str, Any]
         return dict(
+            tr_info=None,
             end_mode=15,
             show_pins=True,
         )
@@ -67,6 +69,7 @@ class LaygoDummy(LaygoBase):
         num_col = self.params['num_col']
         tr_widths = self.params['tr_widths']
         tr_spaces = self.params['tr_spaces']
+        tr_info = self.params['tr_info']
         end_mode = self.params['end_mode']
         show_pins = self.params['show_pins']
 
@@ -87,6 +90,14 @@ class LaygoDummy(LaygoBase):
         vdd_intv = self.get_track_interval(self.num_rows - 1, 'ds')
         vss = self._connect_supply(vss_w, vss_intv, tr_manager, round_up=False)
         vdd = self._connect_supply(vdd_w, vdd_intv, tr_manager, round_up=True)
+
+        if tr_info is not None:
+            xm_layer = self.conn_layer + 3
+            vdd_idx, w_vdd = tr_info['VDD']
+            vss_idx, w_vss = tr_info['VSS']
+            vdd = self.connect_to_tracks(vdd, TrackID(xm_layer, vdd_idx, width=w_vdd))
+            vss = self.connect_to_tracks(vss, TrackID(xm_layer, vss_idx, width=w_vss))
+
         self.add_pin('VDD', vdd, show=show_pins)
         self.add_pin('VSS', vss, show=show_pins)
 
@@ -106,7 +117,7 @@ class LaygoDummy(LaygoBase):
         tr = self.grid.coord_to_nearest_track(vm_layer, xr, half_track=True,
                                               mode=-1, unit_mode=True)
 
-        num = int((tr - tl) // 2)
+        num = int((tr - tl + 2) // 2)
         tid = TrackID(vm_layer, tl, num=num, pitch=2)
         sup = self.connect_to_tracks(warr_list, TrackID(hm_layer, sup_idx, width=sup_w))
         return self.connect_to_tracks(sup, tid, min_len_mode=0)

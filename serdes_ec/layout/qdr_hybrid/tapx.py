@@ -294,7 +294,12 @@ class TapXSummerLast(TemplateBase):
                 new_fg_min = s_master.fg_tot + (fg_min - fg_core)
                 s_master = s_master.new_template_with(fg_min=new_fg_min)
 
+            tr_info = dict(
+                VDD=lat_tr_info['VDD'],
+                VSS=lat_tr_info['VSS'],
+            )
             dig_params['num_col'] = s_master.fg_tot
+            dig_params['tr_info'] = tr_info
             d_master = self.new_template(params=dig_params, temp_cls=LaygoDummy)
             div_sch_params = pul_sch_params = None
         else:
@@ -333,6 +338,8 @@ class TapXSummerLast(TemplateBase):
         # get pins
         vconn_clkp = vconn_clkn = False
         # export digital pins
+        self.reexport(d_inst.get_port('VDD'), label='VDD:', show=show_pins)
+        self.reexport(d_inst.get_port('VSS'), label='VSS:', show=show_pins)
         if seg_div is not None:
             # perform connections for divider
             if div_pos_edge:
@@ -343,8 +350,6 @@ class TapXSummerLast(TemplateBase):
                 vconn_clkn = True
 
             # re-export divider pins
-            self.reexport(d_inst.get_port('VDD'), label='VDD:', show=show_pins)
-            self.reexport(d_inst.get_port('VSS'), label='VSS:', show=show_pins)
             self.reexport(d_inst.get_port('clk'), net_name=clk_name, label=clk_name + ':',
                           show=show_pins)
             self.reexport(d_inst.get_port('q'), net_name='div', show=show_pins)
@@ -759,7 +764,7 @@ class TapXColumn(TemplateBase):
         endt_master = endb_master.new_template_with(seg_pul=None)
 
         # place instances
-        vm_layer = top_layer = endt_master.top_layer
+        vm_layer = endt_master.top_layer
         inst3 = self.add_instance(endb_master, 'X3', loc=(0, 0), unit_mode=True)
         ycur = inst3.array_box.top_unit + divn_master.array_box.top_unit
         inst0 = self.add_instance(divp_master, 'X0', loc=(0, ycur), orient='MX', unit_mode=True)
@@ -770,7 +775,7 @@ class TapXColumn(TemplateBase):
         inst_list = [inst0, inst1, inst2, inst3]
 
         # set size
-        self.set_size_from_bound_box(top_layer, inst1.bound_box.merge(inst3.bound_box))
+        self.set_size_from_bound_box(vm_layer, inst1.bound_box.merge(inst3.bound_box))
         self.array_box = self.bound_box
 
         # re-export supply pins
