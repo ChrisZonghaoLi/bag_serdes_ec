@@ -634,6 +634,9 @@ class TapXSummer(TemplateBase):
             en_warrs[2].extend(inst.port_pins_iter('en<2>'))
             if inst.has_port('en<1>'):
                 en_warrs[1].extend(inst.port_pins_iter('en1>'))
+            if inst.has_port('casc<0>'):
+                self.reexport(inst.get_port('casc<0>'), net_name='sgnp<%d>' % didx, show=show_pins)
+                self.reexport(inst.get_port('casc<1>'), net_name='sgnn<%d>' % didx, show=show_pins)
             # TODO: handle setp/setn/pulse pins
             outs_warrs[0].append(inst.get_pin('outp_s'))
             outs_warrs[1].append(inst.get_pin('outn_s'))
@@ -649,9 +652,13 @@ class TapXSummer(TemplateBase):
         en_warrs[2].extend(instl.port_pins_iter('en<2>'))
         if instl.has_port('en<1>'):
             en_warrs[1].extend(instl.port_pins_iter('en<1>'))
+        if instl.has_port('casc<0>'):
+            self.reexport(instl.get_port('casc<0>'), net_name='sgnp<2>', show=show_pins)
+            self.reexport(instl.get_port('casc<1>'), net_name='sgnn<2>', show=show_pins)
         # TODO: handle setp/setn/pulse pins
         if instl.has_port('clkp'):
             clkp_list.extend(instl.port_pins_iter('clkp'))
+        if instl.has_port('clkn'):
             clkn_list.extend(instl.port_pins_iter('clkn'))
         if instl.has_port('div'):
             for name in ('en_div', 'scan_div', 'div', 'divb'):
@@ -664,10 +671,18 @@ class TapXSummer(TemplateBase):
         biasm = self.connect_wires(biasm_list)
         biasa = self.connect_wires(biasa_list)
         biasd = self.connect_wires(biasd_list)
-        clkp = self.connect_wires(clkp_list)
-        clkn = self.connect_wires(clkn_list)
         outsp = self.connect_wires(outs_warrs[0])
         outsn = self.connect_wires(outs_warrs[1])
+        lower, upper = None, None
+        for warr in chain(clkp_list, clkn_list):
+            if lower is None:
+                lower = warr.lower_unit
+                upper = warr.upper_unit
+            else:
+                lower = min(lower, warr.lower_unit)
+                upper = max(upper, warr.upper_unit)
+        clkp = self.connect_wires(clkp_list, lower=lower, upper=upper, unit_mode=True)
+        clkn = self.connect_wires(clkn_list, lower=lower, upper=upper, unit_mode=True)
         self.add_pin('biasn_m', biasm, show=show_pins)
         self.add_pin('biasp_a', biasa, show=show_pins)
         self.add_pin('biasp_d', biasd, show=show_pins)

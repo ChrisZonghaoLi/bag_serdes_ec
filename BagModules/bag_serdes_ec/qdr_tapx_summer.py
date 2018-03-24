@@ -76,7 +76,7 @@ class bag_serdes_ec__qdr_tapx_summer(Module):
         else:
             d_arr = '<%d:2>' % (num_dfe + 2)
             do_arr = '<3>' if num_dfe == 1 else ('<%d:3>' % (num_dfe + 2))
-        for base_name in ('inp_d', 'inn_d', 'biasn_s'):
+        for base_name in ('inp_d', 'inn_d', 'biasn_s', 'sgnp', 'sgnn'):
             self.rename_pin(base_name, base_name + d_arr)
         self.rename_pin('outp_d', 'outp_d' + do_arr)
         self.rename_pin('outn_d', 'outn_d' + do_arr)
@@ -86,9 +86,10 @@ class bag_serdes_ec__qdr_tapx_summer(Module):
             term_list, name_list = [], []
             for idx in range(num_dfe - 1, -1, -1):
                 didx = idx + 3
-                term_dict = dict(inp='inp_d<%d>' % didx, inn='inn_d<%d>' % didx,
-                                 outp_l='outp_d<%d>' % didx, outn_l='outn_d<%d>' % didx,
-                                 biasn_s='biasn_s<%d>' % didx)
+                term_dict = {'inp': 'inp_d<%d>' % didx, 'inn': 'inn_d<%d>' % didx,
+                             'outp_l': 'outp_d<%d>' % didx, 'outn_l': 'outn_d<%d>' % didx,
+                             'casc<1:0>': 'sgnn<%d>,sgnp<%d>' % (didx, didx),
+                             'biasn_s': 'biasn_s<%d>' % didx, }
                 term_list.append(term_dict)
                 name_list.append('XDFE%d' % didx)
             # array instance, and design
@@ -100,6 +101,7 @@ class bag_serdes_ec__qdr_tapx_summer(Module):
         self.reconnect_instance_terminal('XLAST', 'inp', 'inp_d<2>')
         self.reconnect_instance_terminal('XLAST', 'inn', 'inn_d<2>')
         self.reconnect_instance_terminal('XLAST', 'biasn', 'biasn_s<2>')
+        self.reconnect_instance_terminal('XLAST', 'casc<1:0>', 'sgnn<2>,sgnp<2>')
         self.instances['XLAST'].design(**last_params)
 
         # remove pins if not needed

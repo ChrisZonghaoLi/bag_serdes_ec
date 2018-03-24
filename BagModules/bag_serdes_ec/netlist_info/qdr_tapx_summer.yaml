@@ -1,6 +1,6 @@
 lib_name: bag_serdes_ec
 cell_name: qdr_tapx_summer
-pins: [ "VDD", "VSS", "setp", "setn", "casc", "pulse_in", "biasn_s", "biasp_a", "biasn_m", "biasp_d", "inp_a", "inn_a", "inp_d", "inn_d", "clkp", "clkn", "outp_s", "outn_s", "outp_a", "outn_a", "outp_d", "outn_d", "en<3:0>", "sgn<1:0>", "en_div", "scan_div", "div", "divb", "pulse_out" ]
+pins: [ "VDD", "VSS", "setp", "setn", "casc", "pulse_in", "biasn_s", "biasp_a", "biasn_m", "biasp_d", "inp_a", "inn_a", "inp_d", "inn_d", "clkp", "clkn", "outp_s", "outn_s", "outp_a", "outn_a", "outp_d", "outn_d", "en<3:0>", "sgnn", "en_div", "scan_div", "div", "divb", "pulse_out", "sgnp" ]
 instances:
   XDFE:
     lib_name: bag_serdes_ec
@@ -8,7 +8,7 @@ instances:
     instpins:
       casc<1:0>:
         direction: input
-        net_name: "sgn<1:0>"
+        net_name: "sgnn,sgnp"
         num_bits: 2
       en<3:1>:
         direction: input
@@ -154,10 +154,6 @@ instances:
     lib_name: basic
     cell_name: iopin
     instpins: {}
-  PIN32:
-    lib_name: basic
-    cell_name: ipin
-    instpins: {}
   PIN28:
     lib_name: basic
     cell_name: ipin
@@ -199,6 +195,14 @@ instances:
     cell_name: ipin
     instpins: {}
   PIN10:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN32:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN33:
     lib_name: basic
     cell_name: ipin
     instpins: {}
@@ -268,7 +272,7 @@ instances:
     instpins:
       casc<1:0>:
         direction: input
-        net_name: "sgn<1:0>"
+        net_name: "sgnn,sgnp"
         num_bits: 2
       VSS:
         direction: inputOutput
