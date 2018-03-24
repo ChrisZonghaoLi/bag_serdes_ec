@@ -35,10 +35,13 @@ class bag_serdes_ec__qdr_tapx_summer_last(Module):
     def design(self, div_pos_edge, sum_params, div_params, pul_params):
         # design summer
         self.instances['XSUM'].design(**sum_params)
-        if 'pulse' not in self.instances['XSUM'].master.pin_list:
-            # delete set pins
+        # delete unused pins
+        pin_list = self.instances['XSUM'].master.pin_list
+        if 'pulse' not in pin_list:
             for name in ('setp', 'setn', 'pulse_in'):
                 self.remove_pin(name)
+        if 'casc<1:0>' not in pin_list:
+            self.remove_pin('casc<1:0>')
 
         # design divider
         if div_params is None:

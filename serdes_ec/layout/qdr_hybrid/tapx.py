@@ -283,6 +283,7 @@ class TapXSummerLast(TemplateBase):
             seg_dict=self.params['seg_sum'],
             top_layer=top_layer,
             flip_sign=flip_sign,
+            but_sw=True,
             show_pins=False,
             end_mode=end_mode,
         )
@@ -384,6 +385,7 @@ class TapXSummerLast(TemplateBase):
         exp_list = [(s_inst, 'clkp', 'clkn', vconn_clkn), (s_inst, 'clkn', 'clkp', vconn_clkp),
                     (s_inst, 'inp', 'inp', False), (s_inst, 'inn', 'inn', False),
                     (s_inst, 'biasp', 'biasn', False),
+                    (s_inst, 'casc<1>', 'casc<1>', False), (s_inst, 'casc<0>', 'casc<0>', False),
                     (s_inst, 'en<3>', 'en<2>', True), (s_inst, 'en<2>', 'en<1>', False),
                     (s_inst, 'setp', 'setp', False), (s_inst, 'setn', 'setn', False),
                     (s_inst, 'pulse', 'pulse_in', False),
