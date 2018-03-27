@@ -99,12 +99,11 @@ class TapXSummerCell(TemplateBase):
         show_pins = self.params['show_pins']
 
         # get layout parameters
-        top_layer = IntegAmp.get_mos_conn_layer(self.grid.tech_info) + 2
         sum_params = dict(
             w_dict=self.params['w_sum'],
             th_dict=self.params['th_sum'],
             seg_dict=self.params['seg_sum'],
-            top_layer=top_layer,
+            top_layer=None,
             flip_sign=flip_sign,
             but_sw=True,
             show_pins=False,
@@ -114,7 +113,7 @@ class TapXSummerCell(TemplateBase):
             w_dict=self.params['w_lat'],
             th_dict=self.params['th_lat'],
             seg_dict=self.params['seg_lat'],
-            top_layer=top_layer,
+            top_layer=None,
             flip_sign=False,
             but_sw=False,
             show_pins=False,
@@ -148,7 +147,7 @@ class TapXSummerCell(TemplateBase):
 
         # set size
         self.array_box = s_inst.array_box.merge(d_inst.array_box)
-        self.set_size_from_bound_box(top_layer, s_inst.bound_box.merge(d_inst.bound_box))
+        self.set_size_from_bound_box(s_master.top_layer, s_inst.bound_box.merge(d_inst.bound_box))
 
         # export pins in-place
         exp_list = [(s_inst, 'clkp', 'clkn', True), (s_inst, 'clkn', 'clkp', True),
@@ -276,12 +275,11 @@ class TapXSummerLast(TemplateBase):
         no_dig = (seg_div is None and seg_pul is None)
 
         # get layout parameters
-        top_layer = IntegAmp.get_mos_conn_layer(self.grid.tech_info) + 2
         sum_params = dict(
             w_dict=self.params['w_sum'],
             th_dict=self.params['th_sum'],
             seg_dict=self.params['seg_sum'],
-            top_layer=top_layer,
+            top_layer=None,
             flip_sign=flip_sign,
             but_sw=True,
             show_pins=False,
@@ -354,7 +352,7 @@ class TapXSummerLast(TemplateBase):
 
         # set size
         self.array_box = s_inst.array_box.merge(d_inst.array_box)
-        self.set_size_from_bound_box(top_layer, s_inst.bound_box.merge(d_inst.bound_box))
+        self.set_size_from_bound_box(s_master.top_layer, s_inst.bound_box.merge(d_inst.bound_box))
 
         # get pins
         vconn_clkp = vconn_clkn = False
