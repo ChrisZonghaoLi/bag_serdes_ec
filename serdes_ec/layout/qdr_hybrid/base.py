@@ -542,8 +542,8 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
         nen_tid = self.get_wire_id('nch', 1, 'g', wire_idx=idx_dict.get('nen', -1))
 
         # connect intermediate nodes
-        self.connect_to_tracks(ports['foot'], foot_tid, min_len_mode=0)
-        self.connect_to_tracks(ports['tail'], tail_tid, min_len_mode=0)
+        foot = self.connect_to_tracks(ports['foot'], foot_tid, min_len_mode=0)
+        tail = self.connect_to_tracks(ports['tail'], tail_tid, min_len_mode=0)
         # connect gates
         hm_layer = outp_tid.layer_id
         nclk = self.connect_to_tracks(ports['nclk'], nclk_tid)
@@ -564,13 +564,15 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
         inp, inn = self.connect_differential_tracks(ports['inp'], ports['inn'], hm_layer,
                                                     inp_idx, inn_idx, width=in_w)
 
-        ans = dict(inp=inp, inn=inn, outp=outp, outn=outn, nen3=nen, biasp=nclk)
+        ans = dict(inp=inp, inn=inn, outp=outp, outn=outn, nen3=nen, biasp=nclk,
+                   foot=foot, tail=tail)
 
         # draw load connections
         if seg_load > 0:
             self.connect_to_substrate('ntap', ports['VDD'])
             for name in ('pm0p', 'pm0n', 'pm1p', 'pm1n'):
-                self.connect_to_tracks(ports[name], mp_tid, min_len_mode=0)
+                warr = self.connect_to_tracks(ports[name], mp_tid, min_len_mode=0)
+                ans[name] = warr
 
             pen0_tid = self.get_wire_id('pch', 0, 'g', wire_idx=idx_dict.get('pen0', 0))
             pen1_tid = self.get_wire_id('pch', 0, 'g', wire_idx=idx_dict.get('pen1', 1))
@@ -592,16 +594,20 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
         if seg_casc > 0:
             nm_tid = self.get_wire_id('nch', 3, 'ds', wire_name='ptail')
             casc_tid = self.get_wire_id('nch', 3, 'g', wire_idx=idx_dict.get('casc', -1))
-            self.connect_to_tracks(ports['nmp'], nm_tid)
-            self.connect_to_tracks(ports['nmn'], nm_tid)
+            nmp = self.connect_to_tracks(ports['nmp'], nm_tid)
+            nmn = self.connect_to_tracks(ports['nmn'], nm_tid)
             casc = self.connect_to_tracks(ports['casc'], casc_tid)
+            ans['nmp'] = nmp
+            ans['nmn'] = nmn
             ans['casc'] = casc
         elif seg_but > 0:
             nm_tid = self.get_wire_id('nch', 3, 'ds', wire_name='ptail')
             cascp_idx = self.get_wire_id('nch', 3, 'g', wire_idx=-1).base_index
             cascn_idx = self.get_wire_id('nch', 3, 'g', wire_idx=-2).base_index
-            self.connect_to_tracks(ports['nmp'], nm_tid)
-            self.connect_to_tracks(ports['nmn'], nm_tid)
+            nmp = self.connect_to_tracks(ports['nmp'], nm_tid)
+            nmn = self.connect_to_tracks(ports['nmn'], nm_tid)
+            ans['nmp'] = nmp
+            ans['nmn'] = nmn
 
             casc0, casc1 = self.connect_differential_tracks(ports['casc<0>'], ports['casc<1>'],
                                                             hm_layer, cascp_idx, cascn_idx)

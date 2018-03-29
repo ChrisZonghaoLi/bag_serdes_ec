@@ -2,7 +2,7 @@
 
 """This module defines amplifier generators based on HybridQDRBase."""
 
-from typing import TYPE_CHECKING, Dict, Any, Set
+from typing import TYPE_CHECKING, Dict, Any, Set, Tuple
 
 
 from bag.layout.routing import TrackManager
@@ -37,6 +37,8 @@ class IntegAmp(HybridQDRBase):
         self._sch_params = None
         self._fg_tot = None
         self._track_info = None
+        self._hm_intvs = None
+        self._hm_widths = None
 
     @property
     def sch_params(self):
@@ -50,7 +52,39 @@ class IntegAmp(HybridQDRBase):
 
     @property
     def track_info(self):
+        # type: () -> Dict[str, Tuple[float, int]]
         return self._track_info
+
+    def get_vm_coord(self, vm_width, is_left, mode):
+        # type: (int, bool, int) -> int
+        if is_left:
+            idx, sgn = 0, -1
+        else:
+            idx, sgn = 1, 1
+        idx = 0 if is_left else 1
+        other_coord = self._hm_intvs[0][idx]
+        hm_layer = self.mos_conn_layer + 1
+        if mode & 1 == 1:
+            in_coord = self._vm_coord_helper(self._hm_intvs[1][idx], hm_layer, self._hm_widths[0],
+                                             vm_width, sgn)
+        else:
+            in_coord = other_coord
+
+        if mode & 2 == 2:
+            out_coord = self._vm_coord_helper(self._hm_intvs[2][idx], hm_layer, self._hm_widths[1],
+                                              vm_width, sgn)
+        else:
+            out_coord = other_coord
+
+        if is_left:
+            return min(other_coord, in_coord, out_coord)
+        else:
+            return max(other_coord, in_coord, out_coord)
+
+    def _vm_coord_helper(self, coord, hm_layer, hm_w, vm_w, sgn):
+        sple = self.grid.get_line_end_space(hm_layer, hm_w, unit_mode=True)
+        extx = self.grid.get_via_extensions(hm_layer, hm_w, vm_w, unit_mode=True)[0]
+        return coord + sgn * (sple + extx)
 
     @classmethod
     def get_default_param_values(cls):
@@ -179,7 +213,19 @@ class IntegAmp(HybridQDRBase):
                 if port_name == 'clkp' or port_name == 'clkn':
                     self._track_info[port_name] = (warr.track_id.base_index, warr.track_id.width)
 
-        # set schematic parameters
+        # get intermediate wire intervals
+        lower, upper = None, None
+        for name in ('foot', 'tail', 'pm0p', 'pm0n', 'pm1p', 'pm1n', 'nmp', 'nmn'):
+            if name in ports:
+                warr = ports[name]
+                if lower is None:
+                    lower = warr.lower_unit
+                    upper = warr.upper_unit
+                else:
+                    lower = min(lower, warr.lower_unit)
+                    upper = max(upper, warr.upper_unit)
+
+        # set schematic parameters and other properties
         self._sch_params = dict(
             lch=lch,
             w_dict=w_dict,
@@ -189,3 +235,8 @@ class IntegAmp(HybridQDRBase):
             dum_info=self.get_sch_dummy_info(),
         )
         self._fg_tot = fg_tot
+        self._hm_widths = (tr_manager.get_width(hm_layer, 'in'),
+                           tr_manager.get_width(hm_layer, 'out'))
+        self._hm_intvs = ((lower, upper),
+                          (ports['inp'].lower_unit, ports['inp'].upper_unit),
+                          (ports['outp'].lower_unit, ports['outp'].upper_unit))
