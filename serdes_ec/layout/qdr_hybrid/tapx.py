@@ -230,6 +230,7 @@ class TapXSummerLast(TemplateBase):
         TemplateBase.__init__(self, temp_db, lib_name, params, used_names, **kwargs)
         self._sch_params = None
         self._fg_core = None
+        self._amp_master = None
 
     @property
     def sch_params(self):
@@ -240,6 +241,10 @@ class TapXSummerLast(TemplateBase):
     def fg_core(self):
         # type: () -> int
         return self._fg_core
+
+    def get_vm_coord(self, vm_width):
+        # type: (int) -> int
+        return self._amp_master.get_vm_coord(vm_width, False, 0)
 
     @classmethod
     def get_default_param_values(cls):
@@ -427,6 +432,7 @@ class TapXSummerLast(TemplateBase):
             pul_params=pul_sch_params,
         )
         self._fg_core = s_master.layout_info.fg_core
+        self._amp_master = s_master
 
 
 class TapXSummer(TemplateBase):
@@ -553,14 +559,14 @@ class TapXSummer(TemplateBase):
         tmp = self._create_and_place(num_ffe, seg_ffe_list, seg_sum_list, flip_sign_list, end_mode,
                                      base_params, vm_layer, vm_w_out, ntr_route, None, None,
                                      vdd_list, vss_list, sum_off=0, is_end=True, left_output=True)
-        ffe_masters, ffe_ltr_list, ffe_sch_params, ffe_insts, xprev = tmp
+        ffe_masters, self._ffe_tracks, ffe_sch_params, ffe_insts, xprev = tmp
 
         last_master = ffe_masters[-1]
         tmp = self._create_and_place(num_dfe - 1, seg_dfe_list, seg_sum_list, flip_sign_list,
                                      end_mode, base_params, vm_layer, vm_w_out, ntr_route,
                                      last_master, xprev, vdd_list, vss_list, sum_off=num_ffe + 1,
                                      is_end=False, left_output=False)
-        dfe_masters, dfe_ltr_list, dfe_sch_params, dfe_insts, xprev = tmp
+        dfe_masters, self._dfe_tracks, dfe_sch_params, dfe_insts, xprev = tmp
 
         main = ffe_masters[0]
         last_params = dict(config=config, row_layout_info=main.lat_row_layout_info,
@@ -575,6 +581,10 @@ class TapXSummer(TemplateBase):
         last_sch_params = last_master.sch_params
         xcur = xprev + dfe_masters[-1].array_box.right_unit - last_master.array_box.left_unit
         instl = self.add_instance(last_master, 'XDFE2', loc=(xcur, 0), unit_mode=True)
+        data_xl = xcur + last_master.get_vm_coord(vm_w_out)
+        ltr = self.grid.find_next_track(vm_layer, data_xl, tr_width=vm_w_out, half_track=True,
+                                        mode=1, unit_mode=True)
+        self._dfe_tracks.append(ltr)
         vdd_list.extend(instl.port_pins_iter('VDD'))
         vss_list.extend(instl.port_pins_iter('VSS'))
 
@@ -582,14 +592,6 @@ class TapXSummer(TemplateBase):
         self.set_size_from_bound_box(vm_layer, instl.bound_box.merge(ffe_insts[-1].bound_box),
                                      round_up=True)
         self.array_box = self.bound_box
-
-        # show routing tracks
-        yb, yt = self.bound_box.bottom_unit, self.bound_box.top_unit
-        for ltr in chain(ffe_ltr_list, dfe_ltr_list):
-            offset = ltr - route_locs[1]
-            for wtype, wtr in zip(route_types, route_locs):
-                ww = tr_manager.get_width(vm_layer, wtype)
-                self.add_wires(vm_layer, wtr + offset, yb, yt, width=ww, unit_mode=True)
 
         # add pins
         # connect supplies
