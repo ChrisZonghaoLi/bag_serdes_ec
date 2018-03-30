@@ -470,6 +470,14 @@ class TapXSummer(TemplateBase):
     def fg_core_last(self):
         return self._fg_core_last
 
+    @property
+    def ffe_tracks(self):
+        return self._ffe_tracks
+
+    @property
+    def dfe_tracks(self):
+        return self._dfe_tracks
+
     @classmethod
     def get_default_param_values(cls):
         # type: () -> Dict[str, Any]
@@ -547,8 +555,9 @@ class TapXSummer(TemplateBase):
         tr_manager = TrackManager(self.grid, tr_widths, tr_spaces, half_space=True)
         vm_layer = IntegAmp.get_mos_conn_layer(self.grid.tech_info) + 2
         vm_w_out = tr_manager.get_width(vm_layer, 'out')
-        ntr_route, _ = tr_manager.place_wires(vm_layer, ['out', 'out', 1, 'out', 'out'])
-        route_types = [1, 'out', 'out', 1, 'out', 'out', 1]
+        ntr_route, _ = tr_manager.place_wires(vm_layer, ['out', 'out', 1, 'out', 'out',
+                                                         1, 'out', 'out'])
+        route_types = [1, 'out', 'out', 1, 'out', 'out', 1, 'out', 'out', 1]
         _, route_locs = tr_manager.place_wires(vm_layer, route_types)
 
         vdd_list, vss_list = [], []
@@ -816,7 +825,7 @@ class TapXColumn(TemplateBase):
             w_sum='NMOS/PMOS width dictionary for summer.',
             w_lat='NMOS/PMOS width dictionary for latch.',
             th_sum='NMOS/PMOS threshold flavor dictionary.',
-            th_lat='NMOS/PMOS threshold dictoary for latch.',
+            th_lat='NMOS/PMOS threshold dictionary for latch.',
             seg_sum_list='list of segment dictionaries for summer taps.',
             seg_ffe_list='list of segment dictionaries for FFE latches.',
             seg_dfe_list='list of segment dictionaries for DFE latches.',
@@ -835,8 +844,6 @@ class TapXColumn(TemplateBase):
         show_pins = self.params['show_pins']
         tr_widths = self.params['tr_widths']
         tr_spaces = self.params['tr_spaces']
-
-        res = self.grid.resolution
 
         # make masters
         div_params = self.params.copy()
@@ -923,3 +930,58 @@ class TapXColumn(TemplateBase):
                 biasd_warrs[1].extend(inst.port_pins_iter('biasp_d'))
                 clk_warrs[1].extend(inst.port_pins_iter('clkp'))
                 clk_warrs[0].extend(inst.port_pins_iter('clkn'))
+
+        # connect FFE signals
+        vm_w_out = tr_manager.get_width(vm_layer, 'out')
+        _, route_locs = tr_manager.place_wires(vm_layer, [1, 'out', 'out', 1, 'out', 'out', 1,
+                                                          'out', 'out', 1])
+        self._connect_ffe_signal(route_locs, endb_master.ffe_tracks, inst_list, vm_layer,
+                                 vm_w_out, show_pins)
+
+    def _connect_ffe_signal(self, route_locs, ffe_tracks, inst_list, vm_layer, vm_width, show_pins):
+        num_ffe = len(ffe_tracks) + 1
+
+        # gather and sort signal wires
+        inp_list, inn_list = [], []
+        sigp_dict, sign_dict = {}, {}
+        for cidx, inst in enumerate(inst_list):
+            pcidx = (cidx + 1) % 4
+            for sidx in range(num_ffe):
+                psidx = sidx + 1
+                key = (sidx, cidx)
+                if key not in sigp_dict:
+                    sigp_dict[key] = []
+                if key not in sign_dict:
+                    sign_dict[key] = []
+                sigp_dict[key].extend(inst.port_pins_iter('outp_a<%d>' % sidx))
+                sign_dict[key].extend(inst.port_pins_iter('outn_a<%d>' % sidx))
+
+                if sidx == num_ffe - 1:
+                    inp_list.extend(inst.port_pins_iter('inp_a<%d>' % sidx))
+                    inn_list.extend(inst.port_pins_iter('inn_a<%d>' % sidx))
+                else:
+                    key = (psidx, pcidx)
+                    if key not in sigp_dict:
+                        sigp_dict[key] = []
+                    if key not in sign_dict:
+                        sign_dict[key] = []
+                    sigp_dict[key].extend(inst.port_pins_iter('inp_a<%d>' % sidx))
+                    sign_dict[key].extend(inst.port_pins_iter('inn_a<%d>' % sidx))
+
+        for sidx in range(1, num_ffe):
+            ltr = ffe_tracks[num_ffe - 1 - sidx]
+            offset = ltr - route_locs[1]
+            for cidx in range(4):
+                key = (sidx, cidx)
+                if cidx == 3:
+                    idxp = 1
+                elif cidx == 1:
+                    idxp = 4
+                else:
+                    idxp = 7
+                trp, trn = route_locs[idxp] + offset, route_locs[idxp + 1] + offset
+                warrp, warrn = sigp_dict[key], sign_dict[key]
+                wp, wn = self.connect_differential_tracks(warrp, warrn, vm_layer, trp, trn, width=vm_width)
+
+        self.add_pin('inp_a', inp_list, label='inp_a:', show=show_pins)
+        self.add_pin('inn_a', inn_list, label='inn_a:', show=show_pins)
