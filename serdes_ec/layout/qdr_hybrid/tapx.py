@@ -661,8 +661,8 @@ class TapXSummer(TemplateBase):
                           label='outn_d<%d>:' % didx, show=show_pins)
 
         # export/collect last summer tap pins
-        self.reexport(instl.get_port('inp'), net_name='inp_d<2>', show=show_pins)
-        self.reexport(instl.get_port('inn'), net_name='inn_d<2>', show=show_pins)
+        self.reexport(instl.get_port('inp'), net_name='outp_d<2>', show=show_pins)
+        self.reexport(instl.get_port('inn'), net_name='outn_d<2>', show=show_pins)
         self.reexport(instl.get_port('biasn'), net_name='biasn_s<2>', show=show_pins)
         en_warrs[2].extend(instl.port_pins_iter('en<2>'))
         if instl.has_port('en<1>'):
@@ -900,7 +900,6 @@ class TapXColumn(TemplateBase):
         biasa_warrs = [[], []]
         biasd_warrs = [[], []]
         for idx, inst in enumerate(inst_list):
-            pidx = (idx + 1) % 4
             nidx = (idx - 1) % 4
             biasm_warrs[nidx] = inst.get_pin('biasn_m')
             for off in range(4):
@@ -929,104 +928,73 @@ class TapXColumn(TemplateBase):
                 clk_warrs[1].extend(inst.port_pins_iter('clkp'))
                 clk_warrs[0].extend(inst.port_pins_iter('clkn'))
 
-        # connect FFE signals
+        # connect DFE/FFE signals
         vm_w_out = tr_manager.get_width(vm_layer, 'out')
         _, route_locs = tr_manager.place_wires(vm_layer, [1, 'out', 'out', 1, 'out', 'out', 1,
                                                           'out', 'out', 1])
-        self._connect_ffe_signal(route_locs, endb_master.ffe_tracks, inst_list, vm_layer,
-                                 vm_w_out, show_pins)
+        tmp = self._connect_signals(route_locs, endb_master.ffe_tracks, inst_list, vm_layer,
+                                    vm_w_out, 'a', sig_off=0, is_ffe=True)
+        for warrp, warrn in zip(*tmp):
+            self.add_pin('inp_a', warrp, label='inp_a:', show=show_pins)
+            self.add_pin('inn_a', warrn, label='inn_a:', show=show_pins)
 
-        self._connect_dfe_signal(route_locs, endb_master.dfe_tracks, inst_list, vm_layer, vm_w_out)
+        tmp = self._connect_signals(route_locs, endb_master.dfe_tracks, inst_list, vm_layer,
+                                    vm_w_out, 'd', sig_off=2, is_ffe=False)
+        for cidx, (warrp, warrn) in enumerate(zip(*tmp)):
+            self.add_pin('inp_d<%d>' % cidx, warrp, show=show_pins)
+            self.add_pin('inn_d<%d>' % cidx, warrn, show=show_pins)
 
-    def _connect_dfe_signal(self, route_locs, dfe_tracks, inst_list, vm_layer, vm_width):
-        num_dfe = len(dfe_tracks) + 2
+    def _connect_signals(self, route_locs, track_locs, inst_list, vm_layer, vm_width, sig_type,
+                         sig_off=0, is_ffe=True):
+        in_dir = 1 if is_ffe else -1
+        num_sig = len(track_locs) + 1
 
-        # gather and sort signal wires
+        # collect signal wires
         sigp_dict, sign_dict = {}, {}
         for cidx, inst in enumerate(inst_list):
             pcidx = (cidx + 1) % 4
-            for sidx in range(3, num_dfe + 1):
+            for sidx in range(sig_off, num_sig + sig_off):
                 key = (sidx, cidx)
                 if key not in sigp_dict:
                     sigp_dict[key] = []
                 if key not in sign_dict:
                     sign_dict[key] = []
-                sigp_dict[key].extend(inst.port_pins_iter('outp_d<%d>' % sidx))
-                sign_dict[key].extend(inst.port_pins_iter('outn_d<%d>' % sidx))
+                sigp_dict[key].extend(inst.port_pins_iter('outp_%s<%d>' % (sig_type, sidx)))
+                sign_dict[key].extend(inst.port_pins_iter('outn_%s<%d>' % (sig_type, sidx)))
 
-                key = (sidx - 1, pcidx)
+                key = (sidx + in_dir, pcidx)
                 if key not in sigp_dict:
                     sigp_dict[key] = []
                 if key not in sign_dict:
                     sign_dict[key] = []
-                sigp_dict[key].extend(inst.port_pins_iter('inp_d<%d>' % sidx))
-                sign_dict[key].extend(inst.port_pins_iter('inn_d<%d>' % sidx))
+                sigp_dict[key].extend(inst.port_pins_iter('inp_%s<%d>' % (sig_type, sidx)))
+                sign_dict[key].extend(inst.port_pins_iter('inn_%s<%d>' % (sig_type, sidx)))
 
-            key = (2, cidx)
-            if key not in sigp_dict:
-                sigp_dict[key] = []
-            if key not in sign_dict:
-                sign_dict[key] = []
-            sigp_dict[key].extend(inst.port_pins_iter('inp_d<2>'))
-            sign_dict[key].extend(inst.port_pins_iter('inn_d<2>'))
-
-        for sidx in range(2, num_dfe):
-            ltr = dfe_tracks[num_dfe - 1 - sidx]
-            offset = ltr - route_locs[1]
-            for cidx in range(4):
-                key = (sidx, cidx)
-                if cidx == 3:
-                    idxp = 1
-                elif cidx == 1:
-                    idxp = 4
-                else:
-                    idxp = 7
-                trp, trn = route_locs[idxp] + offset, route_locs[idxp + 1] + offset
-                warrp, warrn = sigp_dict[key], sign_dict[key]
-                self.connect_differential_tracks(warrp, warrn, vm_layer, trp, trn, width=vm_width)
-
-        # get differential track location
-        tr_shield = route_locs[0] + dfe_tracks[0] - route_locs[1]
-        diff_shield = route_locs[1] - route_locs[0]
-        diff_sep = route_locs[2] - route_locs[1]
-        trn = tr_shield - diff_shield
-        trp = trn - diff_sep
-        for cidx in range(4):
-            key = (num_dfe, cidx)
-            self.connect_differential_tracks(sigp_dict[key], sign_dict[key], vm_layer,
-                                             trp, trn, width=vm_width)
-
-    def _connect_ffe_signal(self, route_locs, ffe_tracks, inst_list, vm_layer, vm_width, show_pins):
-        num_ffe = len(ffe_tracks) + 1
-
-        # gather and sort signal wires
+        # compute connection parameters based on end_first flag.
         inp_list, inn_list = [], []
-        sigp_dict, sign_dict = {}, {}
-        for cidx, inst in enumerate(inst_list):
-            pcidx = (cidx + 1) % 4
-            for sidx in range(num_ffe):
-                key = (sidx, cidx)
-                if key not in sigp_dict:
-                    sigp_dict[key] = []
-                if key not in sign_dict:
-                    sign_dict[key] = []
-                sigp_dict[key].extend(inst.port_pins_iter('outp_a<%d>' % sidx))
-                sign_dict[key].extend(inst.port_pins_iter('outn_a<%d>' % sidx))
+        diff_shield = route_locs[1] - route_locs[0]
+        diff_sep = route_locs[2] - route_locs[1]
+        if is_ffe:
+            tr_const = num_sig + sig_off - 1
+            sig_range = range(1 + sig_off, tr_const + 1)
+            tr_shield = route_locs[-1] + track_locs[-1] - route_locs[1]
+            end_trp = tr_shield + diff_shield
+            end_trn = end_trp + diff_sep
+            # add FFE inputs
+            in_idx = num_sig + sig_off - 1 + in_dir
+            for cidx in range(4):
+                inp_list.append(sigp_dict[(in_idx, cidx)])
+                inn_list.append(sign_dict[(in_idx, cidx)])
+        else:
+            tr_const = num_sig + sig_off - 2
+            sig_range = range(sig_off, tr_const + 1)
+            tr_shield = route_locs[0] + track_locs[0] - route_locs[1]
+            end_trn = tr_shield - diff_shield
+            end_trp = end_trn - diff_sep
 
-                if sidx == num_ffe - 1:
-                    inp_list.extend(inst.port_pins_iter('inp_a<%d>' % sidx))
-                    inn_list.extend(inst.port_pins_iter('inn_a<%d>' % sidx))
-                else:
-                    key = (sidx + 1, pcidx)
-                    if key not in sigp_dict:
-                        sigp_dict[key] = []
-                    if key not in sign_dict:
-                        sign_dict[key] = []
-                    sigp_dict[key].extend(inst.port_pins_iter('inp_a<%d>' % sidx))
-                    sign_dict[key].extend(inst.port_pins_iter('inn_a<%d>' % sidx))
-
-        for sidx in range(1, num_ffe):
-            ltr = ffe_tracks[num_ffe - 1 - sidx]
+        # connect intermediate signals
+        for sidx in sig_range:
+            ltr = track_locs[tr_const - sidx]
             offset = ltr - route_locs[1]
             for cidx in range(4):
                 key = (sidx, cidx)
@@ -1038,18 +1006,18 @@ class TapXColumn(TemplateBase):
                     idxp = 7
                 trp, trn = route_locs[idxp] + offset, route_locs[idxp + 1] + offset
                 warrp, warrn = sigp_dict[key], sign_dict[key]
-                self.connect_differential_tracks(warrp, warrn, vm_layer, trp, trn, width=vm_width)
+                vwp, vwn = self.connect_differential_tracks(warrp, warrn, vm_layer, trp, trn,
+                                                            width=vm_width)
+                if not is_ffe and sidx == sig_off:
+                    # for DFE, export inputs on vertical layer.
+                    inp_list.append(vwp)
+                    inn_list.append(vwn)
 
-        # get differential track location
-        tr_shield = route_locs[-1] + ffe_tracks[-1] - route_locs[1]
-        diff_shield = route_locs[1] - route_locs[0]
-        diff_sep = route_locs[2] - route_locs[1]
-        trp = tr_shield + diff_shield
-        trn = trp + diff_sep
+        # copnnect end signals
+        sidx = sig_off if is_ffe else num_sig + sig_off - 1
         for cidx in range(4):
-            key = (0, cidx)
+            key = (sidx, cidx)
             self.connect_differential_tracks(sigp_dict[key], sign_dict[key], vm_layer,
-                                             trp, trn, width=vm_width)
+                                             end_trp, end_trn, width=vm_width)
 
-        self.add_pin('inp_a', inp_list, label='inp_a:', show=show_pins)
-        self.add_pin('inn_a', inn_list, label='inn_a:', show=show_pins)
+        return inp_list, inn_list
