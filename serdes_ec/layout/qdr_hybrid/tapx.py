@@ -985,6 +985,17 @@ class TapXColumn(TemplateBase):
                 warrp, warrn = sigp_dict[key], sign_dict[key]
                 self.connect_differential_tracks(warrp, warrn, vm_layer, trp, trn, width=vm_width)
 
+        # get differential track location
+        tr_shield = route_locs[0] + dfe_tracks[0] - route_locs[1]
+        diff_shield = route_locs[1] - route_locs[0]
+        diff_sep = route_locs[2] - route_locs[1]
+        trn = tr_shield - diff_shield
+        trp = trn - diff_sep
+        for cidx in range(4):
+            key = (num_dfe, cidx)
+            self.connect_differential_tracks(sigp_dict[key], sign_dict[key], vm_layer,
+                                             trp, trn, width=vm_width)
+
     def _connect_ffe_signal(self, route_locs, ffe_tracks, inst_list, vm_layer, vm_width, show_pins):
         num_ffe = len(ffe_tracks) + 1
 
@@ -1028,6 +1039,17 @@ class TapXColumn(TemplateBase):
                 trp, trn = route_locs[idxp] + offset, route_locs[idxp + 1] + offset
                 warrp, warrn = sigp_dict[key], sign_dict[key]
                 self.connect_differential_tracks(warrp, warrn, vm_layer, trp, trn, width=vm_width)
+
+        # get differential track location
+        tr_shield = route_locs[-1] + ffe_tracks[-1] - route_locs[1]
+        diff_shield = route_locs[1] - route_locs[0]
+        diff_sep = route_locs[2] - route_locs[1]
+        trp = tr_shield + diff_shield
+        trn = trp + diff_sep
+        for cidx in range(4):
+            key = (0, cidx)
+            self.connect_differential_tracks(sigp_dict[key], sign_dict[key], vm_layer,
+                                             trp, trn, width=vm_width)
 
         self.add_pin('inp_a', inp_list, label='inp_a:', show=show_pins)
         self.add_pin('inn_a', inn_list, label='inn_a:', show=show_pins)
