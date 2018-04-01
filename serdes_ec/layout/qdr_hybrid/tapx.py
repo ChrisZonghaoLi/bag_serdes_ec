@@ -17,6 +17,13 @@ if TYPE_CHECKING:
     from bag.layout.template import TemplateDB
 
 
+def _record_track(track_info, name, tidx):
+    if name in track_info:
+        track_info[name].append(tidx)
+    else:
+        track_info[name] = [tidx]
+
+
 class TapXSummerCell(TemplateBase):
     """A summer cell containing a single DFE/FFE tap with the corresponding latch.
 
@@ -231,6 +238,7 @@ class TapXSummerLast(TemplateBase):
         self._sch_params = None
         self._fg_core = None
         self._amp_master = None
+        self._sd_pitch = None
 
     @property
     def sch_params(self):
@@ -242,9 +250,14 @@ class TapXSummerLast(TemplateBase):
         # type: () -> int
         return self._fg_core
 
-    def get_vm_coord(self, vm_width):
-        # type: (int) -> int
-        return self._amp_master.get_vm_coord(vm_width, False, 0)
+    def get_vm_coord(self, vm_width, is_left):
+        # type: (int, bool) -> int
+        return self._amp_master.get_vm_coord(vm_width, is_left, 0)
+
+    @property
+    def sd_pitch(self):
+        # type: () -> int
+        return self._sd_pitch
 
     @classmethod
     def get_default_param_values(cls):
@@ -433,6 +446,7 @@ class TapXSummerLast(TemplateBase):
         )
         self._fg_core = s_master.layout_info.fg_core
         self._amp_master = s_master
+        self._sd_pitch = s_master.sd_pitch_unit
 
 
 class TapXSummerNoLast(TemplateBase):
@@ -462,6 +476,7 @@ class TapXSummerNoLast(TemplateBase):
         self._ffe_track_info = None
         self._dfe_track_info = None
         self._analog_master = None
+        self._place_info = None
 
     @property
     def sch_params(self):
@@ -479,6 +494,10 @@ class TapXSummerNoLast(TemplateBase):
     @property
     def analog_master(self):
         return self._analog_master
+
+    @property
+    def place_info(self):
+        return self._place_info
 
     @classmethod
     def get_default_param_values(cls):
@@ -570,7 +589,7 @@ class TapXSummerNoLast(TemplateBase):
                                      flip_sign_list, dfe_sig_list, end_mode, base_params, vm_layer,
                                      route_locs, place_info, vdd_list, vss_list, 'd', sig_off=3,
                                      sum_off=num_ffe + 1, is_end=False, left_out=False)
-        dfe_masters, self._dfe_track_info, dfe_sch_params, dfe_insts, place_info = tmp
+        dfe_masters, self._dfe_track_info, dfe_sch_params, dfe_insts, self._place_info = tmp
 
         # set size
         inst_first = ffe_insts[-1]
@@ -785,7 +804,7 @@ class TapXSummerNoLast(TemplateBase):
             else:
                 sig_offset = prev_tr + left_delta - sig_locs[0]
             for name, loc in zip(sig_names, sig_locs):
-                self._record_track(track_info, name, loc + sig_offset)
+                _record_track(track_info, name, loc + sig_offset)
 
             # add instance
             inst = self.add_instance(cur_master, 'X%s%d' % (blk_type.upper(), sig_idx),
@@ -809,28 +828,18 @@ class TapXSummerNoLast(TemplateBase):
                 prev_type = 1
                 prev_tr = route_locs[-1] + offset
                 for x in range(0, 10, 3):
-                    self._record_track(track_info, 'VDD', route_locs[x] + offset)
-                self._record_track(track_info, 'outp_%s3<%d>' % (blk_type, sig_idx),
-                                   route_locs[1] + offset)
-
+                    _record_track(track_info, 'VDD', route_locs[x] + offset)
                 for cidx in range(1, 4):
                     x = 1 if cidx == 3 else (4 if cidx == 1 else 7)
-                    self._record_track(track_info, 'outp_%s%d<%d>' % (blk_type, cidx, sig_idx),
-                                       route_locs[x] + offset)
-                    self._record_track(track_info, 'outn_%s%d<%d>' % (blk_type, cidx, sig_idx),
-                                       route_locs[x + 1] + offset)
+                    _record_track(track_info, 'outp_%s%d<%d>' % (blk_type, cidx, sig_idx),
+                                  route_locs[x] + offset)
+                    _record_track(track_info, 'outn_%s%d<%d>' % (blk_type, cidx, sig_idx),
+                                  route_locs[x + 1] + offset)
 
         insts.reverse()
         sch_params.reverse()
         place_info = prev_data_w, prev_data_tr, prev_type, prev_tr, xarr
         return masters, track_info, sch_params, insts, place_info
-
-    @classmethod
-    def _record_track(cls, track_info, name, tidx):
-        if name in track_info:
-            track_info[name].append(tidx)
-        else:
-            track_info[name] = [tidx]
 
 
 class TapXSummer(TemplateBase):
@@ -943,12 +952,14 @@ class TapXSummer(TemplateBase):
         num_ffe = len(seg_ffe_list)
         end_mode = 1 if is_end else 0
 
+        # create and place TapXSummerNoLast
         sub_params = self.params.copy()
         sub_params['show_pins'] = False
         sub_master = self.new_template(params=sub_params, temp_cls=TapXSummerNoLast)
         inst = self.add_instance(sub_master, 'XSUB', loc=(0, 0), unit_mode=True)
         self._ffe_track_info = sub_master.ffe_track_info
         self._dfe_track_info = sub_master.dfe_track_info.copy()
+        prev_data_w, prev_data_tr, prev_type, prev_tr, xarr = sub_master.place_info
         vdd_list = inst.get_all_port_pins('VDD')
         vss_list = inst.get_all_port_pins('VSS')
         en_warrs = [list(inst.port_pins_iter('en<%d>' % idx)) for idx in range(4)]
@@ -957,6 +968,20 @@ class TapXSummer(TemplateBase):
         outsp = inst.get_pin('outp_s')
         outsn = inst.get_pin('outn_s')
 
+        hm_layer = IntegAmp.get_mos_conn_layer(self.grid.tech_info) + 1
+        vm_layer = hm_layer + 1
+        tr_manager = TrackManager(self.grid, tr_widths, tr_spaces, half_space=True)
+        vm_w_out = tr_manager.get_width(vm_layer, 'out')
+
+        # specify last summer signals
+        sig_types = [1, 'en', 'en', 'en', 'en', 1, 'clk', 'clk', 'clk', 'clk', 1,
+                     1, 1, 1, 1, 1, 'clk', 'clk', 1]
+        sig_names = ['VSS', 'en3', 'en2', 'en1', 'en0',
+                     'VSS', 'clkp', 'biasp_s<2>', 'biasn_s<2>', 'clkn', 'VSS',
+                     'sgnpp<2>', 'sgnnp<2>', 'sgnpn<2>', 'sgnnn<2>',
+                     'scan_div<3>', 'en_div<3>', 'en_div<2>', 'scan_div<2>']
+
+        # create and place last summer cell
         main = sub_master.analog_master
         last_params = dict(config=config, row_layout_info=main.lat_row_layout_info,
                            lch=lch, ptap_w=ptap_w, ntap_w=ntap_w, w_sum=w_sum, th_sum=th_sum,
@@ -967,19 +992,55 @@ class TapXSummer(TemplateBase):
                            end_mode=end_mode | 0b1000, show_pins=False, options=options
                            )
         last_master = self.new_template(params=last_params, temp_cls=TapXSummerLast)
-        last_sch_params = last_master.sch_params
-        xcur = inst.array_box.right_unit - last_master.array_box.left_unit
-        instl = self.add_instance(last_master, 'XDFE2', loc=(xcur, 0), unit_mode=True)
 
-        tr_manager = TrackManager(self.grid, tr_widths, tr_spaces, half_space=True)
-        hm_layer = IntegAmp.get_mos_conn_layer(self.grid.tech_info) + 1
-        vm_layer = hm_layer + 1
-        vm_w_out = tr_manager.get_width(vm_layer, 'out')
-        data_xl = xcur + last_master.get_vm_coord(vm_w_out)
-        ltr = self.grid.find_next_track(vm_layer, data_xl, tr_width=vm_w_out, half_track=True,
-                                        mode=1, unit_mode=True)
+        # check we can place current master without horizontal line-end spacing issues
+        xcur = xarr - last_master.array_box.left_unit
+        data_xr = self.grid.get_wire_bounds(vm_layer, prev_data_tr, width=prev_data_w,
+                                            unit_mode=True)[1]
+        xcur_min = data_xr - last_master.get_vm_coord(prev_data_w, True)
+        if xcur_min > xcur:
+            # need to increment left dummy fingers to avoid line-end spacing issues
+            sd_pitch = last_master.sd_pitch
+            num_fg_inc = -(-(xcur_min - xcur) // (2 * sd_pitch)) * 2
+            last_master = last_master.new_template_with(fg_duml=fg_dum + num_fg_inc)
+
+        # get minimum left routing track index
+        data_xl = xcur + last_master.get_vm_coord(vm_w_out, False)
+        ltr = self.grid.find_next_track(vm_layer, data_xl, tr_width=vm_w_out,
+                                        half_track=True, mode=1, unit_mode=True)
+        # get total space needed for signals
+        _, sig_locs = tr_manager.place_wires(vm_layer, sig_types)
+        if prev_type is None:
+            left_delta = sig_locs[0]
+        else:
+            _, left_locs = tr_manager.place_wires(vm_layer, [prev_type, sig_types[0]])
+            left_delta = left_locs[1] - left_locs[0]
+        _, right_locs = tr_manager.place_wires(vm_layer, [sig_types[-1], 1, 'out'])
+        right_delta = right_locs[2] - right_locs[0]
+        # compute minimum left routing track index
+        ltr = max(ltr, prev_tr + left_delta + sig_locs[-1] - sig_locs[0] + right_delta)
+
+        # record signal locations
+        sig_offset = ltr - right_delta - sig_locs[-1]
+        for name, loc in zip(sig_names, sig_locs):
+            _record_track(self._dfe_track_info, name, loc + sig_offset)
+
+        # add instance
+        instl = self.add_instance(last_master, 'XLAST', loc=(xcur, 0), unit_mode=True)
         vdd_list.extend(instl.port_pins_iter('VDD'))
         vss_list.extend(instl.port_pins_iter('VSS'))
+
+        # record routing track locations, and update placement information
+        _, route_locs = tr_manager.place_wires(vm_layer, [1, 'out', 'out', 1, 'out', 'out', 1,
+                                                          'out', 'out', 1])
+
+        offset = ltr - route_locs[1]
+        for x in range(0, 10, 3):
+            _record_track(self._dfe_track_info, 'VDD', route_locs[x] + offset)
+        for cidx in range(1, 4):
+            x = 1 if cidx == 3 else (4 if cidx == 1 else 7)
+            _record_track(self._dfe_track_info, 'outp_d%d<2>' % cidx, route_locs[x] + offset)
+            _record_track(self._dfe_track_info, 'outn_d%d<2>' % cidx, route_locs[x + 1] + offset)
 
         # set size
         self.set_size_from_bound_box(vm_layer, instl.bound_box.merge(inst.bound_box),
@@ -1053,7 +1114,7 @@ class TapXSummer(TemplateBase):
         self._sch_params = dict(
             ffe_params_list=sub_master.sch_params['ffe_params_list'],
             dfe_params_list=sub_master.sch_params['dfe_params_list'],
-            last_params=last_sch_params,
+            last_params=last_master.sch_params,
         )
         self._fg_core_last = last_master.fg_core
 
