@@ -837,7 +837,9 @@ class TapXSummer(TemplateBase):
         num_ffe = len(seg_ffe_list)
         end_mode = 1 if is_end else 0
 
-        sub_master = self.new_template(params=self.params, temp_cls=TapXSummerNoLast)
+        sub_params = self.params.copy()
+        sub_params['show_pins'] = False
+        sub_master = self.new_template(params=sub_params, temp_cls=TapXSummerNoLast)
         inst = self.add_instance(sub_master, 'XSUB', loc=(0, 0), unit_mode=True)
         self._ffe_tracks = list(sub_master.ffe_tracks)
         self._dfe_tracks = list(sub_master.dfe_tracks)
@@ -880,8 +882,13 @@ class TapXSummer(TemplateBase):
         self.array_box = self.bound_box
 
         # export last summer tap pins
-        self.reexport(instl.get_port('inp'), net_name='outp_d<2>', show=show_pins)
-        self.reexport(instl.get_port('inn'), net_name='outn_d<2>', show=show_pins)
+        inp_pin = instl.get_pin('inp')
+        inn_pin = instl.get_pin('inn')
+        self.add_pin('inp_d<2>', inp_pin, show=show_pins)
+        self.add_pin('inn_d<2>', inn_pin, show=show_pins)
+        # add alias pins for column layout connection only
+        self.add_pin('outp_d<2>', inp_pin, show=False)
+        self.add_pin('outn_d<2>', inn_pin, show=False)
         self.reexport(instl.get_port('biasn'), net_name='biasn_s<2>', show=show_pins)
         if instl.has_port('casc<0>'):
             self.reexport(instl.get_port('casc<0>'), net_name='sgnp<2>', show=show_pins)
@@ -932,7 +939,11 @@ class TapXSummer(TemplateBase):
         # re-export rest of the pins
         for name in inst.port_names_iter():
             if name not in self._exclude_ports:
-                self.reexport(inst.get_port(name), show=show_pins)
+                if name.startswith('outp_') or name.startswith('outn_'):
+                    label = name + ':'
+                else:
+                    label = ''
+                self.reexport(inst.get_port(name), label=label, show=show_pins)
 
         self._sch_params = dict(
             ffe_params_list=sub_master.sch_params['ffe_params_list'],
