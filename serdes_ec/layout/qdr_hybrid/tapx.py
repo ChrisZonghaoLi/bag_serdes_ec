@@ -435,6 +435,298 @@ class TapXSummerLast(TemplateBase):
         self._amp_master = s_master
 
 
+class TapXSummerNoLast(TemplateBase):
+    """The DFE tapx summer, without the last block.
+
+    This is a helper class to reuse more layouts.
+
+    Parameters
+    ----------
+    temp_db : TemplateDB
+            the template database.
+    lib_name : str
+        the layout library name.
+    params : Dict[str, Any]
+        the parameter values.
+    used_names : Set[str]
+        a set of already used cell names.
+    **kwargs
+        dictionary of optional parameters.  See documentation of
+        :class:`bag.layout.template.TemplateBase` for details.
+    """
+
+    def __init__(self, temp_db, lib_name, params, used_names, **kwargs):
+        # type: (TemplateDB, str, Dict[str, Any], Set[str], **kwargs) -> None
+        TemplateBase.__init__(self, temp_db, lib_name, params, used_names, **kwargs)
+        self._sch_params = None
+        self._ffe_tracks = None
+        self._dfe_tracks = None
+        self._analog_master = None
+
+    @property
+    def sch_params(self):
+        # type: () -> Dict[str, Any]
+        return self._sch_params
+
+    @property
+    def ffe_tracks(self):
+        return self._ffe_tracks
+
+    @property
+    def dfe_tracks(self):
+        return self._dfe_tracks
+
+    @property
+    def analog_master(self):
+        return self._analog_master
+
+    @classmethod
+    def get_default_param_values(cls):
+        # type: () -> Dict[str, Any]
+        return dict(
+            is_end=False,
+            show_pins=True,
+            options=None,
+        )
+
+    @classmethod
+    def get_params_info(cls):
+        # type: () -> Dict[str, str]
+        return dict(
+            lch='channel length, in meters.',
+            ptap_w='NMOS substrate width, in meters/number of fins.',
+            ntap_w='PMOS substrate width, in meters/number of fins.',
+            w_sum='NMOS/PMOS width dictionary for summer.',
+            w_lat='NMOS/PMOS width dictionary for latch.',
+            th_sum='NMOS/PMOS threshold flavor dictionary.',
+            th_lat='NMOS/PMOS threshold dictoary for latch.',
+            seg_sum_list='list of segment dictionaries for summer taps.',
+            seg_ffe_list='list of segment dictionaries for FFE latches.',
+            seg_dfe_list='list of segment dictionaries for DFE latches.',
+            flip_sign_list='list of flip_sign values for summer taps.',
+            fg_dum='Number of single-sided edge dummy fingers.',
+            tr_widths='Track width dictionary.',
+            tr_spaces='Track spacing dictionary.',
+            is_end='True if this is the end row.',
+            show_pins='True to create pin labels.',
+            options='other AnalogBase options',
+        )
+
+    def draw_layout(self):
+        # get parameters
+        lch = self.params['lch']
+        ptap_w = self.params['ptap_w']
+        ntap_w = self.params['ntap_w']
+        w_sum = self.params['w_sum']
+        w_lat = self.params['w_lat']
+        th_sum = self.params['th_sum']
+        th_lat = self.params['th_lat']
+        seg_sum_list = self.params['seg_sum_list']
+        seg_ffe_list = self.params['seg_ffe_list']
+        seg_dfe_list = self.params['seg_dfe_list']
+        flip_sign_list = self.params['flip_sign_list']
+        fg_dum = self.params['fg_dum']
+        tr_widths = self.params['tr_widths']
+        tr_spaces = self.params['tr_spaces']
+        is_end = self.params['is_end']
+        show_pins = self.params['show_pins']
+        options = self.params['options']
+
+        num_sum = len(seg_sum_list)
+        num_ffe = len(seg_ffe_list)
+        num_dfe = len(seg_dfe_list) + 1
+        if num_sum != num_ffe + num_dfe or num_sum != len(flip_sign_list):
+            raise ValueError('segment dictionary list length mismatch.')
+        if num_ffe < 1:
+            raise ValueError('Must have at least one FFE (last FFE is main tap).')
+        end_mode = 1 if is_end else 0
+
+        # create layout masters and place instances
+        tr_manager = TrackManager(self.grid, tr_widths, tr_spaces, half_space=True)
+        hm_layer = IntegAmp.get_mos_conn_layer(self.grid.tech_info) + 1
+        vm_layer = hm_layer + 1
+        vm_w_out = tr_manager.get_width(vm_layer, 'out')
+        ntr_route, _ = tr_manager.place_wires(vm_layer, ['out', 'out', 1, 'out', 'out',
+                                                         1, 'out', 'out'])
+        route_types = [1, 'out', 'out', 1, 'out', 'out', 1, 'out', 'out', 1]
+        _, route_locs = tr_manager.place_wires(vm_layer, route_types)
+
+        vdd_list, vss_list = [], []
+        base_params = dict(lch=lch, ptap_w=ptap_w, ntap_w=ntap_w, w_sum=w_sum, w_lat=w_lat,
+                           th_sum=th_sum, th_lat=th_lat, fg_duml=fg_dum, fg_dumr=fg_dum,
+                           tr_widths=tr_widths, tr_spaces=tr_spaces, end_mode=end_mode,
+                           show_pins=False, options=options, )
+        tmp = self._create_and_place(num_ffe, seg_ffe_list, seg_sum_list, flip_sign_list, end_mode,
+                                     base_params, vm_layer, vm_w_out, ntr_route, None, None,
+                                     vdd_list, vss_list, sum_off=0, is_end=True, left_output=True)
+        ffe_masters, self._ffe_tracks, ffe_sch_params, ffe_insts, xprev = tmp
+
+        last_master = ffe_masters[-1]
+        tmp = self._create_and_place(num_dfe - 1, seg_dfe_list, seg_sum_list, flip_sign_list,
+                                     end_mode, base_params, vm_layer, vm_w_out, ntr_route,
+                                     last_master, xprev, vdd_list, vss_list, sum_off=num_ffe + 1,
+                                     is_end=False, left_output=False)
+        dfe_masters, self._dfe_tracks, dfe_sch_params, dfe_insts, xprev = tmp
+
+        # set size
+        inst_first = ffe_insts[-1]
+        inst_last = dfe_insts[0]
+        self.array_box = inst_last.array_box.merge(inst_first.array_box)
+        self.set_size_from_bound_box(hm_layer, inst_first.bound_box.merge(inst_last.bound_box))
+
+        # add pins
+        # connect supplies
+        vdd_list = self.connect_wires(vdd_list)
+        vss_list = self.connect_wires(vss_list)
+        self.add_pin('VDD', vdd_list, label='VDD:', show=show_pins)
+        self.add_pin('VSS', vss_list, label='VSS:', show=show_pins)
+
+        # export/collect FFE pins
+        biasm_list, biasa_list, clkp_list, clkn_list = [], [], [], []
+        outs_warrs = [[], []]
+        en_warrs = [[], [], [], []]
+        for fidx, inst in enumerate(ffe_insts):
+            if inst.has_port('casc'):
+                self.reexport(inst.get_port('casc'), net_name='casc<%d>' % fidx, show=show_pins)
+            biasm_list.append(inst.get_pin('biasn_s'))
+            self.reexport(inst.get_port('inp'), net_name='inp_a<%d>' % fidx, show=show_pins)
+            self.reexport(inst.get_port('inn'), net_name='inn_a<%d>' % fidx, show=show_pins)
+            biasa_list.append(inst.get_pin('biasp_l'))
+            clkp_list.extend(inst.port_pins_iter('clkp'))
+            clkn_list.extend(inst.port_pins_iter('clkn'))
+            en_warrs[3].extend(inst.port_pins_iter('en<3>'))
+            en_warrs[2].extend(inst.port_pins_iter('en<2>'))
+            if inst.has_port('en<1>'):
+                en_warrs[1].extend(inst.port_pins_iter('en<1>'))
+            # TODO: handle setp/setn/pulse pins
+            outs_warrs[0].append(inst.get_pin('outp_s'))
+            outs_warrs[1].append(inst.get_pin('outn_s'))
+            self.reexport(inst.get_port('outp_l'), net_name='outp_a<%d>' % fidx,
+                          label='outp_a<%d>:' % fidx, show=show_pins)
+            self.reexport(inst.get_port('outn_l'), net_name='outn_a<%d>' % fidx,
+                          label='outn_a<%d>:' % fidx, show=show_pins)
+
+        # export/collect DFE pins
+        biasd_list = []
+        for idx, inst in enumerate(dfe_insts):
+            didx = idx + 3
+            self.reexport(inst.get_port('biasn_s'), net_name='biasn_s<%d>' % didx,
+                          show=show_pins)
+            self.reexport(inst.get_port('inp'), net_name='inp_d<%d>' % didx, show=show_pins)
+            self.reexport(inst.get_port('inn'), net_name='inn_d<%d>' % didx, show=show_pins)
+            biasd_list.append(inst.get_pin('biasp_l'))
+            clkp_list.extend(inst.port_pins_iter('clkp'))
+            clkn_list.extend(inst.port_pins_iter('clkn'))
+            en_warrs[3].extend(inst.port_pins_iter('en<3>'))
+            en_warrs[2].extend(inst.port_pins_iter('en<2>'))
+            if inst.has_port('en<1>'):
+                en_warrs[1].extend(inst.port_pins_iter('en1>'))
+            if inst.has_port('casc<0>'):
+                self.reexport(inst.get_port('casc<0>'), net_name='sgnp<%d>' % didx, show=show_pins)
+                self.reexport(inst.get_port('casc<1>'), net_name='sgnn<%d>' % didx, show=show_pins)
+            # TODO: handle setp/setn/pulse pins
+            outs_warrs[0].append(inst.get_pin('outp_s'))
+            outs_warrs[1].append(inst.get_pin('outn_s'))
+            self.reexport(inst.get_port('outp_l'), net_name='outp_d<%d>' % didx,
+                          label='outp_d<%d>:' % didx, show=show_pins)
+            self.reexport(inst.get_port('outn_l'), net_name='outn_d<%d>' % didx,
+                          label='outn_d<%d>:' % didx, show=show_pins)
+
+        # connect wires and add pins
+        biasm = self.connect_wires(biasm_list)
+        biasa = self.connect_wires(biasa_list)
+        biasd = self.connect_wires(biasd_list)
+        outsp = self.connect_wires(outs_warrs[0])
+        outsn = self.connect_wires(outs_warrs[1])
+        lower, upper = None, None
+        for warr in chain(clkp_list, clkn_list):
+            if lower is None:
+                lower = warr.lower_unit
+                upper = warr.upper_unit
+            else:
+                lower = min(lower, warr.lower_unit)
+                upper = max(upper, warr.upper_unit)
+        clkp = self.connect_wires(clkp_list, lower=lower, upper=upper, unit_mode=True)
+        clkn = self.connect_wires(clkn_list, lower=lower, upper=upper, unit_mode=True)
+        self.add_pin('biasn_m', biasm, show=show_pins)
+        self.add_pin('biasp_a', biasa, show=show_pins)
+        self.add_pin('biasp_d', biasd, show=show_pins)
+        self.add_pin('clkp', clkp, label='clkp:', show=show_pins)
+        self.add_pin('clkn', clkn, label='clkn:', show=show_pins)
+        self.add_pin('outp_s', outsp, show=show_pins)
+        self.add_pin('outn_s', outsn, show=show_pins)
+
+        for idx, en_warr in enumerate(en_warrs):
+            if en_warr:
+                en_warr = self.connect_wires(en_warr)
+                name = 'en<%d>' % idx
+                self.add_pin(name, en_warr, label=name + ':', show=show_pins)
+
+        self._sch_params = dict(
+            ffe_params_list=ffe_sch_params,
+            dfe_params_list=dfe_sch_params,
+        )
+        self._analog_master = ffe_masters[0]
+
+    def _create_and_place(self, num_inst, seg_list, seg_sum_list, flip_sign_list, end_mode,
+                          base_params, vm_layer, vm_w_out, ntr_route, last_master, xprev,
+                          vdd_list, vss_list, sum_off=0, is_end=False, left_output=True):
+        fg_dum = base_params['fg_duml']
+        masters, ltr_list, sch_params, insts = [], [], [], []
+        for idx in range(num_inst - 1, -1, -1):
+            seg_lat = seg_list[idx]
+            seg_sum = seg_sum_list[idx + sum_off]
+            flip_sign = flip_sign_list[idx + sum_off]
+
+            cur_params = base_params.copy()
+            cur_params['seg_sum'] = seg_sum
+            cur_params['seg_lat'] = seg_lat
+            cur_params['flip_sign'] = flip_sign
+            if is_end and (idx == num_inst - 1):
+                cur_params['end_mode'] = end_mode | 0b0100
+            cur_master = self.new_template(params=cur_params, temp_cls=TapXSummerCell)
+            if idx < num_inst - 1:
+                xcur, xcur_min, ltr = self._get_block_xmin(vm_layer, vm_w_out, ntr_route,
+                                                           last_master, cur_master,
+                                                           left_output, xprev)
+                if xcur > xcur_min:
+                    sd_pitch = cur_master.sd_pitch
+                    num_fg_inc = -(-(xcur - xcur_min) // (2 * sd_pitch)) * 2
+                    cur_master = cur_master.new_template_with(fg_duml=fg_dum + num_fg_inc)
+                    xcur = xprev + last_master.array_box.right_unit - cur_master.array_box.left_unit
+                else:
+                    xcur = xcur_min
+                ltr_list.append(ltr)
+            elif xprev is None:
+                xcur = 0
+            else:
+                xcur = xprev + last_master.array_box.right_unit - cur_master.array_box.left_unit
+
+            inst = self.add_instance(cur_master, 'XFFE%d' % idx, loc=(xcur, 0), unit_mode=True)
+
+            vdd_list.extend(inst.port_pins_iter('VDD'))
+            vss_list.extend(inst.port_pins_iter('VSS'))
+            masters.append(cur_master)
+            sch_params.append(cur_master.sch_params)
+            insts.append(inst)
+            last_master = cur_master
+            xprev = xcur
+
+        insts.reverse()
+        sch_params.reverse()
+        return masters, ltr_list, sch_params, insts, xprev
+
+    def _get_block_xmin(self, vm_layer, vm_w_out, ntr_tot, left_master, right_master,
+                        left_output, xleft):
+        xright = xleft + left_master.array_box.right_unit - right_master.array_box.left_unit
+        data_xl = xleft + left_master.get_vm_coord(vm_w_out, False, left_output)
+        ltr = self.grid.find_next_track(vm_layer, data_xl, tr_width=vm_w_out, half_track=True,
+                                        mode=1, unit_mode=True)
+        rtr = ltr + ntr_tot - 1
+        data_xr = self.grid.get_wire_bounds(vm_layer, rtr, width=vm_w_out, unit_mode=True)[1]
+        return data_xr - right_master.get_vm_coord(vm_w_out, True, not left_output), xright, ltr
+
+
 class TapXSummer(TemplateBase):
     """The DFE tapx summer.
 
@@ -452,6 +744,9 @@ class TapXSummer(TemplateBase):
         dictionary of optional parameters.  See documentation of
         :class:`bag.layout.template.TemplateBase` for details.
     """
+
+    _exclude_ports = {'clkp', 'clkn', 'VDD', 'VSS', 'outp_s', 'outn_s', 'en<0>', 'en<1>',
+                      'en<2>', 'en<3>'}
 
     def __init__(self, temp_db, lib_name, params, used_names, **kwargs):
         # type: (TemplateDB, str, Dict[str, Any], Set[str], **kwargs) -> None
@@ -524,12 +819,9 @@ class TapXSummer(TemplateBase):
         ptap_w = self.params['ptap_w']
         ntap_w = self.params['ntap_w']
         w_sum = self.params['w_sum']
-        w_lat = self.params['w_lat']
         th_sum = self.params['th_sum']
-        th_lat = self.params['th_lat']
         seg_sum_list = self.params['seg_sum_list']
         seg_ffe_list = self.params['seg_ffe_list']
-        seg_dfe_list = self.params['seg_dfe_list']
         flip_sign_list = self.params['flip_sign_list']
         seg_div = self.params['seg_div']
         seg_pul = self.params['seg_pul']
@@ -542,42 +834,22 @@ class TapXSummer(TemplateBase):
         show_pins = self.params['show_pins']
         options = self.params['options']
 
-        num_sum = len(seg_sum_list)
         num_ffe = len(seg_ffe_list)
-        num_dfe = len(seg_dfe_list) + 1
-        if num_sum != num_ffe + num_dfe or num_sum != len(flip_sign_list):
-            raise ValueError('segment dictionary list length mismatch.')
-        if num_ffe < 1:
-            raise ValueError('Must have at least one FFE (last FFE is main tap).')
         end_mode = 1 if is_end else 0
 
-        # create layout masters and place instances
-        tr_manager = TrackManager(self.grid, tr_widths, tr_spaces, half_space=True)
-        vm_layer = IntegAmp.get_mos_conn_layer(self.grid.tech_info) + 2
-        vm_w_out = tr_manager.get_width(vm_layer, 'out')
-        ntr_route, _ = tr_manager.place_wires(vm_layer, ['out', 'out', 1, 'out', 'out',
-                                                         1, 'out', 'out'])
-        route_types = [1, 'out', 'out', 1, 'out', 'out', 1, 'out', 'out', 1]
-        _, route_locs = tr_manager.place_wires(vm_layer, route_types)
+        sub_master = self.new_template(params=self.params, temp_cls=TapXSummerNoLast)
+        inst = self.add_instance(sub_master, 'XSUB', loc=(0, 0), unit_mode=True)
+        self._ffe_tracks = list(sub_master.ffe_tracks)
+        self._dfe_tracks = list(sub_master.dfe_tracks)
+        vdd_list = inst.get_all_port_pins('VDD')
+        vss_list = inst.get_all_port_pins('VSS')
+        en_warrs = [list(inst.port_pins_iter('en<%d>' % idx)) for idx in range(4)]
+        clkp_list = inst.get_all_port_pins('clkp')
+        clkn_list = inst.get_all_port_pins('clkn')
+        outsp = inst.get_pin('outp_s')
+        outsn = inst.get_pin('outn_s')
 
-        vdd_list, vss_list = [], []
-        base_params = dict(lch=lch, ptap_w=ptap_w, ntap_w=ntap_w, w_sum=w_sum, w_lat=w_lat,
-                           th_sum=th_sum, th_lat=th_lat, fg_duml=fg_dum, fg_dumr=fg_dum,
-                           tr_widths=tr_widths, tr_spaces=tr_spaces, end_mode=end_mode,
-                           show_pins=False, options=options, )
-        tmp = self._create_and_place(num_ffe, seg_ffe_list, seg_sum_list, flip_sign_list, end_mode,
-                                     base_params, vm_layer, vm_w_out, ntr_route, None, None,
-                                     vdd_list, vss_list, sum_off=0, is_end=True, left_output=True)
-        ffe_masters, self._ffe_tracks, ffe_sch_params, ffe_insts, xprev = tmp
-
-        last_master = ffe_masters[-1]
-        tmp = self._create_and_place(num_dfe - 1, seg_dfe_list, seg_sum_list, flip_sign_list,
-                                     end_mode, base_params, vm_layer, vm_w_out, ntr_route,
-                                     last_master, xprev, vdd_list, vss_list, sum_off=num_ffe + 1,
-                                     is_end=False, left_output=False)
-        dfe_masters, self._dfe_tracks, dfe_sch_params, dfe_insts, xprev = tmp
-
-        main = ffe_masters[0]
+        main = sub_master.analog_master
         last_params = dict(config=config, row_layout_info=main.lat_row_layout_info,
                            lch=lch, ptap_w=ptap_w, ntap_w=ntap_w, w_sum=w_sum, th_sum=th_sum,
                            seg_sum=seg_sum_list[num_ffe], seg_div=seg_div, seg_pul=seg_pul,
@@ -588,8 +860,13 @@ class TapXSummer(TemplateBase):
                            )
         last_master = self.new_template(params=last_params, temp_cls=TapXSummerLast)
         last_sch_params = last_master.sch_params
-        xcur = xprev + dfe_masters[-1].array_box.right_unit - last_master.array_box.left_unit
+        xcur = inst.array_box.right_unit - last_master.array_box.left_unit
         instl = self.add_instance(last_master, 'XDFE2', loc=(xcur, 0), unit_mode=True)
+
+        tr_manager = TrackManager(self.grid, tr_widths, tr_spaces, half_space=True)
+        hm_layer = IntegAmp.get_mos_conn_layer(self.grid.tech_info) + 1
+        vm_layer = hm_layer + 1
+        vm_w_out = tr_manager.get_width(vm_layer, 'out')
         data_xl = xcur + last_master.get_vm_coord(vm_w_out)
         ltr = self.grid.find_next_track(vm_layer, data_xl, tr_width=vm_w_out, half_track=True,
                                         mode=1, unit_mode=True)
@@ -598,96 +875,38 @@ class TapXSummer(TemplateBase):
         vss_list.extend(instl.port_pins_iter('VSS'))
 
         # set size
-        self.set_size_from_bound_box(vm_layer, instl.bound_box.merge(ffe_insts[-1].bound_box),
+        self.set_size_from_bound_box(vm_layer, instl.bound_box.merge(inst.bound_box),
                                      round_up=True)
         self.array_box = self.bound_box
 
-        # add pins
+        # export last summer tap pins
+        self.reexport(instl.get_port('inp'), net_name='outp_d<2>', show=show_pins)
+        self.reexport(instl.get_port('inn'), net_name='outn_d<2>', show=show_pins)
+        self.reexport(instl.get_port('biasn'), net_name='biasn_s<2>', show=show_pins)
+        if instl.has_port('casc<0>'):
+            self.reexport(instl.get_port('casc<0>'), net_name='sgnp<2>', show=show_pins)
+            self.reexport(instl.get_port('casc<1>'), net_name='sgnn<2>', show=show_pins)
+        # TODO: handle setp/setn/pulse pins
+        if instl.has_port('div'):
+            for name in ('en_div', 'scan_div', 'div', 'divb'):
+                self.reexport(instl.get_port(name), show=show_pins)
+        # TODO: handle pulse generation pins
+
         # connect supplies
         vdd_list = self.connect_wires(vdd_list)
         vss_list = self.connect_wires(vss_list)
         self.add_pin('VDD', vdd_list, label='VDD:', show=show_pins)
         self.add_pin('VSS', vss_list, label='VSS:', show=show_pins)
-
-        # export/collect FFE pins
-        biasm_list, biasa_list, clkp_list, clkn_list = [], [], [], []
-        outs_warrs = [[], []]
-        en_warrs = [[], [], [], []]
-        for fidx, inst in enumerate(ffe_insts):
-            if inst.has_port('casc'):
-                self.reexport(inst.get_port('casc'), net_name='casc<%d>' % fidx, show=show_pins)
-            biasm_list.append(inst.get_pin('biasn_s'))
-            self.reexport(inst.get_port('inp'), net_name='inp_a<%d>' % fidx, show=show_pins)
-            self.reexport(inst.get_port('inn'), net_name='inn_a<%d>' % fidx, show=show_pins)
-            biasa_list.append(inst.get_pin('biasp_l'))
-            clkp_list.extend(inst.port_pins_iter('clkp'))
-            clkn_list.extend(inst.port_pins_iter('clkn'))
-            en_warrs[3].extend(inst.port_pins_iter('en<3>'))
-            en_warrs[2].extend(inst.port_pins_iter('en<2>'))
-            if inst.has_port('en<1>'):
-                en_warrs[1].extend(inst.port_pins_iter('en<1>'))
-            # TODO: handle setp/setn/pulse pins
-            outs_warrs[0].append(inst.get_pin('outp_s'))
-            outs_warrs[1].append(inst.get_pin('outn_s'))
-            self.reexport(inst.get_port('outp_l'), net_name='outp_a<%d>' % fidx,
-                          label='outp_a<%d>:' % fidx, show=show_pins)
-            self.reexport(inst.get_port('outn_l'), net_name='outn_a<%d>' % fidx,
-                          label='outn_a<%d>:' % fidx, show=show_pins)
-
-        # export/collect DFE pins
-        biasd_list = []
-        for idx, inst in enumerate(dfe_insts):
-            didx = idx + 3
-            self.reexport(inst.get_port('biasn_s'), net_name='biasn_s<%d>' % didx,
-                          show=show_pins)
-            self.reexport(inst.get_port('inp'), net_name='inp_d<%d>' % didx, show=show_pins)
-            self.reexport(inst.get_port('inn'), net_name='inn_d<%d>' % didx, show=show_pins)
-            biasd_list.append(inst.get_pin('biasp_l'))
-            clkp_list.extend(inst.port_pins_iter('clkp'))
-            clkn_list.extend(inst.port_pins_iter('clkn'))
-            en_warrs[3].extend(inst.port_pins_iter('en<3>'))
-            en_warrs[2].extend(inst.port_pins_iter('en<2>'))
-            if inst.has_port('en<1>'):
-                en_warrs[1].extend(inst.port_pins_iter('en1>'))
-            if inst.has_port('casc<0>'):
-                self.reexport(inst.get_port('casc<0>'), net_name='sgnp<%d>' % didx, show=show_pins)
-                self.reexport(inst.get_port('casc<1>'), net_name='sgnn<%d>' % didx, show=show_pins)
-            # TODO: handle setp/setn/pulse pins
-            outs_warrs[0].append(inst.get_pin('outp_s'))
-            outs_warrs[1].append(inst.get_pin('outn_s'))
-            self.reexport(inst.get_port('outp_l'), net_name='outp_d<%d>' % didx,
-                          label='outp_d<%d>:' % didx, show=show_pins)
-            self.reexport(inst.get_port('outn_l'), net_name='outn_d<%d>' % didx,
-                          label='outn_d<%d>:' % didx, show=show_pins)
-
-        # export/collect last summer tap pins
-        self.reexport(instl.get_port('inp'), net_name='outp_d<2>', show=show_pins)
-        self.reexport(instl.get_port('inn'), net_name='outn_d<2>', show=show_pins)
-        self.reexport(instl.get_port('biasn'), net_name='biasn_s<2>', show=show_pins)
-        en_warrs[2].extend(instl.port_pins_iter('en<2>'))
-        if instl.has_port('en<1>'):
-            en_warrs[1].extend(instl.port_pins_iter('en<1>'))
-        if instl.has_port('casc<0>'):
-            self.reexport(instl.get_port('casc<0>'), net_name='sgnp<2>', show=show_pins)
-            self.reexport(instl.get_port('casc<1>'), net_name='sgnn<2>', show=show_pins)
-        # TODO: handle setp/setn/pulse pins
+        # connect outputs
+        outsp = self.connect_wires([outsp, instl.get_pin('outp')])
+        outsn = self.connect_wires([outsn, instl.get_pin('outn')])
+        self.add_pin('outp_s', outsp, show=show_pins)
+        self.add_pin('outn_s', outsn, show=show_pins)
+        # connect clocks
         if instl.has_port('clkp'):
             clkp_list.extend(instl.port_pins_iter('clkp'))
         if instl.has_port('clkn'):
             clkn_list.extend(instl.port_pins_iter('clkn'))
-        if instl.has_port('div'):
-            for name in ('en_div', 'scan_div', 'div', 'divb'):
-                self.reexport(instl.get_port(name), show=show_pins)
-        # TODO: handle pulse generation pins
-        outs_warrs[0].append(instl.get_pin('outp'))
-        outs_warrs[1].append(instl.get_pin('outn'))
-
-        # connect wires and add pins
-        biasm = self.connect_wires(biasm_list)
-        biasa = self.connect_wires(biasa_list)
-        biasd = self.connect_wires(biasd_list)
-        outsp = self.connect_wires(outs_warrs[0])
-        outsn = self.connect_wires(outs_warrs[1])
         lower, upper = None, None
         for warr in chain(clkp_list, clkn_list):
             if lower is None:
@@ -698,84 +917,29 @@ class TapXSummer(TemplateBase):
                 upper = max(upper, warr.upper_unit)
         clkp = self.connect_wires(clkp_list, lower=lower, upper=upper, unit_mode=True)
         clkn = self.connect_wires(clkn_list, lower=lower, upper=upper, unit_mode=True)
-        self.add_pin('biasn_m', biasm, show=show_pins)
-        self.add_pin('biasp_a', biasa, show=show_pins)
-        self.add_pin('biasp_d', biasd, show=show_pins)
         self.add_pin('clkp', clkp, label='clkp:', show=show_pins)
         self.add_pin('clkn', clkn, label='clkn:', show=show_pins)
-        self.add_pin('outp_s', outsp, show=show_pins)
-        self.add_pin('outn_s', outsn, show=show_pins)
-
+        # connect enables
+        en_warrs[2].extend(instl.port_pins_iter('en<2>'))
+        if instl.has_port('en<1>'):
+            en_warrs[1].extend(instl.port_pins_iter('en<1>'))
         for idx, en_warr in enumerate(en_warrs):
             if en_warr:
                 en_warr = self.connect_wires(en_warr)
                 name = 'en<%d>' % idx
                 self.add_pin(name, en_warr, label=name + ':', show=show_pins)
 
+        # re-export rest of the pins
+        for name in inst.port_names_iter():
+            if name not in self._exclude_ports:
+                self.reexport(inst.get_port(name), show=show_pins)
+
         self._sch_params = dict(
-            ffe_params_list=ffe_sch_params,
-            dfe_params_list=dfe_sch_params,
+            ffe_params_list=sub_master.sch_params['ffe_params_list'],
+            dfe_params_list=sub_master.sch_params['dfe_params_list'],
             last_params=last_sch_params,
         )
         self._fg_core_last = last_master.fg_core
-
-    def _create_and_place(self, num_inst, seg_list, seg_sum_list, flip_sign_list, end_mode,
-                          base_params, vm_layer, vm_w_out, ntr_route, last_master, xprev,
-                          vdd_list, vss_list, sum_off=0, is_end=False, left_output=True):
-        fg_dum = base_params['fg_duml']
-        masters, ltr_list, sch_params, insts = [], [], [], []
-        for idx in range(num_inst - 1, -1, -1):
-            seg_lat = seg_list[idx]
-            seg_sum = seg_sum_list[idx + sum_off]
-            flip_sign = flip_sign_list[idx + sum_off]
-
-            cur_params = base_params.copy()
-            cur_params['seg_sum'] = seg_sum
-            cur_params['seg_lat'] = seg_lat
-            cur_params['flip_sign'] = flip_sign
-            if is_end and (idx == num_inst - 1):
-                cur_params['end_mode'] = end_mode | 0b0100
-            cur_master = self.new_template(params=cur_params, temp_cls=TapXSummerCell)
-            if idx < num_inst - 1:
-                xcur, xcur_min, ltr = self._get_block_xmin(vm_layer, vm_w_out, ntr_route,
-                                                           last_master, cur_master,
-                                                           left_output, xprev)
-                if xcur > xcur_min:
-                    sd_pitch = cur_master.sd_pitch
-                    num_fg_inc = -(-(xcur - xcur_min) // (2 * sd_pitch)) * 2
-                    cur_master = cur_master.new_template_with(fg_duml=fg_dum + num_fg_inc)
-                    xcur = xprev + last_master.array_box.right_unit - cur_master.array_box.left_unit
-                else:
-                    xcur = xcur_min
-                ltr_list.append(ltr)
-            elif xprev is None:
-                xcur = 0
-            else:
-                xcur = xprev + last_master.array_box.right_unit - cur_master.array_box.left_unit
-
-            inst = self.add_instance(cur_master, 'XFFE%d' % idx, loc=(xcur, 0), unit_mode=True)
-
-            vdd_list.extend(inst.port_pins_iter('VDD'))
-            vss_list.extend(inst.port_pins_iter('VSS'))
-            masters.append(cur_master)
-            sch_params.append(cur_master.sch_params)
-            insts.append(inst)
-            last_master = cur_master
-            xprev = xcur
-
-        insts.reverse()
-        sch_params.reverse()
-        return masters, ltr_list, sch_params, insts, xprev
-
-    def _get_block_xmin(self, vm_layer, vm_w_out, ntr_tot, left_master, right_master,
-                        left_output, xleft):
-        xright = xleft + left_master.array_box.right_unit - right_master.array_box.left_unit
-        data_xl = xleft + left_master.get_vm_coord(vm_w_out, False, left_output)
-        ltr = self.grid.find_next_track(vm_layer, data_xl, tr_width=vm_w_out, half_track=True,
-                                        mode=1, unit_mode=True)
-        rtr = ltr + ntr_tot - 1
-        data_xr = self.grid.get_wire_bounds(vm_layer, rtr, width=vm_w_out, unit_mode=True)[1]
-        return data_xr - right_master.get_vm_coord(vm_w_out, True, not left_output), xright, ltr
 
 
 class TapXColumn(TemplateBase):
