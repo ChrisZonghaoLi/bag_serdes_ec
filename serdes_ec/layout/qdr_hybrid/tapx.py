@@ -751,6 +751,7 @@ class TapXSummerNoLast(TemplateBase):
         masters, sch_params, insts = [], [], []
         prev_data_w, prev_data_tr, prev_type, prev_tr, xarr = place_info
         left_out_b = not left_out
+        inc = -1 if not left_out else 0
         for idx in range(num_inst - 1, -1, -1):
             sig_idx = idx + sig_off
             seg_lat = seg_list[idx]
@@ -829,11 +830,11 @@ class TapXSummerNoLast(TemplateBase):
                 prev_tr = route_locs[-1] + offset
                 for x in range(0, 10, 3):
                     _record_track(track_info, 'VDD', route_locs[x] + offset)
-                for cidx in range(1, 4):
+                for cidx in range(4):
                     x = 1 if cidx == 3 else (4 if cidx == 1 else 7)
-                    _record_track(track_info, 'outp_%s%d<%d>' % (blk_type, cidx, sig_idx),
+                    _record_track(track_info, 'outp_%s%d<%d>' % (blk_type, cidx, sig_idx + inc),
                                   route_locs[x] + offset)
-                    _record_track(track_info, 'outn_%s%d<%d>' % (blk_type, cidx, sig_idx),
+                    _record_track(track_info, 'outn_%s%d<%d>' % (blk_type, cidx, sig_idx + inc),
                                   route_locs[x + 1] + offset)
 
         insts.reverse()
@@ -1037,7 +1038,7 @@ class TapXSummer(TemplateBase):
         offset = ltr - route_locs[1]
         for x in range(0, 10, 3):
             _record_track(self._dfe_track_info, 'VDD', route_locs[x] + offset)
-        for cidx in range(1, 4):
+        for cidx in range(4):
             x = 1 if cidx == 3 else (4 if cidx == 1 else 7)
             _record_track(self._dfe_track_info, 'outp_d%d<2>' % cidx, route_locs[x] + offset)
             _record_track(self._dfe_track_info, 'outn_d%d<2>' % cidx, route_locs[x + 1] + offset)
@@ -1186,6 +1187,9 @@ class TapXColumn(TemplateBase):
         tr_widths = self.params['tr_widths']
         tr_spaces = self.params['tr_spaces']
 
+        num_ffe = len(self.params['seg_ffe_list'])
+        num_dfe = len(self.params['seg_dfe_list']) + 1
+
         # make masters
         div_params = self.params.copy()
         div_params['seg_pul'] = None
@@ -1270,40 +1274,43 @@ class TapXColumn(TemplateBase):
                 clk_warrs[0].extend(inst.port_pins_iter('clkn'))
 
         # connect DFE/FFE signals
+        ffe_track_info = endb_master.ffe_track_info
+        dfe_track_info = endb_master.dfe_track_info
         vm_w_out = tr_manager.get_width(vm_layer, 'out')
-        _, route_locs = tr_manager.place_wires(vm_layer, [1, 'out', 'out', 1, 'out', 'out', 1,
-                                                          'out', 'out', 1])
-        tmp = self._connect_signals(route_locs, endb_master.ffe_tracks, inst_list, vm_layer,
+        tmp = self._connect_signals(num_ffe, ffe_track_info, inst_list, vm_layer,
                                     vm_w_out, 'a', sig_off=0, is_ffe=True)
-        shields_ffe = tmp[2]
-        for warrp, warrn in zip(tmp[0], tmp[1]):
+        for warrp, warrn in zip(*tmp):
             self.add_pin('inp_a', warrp, label='inp_a:', show=show_pins)
             self.add_pin('inn_a', warrn, label='inn_a:', show=show_pins)
 
-        tmp = self._connect_signals(route_locs, endb_master.dfe_tracks, inst_list, vm_layer,
+        tmp = self._connect_signals(num_dfe, dfe_track_info, inst_list, vm_layer,
                                     vm_w_out, 'd', sig_off=2, is_ffe=False)
-        shields_dfe = tmp[2]
-        for cidx, (warrp, warrn) in enumerate(zip(tmp[0], tmp[1])):
+        for cidx, (warrp, warrn) in enumerate(zip(*tmp)):
             self.add_pin('inp_d<%d>' % cidx, warrp, show=show_pins)
             self.add_pin('inn_d<%d>' % cidx, warrn, show=show_pins)
 
+        # connect shields
+        sh_lower, sh_upper = None, None
+        vm_vss_list, vm_vdd_list = [], []
+        for tr_idx in chain(ffe_track_info['VSS'], dfe_track_info['VSS']):
+            warr = self.connect_to_tracks(vss_list, TrackID(vm_layer, tr_idx))
+            if sh_lower is None:
+                sh_lower = warr.lower_unit
+                sh_upper = warr.upper_unit
+            vm_vss_list.append(warr)
+        for tr_idx in chain(ffe_track_info['VDD'], dfe_track_info['VDD']):
+            warr = self.connect_to_tracks(vdd_list, TrackID(vm_layer, tr_idx), track_lower=sh_lower,
+                                          track_upper=sh_upper, unit_mode=True)
+            vm_vdd_list.append(warr)
+
+        """
         # connect cascode
         shields_casc = self._connect_cascode(inst_list, vm_layer, tr_manager,
                                              shields_ffe, show_pins)
         # connect analog latch and main summer clocks
         shields_ana = self._connect_clk_analog(inst_list, vm_layer, tr_manager,
                                                shields_casc, show_pins)
-
-        # connect shield wires
-        sh_lower, sh_upper = None, None
-        for tr_idx in shields_ana:
-            warr = self.connect_to_tracks(vss_list, TrackID(vm_layer, tr_idx))
-            if sh_lower is None:
-                sh_lower = warr.lower_unit
-                sh_upper = warr.upper_unit
-        for tr_idx in chain(shields_ffe, shields_dfe, shields_casc):
-            self.connect_to_tracks(vdd_list, TrackID(vm_layer, tr_idx), track_lower=sh_lower,
-                                   track_upper=sh_upper, unit_mode=True)
+        """
 
     def _connect_clk_analog(self, inst_list, vm_layer, tr_manager, shields_casc, show_pins):
         vm_w = tr_manager.get_width(vm_layer, 'clk')
@@ -1354,10 +1361,14 @@ class TapXColumn(TemplateBase):
 
         return shields_casc
 
-    def _connect_signals(self, route_locs, track_locs, inst_list, vm_layer, vm_width, sig_type,
+    def _connect_signals(self, num_sig, track_info, inst_list, vm_layer, vm_width, sig_type,
                          sig_off=0, is_ffe=True):
-        in_dir = 1 if is_ffe else -1
-        num_sig = len(track_locs) + 1
+        if is_ffe:
+            in_dir = 1
+            out_type = 'a'
+        else:
+            in_dir = -1
+            out_type = 'd'
 
         # collect signal wires
         sigp_dict, sign_dict = {}, {}
@@ -1381,45 +1392,26 @@ class TapXColumn(TemplateBase):
                 sign_dict[key].extend(inst.port_pins_iter('inn_%s<%d>' % (sig_type, sidx)))
 
         # compute connection parameters based on end_first flag.
-        inp_list, inn_list, shield_list = [], [], []
-        diff_shield = route_locs[1] - route_locs[0]
-        diff_sep = route_locs[2] - route_locs[1]
+        inp_list, inn_list = [], []
         if is_ffe:
-            tr_const = num_sig + sig_off - 1
-            sig_range = range(1 + sig_off, tr_const + 1)
-            tr_shield = route_locs[-1] + track_locs[-1] - route_locs[1]
-            end_trp = tr_shield + diff_shield
-            end_trn = end_trp + diff_sep
-            shield_list.append(end_trn + diff_shield)
+            sig_range = range(1 + sig_off, num_sig + sig_off)
             # add FFE inputs
             in_idx = num_sig + sig_off - 1 + in_dir
             for cidx in range(4):
                 inp_list.append(sigp_dict[(in_idx, cidx)])
                 inn_list.append(sign_dict[(in_idx, cidx)])
         else:
-            tr_const = num_sig + sig_off - 2
-            sig_range = range(sig_off, tr_const + 1)
-            tr_shield = route_locs[0] + track_locs[0] - route_locs[1]
-            end_trn = tr_shield - diff_shield
-            end_trp = end_trn - diff_sep
-            shield_list.append(end_trp - diff_shield)
+            sig_range = range(sig_off, num_sig + sig_off - 1)
 
         # connect intermediate signals
-        sh_idx_list = [0, 3, 6, 9]
         for sidx in sig_range:
-            ltr = track_locs[tr_const - sidx]
-            offset = ltr - route_locs[1]
-            shield_list.extend((route_locs[x] + offset for x in sh_idx_list))
             for cidx in range(4):
                 key = (sidx, cidx)
-                if cidx == 3:
-                    idxp = 1
-                elif cidx == 1:
-                    idxp = 4
-                else:
-                    idxp = 7
-                trp, trn = route_locs[idxp] + offset, route_locs[idxp + 1] + offset
                 warrp, warrn = sigp_dict[key], sign_dict[key]
+                p_name = 'outp_%s%d<%d>' % (out_type, cidx, sidx)
+                n_name = 'outn_%s%d<%d>' % (out_type, cidx, sidx)
+                trp = track_info[p_name][0]
+                trn = track_info[n_name][0]
                 vwp, vwn = self.connect_differential_tracks(warrp, warrn, vm_layer, trp, trn,
                                                             width=vm_width)
                 if not is_ffe and sidx == sig_off:
@@ -1427,12 +1419,15 @@ class TapXColumn(TemplateBase):
                     inp_list.append(vwp)
                     inn_list.append(vwn)
 
-        # copnnect end signals
+        # connect end signals
         sidx = sig_off if is_ffe else num_sig + sig_off - 1
         for cidx in range(4):
             key = (sidx, cidx)
+            p_name = 'outp_%s<%d>' % (out_type, sidx)
+            n_name = 'outn_%s<%d>' % (out_type, sidx)
+            trp = track_info[p_name][0]
+            trn = track_info[n_name][0]
             self.connect_differential_tracks(sigp_dict[key], sign_dict[key], vm_layer,
-                                             end_trp, end_trn, width=vm_width)
+                                             trp, trn, width=vm_width)
 
-        shield_list.sort()
-        return inp_list, inn_list, shield_list
+        return inp_list, inn_list
