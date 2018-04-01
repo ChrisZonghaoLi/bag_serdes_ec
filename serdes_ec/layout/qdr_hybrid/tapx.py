@@ -459,8 +459,8 @@ class TapXSummerNoLast(TemplateBase):
         # type: (TemplateDB, str, Dict[str, Any], Set[str], **kwargs) -> None
         TemplateBase.__init__(self, temp_db, lib_name, params, used_names, **kwargs)
         self._sch_params = None
-        self._ffe_tracks = None
-        self._dfe_tracks = None
+        self._ffe_track_info = None
+        self._dfe_track_info = None
         self._analog_master = None
 
     @property
@@ -469,12 +469,12 @@ class TapXSummerNoLast(TemplateBase):
         return self._sch_params
 
     @property
-    def ffe_tracks(self):
-        return self._ffe_tracks
+    def ffe_track_info(self):
+        return self._ffe_track_info
 
     @property
-    def dfe_tracks(self):
-        return self._dfe_tracks
+    def dfe_track_info(self):
+        return self._dfe_track_info
 
     @property
     def analog_master(self):
@@ -539,15 +539,16 @@ class TapXSummerNoLast(TemplateBase):
             raise ValueError('segment dictionary list length mismatch.')
         if num_ffe < 1:
             raise ValueError('Must have at least one FFE (last FFE is main tap).')
+        if num_dfe < 2:
+            # TODO: restriction exists because otherwise we do not have routing space for
+            # TODO: biasp_d and biasn_d.  Remove restriction in the future?
+            raise ValueError('Must have at least two DFE.')
         end_mode = 1 if is_end else 0
 
         # create layout masters and place instances
         tr_manager = TrackManager(self.grid, tr_widths, tr_spaces, half_space=True)
         hm_layer = IntegAmp.get_mos_conn_layer(self.grid.tech_info) + 1
         vm_layer = hm_layer + 1
-        vm_w_out = tr_manager.get_width(vm_layer, 'out')
-        ntr_route, _ = tr_manager.place_wires(vm_layer, ['out', 'out', 1, 'out', 'out',
-                                                         1, 'out', 'out'])
         route_types = [1, 'out', 'out', 1, 'out', 'out', 1, 'out', 'out', 1]
         _, route_locs = tr_manager.place_wires(vm_layer, route_types)
 
@@ -556,17 +557,20 @@ class TapXSummerNoLast(TemplateBase):
                            th_sum=th_sum, th_lat=th_lat, fg_duml=fg_dum, fg_dumr=fg_dum,
                            tr_widths=tr_widths, tr_spaces=tr_spaces, end_mode=end_mode,
                            show_pins=False, options=options, )
-        tmp = self._create_and_place(num_ffe, seg_ffe_list, seg_sum_list, flip_sign_list, end_mode,
-                                     base_params, vm_layer, vm_w_out, ntr_route, None, None,
-                                     vdd_list, vss_list, sum_off=0, is_end=True, left_output=True)
-        ffe_masters, self._ffe_tracks, ffe_sch_params, ffe_insts, xprev = tmp
+        place_info = None, None, None, 0, None
+        ffe_sig_list = self._get_ffe_signals(num_ffe)
+        tmp = self._create_and_place(tr_manager, num_ffe, seg_ffe_list, seg_sum_list,
+                                     flip_sign_list, ffe_sig_list, end_mode, base_params, vm_layer,
+                                     route_locs, place_info, vdd_list, vss_list, 'a', sig_off=0,
+                                     sum_off=0, is_end=True, left_out=True)
+        ffe_masters, self._ffe_track_info, ffe_sch_params, ffe_insts, place_info = tmp
 
-        last_master = ffe_masters[-1]
-        tmp = self._create_and_place(num_dfe - 1, seg_dfe_list, seg_sum_list, flip_sign_list,
-                                     end_mode, base_params, vm_layer, vm_w_out, ntr_route,
-                                     last_master, xprev, vdd_list, vss_list, sum_off=num_ffe + 1,
-                                     is_end=False, left_output=False)
-        dfe_masters, self._dfe_tracks, dfe_sch_params, dfe_insts, xprev = tmp
+        dfe_sig_list = self._get_dfe_signals(num_dfe)
+        tmp = self._create_and_place(tr_manager, num_dfe - 1, seg_dfe_list, seg_sum_list,
+                                     flip_sign_list, dfe_sig_list, end_mode, base_params, vm_layer,
+                                     route_locs, place_info, vdd_list, vss_list, 'd', sig_off=3,
+                                     sum_off=num_ffe + 1, is_end=False, left_out=False)
+        dfe_masters, self._dfe_track_info, dfe_sch_params, dfe_insts, place_info = tmp
 
         # set size
         inst_first = ffe_insts[-1]
@@ -668,16 +672,74 @@ class TapXSummerNoLast(TemplateBase):
         )
         self._analog_master = ffe_masters[0]
 
-    def _create_and_place(self, num_inst, seg_list, seg_sum_list, flip_sign_list, end_mode,
-                          base_params, vm_layer, vm_w_out, ntr_route, last_master, xprev,
-                          vdd_list, vss_list, sum_off=0, is_end=False, left_output=True):
+    @classmethod
+    def _get_ffe_signals(cls, num_ffe):
+        if num_ffe == 1:
+            return [([1, 'out', 'out', 1, 1, 'clk', 'clk', 'clk', 'clk', 'clk', 'clk', 1],
+                     ['VDD', 'outp_a<0>', 'outn_a<0>', 'VDD',
+                      'VSS', 'clkp', 'biasp_a', 'biasp_m', 'biasn_m', 'biasn_a', 'clkn', 'VSS'],
+                     False)]
+        else:
+            sig_list = [(['out', 'out', 1, 'clk', 'clk', 1],
+                         ['outp_a<0>', 'outn_a<0>', 'VDD', 'clkp', 'clkn', 'VDD'],
+                         False),
+                        ([1, 'clk', 'clk', 'clk', 'clk', 1, 1, 'casc', 'casc'],
+                         ['VSS', 'biasp_a', 'biasp_m', 'biasn_m', 'biasn_a', 'VSS',
+                          'VDD', 'cascp<1>', 'cascn<1>'],
+                         True)]
+            for idx in range(2, num_ffe):
+                cascl = 'cascp<%d>' % idx
+                cascr = 'cascn<%d>' % idx
+                sig_list.append(([1, 'casc', 'casc'], ['VDD', cascl, cascr], True))
+            return sig_list
+
+    @classmethod
+    def _get_dfe_signals(cls, num_dfe):
+        if num_dfe == 1:
+            return []
+        elif num_dfe == 2:
+            return [([1, 'out', 'out', 1, 1, 1, 1, 1, 1, 'clk', 'clk', 'clk', 'clk', 1],
+                     ['VDD', 'outp_d<3>', 'outn_d<3>', 'VDD',
+                      'sgnpp<3>', 'sgnnp<3>', 'sgnpn<3>', 'sgnnn<3>',
+                      'VSS', 'biasp_d', 'biasp_s<3>', 'biasn_s<3>', 'biasn_d', 'VSS'],
+                     False)]
+        else:
+            sig_list = [([1, 1, 1, 1, 1, 'clk', 'clk', 'clk', 'clk', 1],
+                         ['sgnpp<3>', 'sgnnp<3>', 'sgnpn<3>', 'sgnnn<3>',
+                          'VSS', 'biasp_d', 'biasp_s<3>', 'biasn_s<3>', 'biasn_d', 'VSS'],
+                         False)]
+            for dfe_idx in range(4, num_dfe + 1):
+                suf = '<%d>' % dfe_idx
+                sig_list.append(([1, 'clk', 'clk', 1, 1, 1, 1, 1],
+                                 ['VSS', 'biasp_s' + suf, 'biasn_s' + suf, 'VSS',
+                                  'sgnpp' + suf, 'sgnnp' + suf, 'sgnpn' + suf, 'sgnnn' + suf],
+                                 True))
+            suf = '<%d>' % (num_dfe + 1)
+            sig_list.append(([1, 'clk', 'clk', 1, 1, 1, 1, 1, 1, 'out', 'out'],
+                             ['VSS', 'biasp_s' + suf, 'biasn_s' + suf, 'VSS',
+                              'sgnpp' + suf, 'sgnnp' + suf, 'sgnpn' + suf, 'sgnnn' + suf,
+                              'VDD', 'outp_d' + suf, 'outn_d' + suf],
+                             True))
+            return sig_list
+
+    def _create_and_place(self, tr_manager, num_inst, seg_list, seg_sum_list, flip_sign_list,
+                          sig_list, end_mode, base_params, vm_layer, route_locs, place_info,
+                          vdd_list, vss_list, blk_type, sig_off=0, sum_off=0, is_end=False,
+                          left_out=True):
+        vm_w_out = tr_manager.get_width(vm_layer, 'out')
         fg_dum = base_params['fg_duml']
-        masters, ltr_list, sch_params, insts = [], [], [], []
+        track_info = {}
+        masters, sch_params, insts = [], [], []
+        prev_data_w, prev_data_tr, prev_type, prev_tr, xarr = place_info
+        left_out_b = not left_out
         for idx in range(num_inst - 1, -1, -1):
+            sig_idx = idx + sig_off
             seg_lat = seg_list[idx]
+            sig_types, sig_names, sig_right = sig_list[idx]
             seg_sum = seg_sum_list[idx + sum_off]
             flip_sign = flip_sign_list[idx + sum_off]
 
+            # create master
             cur_params = base_params.copy()
             cur_params['seg_sum'] = seg_sum
             cur_params['seg_lat'] = seg_lat
@@ -685,46 +747,90 @@ class TapXSummerNoLast(TemplateBase):
             if is_end and (idx == num_inst - 1):
                 cur_params['end_mode'] = end_mode | 0b0100
             cur_master = self.new_template(params=cur_params, temp_cls=TapXSummerCell)
-            if idx < num_inst - 1:
-                xcur, xcur_min, ltr = self._get_block_xmin(vm_layer, vm_w_out, ntr_route,
-                                                           last_master, cur_master,
-                                                           left_output, xprev)
-                if xcur > xcur_min:
+
+            # check we can place current master without horizontal line-end spacing issues
+            xcur = 0 if xarr is None else xarr - cur_master.array_box.left_unit
+            if prev_data_tr is not None:
+                data_xr = self.grid.get_wire_bounds(vm_layer, prev_data_tr, width=prev_data_w,
+                                                    unit_mode=True)[1]
+                xcur_min = data_xr - cur_master.get_vm_coord(prev_data_w, True, left_out_b)
+                if xcur_min > xcur:
+                    # need to increment left dummy fingers to avoid line-end spacing issues
                     sd_pitch = cur_master.sd_pitch
-                    num_fg_inc = -(-(xcur - xcur_min) // (2 * sd_pitch)) * 2
+                    num_fg_inc = -(-(xcur_min - xcur) // (2 * sd_pitch)) * 2
                     cur_master = cur_master.new_template_with(fg_duml=fg_dum + num_fg_inc)
-                    xcur = xprev + last_master.array_box.right_unit - cur_master.array_box.left_unit
-                else:
-                    xcur = xcur_min
-                ltr_list.append(ltr)
-            elif xprev is None:
-                xcur = 0
+
+            # get minimum left routing track index
+            data_xl = xcur + cur_master.get_vm_coord(vm_w_out, False, left_out)
+            ltr = self.grid.find_next_track(vm_layer, data_xl, tr_width=vm_w_out,
+                                            half_track=True, mode=1, unit_mode=True)
+            # get total space needed for signals
+            _, sig_locs = tr_manager.place_wires(vm_layer, sig_types)
+            if prev_type is None:
+                left_delta = sig_locs[0]
             else:
-                xcur = xprev + last_master.array_box.right_unit - cur_master.array_box.left_unit
+                _, left_locs = tr_manager.place_wires(vm_layer, [prev_type, sig_types[0]])
+                left_delta = left_locs[1] - left_locs[0]
+            if idx == 0:
+                right_delta = 0
+            else:
+                _, right_locs = tr_manager.place_wires(vm_layer, [sig_types[-1], 1, 'out'])
+                right_delta = right_locs[2] - right_locs[0]
+            # compute minimum left routing track index
+            ltr = max(ltr, prev_tr + left_delta + sig_locs[-1] - sig_locs[0] + right_delta)
 
-            inst = self.add_instance(cur_master, 'XFFE%d' % idx, loc=(xcur, 0), unit_mode=True)
+            # record signal locations
+            if sig_right:
+                sig_offset = ltr - right_delta - sig_locs[-1]
+            else:
+                sig_offset = prev_tr + left_delta - sig_locs[0]
+            for name, loc in zip(sig_names, sig_locs):
+                self._record_track(track_info, name, loc + sig_offset)
 
+            # add instance
+            inst = self.add_instance(cur_master, 'X%s%d' % (blk_type.upper(), sig_idx),
+                                     loc=(xcur, 0), unit_mode=True)
             vdd_list.extend(inst.port_pins_iter('VDD'))
             vss_list.extend(inst.port_pins_iter('VSS'))
             masters.append(cur_master)
             sch_params.append(cur_master.sch_params)
             insts.append(inst)
-            last_master = cur_master
-            xprev = xcur
+            xarr = inst.array_box.right_unit
+            # record routing track locations, and update placement information
+            if idx == 0:
+                prev_data_w = tr_manager.get_width(vm_layer, sig_types[-2])
+                prev_data_tr = sig_locs[-2] + sig_offset
+                prev_type = sig_types[-1]
+                prev_tr = sig_locs[-1] + sig_offset
+            else:
+                offset = ltr - route_locs[1]
+                prev_data_w = vm_w_out
+                prev_data_tr = route_locs[-2] + offset
+                prev_type = 1
+                prev_tr = route_locs[-1] + offset
+                for x in range(0, 10, 3):
+                    self._record_track(track_info, 'VDD', route_locs[x] + offset)
+                self._record_track(track_info, 'outp_%s3<%d>' % (blk_type, sig_idx),
+                                   route_locs[1] + offset)
+
+                for cidx in range(1, 4):
+                    x = 1 if cidx == 3 else (4 if cidx == 1 else 7)
+                    self._record_track(track_info, 'outp_%s%d<%d>' % (blk_type, cidx, sig_idx),
+                                       route_locs[x] + offset)
+                    self._record_track(track_info, 'outn_%s%d<%d>' % (blk_type, cidx, sig_idx),
+                                       route_locs[x + 1] + offset)
 
         insts.reverse()
         sch_params.reverse()
-        return masters, ltr_list, sch_params, insts, xprev
+        place_info = prev_data_w, prev_data_tr, prev_type, prev_tr, xarr
+        return masters, track_info, sch_params, insts, place_info
 
-    def _get_block_xmin(self, vm_layer, vm_w_out, ntr_tot, left_master, right_master,
-                        left_output, xleft):
-        xright = xleft + left_master.array_box.right_unit - right_master.array_box.left_unit
-        data_xl = xleft + left_master.get_vm_coord(vm_w_out, False, left_output)
-        ltr = self.grid.find_next_track(vm_layer, data_xl, tr_width=vm_w_out, half_track=True,
-                                        mode=1, unit_mode=True)
-        rtr = ltr + ntr_tot - 1
-        data_xr = self.grid.get_wire_bounds(vm_layer, rtr, width=vm_w_out, unit_mode=True)[1]
-        return data_xr - right_master.get_vm_coord(vm_w_out, True, not left_output), xright, ltr
+    @classmethod
+    def _record_track(cls, track_info, name, tidx):
+        if name in track_info:
+            track_info[name].append(tidx)
+        else:
+            track_info[name] = [tidx]
 
 
 class TapXSummer(TemplateBase):
@@ -753,8 +859,8 @@ class TapXSummer(TemplateBase):
         TemplateBase.__init__(self, temp_db, lib_name, params, used_names, **kwargs)
         self._sch_params = None
         self._fg_core_last = None
-        self._ffe_tracks = None
-        self._dfe_tracks = None
+        self._ffe_track_info = None
+        self._dfe_track_info = None
 
     @property
     def sch_params(self):
@@ -766,12 +872,12 @@ class TapXSummer(TemplateBase):
         return self._fg_core_last
 
     @property
-    def ffe_tracks(self):
-        return self._ffe_tracks
+    def ffe_track_info(self):
+        return self._ffe_track_info
 
     @property
-    def dfe_tracks(self):
-        return self._dfe_tracks
+    def dfe_track_info(self):
+        return self._dfe_track_info
 
     @classmethod
     def get_default_param_values(cls):
@@ -841,8 +947,8 @@ class TapXSummer(TemplateBase):
         sub_params['show_pins'] = False
         sub_master = self.new_template(params=sub_params, temp_cls=TapXSummerNoLast)
         inst = self.add_instance(sub_master, 'XSUB', loc=(0, 0), unit_mode=True)
-        self._ffe_tracks = list(sub_master.ffe_tracks)
-        self._dfe_tracks = list(sub_master.dfe_tracks)
+        self._ffe_track_info = sub_master.ffe_track_info
+        self._dfe_track_info = sub_master.dfe_track_info.copy()
         vdd_list = inst.get_all_port_pins('VDD')
         vss_list = inst.get_all_port_pins('VSS')
         en_warrs = [list(inst.port_pins_iter('en<%d>' % idx)) for idx in range(4)]
@@ -872,7 +978,6 @@ class TapXSummer(TemplateBase):
         data_xl = xcur + last_master.get_vm_coord(vm_w_out)
         ltr = self.grid.find_next_track(vm_layer, data_xl, tr_width=vm_w_out, half_track=True,
                                         mode=1, unit_mode=True)
-        self._dfe_tracks.append(ltr)
         vdd_list.extend(instl.port_pins_iter('VDD'))
         vss_list.extend(instl.port_pins_iter('VSS'))
 
