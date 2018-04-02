@@ -976,11 +976,10 @@ class TapXSummer(TemplateBase):
 
         # specify last summer signals
         sig_types = [1, 'en', 'en', 'en', 'en', 1, 'clk', 'clk', 'clk', 'clk', 1,
-                     1, 1, 1, 1, 1, 'clk', 'clk', 1]
+                     1, 1, 1, 1, 'clk', 1]
         sig_names = ['VSS', 'en3', 'en2', 'en1', 'en0',
                      'VSS', 'clkp', 'biasp_s<2>', 'biasn_s<2>', 'clkn', 'VSS',
-                     'sgnpp<2>', 'sgnnp<2>', 'sgnpn<2>', 'sgnnn<2>',
-                     'scan_div<3>', 'en_div<3>', 'en_div<2>', 'scan_div<2>']
+                     'sgnpp<2>', 'sgnnp<2>', 'sgnpn<2>', 'sgnnn<2>', 'en_div', 'scan_div']
 
         # create and place last summer cell
         main = sub_master.analog_master
@@ -1295,6 +1294,8 @@ class TapXColumn(TemplateBase):
         # connect DFE biases/clks
         self._connect_dfe(tr_manager, vm_layer, num_dfe, dfe_track_info, inst_list, clkp_list,
                           clkn_list, show_pins)
+        # connect divider signals
+        self._connect_div(tr_manager, vm_layer, dfe_track_info, inst_list, show_pins)
 
         # connect shields
         sh_lower, sh_upper = None, None
@@ -1420,6 +1421,30 @@ class TapXColumn(TemplateBase):
                                                   width=vm_w_clk)
         self.add_pin('biasp_d', wp, show=show_pins)
         self.add_pin('biasn_d', wn, show=show_pins)
+
+    def _connect_div(self, tr_manager, vm_layer, track_info, inst_list, show_pins):
+        vm_w_clk = tr_manager.get_width(vm_layer, 'clk')
+
+        # connect scan/enable signals
+        en_warrs = [[], [], [], []]
+        for inst, pidx, mlm in ((inst_list[2], 3, 1), (inst_list[0], 2, -1)):
+            suf = '<%d>' % pidx
+            for name in ('scan_div', 'en_div'):
+                warr = inst.get_pin(name)
+                tr = track_info[name][0]
+                warr = self.connect_to_tracks(warr, TrackID(vm_layer, tr), min_len_mode=mlm)
+                self.add_pin(name + suf, warr, show=show_pins)
+            en_warrs[pidx].append(inst.get_pin('div'))
+            en_warrs[pidx - 2].append(inst.get_pin('divb'))
+
+        # connect enable clocks
+        for cidx, inst in enumerate(inst_list):
+            for en_idx in range(4):
+                en_warrs[(en_idx + cidx + 1) % 4].extend(inst.port_pins_iter('en<%d>' % en_idx))
+
+        for en_idx in range(4):
+            tr = track_info['en%d' % en_idx][0]
+            self.connect_to_tracks(en_warrs[en_idx], TrackID(vm_layer, tr, width=vm_w_clk))
 
     def _connect_signals(self, num_sig, track_info, inst_list, vm_layer, vm_width, sig_type,
                          sig_off=0, is_ffe=True):
