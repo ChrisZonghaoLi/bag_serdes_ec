@@ -92,11 +92,11 @@ instances:
         num_bits: 1
       en_div:
         direction: input
-        net_name: "en_div<2>"
+        net_name: "en_div<3>"
         num_bits: 1
       scan_div:
         direction: input
-        net_name: "scan_div<2>"
+        net_name: "scan_div<3>"
         num_bits: 1
       inn_a:
         direction: input
@@ -140,11 +140,11 @@ instances:
         num_bits: 1
       div:
         direction: output
-        net_name: "en<2>"
+        net_name: "en<3>"
         num_bits: 1
       divb:
         direction: output
-        net_name: "en<0>"
+        net_name: "en<1>"
         num_bits: 1
       pulse_out:
         direction: output
@@ -216,11 +216,11 @@ instances:
         num_bits: 1
       en_div:
         direction: input
-        net_name: "en_div<2>"
+        net_name: "en_div<3>"
         num_bits: 1
       scan_div:
         direction: input
-        net_name: "scan_div<2>"
+        net_name: "scan_div<3>"
         num_bits: 1
       inn_a:
         direction: input
@@ -264,11 +264,11 @@ instances:
         num_bits: 1
       div:
         direction: output
-        net_name: "en<3>"
+        net_name: "en<2>"
         num_bits: 1
       divb:
         direction: output
-        net_name: "en<1>"
+        net_name: "en<0>"
         num_bits: 1
       pulse_out:
         direction: output
@@ -340,11 +340,11 @@ instances:
         num_bits: 1
       en_div:
         direction: input
-        net_name: "en_div<3>"
+        net_name: "en_div<2>"
         num_bits: 1
       scan_div:
         direction: input
-        net_name: "scan_div<3>"
+        net_name: "scan_div<2>"
         num_bits: 1
       inn_a:
         direction: input
@@ -464,11 +464,11 @@ instances:
         num_bits: 1
       en_div:
         direction: input
-        net_name: "en_div<3>"
+        net_name: "en_div<2>"
         num_bits: 1
       scan_div:
         direction: input
-        net_name: "scan_div<3>"
+        net_name: "scan_div<2>"
         num_bits: 1
       inn_a:
         direction: input

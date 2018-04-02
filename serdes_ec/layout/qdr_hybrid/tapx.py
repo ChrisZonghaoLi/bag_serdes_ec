@@ -1329,17 +1329,20 @@ class TapXColumn(TemplateBase):
         clkp_list, clkn_list = [], []
         bp_list, bn_list, m_list = [], [], []
         for cidx, inst in enumerate(inst_list):
+            ncidx = (cidx - 1) % 4
             # gather clock signals
-            clkp_list.extend(inst.port_pins_iter('clkp'))
-            clkn_list.extend(inst.port_pins_iter('clkn'))
             if cidx % 2 == 1:
+                clkp_list.extend(inst.port_pins_iter('clkp'))
+                clkn_list.extend(inst.port_pins_iter('clkn'))
                 bp_list.append(inst.get_pin('biasp_a'))
             else:
+                clkp_list.extend(inst.port_pins_iter('clkn'))
+                clkn_list.extend(inst.port_pins_iter('clkp'))
                 bn_list.append(inst.get_pin('biasp_a'))
             m_list.append(inst_list[(cidx + 1) % 4].get_pin('biasn_m'))
             # connect cascode biases
             for sig_idx in range(num_sig - 1, 0, -1):
-                if cidx % 2 == 1:
+                if ncidx % 2 == 1:
                     tidx = track_info['cascp<%d>' % sig_idx][0]
                 else:
                     tidx = track_info['cascn<%d>' % sig_idx][0]
@@ -1347,7 +1350,7 @@ class TapXColumn(TemplateBase):
                 min_len_mode = 1 if 1 <= cidx <= 2 else -1
                 warr = self.connect_to_tracks(warr, TrackID(vm_layer, tidx, width=vm_w_casc),
                                               min_len_mode=min_len_mode)
-                self.add_pin('casc<%d>' % (cidx + sig_idx * 4), warr, show=show_pins)
+                self.add_pin('casc<%d>' % (ncidx + sig_idx * 4), warr, show=show_pins)
 
         # connect clkp/clkn
         trp = track_info['clkp'][0]
@@ -1401,21 +1404,22 @@ class TapXColumn(TemplateBase):
                 wn = inst_list[cidx].get_pin('biasn_s' + suf)
                 wp, wn = self.connect_differential_tracks(wp, wn, vm_layer, ctrp, ctrn,
                                                           width=vm_w_clk)
-                self.add_pin('bias_s<%d>' % (cidx - 1 + sig_idx * 4), wp, show=show_pins)
-                self.add_pin('bias_s<%d>' % (cidx + sig_idx * 4), wn, show=show_pins)
+                self.add_pin('bias_s<%d>' % (cidx + sig_idx * 4), wp, show=show_pins)
+                self.add_pin('bias_s<%d>' % (cidx - 1 + sig_idx * 4), wn, show=show_pins)
                 wp = inst_list[cidx].get_pin('sgnp' + suf)
                 wn = inst_list[cidx].get_pin('sgnn' + suf)
                 wp, wn = self.connect_differential_tracks(wp, wn, vm_layer, strp, strn)
-                self.add_pin('sgnp<%d>' % (cidx + sig_idx * 4), wp, show=show_pins)
-                self.add_pin('sgnn<%d>' % (cidx + sig_idx * 4), wn, show=show_pins)
+                self.add_pin('sgnp<%d>' % (cidx - 1 + sig_idx * 4), wp, show=show_pins)
+                self.add_pin('sgnn<%d>' % (cidx - 1 + sig_idx * 4), wn, show=show_pins)
             strp = track_info['sgnpn' + suf][0]
             strn = track_info['sgnnn' + suf][0]
             for cidx in (0, 2):
+                ncidx = (cidx - 1) % 4
                 wp = inst_list[cidx].get_pin('sgnp' + suf)
                 wn = inst_list[cidx].get_pin('sgnn' + suf)
                 wp, wn = self.connect_differential_tracks(wp, wn, vm_layer, strp, strn)
-                self.add_pin('sgnp<%d>' % (cidx + sig_idx * 4), wp, show=show_pins)
-                self.add_pin('sgnn<%d>' % (cidx + sig_idx * 4), wn, show=show_pins)
+                self.add_pin('sgnp<%d>' % (ncidx + sig_idx * 4), wp, show=show_pins)
+                self.add_pin('sgnn<%d>' % (ncidx + sig_idx * 4), wn, show=show_pins)
 
         # connect clkp/clkn
         trp = track_info['clkp'][0]
@@ -1437,7 +1441,7 @@ class TapXColumn(TemplateBase):
 
         # connect scan/enable signals
         en_warrs = [[], [], [], []]
-        for inst, pidx, mlm in ((inst_list[2], 3, 1), (inst_list[0], 2, -1)):
+        for inst, pidx, mlm in ((inst_list[2], 2, 1), (inst_list[0], 3, -1)):
             suf = '<%d>' % pidx
             for name in ('scan_div', 'en_div'):
                 warr = inst.get_pin(name)
@@ -1450,7 +1454,8 @@ class TapXColumn(TemplateBase):
         # connect enable clocks
         for cidx, inst in enumerate(inst_list):
             for en_idx in range(4):
-                en_warrs[(en_idx + cidx + 1) % 4].extend(inst.port_pins_iter('en<%d>' % en_idx))
+                cur_idx = (en_idx + (cidx + 1) % 4) % 4
+                en_warrs[cur_idx].extend(inst.port_pins_iter('en<%d>' % en_idx))
 
         for en_idx in range(4):
             tr = track_info['en%d' % en_idx][0]

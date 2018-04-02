@@ -73,6 +73,7 @@ class bag_serdes_ec__qdr_tapx_column(Module):
         do_suf = '<%d:3>' % num_dfe
         for cidx in range(4):
             pcidx = (cidx + 1) % 4
+            ncidx = (cidx - 1) % 4
             name = 'X%d' % cidx
             # FFE related pins
             if num_ffe == 1:
@@ -82,9 +83,9 @@ class bag_serdes_ec__qdr_tapx_column(Module):
                 self.reconnect_instance_terminal(name, 'outn_a<0>', 'outn_a<%d>' % cidx)
             else:
                 if num_ffe == 2:
-                    casc_net = 'casc<%d>' % (4 + cidx)
+                    casc_net = 'casc<%d>' % (4 + ncidx)
                 else:
-                    casc_net = 'casc<%d:%d:4>' % (max_ffe + cidx, 4 + cidx)
+                    casc_net = 'casc<%d:%d:4>' % (max_ffe + ncidx, 4 + ncidx)
                 self.reconnect_instance_terminal(name, casc_pin, casc_net)
                 if num_ffe == 2:
                     self.reconnect_instance_terminal(name, 'inp_a<1:0>',
@@ -105,11 +106,11 @@ class bag_serdes_ec__qdr_tapx_column(Module):
             cur_d_suf = '<%d:%d:4>' % (max_dfe + cidx, 12 + cidx)
             self.reconnect_instance_terminal(name, 'outp_d' + do_suf, 'outp_d' + cur_d_suf)
             self.reconnect_instance_terminal(name, 'outn_d' + do_suf, 'outn_d' + cur_d_suf)
-            cur_d_suf = '<%d:%d:4>' % (max_dfe - 4 + cidx, 12 + cidx)
+            cur_d_suf = '<%d:%d:4>' % (max_dfe - 4 + pcidx, 12 + pcidx)
             net = 'out{0}_d%s,in{0}_d<%d>,in{0}_d<%d>' % (cur_d_suf, pcidx, cidx)
             self.reconnect_instance_terminal(name, 'inp_d' + d_suf, net.format('p'))
             self.reconnect_instance_terminal(name, 'inn_d' + d_suf, net.format('n'))
-            cur_d_suf = '<%d:%d:4>' % (max_dfe + cidx, 8 + cidx)
+            cur_d_suf = '<%d:%d:4>' % (max_dfe + ncidx, 8 + ncidx)
             self.reconnect_instance_terminal(name, 'biasn_s' + d_suf, 'bias_s' + cur_d_suf)
             self.reconnect_instance_terminal(name, 'sgnp' + d_suf, 'sgnp' + cur_d_suf)
             self.reconnect_instance_terminal(name, 'sgnn' + d_suf, 'sgnn' + cur_d_suf)
