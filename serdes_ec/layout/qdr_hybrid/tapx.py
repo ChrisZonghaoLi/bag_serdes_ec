@@ -1289,6 +1289,10 @@ class TapXColumn(TemplateBase):
             self.add_pin('inp_d<%d>' % cidx, warrp, show=show_pins)
             self.add_pin('inn_d<%d>' % cidx, warrn, show=show_pins)
 
+        # connect FFE biases/clks
+        clkp_list, clkn_list = self._connect_ffe(tr_manager, vm_layer, num_ffe, ffe_track_info,
+                                                 inst_list, show_pins)
+
         # connect shields
         sh_lower, sh_upper = None, None
         vm_vss_list, vm_vdd_list = [], []
@@ -1303,63 +1307,61 @@ class TapXColumn(TemplateBase):
                                           track_upper=sh_upper, unit_mode=True)
             vm_vdd_list.append(warr)
 
-        """
-        # connect cascode
-        shields_casc = self._connect_cascode(inst_list, vm_layer, tr_manager,
-                                             shields_ffe, show_pins)
-        # connect analog latch and main summer clocks
-        shields_ana = self._connect_clk_analog(inst_list, vm_layer, tr_manager,
-                                               shields_casc, show_pins)
-        """
+    def _connect_ffe(self, tr_manager, vm_layer, num_sig, track_info, inst_list, show_pins):
+        vm_w_casc = tr_manager.get_width(vm_layer, 'casc')
+        vm_w_clk = tr_manager.get_width(vm_layer, 'clk')
 
-    def _connect_clk_analog(self, inst_list, vm_layer, tr_manager, shields_casc, show_pins):
-        vm_w = tr_manager.get_width(vm_layer, 'clk')
-        _, route_locs = tr_manager.place_wires(vm_layer, [1, 'clk', 'clk', 'clk', 'clk', 1, 1])
-        offset = shields_casc[-1] - route_locs[-1]
-        clkp_warrs, clkn_warrs, m_warrs = [], [], []
+        # connect cascodes
+        clkp_list, clkn_list = [], []
+        ap_list, an_list, m_list = [], [], []
         for cidx, inst in enumerate(inst_list):
-            warr_a = inst.get_pin('biasp_a')
+            # gather clock signals
+            clkp_list.extend(inst.port_pins_iter('clkp'))
+            clkn_list.extend(inst.port_pins_iter('clkn'))
             if cidx % 2 == 1:
-                clkp_warrs.append(warr_a)
+                ap_list.append(inst.get_pin('biasp_a'))
             else:
-                clkn_warrs.append(warr_a)
-            m_warrs.append(inst_list[(cidx + 1) % 4].get_pin('biasn_m'))
-
-        trp, trn = route_locs[1] + offset, route_locs[4] + offset
-        wp, wn = self.connect_differential_tracks(clkp_warrs, clkn_warrs, vm_layer, trp, trn,
-                                                  width=vm_w)
-        self.add_pin('biasp_a', wp, show=show_pins)
-        self.add_pin('biasn_a', wn, show=show_pins)
-        trp, trn = route_locs[2] + offset, route_locs[3] + offset
-        wp, wn = self.connect_differential_tracks(m_warrs[1], m_warrs[0], vm_layer, trp, trn,
-                                                  width=vm_w)
-        self.add_pin('bias_m<1>', wp, show=show_pins)
-        self.add_pin('bias_m<0>', wn, show=show_pins)
-        wp, wn = self.connect_differential_tracks(m_warrs[3], m_warrs[2], vm_layer, trp, trn,
-                                                  width=vm_w)
-        self.add_pin('bias_m<3>', wp, show=show_pins)
-        self.add_pin('bias_m<2>', wn, show=show_pins)
-
-        return [route_locs[0] + offset, route_locs[5] + offset]
-
-    def _connect_cascode(self, inst_list, vm_layer, tr_mananger, shields_ffe, show_pins):
-        vm_w = tr_mananger.get_width(vm_layer, 'casc')
-        _, route_locs = tr_mananger.place_wires(vm_layer, [1, 'casc', 'casc', 1])
-        num_ffe = (len(shields_ffe) - 1) // 4 + 1
-        shields_casc = []
-        for ffe_idx in range(num_ffe - 1, 0, -1):
-            sh_right = shields_ffe[4 * (num_ffe - 1 - ffe_idx)]
-            offset = sh_right - route_locs[3]
-            shields_casc.append(route_locs[0] + offset)
-            for cidx, inst in enumerate(inst_list):
+                an_list.append(inst.get_pin('biasp_a'))
+            m_list.append(inst_list[(cidx + 1) % 4].get_pin('biasn_m'))
+            # connect cascode biases
+            for ffe_idx in range(num_sig - 1, 0, -1):
+                if cidx % 2 == 1:
+                    tidx = track_info['cascp<%d>' % ffe_idx][0]
+                else:
+                    tidx = track_info['cascn<%d>' % ffe_idx][0]
                 warr = inst.get_pin('casc<%d>' % ffe_idx)
-                tidx = route_locs[1] + offset if cidx % 2 == 0 else route_locs[2] + offset
                 min_len_mode = 1 if 1 <= cidx <= 2 else -1
-                warr = self.connect_to_tracks(warr, TrackID(vm_layer, tidx, width=vm_w),
+                warr = self.connect_to_tracks(warr, TrackID(vm_layer, tidx, width=vm_w_casc),
                                               min_len_mode=min_len_mode)
                 self.add_pin('casc<%d>' % (cidx + ffe_idx * 4), warr, show=show_pins)
 
-        return shields_casc
+        # connect clkp/clkn
+        trp = track_info['clkp'][0]
+        trn = track_info['clkn'][0]
+        clkp, clkn = self.connect_differential_tracks(clkp_list, clkn_list, vm_layer, trp, trn,
+                                                      width=vm_w_clk)
+        self.add_pin('clkp', clkp, show=show_pins)
+        self.add_pin('clkn', clkn, show=show_pins)
+        # connect biasp_a/biasn_a
+        trp = track_info['biasp_a'][0]
+        trn = track_info['biasn_a'][0]
+        wp, wn = self.connect_differential_tracks(ap_list, an_list, vm_layer, trp, trn,
+                                                  width=vm_w_clk)
+        self.add_pin('biasp_a', wp, show=show_pins)
+        self.add_pin('biasn_a', wn, show=show_pins)
+        # connect main tap biases
+        trp = track_info['biasp_m'][0]
+        trn = track_info['biasn_m'][0]
+        wp, wn = self.connect_differential_tracks(m_list[1], m_list[0], vm_layer, trp, trn,
+                                                  width=vm_w_clk)
+        self.add_pin('bias_m<1>', wp, show=show_pins)
+        self.add_pin('bias_m<0>', wn, show=show_pins)
+        wp, wn = self.connect_differential_tracks(m_list[3], m_list[2], vm_layer, trp, trn,
+                                                  width=vm_w_clk)
+        self.add_pin('bias_m<3>', wp, show=show_pins)
+        self.add_pin('bias_m<2>', wn, show=show_pins)
+
+        return clkp_list, clkn_list
 
     def _connect_signals(self, num_sig, track_info, inst_list, vm_layer, vm_width, sig_type,
                          sig_off=0, is_ffe=True):
