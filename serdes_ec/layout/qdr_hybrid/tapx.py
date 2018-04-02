@@ -1311,6 +1311,16 @@ class TapXColumn(TemplateBase):
                                           track_upper=sh_upper, unit_mode=True)
             vm_vdd_list.append(warr)
 
+        # set schematic parameters
+        self._sch_params = dict(
+            ffe_params_list=divp_master.sch_params['ffe_params_list'],
+            dfe_params_list=divp_master.sch_params['dfe_params_list'],
+            last_params_list=[endb_master.sch_params['last_params'],
+                              divp_master.sch_params['last_params'],
+                              divn_master.sch_params['last_params'],
+                              endt_master.sch_params['last_params']],
+        )
+
     def _connect_ffe(self, tr_manager, vm_layer, num_sig, track_info, inst_list, show_pins):
         vm_w_casc = tr_manager.get_width(vm_layer, 'casc')
         vm_w_clk = tr_manager.get_width(vm_layer, 'clk')

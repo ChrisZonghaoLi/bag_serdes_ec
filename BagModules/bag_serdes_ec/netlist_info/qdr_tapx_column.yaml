@@ -1,6 +1,6 @@
 lib_name: bag_serdes_ec
 cell_name: qdr_tapx_column
-pins: [ "VDD", "VSS", "clkp", "clkn", "casc<3:0>", "inn_a", "inp_d<3:0>", "biasp_a", "biasn_a", "bias_s<3:0>", "bias_m<3:0>", "setp", "sgnp<3:0>", "biasp_d", "biasn_d", "inp_a", "inn_d<3:0>", "en_div<1:0>", "scan_div<1:0>", "outp<3:0>", "outn<3:0>", "setn", "sgnn<3:0>" ]
+pins: [ "VDD", "VSS", "clkp", "clkn", "casc<3:0>", "inn_a", "inp_d<3:0>", "biasp_a", "biasn_a", "bias_s<3:0>", "bias_m<3:0>", "setp", "sgnp<3:0>", "biasp_d", "biasn_d", "inp_a", "inn_d<3:0>", "scan_div<3:2>", "outp<3:0>", "outn<3:0>", "setn", "sgnn<3:0>", "en_div<3:2>" ]
 instances:
   X3:
     lib_name: bag_serdes_ec
@@ -92,11 +92,11 @@ instances:
         num_bits: 1
       en_div:
         direction: input
-        net_name: "en_div<0>"
+        net_name: "en_div<2>"
         num_bits: 1
       scan_div:
         direction: input
-        net_name: "scan_div<0>"
+        net_name: "scan_div<2>"
         num_bits: 1
       inn_a:
         direction: input
@@ -140,11 +140,11 @@ instances:
         num_bits: 1
       div:
         direction: output
-        net_name: "en<3>"
+        net_name: "en<2>"
         num_bits: 1
       divb:
         direction: output
-        net_name: "en<1>"
+        net_name: "en<0>"
         num_bits: 1
       pulse_out:
         direction: output
@@ -216,11 +216,11 @@ instances:
         num_bits: 1
       en_div:
         direction: input
-        net_name: "en_div<1>"
+        net_name: "en_div<2>"
         num_bits: 1
       scan_div:
         direction: input
-        net_name: "scan_div<1>"
+        net_name: "scan_div<2>"
         num_bits: 1
       inn_a:
         direction: input
@@ -264,11 +264,11 @@ instances:
         num_bits: 1
       div:
         direction: output
-        net_name: "en<2>"
+        net_name: "en<3>"
         num_bits: 1
       divb:
         direction: output
-        net_name: "en<0>"
+        net_name: "en<1>"
         num_bits: 1
       pulse_out:
         direction: output
@@ -340,11 +340,11 @@ instances:
         num_bits: 1
       en_div:
         direction: input
-        net_name: "en_div<0>"
+        net_name: "en_div<3>"
         num_bits: 1
       scan_div:
         direction: input
-        net_name: "scan_div<0>"
+        net_name: "scan_div<3>"
         num_bits: 1
       inn_a:
         direction: input
@@ -464,11 +464,11 @@ instances:
         num_bits: 1
       en_div:
         direction: input
-        net_name: "en_div<0>"
+        net_name: "en_div<3>"
         num_bits: 1
       scan_div:
         direction: input
-        net_name: "scan_div<0>"
+        net_name: "scan_div<3>"
         num_bits: 1
       inn_a:
         direction: input
