@@ -108,8 +108,8 @@ class Tap1SummerRow(HybridQDRBase):
         wire_names = {
             'tail': dict(g=['clk'], ds=['ntail']),
             'nen': dict(g=['en'], ds=['ntail']),
-            'in': dict(g=['in', 'in'], ds=[]),
-            'pen': dict(ds=['out', 'out'], g=['en', 'en']),
+            'in': dict(g2=['in', 'in']),
+            'pen': dict(ds2=['out', 'out'], g=['en', 'en']),
             'load': dict(ds=['ptail'], g=['clk', 'clk']),
         }
 

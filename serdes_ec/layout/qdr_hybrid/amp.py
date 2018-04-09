@@ -152,9 +152,9 @@ class IntegAmp(HybridQDRBase):
             # TODO: hack tail gate for now, should fix itself later when we specify min height.
             'tail': dict(g=[1, 'clk'], ds=['ntail']),
             'nen': dict(g=['en'], ds=['ntail']),
-            'in': dict(g=['in', 'in'], ds=[]),
+            'in': dict(g2=['in', 'in']),
             'casc': dict(g=casc_g, ds=['ptail']),
-            'pen': dict(ds=['out', 'out'], g=['en', 'en']),
+            'pen': dict(ds2=['out', 'out'], g=['en', 'en']),
             'load': dict(ds=['ptail'], g=['clk', 'clk']),
         }
 
