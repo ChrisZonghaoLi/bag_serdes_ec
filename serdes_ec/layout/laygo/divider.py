@@ -52,6 +52,7 @@ class SinClkDivider(LaygoBase):
             tr_info='output track information dictionary.',
             fg_min='Minimum number of core fingers.',
             end_mode='The LaygoBase end_mode flag.',
+            abut_mode='The left/right abut mode flag.',
             show_pins='True to show pins.',
         )
 
@@ -62,6 +63,7 @@ class SinClkDivider(LaygoBase):
             tr_info=None,
             fg_min=0,
             end_mode=None,
+            abut_mode=0,
             show_pins=True,
         )
 
@@ -73,6 +75,7 @@ class SinClkDivider(LaygoBase):
         tr_info = self.params['tr_info']
         fg_min = self.params['fg_min']
         end_mode = self.params['end_mode']
+        abut_mode = self.params['abut_mode']
         show_pins = self.params['show_pins']
 
         tr_manager = TrackManager(self.grid, tr_widths, tr_spaces, half_space=True)
@@ -82,7 +85,18 @@ class SinClkDivider(LaygoBase):
         seg_inv = self._get_gate_inv_info(seg_dict)
         seg_int = self._get_integ_amp_info(seg_dict)
         seg_sr = self._get_sr_latch_info(seg_dict)
-        num_col = seg_inv + seg_int + seg_sr + 2 * blk_sp
+
+        inc_col = 0
+        if abut_mode & 1 == 1:
+            # abut on left
+            inc_col += blk_sp
+            col_inv = blk_sp
+        else:
+            col_inv = 0
+        if abut_mode & 2 == 2:
+            # abut on right
+            inc_col += blk_sp
+        num_col = seg_inv + seg_int + seg_sr + 2 * blk_sp + inc_col
 
         self.set_rows_direct(row_layout_info, end_mode=end_mode)
 
@@ -93,8 +107,7 @@ class SinClkDivider(LaygoBase):
         self.set_laygo_size(num_col)
 
         # draw individual blocks
-        vss_w, vdd_w = self._draw_substrate(num_col)
-        col_inv = 0
+        vss_w, vdd_w = self._draw_substrate(col_inv, num_col, num_col - inc_col)
         col_int = col_inv + seg_inv + blk_sp
         col_sr = col_int + seg_int + blk_sp
         inv_ports, inv_seg = self._draw_gate_inv(col_inv, seg_inv, seg_dict, tr_manager)
@@ -196,9 +209,18 @@ class SinClkDivider(LaygoBase):
             sr_params=sr_params,
         )
 
-    def _draw_substrate(self, num_col):
-        nsub = self.add_laygo_mos(0, 0, num_col)
-        psub = self.add_laygo_mos(self.num_rows - 1, 0, num_col)
+    def _draw_substrate(self, col_start, col_stop, num_col):
+        if col_start > 0:
+            self.add_laygo_mos(0, 0, col_start)
+            self.add_laygo_mos(self.num_rows - 1, 0, col_start)
+        sub_stop = col_start + num_col
+        nadd = col_stop - sub_stop
+        if nadd > 0:
+            self.add_laygo_mos(0, sub_stop, nadd)
+            self.add_laygo_mos(self.num_rows - 1, sub_stop, nadd)
+
+        nsub = self.add_laygo_mos(0, col_start, num_col)
+        psub = self.add_laygo_mos(self.num_rows - 1, col_start, num_col)
         return nsub['VSS_s'], psub['VDD_s']
 
     def _connect_supply(self, sup_warr, sup_list, sup_intv, tr_manager, round_up=False):
@@ -213,19 +235,25 @@ class SinClkDivider(LaygoBase):
                 for tid in warr.track_id:
                     idx_set.add(tid)
 
+        min_tid = max_tid = None
         for warr in sup_warr.to_warr_list():
             tid = warr.track_id.base_index
             if tid - 1 not in idx_set and tid + 1 not in idx_set:
                 warr_list.append(warr)
                 idx_set.add(tid)
+                if min_tid is None:
+                    min_tid = max_tid = tid
+                else:
+                    min_tid = min(tid, min_tid)
+                    max_tid = max(tid, max_tid)
 
         hm_layer = self.conn_layer + 1
         vm_layer = hm_layer + 1
         sup_w = tr_manager.get_width(hm_layer, 'sup')
         sup_idx = self.grid.get_middle_track(sup_intv[0], sup_intv[1] - 1, round_up=round_up)
 
-        xl = self.laygo_info.col_to_coord(0, 's', unit_mode=True)
-        xr = self.laygo_info.col_to_coord(self.laygo_size[0], 's', unit_mode=True)
+        xl = self.grid.track_to_coord(self.conn_layer, min_tid, unit_mode=True)
+        xr = self.grid.track_to_coord(self.conn_layer, max_tid, unit_mode=True)
         tl = self.grid.coord_to_nearest_track(vm_layer, xl, half_track=True,
                                               mode=1, unit_mode=True)
         tr = self.grid.coord_to_nearest_track(vm_layer, xr, half_track=True,

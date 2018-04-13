@@ -281,6 +281,7 @@ class Tap1LatchRow(TemplateBase):
         lat_params['end_mode'] = 12 if no_dig else 8
         lat_params['fg_duml'] = lat_params['fg_dumr'] = fg_dum
         dig_end_mode = 4
+        dig_abut_mode = 2
 
         top_layer = HybridQDRBase.get_mos_conn_layer(self.grid.tech_info) + 2
         if no_dig:
@@ -317,7 +318,9 @@ class Tap1LatchRow(TemplateBase):
                 tr_widths=tr_widths,
                 tr_spaces=tr_spaces,
                 end_mode=dig_end_mode,
+                abut_mode=dig_abut_mode,
                 show_pins=False,
+                laygo_endr_infos=l_master.get_right_edge_info(),
             )
             d_master = self.new_template(params=dig_params, temp_cls=dig_cls)
             if seg_pul is None:
