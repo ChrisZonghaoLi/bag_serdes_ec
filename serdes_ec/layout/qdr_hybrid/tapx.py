@@ -315,6 +315,8 @@ class TapXSummerLast(TemplateBase):
         seg_pul = self.params['seg_pul']
         fg_duml = self.params['fg_duml']
         fg_dumr = self.params['fg_dumr']
+        tr_widths = self.params['tr_widths']
+        tr_spaces = self.params['tr_spaces']
         lat_tr_info = self.params['lat_tr_info']
         div_pos_edge = self.params['div_pos_edge']
         flip_sign = self.params['flip_sign']
@@ -350,8 +352,8 @@ class TapXSummerLast(TemplateBase):
         dig_params = dict(
             config=self.params['config'],
             row_layout_info=row_layout_info,
-            tr_widths=self.params['tr_widths'],
-            tr_spaces=self.params['tr_spaces'],
+            tr_widths=tr_widths,
+            tr_spaces=tr_spaces,
             end_mode=dig_end_mode,
             abut_mode=dig_abut_mode,
             show_pins=False,
@@ -380,12 +382,17 @@ class TapXSummerLast(TemplateBase):
             div_sch_params = pul_sch_params = None
         else:
             # draw divider
+            tr_manager = TrackManager(self.grid, tr_widths, tr_spaces)
+            hm_layer = s_master.mos_conn_layer + 1
+            en_idx, w_en = lat_tr_info['nen3']
+            en_idx = tr_manager.get_next_track(hm_layer, en_idx, w_en, w_en, up=False)
+
             tr_info = dict(
                 VDD=lat_tr_info['VDD'],
                 VSS=lat_tr_info['VSS'],
                 q=lat_tr_info['outp'],
                 qb=lat_tr_info['outn'],
-                en=lat_tr_info['nen3'],
+                en=(en_idx, w_en),
                 clk=lat_tr_info['clkp'] if div_pos_edge else lat_tr_info['clkn'],
             )
             dig_params['seg_dict'] = seg_div
