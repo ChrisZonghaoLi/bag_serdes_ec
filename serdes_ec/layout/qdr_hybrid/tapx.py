@@ -47,6 +47,7 @@ class TapXSummerCell(TemplateBase):
         TemplateBase.__init__(self, temp_db, lib_name, params, used_names, **kwargs)
         self._sch_params = None
         self._lat_row_layout_info = None
+        self._lat_edge_info = None
         self._lat_track_info = None
         self._amp_masters = None
         self._sd_pitch = None
@@ -60,6 +61,10 @@ class TapXSummerCell(TemplateBase):
     def lat_row_layout_info(self):
         # type: () -> Dict[str, Any]
         return self._lat_row_layout_info
+
+    @property
+    def lat_edge_info(self):
+        return self._lat_edge_info
 
     @property
     def lat_track_info(self):
@@ -156,13 +161,13 @@ class TapXSummerCell(TemplateBase):
         if l_master.fg_tot < s_master.fg_tot:
             # update latch master
             fg_inc = s_master.fg_tot - l_master.fg_tot
-            fg_inc2 = fg_inc // 2
+            fg_inc2 = (fg_inc // 4) * 2
             fg_duml2 = fg_duml + fg_inc2
             fg_dumr2 = fg_dumr + fg_inc - fg_inc2
             l_master = l_master.new_template_with(fg_duml=fg_duml2, fg_dumr=fg_dumr2)
         elif s_master.fg_tot < l_master.fg_tot:
             fg_inc = l_master.fg_tot - s_master.fg_tot
-            fg_inc2 = fg_inc // 2
+            fg_inc2 = (fg_inc // 4) * 2
             fg_duml2 = fg_duml + fg_inc2
             fg_dumr2 = fg_dumr + fg_inc - fg_inc2
             s_master = s_master.new_template_with(fg_duml=fg_duml2, fg_dumr=fg_dumr2)
@@ -209,6 +214,7 @@ class TapXSummerCell(TemplateBase):
             lat_params=l_master.sch_params,
         )
         self._lat_row_layout_info = l_master.row_layout_info
+        self._lat_edge_info = l_master.get_right_edge_info()
         self._lat_track_info = l_master.track_info
         self._amp_masters = s_master, l_master
         self._sd_pitch = s_master.sd_pitch_unit
@@ -269,6 +275,8 @@ class TapXSummerLast(TemplateBase):
             end_mode=12,
             show_pins=True,
             options=None,
+            left_edge_info=None,
+            right_edge_info=None,
         )
 
     @classmethod
@@ -296,6 +304,8 @@ class TapXSummerLast(TemplateBase):
             end_mode='The AnalogBase end_mode flag.',
             show_pins='True to create pin labels.',
             options='other AnalogBase options',
+            left_edge_info='left edge information for digital.',
+            right_edge_info='right edge information for digital.',
         )
 
     def draw_layout(self):
@@ -311,6 +321,8 @@ class TapXSummerLast(TemplateBase):
         fg_min = self.params['fg_min']
         end_mode = self.params['end_mode']
         show_pins = self.params['show_pins']
+        left_edge_info = self.params['left_edge_info']
+        right_edge_info = self.params['right_edge_info']
 
         no_dig = (seg_div is None and seg_pul is None)
 
@@ -333,19 +345,27 @@ class TapXSummerLast(TemplateBase):
         fg_core = s_master.layout_info.fg_core
         fg_min = max(fg_min, fg_core)
 
+        dig_end_mode = end_mode & 0b1100
+        dig_abut_mode = (~end_mode >> 2) & 0b11
         dig_params = dict(
             config=self.params['config'],
             row_layout_info=row_layout_info,
             tr_widths=self.params['tr_widths'],
             tr_spaces=self.params['tr_spaces'],
-            end_mode=end_mode & 0b1100,
+            end_mode=dig_end_mode,
+            abut_mode=dig_abut_mode,
             show_pins=False,
         )
+        if dig_abut_mode & 1 != 0:
+            dig_params['laygo_endl_infos'] = left_edge_info
+        if dig_abut_mode & 2 != 0:
+            dig_params['laygo_endr_infos'] = right_edge_info
+
         if no_dig:
             # no digital block, draw LaygoDummy
             if fg_core < fg_min:
                 fg_inc = fg_min - fg_core
-                fg_inc2 = fg_inc // 2
+                fg_inc2 = (fg_inc // 4) * 2
                 fg_duml2 = fg_duml + fg_inc2
                 fg_dumr2 = fg_dumr + fg_inc - fg_inc2
                 s_master = s_master.new_template_with(fg_duml=fg_duml2, fg_dumr=fg_dumr2)
@@ -378,7 +398,7 @@ class TapXSummerLast(TemplateBase):
 
             if fg_core < fg_min:
                 fg_inc = fg_min - fg_core
-                fg_inc2 = fg_inc // 2
+                fg_inc2 = (fg_inc // 4) * 2
                 fg_duml2 = fg_duml + fg_inc2
                 fg_dumr2 = fg_dumr + fg_inc - fg_inc2
                 s_master = s_master.new_template_with(fg_duml=fg_duml2, fg_dumr=fg_dumr2)
@@ -989,7 +1009,8 @@ class TapXSummer(TemplateBase):
                            fg_duml=fg_dum, fg_dumr=fg_dum, tr_widths=tr_widths, tr_spaces=tr_spaces,
                            lat_tr_info=main.lat_track_info, div_pos_edge=div_pos_edge,
                            flip_sign=flip_sign_list[num_ffe], fg_min=fg_min_last,
-                           end_mode=end_mode | 0b1000, show_pins=False, options=options
+                           end_mode=end_mode | 0b1000, show_pins=False, options=options,
+                           left_edge_info=main.lat_edge_info,
                            )
         last_master = self.new_template(params=last_params, temp_cls=TapXSummerLast)
 

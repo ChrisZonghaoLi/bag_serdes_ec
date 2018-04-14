@@ -87,13 +87,13 @@ class SinClkDivider(LaygoBase):
         seg_sr = self._get_sr_latch_info(seg_dict)
 
         inc_col = 0
-        if abut_mode & 1 == 1:
+        if abut_mode & 1 != 0:
             # abut on left
             inc_col += blk_sp
             col_inv = blk_sp
         else:
             col_inv = 0
-        if abut_mode & 2 == 2:
+        if abut_mode & 2 != 0:
             # abut on right
             inc_col += blk_sp
         num_col = seg_inv + seg_int + seg_sr + 2 * blk_sp + inc_col
@@ -227,6 +227,7 @@ class SinClkDivider(LaygoBase):
         # gather list of track indices and wires
         idx_set = set()
         warr_list = []
+        min_tid = max_tid = None
         for sup in sup_list:
             if isinstance(sup, WireArray):
                 sup = [sup]
@@ -234,8 +235,12 @@ class SinClkDivider(LaygoBase):
                 warr_list.append(warr)
                 for tid in warr.track_id:
                     idx_set.add(tid)
+                    if min_tid is None:
+                        min_tid = max_tid = tid
+                    else:
+                        min_tid = min(tid, min_tid)
+                        max_tid = max(tid, max_tid)
 
-        min_tid = max_tid = None
         for warr in sup_warr.to_warr_list():
             tid = warr.track_id.base_index
             if tid - 1 not in idx_set and tid + 1 not in idx_set:

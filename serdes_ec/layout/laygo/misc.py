@@ -52,6 +52,8 @@ class LaygoDummy(LaygoBase):
             tr_spaces='Track spacing dictionary.',
             tr_info='supply track information dictionary.',
             end_mode='The LaygoBase end_mode flag.',
+            abut_mode='The left/right abut mode flag.',
+            abut_sp='Abutment space.',
             show_pins='True to show pins.',
         )
 
@@ -61,6 +63,8 @@ class LaygoDummy(LaygoBase):
         return dict(
             tr_info=None,
             end_mode=15,
+            abut_mode=0,
+            abut_sp=2,
             show_pins=True,
         )
 
@@ -71,16 +75,27 @@ class LaygoDummy(LaygoBase):
         tr_spaces = self.params['tr_spaces']
         tr_info = self.params['tr_info']
         end_mode = self.params['end_mode']
+        abut_mode = self.params['abut_mode']
+        abut_sp = self.params['abut_sp']
         show_pins = self.params['show_pins']
 
         tr_manager = TrackManager(self.grid, tr_widths, tr_spaces, half_space=True)
 
+        inc_col = 0
+        if abut_mode & 1 != 0:
+            # abut on left
+            inc_col += abut_sp
+            col_start = abut_sp
+        else:
+            col_start = 0
+        if abut_mode & 2 != 0:
+            # abut on right
+            inc_col += abut_sp
+
         self.set_rows_direct(row_layout_info, num_col=num_col, end_mode=end_mode)
 
         # draw substrate
-        nsub = self.add_laygo_mos(0, 0, num_col)
-        psub = self.add_laygo_mos(self.num_rows - 1, 0, num_col)
-        vss_w, vdd_w = nsub['VSS_s'], psub['VDD_s']
+        vss_w, vdd_w = self._draw_substrate(col_start, num_col, num_col - inc_col)
 
         # fill space
         self.fill_space()
@@ -101,17 +116,39 @@ class LaygoDummy(LaygoBase):
         self.add_pin('VDD', vdd, show=show_pins)
         self.add_pin('VSS', vss, show=show_pins)
 
+    def _draw_substrate(self, col_start, col_stop, num_col):
+        if col_start > 0:
+            self.add_laygo_mos(0, 0, col_start)
+            self.add_laygo_mos(self.num_rows - 1, 0, col_start)
+        sub_stop = col_start + num_col
+        nadd = col_stop - sub_stop
+        if nadd > 0:
+            self.add_laygo_mos(0, sub_stop, nadd)
+            self.add_laygo_mos(self.num_rows - 1, sub_stop, nadd)
+
+        nsub = self.add_laygo_mos(0, col_start, num_col)
+        psub = self.add_laygo_mos(self.num_rows - 1, col_start, num_col)
+        return nsub['VSS_s'], psub['VDD_s']
+
     def _connect_supply(self, sup_warr, sup_intv, tr_manager, round_up=False):
         # gather list of track indices and wires
         warr_list = sup_warr.to_warr_list()
+        min_tid = max_tid = None
+        for warr in warr_list:
+            tid = warr.track_id.base_index
+            if min_tid is None:
+                min_tid = max_tid = tid
+            else:
+                min_tid = min(tid, min_tid)
+                max_tid = max(tid, max_tid)
 
         hm_layer = self.conn_layer + 1
         vm_layer = hm_layer + 1
         sup_w = tr_manager.get_width(hm_layer, 'sup')
         sup_idx = self.grid.get_middle_track(sup_intv[0], sup_intv[1] - 1, round_up=round_up)
 
-        xl = self.laygo_info.col_to_coord(0, 's', unit_mode=True)
-        xr = self.laygo_info.col_to_coord(self.laygo_size[0], 's', unit_mode=True)
+        xl = self.grid.track_to_coord(self.conn_layer, min_tid, unit_mode=True)
+        xr = self.grid.track_to_coord(self.conn_layer, max_tid, unit_mode=True)
         tl = self.grid.coord_to_nearest_track(vm_layer, xl, half_track=True,
                                               mode=1, unit_mode=True)
         tr = self.grid.coord_to_nearest_track(vm_layer, xr, half_track=True,
