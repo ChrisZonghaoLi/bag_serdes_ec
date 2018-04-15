@@ -530,7 +530,6 @@ class TapXSummerNoLast(TemplateBase):
     def get_default_param_values(cls):
         # type: () -> Dict[str, Any]
         return dict(
-            is_end=False,
             show_pins=True,
             options=None,
         )
@@ -553,7 +552,6 @@ class TapXSummerNoLast(TemplateBase):
             fg_dum='Number of single-sided edge dummy fingers.',
             tr_widths='Track width dictionary.',
             tr_spaces='Track spacing dictionary.',
-            is_end='True if this is the end row.',
             show_pins='True to create pin labels.',
             options='other AnalogBase options',
         )
@@ -574,7 +572,6 @@ class TapXSummerNoLast(TemplateBase):
         fg_dum = self.params['fg_dum']
         tr_widths = self.params['tr_widths']
         tr_spaces = self.params['tr_spaces']
-        is_end = self.params['is_end']
         show_pins = self.params['show_pins']
         options = self.params['options']
 
@@ -589,7 +586,6 @@ class TapXSummerNoLast(TemplateBase):
             # TODO: restriction exists because otherwise we do not have routing space for
             # TODO: biasp_d and biasn_d.  Remove restriction in the future?
             raise ValueError('Must have at least two DFE.')
-        end_mode = 1 if is_end else 0
 
         # create layout masters and place instances
         tr_manager = TrackManager(self.grid, tr_widths, tr_spaces, half_space=True)
@@ -601,19 +597,19 @@ class TapXSummerNoLast(TemplateBase):
         vdd_list, vss_list = [], []
         base_params = dict(lch=lch, ptap_w=ptap_w, ntap_w=ntap_w, w_sum=w_sum, w_lat=w_lat,
                            th_sum=th_sum, th_lat=th_lat, fg_duml=fg_dum, fg_dumr=fg_dum,
-                           tr_widths=tr_widths, tr_spaces=tr_spaces, end_mode=end_mode,
+                           tr_widths=tr_widths, tr_spaces=tr_spaces, end_mode=0,
                            show_pins=False, options=options, )
         place_info = None, None, None, 0, None
         ffe_sig_list = self._get_ffe_signals(num_ffe)
         tmp = self._create_and_place(tr_manager, num_ffe, seg_ffe_list, seg_sum_list,
-                                     flip_sign_list, ffe_sig_list, end_mode, base_params, vm_layer,
+                                     flip_sign_list, ffe_sig_list, base_params, vm_layer,
                                      route_locs, place_info, vdd_list, vss_list, 'a', sig_off=0,
                                      sum_off=0, is_end=True, left_out=True)
         ffe_masters, self._ffe_track_info, ffe_sch_params, ffe_insts, place_info = tmp
 
         dfe_sig_list = self._get_dfe_signals(num_dfe)
         tmp = self._create_and_place(tr_manager, num_dfe - 1, seg_dfe_list, seg_sum_list,
-                                     flip_sign_list, dfe_sig_list, end_mode, base_params, vm_layer,
+                                     flip_sign_list, dfe_sig_list, base_params, vm_layer,
                                      route_locs, place_info, vdd_list, vss_list, 'd', sig_off=3,
                                      sum_off=num_ffe + 1, is_end=False, left_out=False)
         dfe_masters, self._dfe_track_info, dfe_sch_params, dfe_insts, self._place_info = tmp
@@ -769,9 +765,8 @@ class TapXSummerNoLast(TemplateBase):
             return sig_list
 
     def _create_and_place(self, tr_manager, num_inst, seg_list, seg_sum_list, flip_sign_list,
-                          sig_list, end_mode, base_params, vm_layer, route_locs, place_info,
-                          vdd_list, vss_list, blk_type, sig_off=0, sum_off=0, is_end=False,
-                          left_out=True):
+                          sig_list, base_params, vm_layer, route_locs, place_info, vdd_list,
+                          vss_list, blk_type, sig_off=0, sum_off=0, is_end=False, left_out=True):
         vm_w_out = tr_manager.get_width(vm_layer, 'out')
         fg_dum = base_params['fg_duml']
         track_info = {}
@@ -792,7 +787,7 @@ class TapXSummerNoLast(TemplateBase):
             cur_params['seg_lat'] = seg_lat
             cur_params['flip_sign'] = flip_sign
             if is_end and (idx == num_inst - 1):
-                cur_params['end_mode'] = end_mode | 0b0100
+                cur_params['end_mode'] = 0b0100
             cur_master = self.new_template(params=cur_params, temp_cls=TapXSummerCell)
 
             # check we can place current master without horizontal line-end spacing issues
@@ -922,7 +917,6 @@ class TapXSummer(TemplateBase):
         return dict(
             div_pos_edge=True,
             fg_min_last=0,
-            is_end=False,
             show_pins=True,
             options=None,
         )
@@ -950,7 +944,6 @@ class TapXSummer(TemplateBase):
             tr_spaces='Track spacing dictionary.',
             div_pos_edge='True if the divider triggers off positive edge of the clock.',
             fg_min_last='Minimum number of core fingers for last cell.',
-            is_end='True if this is the end row.',
             show_pins='True to create pin labels.',
             options='other AnalogBase options',
         )
@@ -973,12 +966,10 @@ class TapXSummer(TemplateBase):
         tr_spaces = self.params['tr_spaces']
         div_pos_edge = self.params['div_pos_edge']
         fg_min_last = self.params['fg_min_last']
-        is_end = self.params['is_end']
         show_pins = self.params['show_pins']
         options = self.params['options']
 
         num_ffe = len(seg_ffe_list)
-        end_mode = 1 if is_end else 0
 
         # create and place TapXSummerNoLast
         sub_params = self.params.copy()
@@ -1016,7 +1007,7 @@ class TapXSummer(TemplateBase):
                            fg_duml=fg_dum, fg_dumr=fg_dum, tr_widths=tr_widths, tr_spaces=tr_spaces,
                            lat_tr_info=main.lat_track_info, div_pos_edge=div_pos_edge,
                            flip_sign=flip_sign_list[num_ffe], fg_min=fg_min_last,
-                           end_mode=end_mode | 0b1000, show_pins=False, options=options,
+                           end_mode=0b1000, show_pins=False, options=options,
                            left_edge_info=main.lat_edge_info,
                            )
         last_master = self.new_template(params=last_params, temp_cls=TapXSummerLast)
@@ -1221,7 +1212,6 @@ class TapXColumn(TemplateBase):
         div_params = self.params.copy()
         div_params['seg_pul'] = None
         div_params['div_pos_edge'] = True
-        div_params['is_end'] = False
         div_params['show_pins'] = False
 
         divn_master = self.new_template(params=div_params, temp_cls=TapXSummer)
@@ -1230,7 +1220,6 @@ class TapXColumn(TemplateBase):
         end_params = self.params.copy()
         end_params['seg_div'] = None
         end_params['fg_min_last'] = fg_min_last
-        end_params['is_end'] = True
         end_params['show_pins'] = False
 
         endb_master = self.new_template(params=end_params, temp_cls=TapXSummer)
