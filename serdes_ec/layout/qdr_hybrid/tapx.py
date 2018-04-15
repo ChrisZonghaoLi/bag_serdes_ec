@@ -9,6 +9,8 @@ from itertools import chain
 from bag.layout.template import TemplateBase
 from bag.layout.routing.base import TrackManager, TrackID
 
+from abs_templates_ec.analog_core.base import AnalogBaseEnd
+
 from ..laygo.misc import LaygoDummy
 from ..laygo.divider import SinClkDivider
 from .amp import IntegAmp
@@ -51,6 +53,7 @@ class TapXSummerCell(TemplateBase):
         self._lat_track_info = None
         self._amp_masters = None
         self._sd_pitch = None
+        self._fg_tot = None
 
     @property
     def sch_params(self):
@@ -75,6 +78,11 @@ class TapXSummerCell(TemplateBase):
     def sd_pitch(self):
         # type: () -> int
         return self._sd_pitch
+
+    @property
+    def fg_tot(self):
+        # type: () -> int
+        return self._fg_tot
 
     def get_vm_coord(self, vm_width, is_left, is_out):
         # type: (int, bool, bool) -> int
@@ -160,17 +168,21 @@ class TapXSummerCell(TemplateBase):
         s_master = self.new_template(params=sum_params, temp_cls=IntegAmp)
         if l_master.fg_tot < s_master.fg_tot:
             # update latch master
+            self._fg_tot = s_master.fg_tot
             fg_inc = s_master.fg_tot - l_master.fg_tot
             fg_inc2 = (fg_inc // 4) * 2
             fg_duml2 = fg_duml + fg_inc2
             fg_dumr2 = fg_dumr + fg_inc - fg_inc2
             l_master = l_master.new_template_with(fg_duml=fg_duml2, fg_dumr=fg_dumr2)
         elif s_master.fg_tot < l_master.fg_tot:
+            self._fg_tot = l_master.fg_tot
             fg_inc = l_master.fg_tot - s_master.fg_tot
             fg_inc2 = (fg_inc // 4) * 2
             fg_duml2 = fg_duml + fg_inc2
             fg_dumr2 = fg_dumr + fg_inc - fg_inc2
             s_master = s_master.new_template_with(fg_duml=fg_duml2, fg_dumr=fg_dumr2)
+        else:
+            self._fg_tot = l_master.fg_tot
 
         # place instances
         s_inst = self.add_instance(s_master, 'XSUM', loc=(0, 0), unit_mode=True)
@@ -242,6 +254,7 @@ class TapXSummerLast(TemplateBase):
         # type: (TemplateDB, str, Dict[str, Any], Set[str], **kwargs) -> None
         TemplateBase.__init__(self, temp_db, lib_name, params, used_names, **kwargs)
         self._sch_params = None
+        self._fg_tot = None
         self._fg_core = None
         self._amp_master = None
         self._sd_pitch = None
@@ -250,6 +263,11 @@ class TapXSummerLast(TemplateBase):
     def sch_params(self):
         # type: () -> Dict[str, Any]
         return self._sch_params
+
+    @property
+    def fg_tot(self):
+        # type: () -> int
+        return self._fg_tot
 
     @property
     def fg_core(self):
@@ -471,6 +489,7 @@ class TapXSummerLast(TemplateBase):
             div_params=div_sch_params,
             pul_params=pul_sch_params,
         )
+        self._fg_tot = s_master.fg_tot
         self._fg_core = s_master.layout_info.fg_core
         self._amp_master = s_master
         self._sd_pitch = s_master.sd_pitch_unit
@@ -504,6 +523,7 @@ class TapXSummerNoLast(TemplateBase):
         self._dfe_track_info = None
         self._analog_master = None
         self._place_info = None
+        self._fg_tot = None
 
     @property
     def sch_params(self):
@@ -525,6 +545,11 @@ class TapXSummerNoLast(TemplateBase):
     @property
     def place_info(self):
         return self._place_info
+
+    @property
+    def fg_tot(self):
+        # type: () -> int
+        return self._fg_tot
 
     @classmethod
     def get_default_param_values(cls):
@@ -601,6 +626,7 @@ class TapXSummerNoLast(TemplateBase):
                            show_pins=False, options=options, )
         place_info = None, None, None, 0, None
         ffe_sig_list = self._get_ffe_signals(num_ffe)
+        self._fg_tot = 0
         tmp = self._create_and_place(tr_manager, num_ffe, seg_ffe_list, seg_sum_list,
                                      flip_sign_list, ffe_sig_list, base_params, vm_layer,
                                      route_locs, place_info, vdd_list, vss_list, 'a', sig_off=0,
@@ -803,6 +829,7 @@ class TapXSummerNoLast(TemplateBase):
                     cur_master = cur_master.new_template_with(fg_duml=fg_dum + num_fg_inc)
 
             # get minimum left routing track index
+            self._fg_tot += cur_master.fg_tot
             data_xl = xcur + cur_master.get_vm_coord(vm_w_out, False, left_out)
             ltr = self.grid.find_next_track(vm_layer, data_xl, tr_width=vm_w_out,
                                             half_track=True, mode=1, unit_mode=True)
@@ -890,6 +917,7 @@ class TapXSummer(TemplateBase):
         # type: (TemplateDB, str, Dict[str, Any], Set[str], **kwargs) -> None
         TemplateBase.__init__(self, temp_db, lib_name, params, used_names, **kwargs)
         self._sch_params = None
+        self._fg_tot = None
         self._fg_core_last = None
         self._ffe_track_info = None
         self._dfe_track_info = None
@@ -900,7 +928,13 @@ class TapXSummer(TemplateBase):
         return self._sch_params
 
     @property
+    def fg_tot(self):
+        # type: () -> int
+        return self._fg_tot
+
+    @property
     def fg_core_last(self):
+        # type: () -> int
         return self._fg_core_last
 
     @property
@@ -975,6 +1009,7 @@ class TapXSummer(TemplateBase):
         sub_params = self.params.copy()
         sub_params['show_pins'] = False
         sub_master = self.new_template(params=sub_params, temp_cls=TapXSummerNoLast)
+        self._fg_tot = sub_master.fg_tot
         inst = self.add_instance(sub_master, 'XSUB', loc=(0, 0), unit_mode=True)
         self._ffe_track_info = sub_master.ffe_track_info
         self._dfe_track_info = sub_master.dfe_track_info.copy()
@@ -1045,6 +1080,8 @@ class TapXSummer(TemplateBase):
             _record_track(self._dfe_track_info, name, loc + sig_offset)
 
         # add instance
+        self._fg_core_last = last_master.fg_core
+        self._fg_tot += last_master.fg_tot
         instl = self.add_instance(last_master, 'XLAST', loc=(xcur, 0), unit_mode=True)
         vdd_list.extend(instl.port_pins_iter('VDD'))
         vss_list.extend(instl.port_pins_iter('VSS'))
@@ -1135,7 +1172,6 @@ class TapXSummer(TemplateBase):
             dfe_params_list=sub_master.sch_params['dfe_params_list'],
             last_params=last_master.sch_params,
         )
-        self._fg_core_last = last_master.fg_core
 
 
 class TapXColumn(TemplateBase):
@@ -1230,19 +1266,37 @@ class TapXColumn(TemplateBase):
         divp_master = divn_master.new_template_with(div_pos_edge=False)
         endt_master = endb_master.new_template_with(seg_pul=None)
 
-        # place instances
         vm_layer = endt_master.top_layer
-        inst3 = self.add_instance(endb_master, 'X3', loc=(0, 0), unit_mode=True)
+        end_row_params = dict(
+            lch=self.params['lch'],
+            fg=endb_master.fg_tot,
+            sub_type='ptap',
+            threshold=self.params['th_lat']['tail'],
+            top_layer=vm_layer,
+            end_mode=0b11,
+            guard_ring_nf=0,
+            options=self.params['options'],
+        )
+        end_row_master = self.new_template(params=end_row_params, temp_cls=AnalogBaseEnd)
+        end_row_box = end_row_master.array_box
+
+        # place instances
+        bot_row = self.add_instance(end_row_master, 'XROWB', loc=(0, 0), unit_mode=True)
+        ycur = end_row_box.top_unit
+        inst3 = self.add_instance(endb_master, 'X3', loc=(0, ycur), unit_mode=True)
         ycur = inst3.array_box.top_unit + divn_master.array_box.top_unit
         inst0 = self.add_instance(divp_master, 'X0', loc=(0, ycur), orient='MX', unit_mode=True)
         ycur = inst0.array_box.top_unit
         inst2 = self.add_instance(divn_master, 'X2', loc=(0, ycur), unit_mode=True)
         ycur = inst2.array_box.top_unit + endt_master.array_box.top_unit
         inst1 = self.add_instance(endt_master, 'X1', loc=(0, ycur), orient='MX', unit_mode=True)
+        ycur = inst1.array_box.top_unit + end_row_box.top_unit
+        top_row = self.add_instance(end_row_master, 'XROWT', loc=(0, ycur), orient='MX',
+                                    unit_mode=True)
         inst_list = [inst0, inst1, inst2, inst3]
 
         # set size
-        self.set_size_from_bound_box(vm_layer, inst1.bound_box.merge(inst3.bound_box))
+        self.set_size_from_bound_box(vm_layer, bot_row.bound_box.merge(top_row.bound_box))
         self.array_box = self.bound_box
 
         # re-export supply pins
