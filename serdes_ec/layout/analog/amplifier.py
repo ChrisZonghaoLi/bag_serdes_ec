@@ -1,26 +1,4 @@
 # -*- coding: utf-8 -*-
-########################################################################################################################
-#
-# Copyright (c) 2014, Regents of the University of California
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without modification, are permitted provided that the
-# following conditions are met:
-#
-# 1. Redistributions of source code must retain the above copyright notice, this list of conditions and the following
-#   disclaimer.
-# 2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the
-#    following disclaimer in the documentation and/or other materials provided with the distribution.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
-# INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-# SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
-# WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-#
-########################################################################################################################
 
 """This module defines amplifier templates used in high speed links.
 """
@@ -104,7 +82,7 @@ class DiffAmp(SerdesRXBase):
             seg_dict='NMOS/PMOS number of segments dictionary.',
             fg_dum='Number of single-sided edge dummy fingers.',
             flip_out_sd='True to flip output source/drain.',
-            guard_ring_nf='Width of the guard ring, in number of fingers.  0 to disable guard ring.',
+            guard_ring_nf='Width of the guard ring in number of fingers.  0 to disable.',
             top_layer='the top routing layer.',
             tr_widths='Track width dictionary.',
             tr_spaces='Track spacing dictionary.',
@@ -135,7 +113,8 @@ class DiffAmp(SerdesRXBase):
 
         # make SerdesRXBaseInfo and compute total number of fingers.
         serdes_info = SerdesRXBaseInfo(self.grid, lch, guard_ring_nf, top_layer=top_layer)
-        diffamp_info = serdes_info.get_diffamp_info(seg_dict, fg_dum=fg_dum, flip_out_sd=flip_out_sd)
+        diffamp_info = serdes_info.get_diffamp_info(seg_dict, fg_dum=fg_dum,
+                                                    flip_out_sd=flip_out_sd)
         fg_tot = diffamp_info['fg_tot']
 
         # construct number of tracks dictionary
@@ -151,13 +130,15 @@ class DiffAmp(SerdesRXBase):
         hm_layer = self.mos_conn_layer + 1
         tr_manager = TrackManager(self.grid, tr_widths, tr_spaces)
         g_ntr_dict, ds_ntr_dict, tr_indices = {}, {}, {}
-        for row_name, gtr_list, dtr_list, dtr_name_list in zip(row_names, gtr_lists, dtr_lists, dtr_names):
+        for row_name, gtr_list, dtr_list, dtr_name_list in \
+                zip(row_names, gtr_lists, dtr_lists, dtr_names):
             w_row = w_dict.get(row_name, 0)
             if w_row > 0:
                 num_gtr, _ = tr_manager.place_wires(hm_layer, gtr_list)
                 if dtr_list:
                     dtr_sp = tr_manager.get_space(hm_layer, dtr_list[0])
-                    num_dtr, didx_list = tr_manager.place_wires(hm_layer, dtr_list, start_idx=dtr_sp)
+                    num_dtr, didx_list = tr_manager.place_wires(hm_layer, dtr_list,
+                                                                start_idx=dtr_sp)
                     for dtr_name, dtr_idx in zip(dtr_name_list, didx_list):
                         if isinstance(dtr_name, tuple):
                             for dtr_n in dtr_name:
@@ -177,7 +158,8 @@ class DiffAmp(SerdesRXBase):
 
         # draw diffamp
         amp_ports, _ = self.draw_diffamp(0, seg_dict, tr_widths=tr_widths, tr_spaces=tr_spaces,
-                                         tr_indices=tr_indices, fg_dum=fg_dum, flip_out_sd=flip_out_sd)
+                                         tr_indices=tr_indices, fg_dum=fg_dum,
+                                         flip_out_sd=flip_out_sd)
 
         # add dummies and pins
         vss_warrs, vdd_warrs = self.fill_dummy()
