@@ -1196,11 +1196,17 @@ class TapXColumn(TemplateBase):
         # type: (TemplateDB, str, Dict[str, Any], Set[str], **kwargs) -> None
         TemplateBase.__init__(self, temp_db, lib_name, params, used_names, **kwargs)
         self._sch_params = None
+        self._vss_tids = None
 
     @property
     def sch_params(self):
         # type: () -> Dict[str, Any]
         return self._sch_params
+
+    @property
+    def vss_tids(self):
+        # type: () -> TrackID
+        return self._vss_tids
 
     @classmethod
     def get_default_param_values(cls):
@@ -1294,6 +1300,9 @@ class TapXColumn(TemplateBase):
         top_row = self.add_instance(end_row_master, 'XROWT', loc=(0, ycur), orient='MX',
                                     unit_mode=True)
         inst_list = [inst0, inst1, inst2, inst3]
+        vss_tid = endb_master.get_port('VSS').get_pins(vm_layer - 1)[0].track_id
+        self._vss_tids = [(vss_tid.base_index, vss_tid.width),
+                          (vss_tid.base_index + vss_tid.pitch, vss_tid.width)]
 
         # set size
         self.set_size_from_bound_box(vm_layer, bot_row.bound_box.merge(top_row.bound_box))

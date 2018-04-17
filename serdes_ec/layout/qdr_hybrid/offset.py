@@ -63,6 +63,7 @@ class HighPassColumn(TemplateBase):
             cap_spy='Capacitor vertical space from resistor ports, in resolution units.',
             cap_margin='Capacitor space from edge, in resolution units.',
             ana_options='other AnalogBase options',
+            sub_tids='Substrate contact TrackIDs.',
             show_pins='True to show pins.',
         )
 
@@ -76,6 +77,7 @@ class HighPassColumn(TemplateBase):
             cap_spy=0,
             cap_margin=0,
             ana_options=None,
+            sub_tids=None,
             show_pins=True,
         )
 
@@ -96,6 +98,7 @@ class HighPassColumn(TemplateBase):
         cap_spy = self.params['cap_spy']
         cap_margin = self.params['cap_margin']
         ana_options = self.params['ana_options']
+        sub_tids = self.params['sub_tids']
         show_pins = self.params['show_pins']
 
         tr_manager = TrackManager(self.grid, tr_widths, tr_spaces, half_space=True)
@@ -105,7 +108,7 @@ class HighPassColumn(TemplateBase):
                          threshold=threshold, top_layer=top_layer, nser=nser, ndum=ndum,
                          res_type=res_type, res_options=res_options, cap_spx=cap_spx,
                          cap_spy=cap_spy, cap_margin=cap_margin, end_mode=12, sub_tr_w=sub_tr_w,
-                         show_pins=False)
+                         sub_tids=sub_tids, show_pins=False)
         master = self.new_template(params=rc_params, temp_cls=HighPassDiff)
         fg_sub = master.fg_sub
 
