@@ -32,7 +32,7 @@ class TapXSummerCell(TemplateBase):
     Parameters
     ----------
     temp_db : TemplateDB
-            the template database.
+        the template database.
     lib_name : str
         the layout library name.
     params : Dict[str, Any]
@@ -238,7 +238,7 @@ class TapXSummerLast(TemplateBase):
     Parameters
     ----------
     temp_db : TemplateDB
-            the template database.
+        the template database.
     lib_name : str
         the layout library name.
     params : Dict[str, Any]
@@ -400,7 +400,7 @@ class TapXSummerLast(TemplateBase):
             div_sch_params = pul_sch_params = None
         else:
             # draw divider
-            tr_manager = TrackManager(self.grid, tr_widths, tr_spaces)
+            tr_manager = TrackManager(self.grid, tr_widths, tr_spaces, half_space=True)
             hm_layer = s_master.mos_conn_layer + 1
             en_idx, w_en = lat_tr_info['nen3']
             en_idx = tr_manager.get_next_track(hm_layer, en_idx, w_en, w_en, up=False)
@@ -503,7 +503,7 @@ class TapXSummerNoLast(TemplateBase):
     Parameters
     ----------
     temp_db : TemplateDB
-            the template database.
+        the template database.
     lib_name : str
         the layout library name.
     params : Dict[str, Any]
@@ -898,7 +898,7 @@ class TapXSummer(TemplateBase):
     Parameters
     ----------
     temp_db : TemplateDB
-            the template database.
+        the template database.
     lib_name : str
         the layout library name.
     params : Dict[str, Any]
@@ -1180,7 +1180,7 @@ class TapXColumn(TemplateBase):
     Parameters
     ----------
     temp_db : TemplateDB
-            the template database.
+        the template database.
     lib_name : str
         the layout library name.
     params : Dict[str, Any]

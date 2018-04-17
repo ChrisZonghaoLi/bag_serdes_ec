@@ -179,7 +179,8 @@ class IntegAmp(HybridQDRBase):
         ports, _ = self.draw_integ_amp(fg_duml, seg_dict, invert=flip_sign,
                                        fg_dum=0, fg_sep_hm=fg_sep_hm)
 
-        vss_warrs, vdd_warrs = self.fill_dummy()
+        w_sup = tr_manager.get_width(hm_layer, 'sup')
+        vss_warrs, vdd_warrs = self.fill_dummy(vdd_width=w_sup, vss_width=w_sup)
         vss_warr = vss_warrs[0]
         vdd_warr = vdd_warrs[0]
         self.add_pin('VSS', vss_warr, show=show_pins)

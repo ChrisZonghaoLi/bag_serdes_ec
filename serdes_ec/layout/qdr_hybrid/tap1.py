@@ -25,7 +25,7 @@ class Tap1SummerRow(HybridQDRBase):
     Parameters
     ----------
     temp_db : TemplateDB
-            the template database.
+        the template database.
     lib_name : str
         the layout library name.
     params : Dict[str, Any]
@@ -145,7 +145,8 @@ class Tap1SummerRow(HybridQDRBase):
         fb_ports, _ = self.draw_integ_amp(fg_duml + fg_main + fg_sep_out, seg_fb, invert=True,
                                           fg_dum=0, fg_sep_hm=fg_sep_hm, net_suffix='_f')
 
-        vss_warrs, vdd_warrs = self.fill_dummy()
+        w_sup = tr_manager.get_width(hm_layer, 'sup')
+        vss_warrs, vdd_warrs = self.fill_dummy(vdd_width=w_sup, vss_width=w_sup)
         ports_list = [main_ports, fb_ports]
 
         for name in ('outp', 'outn', 'en2', 'clkp', 'clkn'):
@@ -441,7 +442,7 @@ class Tap1Summer(TemplateBase):
     Parameters
     ----------
     temp_db : TemplateDB
-            the template database.
+        the template database.
     lib_name : str
         the layout library name.
     params : Dict[str, Any]
@@ -599,7 +600,7 @@ class Tap1Column(TemplateBase):
     Parameters
     ----------
     temp_db : TemplateDB
-            the template database.
+        the template database.
     lib_name : str
         the layout library name.
     params : Dict[str, Any]
