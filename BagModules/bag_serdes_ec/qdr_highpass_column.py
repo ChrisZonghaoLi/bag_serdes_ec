@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from typing import Dict
+from typing import Dict, Any
 
 import os
 import pkg_resources
@@ -8,7 +8,8 @@ import pkg_resources
 from bag.design import Module
 
 
-yaml_file = pkg_resources.resource_filename(__name__, os.path.join('netlist_info', 'qdr_highpass_column.yaml'))
+yaml_file = pkg_resources.resource_filename(__name__, os.path.join('netlist_info',
+                                                                   'qdr_highpass_column.yaml'))
 
 
 # noinspection PyPep8Naming
@@ -24,30 +25,36 @@ class bag_serdes_ec__qdr_highpass_column(Module):
     @classmethod
     def get_params_info(cls):
         # type: () -> Dict[str, str]
-        """Returns a dictionary from parameter names to descriptions.
-
-        Returns
-        -------
-        param_info : Optional[Dict[str, str]]
-            dictionary from parameter names to descriptions.
-        """
         return dict(
+            l='unit resistor length, in meters.',
+            w='unit resistor width, in meters.',
+            intent='resistor type.',
+            nser='number of resistors in series in a branch.',
+            ndum='number of dummy resistors.',
+            res_vm_info='vertical metal resistor information.',
+            res_in_info='input metal resistor information.',
+            res_out_info='output metal resistor information.',
+            sub_name='substrate name.  Empty string to disable.',
         )
 
-    def design(self):
-        """To be overridden by subclasses to design this module.
+    @classmethod
+    def get_default_param_values(cls):
+        # type: () -> Dict[str, Any]
+        return dict(
+            sub_name='VSS',
+        )
 
-        This method should fill in values for all parameters in
-        self.parameters.  To design instances of this module, you can
-        call their design() method or any other ways you coded.
+    def design(self, l, w, intent, nser, ndum, res_vm_info, res_in_info, res_out_info, sub_name):
+        rename = False
+        if not sub_name:
+            self.remove_pin(sub_name)
+        elif sub_name != 'VSS':
+            self.rename_pin('VSS', sub_name)
+            rename = True
 
-        To modify schematic structure, call:
-
-        rename_pin()
-        delete_instance()
-        replace_instance_master()
-        reconnect_instance_terminal()
-        restore_instance()
-        array_instance()
-        """
-        pass
+        for idx in range(4):
+            name = 'X%d' % idx
+            self.instances[name].design(l, w, intent, nser, ndum, res_vm_info, res_in_info,
+                                        res_out_info, sub_name)
+            if rename:
+                self.reconnect_instance_terminal(name, 'VSS', sub_name)
