@@ -1,0 +1,180 @@
+lib_name: bag_serdes_ec
+cell_name: qdr_highpass_column
+pins: [ "VDD", "VSS", "inp<3:0>", "inn<3:0>", "outp<3:0>", "outn<3:0>", "biasp<3:0>", "biasn<3:0>" ]
+instances:
+  X3:
+    lib_name: bag_analog_ec
+    cell_name: high_pass_diff
+    instpins:
+      VDD:
+        direction: inputOutput
+        net_name: "VDD"
+        num_bits: 1
+      VSS:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      biasn:
+        direction: inputOutput
+        net_name: "biasn<3>"
+        num_bits: 1
+      biasp:
+        direction: inputOutput
+        net_name: "biasp<3>"
+        num_bits: 1
+      outp:
+        direction: inputOutput
+        net_name: "outp<3>"
+        num_bits: 1
+      outn:
+        direction: inputOutput
+        net_name: "outn<3>"
+        num_bits: 1
+      inp:
+        direction: inputOutput
+        net_name: "inp<3>"
+        num_bits: 1
+      inn:
+        direction: inputOutput
+        net_name: "inn<3>"
+        num_bits: 1
+  X1:
+    lib_name: bag_analog_ec
+    cell_name: high_pass_diff
+    instpins:
+      VDD:
+        direction: inputOutput
+        net_name: "VDD"
+        num_bits: 1
+      VSS:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      biasn:
+        direction: inputOutput
+        net_name: "biasn<1>"
+        num_bits: 1
+      biasp:
+        direction: inputOutput
+        net_name: "biasp<1>"
+        num_bits: 1
+      outp:
+        direction: inputOutput
+        net_name: "outp<1>"
+        num_bits: 1
+      outn:
+        direction: inputOutput
+        net_name: "outn<1>"
+        num_bits: 1
+      inp:
+        direction: inputOutput
+        net_name: "inp<1>"
+        num_bits: 1
+      inn:
+        direction: inputOutput
+        net_name: "inn<1>"
+        num_bits: 1
+  X2:
+    lib_name: bag_analog_ec
+    cell_name: high_pass_diff
+    instpins:
+      VDD:
+        direction: inputOutput
+        net_name: "VDD"
+        num_bits: 1
+      VSS:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      biasn:
+        direction: inputOutput
+        net_name: "biasn<2>"
+        num_bits: 1
+      biasp:
+        direction: inputOutput
+        net_name: "biasp<2>"
+        num_bits: 1
+      outp:
+        direction: inputOutput
+        net_name: "outp<2>"
+        num_bits: 1
+      outn:
+        direction: inputOutput
+        net_name: "outn<2>"
+        num_bits: 1
+      inp:
+        direction: inputOutput
+        net_name: "inp<2>"
+        num_bits: 1
+      inn:
+        direction: inputOutput
+        net_name: "inn<2>"
+        num_bits: 1
+  X0:
+    lib_name: bag_analog_ec
+    cell_name: high_pass_diff
+    instpins:
+      VDD:
+        direction: inputOutput
+        net_name: "VDD"
+        num_bits: 1
+      VSS:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      biasn:
+        direction: inputOutput
+        net_name: "biasn<0>"
+        num_bits: 1
+      biasp:
+        direction: inputOutput
+        net_name: "biasp<0>"
+        num_bits: 1
+      outp:
+        direction: inputOutput
+        net_name: "outp<0>"
+        num_bits: 1
+      outn:
+        direction: inputOutput
+        net_name: "outn<0>"
+        num_bits: 1
+      inp:
+        direction: inputOutput
+        net_name: "inp<0>"
+        num_bits: 1
+      inn:
+        direction: inputOutput
+        net_name: "inn<0>"
+        num_bits: 1
+  PIN1:
+    lib_name: basic
+    cell_name: iopin
+    instpins: {}
+  PIN0:
+    lib_name: basic
+    cell_name: iopin
+    instpins: {}
+  PIN7:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN6:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN3:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN2:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN5:
+    lib_name: basic
+    cell_name: opin
+    instpins: {}
+  PIN4:
+    lib_name: basic
+    cell_name: opin
+    instpins: {}
