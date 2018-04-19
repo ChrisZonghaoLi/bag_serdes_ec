@@ -10,6 +10,8 @@ from bag.layout.util import BBox
 from bag.layout.routing import TrackManager, TrackID
 from bag.layout.template import TemplateBase
 
+from abs_templates_ec.analog_core.base import AnalogBaseEnd
+
 from ..laygo.divider import SinClkDivider
 from .base import HybridQDRBaseInfo, HybridQDRBase
 from .amp import IntegAmp
@@ -42,6 +44,7 @@ class Tap1SummerRow(HybridQDRBase):
         HybridQDRBase.__init__(self, temp_db, lib_name, params, used_names, **kwargs)
         self._sch_params = None
         self._fg_core = None
+        self._fg_tot = None
 
     @property
     def sch_params(self):
@@ -53,12 +56,16 @@ class Tap1SummerRow(HybridQDRBase):
         # type: () -> int
         return self._fg_core
 
+    @property
+    def fg_tot(self):
+        # type: () -> int
+        return self._fg_tot
+
     @classmethod
     def get_default_param_values(cls):
         # type: () -> Dict[str, Any]
         return dict(
             fg_min=0,
-            is_end=False,
             show_pins=True,
             options=None,
         )
@@ -78,7 +85,6 @@ class Tap1SummerRow(HybridQDRBase):
             tr_widths='Track width dictionary.',
             tr_spaces='Track spacing dictionary.',
             fg_min='Minimum number of core fingers.',
-            is_end='True if this is the end row.',
             show_pins='True to create pin labels.',
             options='other AnalogBase options',
         )
@@ -95,13 +101,12 @@ class Tap1SummerRow(HybridQDRBase):
         tr_widths = self.params['tr_widths']
         tr_spaces = self.params['tr_spaces']
         fg_min = self.params['fg_min']
-        is_end = self.params['is_end']
         show_pins = self.params['show_pins']
         options = self.params['options']
 
         if options is None:
             options = {}
-        end_mode = 13 if is_end else 12
+        end_mode = 12
 
         # get track manager and wire names
         tr_manager = TrackManager(self.grid, tr_widths, tr_spaces, half_space=True)
@@ -182,6 +187,7 @@ class Tap1SummerRow(HybridQDRBase):
             seg_fb=seg_fb,
             dum_info=self.get_sch_dummy_info(),
         )
+        self._fg_tot = fg_tot
 
 
 class Tap1LatchRow(TemplateBase):
@@ -458,6 +464,7 @@ class Tap1Summer(TemplateBase):
         # type: (TemplateDB, str, Dict[str, Any], Set[str], **kwargs) -> None
         TemplateBase.__init__(self, temp_db, lib_name, params, used_names, **kwargs)
         self._sch_params = None
+        self._fg_tot = None
         self._fg_core = None
         self._en_locs = None
 
@@ -465,6 +472,11 @@ class Tap1Summer(TemplateBase):
     def sch_params(self):
         # type: () -> Dict[str, Any]
         return self._sch_params
+
+    @property
+    def fg_tot(self):
+        # type: () -> int
+        return self._fg_tot
 
     @property
     def fg_core(self):
@@ -482,9 +494,11 @@ class Tap1Summer(TemplateBase):
         return dict(
             div_pos_edge=True,
             fg_min=0,
-            is_end=False,
-            show_pins=True,
             options=None,
+            row_heights=None,
+            vss_tids=None,
+            vdd_tids=None,
+            show_pins=True,
         )
 
     @classmethod
@@ -507,9 +521,11 @@ class Tap1Summer(TemplateBase):
             tr_spaces='Track spacing dictionary.',
             div_pos_edge='True if the divider triggers off positive edge of the clock.',
             fg_min='Minimum number of core fingers.',
-            is_end='True if this is the end row.',
-            show_pins='True to create pin labels.',
             options='other AnalogBase options',
+            row_heights='row heights.',
+            vss_tids='VSS tracks information.',
+            vdd_tids='VDD tracks information.',
+            show_pins='True to create pin labels.',
         )
 
     def draw_layout(self):
@@ -519,29 +535,16 @@ class Tap1Summer(TemplateBase):
         show_pins = self.params['show_pins']
 
         # get layout masters
-        main_params = self.params.copy()
-        main_params['show_pins'] = False
-        del main_params['config']
-        del main_params['seg_lat']
-        del main_params['seg_div']
-        del main_params['seg_pul']
-        del main_params['div_pos_edge']
-
-        lat_params = self.params.copy()
-        lat_params['show_pins'] = False
-        del lat_params['seg_main']
-        del lat_params['seg_fb']
-        del lat_params['is_end']
-
-        # get masters
+        row_params = self.params.copy()
+        row_params['show_pins'] = False
         if seg_div is None:
-            l_master = self.new_template(params=lat_params, temp_cls=Tap1LatchRow)
-            main_params['fg_min'] = max(fg_min, l_master.fg_core)
-            m_master = self.new_template(params=main_params, temp_cls=Tap1SummerRow)
+            l_master = self.new_template(params=row_params, temp_cls=Tap1LatchRow)
+            row_params['fg_min'] = max(fg_min, l_master.fg_core)
+            m_master = self.new_template(params=row_params, temp_cls=Tap1SummerRow)
         else:
-            m_master = self.new_template(params=main_params, temp_cls=Tap1SummerRow)
-            lat_params['fg_min'] = max(fg_min, m_master.fg_core)
-            l_master = self.new_template(params=lat_params, temp_cls=Tap1LatchRow)
+            m_master = self.new_template(params=row_params, temp_cls=Tap1SummerRow)
+            row_params['fg_min'] = max(fg_min, m_master.fg_core)
+            l_master = self.new_template(params=row_params, temp_cls=Tap1LatchRow)
 
         self._fg_core = max(fg_min, l_master.fg_core, m_master.fg_core)
         if l_master.fg_core < self._fg_core:
@@ -592,6 +595,7 @@ class Tap1Summer(TemplateBase):
             sum_params=m_master.sch_params,
             lat_params=l_master.sch_params,
         )
+        self._fg_tot = m_master.fg_tot
 
 
 class Tap1Column(TemplateBase):
@@ -626,8 +630,11 @@ class Tap1Column(TemplateBase):
     def get_default_param_values(cls):
         # type: () -> Dict[str, Any]
         return dict(
-            show_pins=True,
             options=None,
+            row_heights=None,
+            vss_tids=None,
+            vdd_tids=None,
+            show_pins=True,
         )
 
     @classmethod
@@ -648,21 +655,23 @@ class Tap1Column(TemplateBase):
             fg_dum='Number of single-sided edge dummy fingers.',
             tr_widths='Track width dictionary.',
             tr_spaces='Track spacing dictionary.',
-            show_pins='True to create pin labels.',
             options='other AnalogBase options',
+            row_heights='row heights for one summer.',
+            vss_tids='VSS tracks information for one summer.',
+            vdd_tids='VDD tracks information for one summer.',
+            show_pins='True to create pin labels.',
         )
 
     def draw_layout(self):
         # get parameters
-        show_pins = self.params['show_pins']
         tr_widths = self.params['tr_widths']
         tr_spaces = self.params['tr_spaces']
+        show_pins = self.params['show_pins']
 
         # make masters
         div_params = self.params.copy()
         div_params['seg_pul'] = None
         div_params['div_pos_edge'] = True
-        div_params['is_end'] = False
         div_params['show_pins'] = False
 
         divn_master = self.new_template(params=div_params, temp_cls=Tap1Summer)
@@ -671,7 +680,6 @@ class Tap1Column(TemplateBase):
         end_params = self.params.copy()
         end_params['seg_div'] = None
         end_params['fg_min'] = fg_min
-        end_params['is_end'] = True
         end_params['show_pins'] = False
 
         endt_master = self.new_template(params=end_params, temp_cls=Tap1Summer)
@@ -681,19 +689,37 @@ class Tap1Column(TemplateBase):
         divp_master = divn_master.new_template_with(div_pos_edge=False)
         endb_master = endt_master.new_template_with(seg_pul=None)
 
+        end_row_params = dict(
+            lch=self.params['lch'],
+            fg=endb_master.fg_tot,
+            sub_type='ptap',
+            threshold=self.params['th_dict']['tail'],
+            top_layer=endb_master.top_layer,
+            end_mode=0b11,
+            guard_ring_nf=0,
+            options=self.params['options'],
+        )
+        end_row_master = self.new_template(params=end_row_params, temp_cls=AnalogBaseEnd)
+        end_row_box = end_row_master.array_box
+
         # place instances
         vm_layer = top_layer = endt_master.top_layer
-        inst1 = self.add_instance(endb_master, 'X1', loc=(0, 0), unit_mode=True)
+        bot_row = self.add_instance(end_row_master, 'XROWB', loc=(0, 0), unit_mode=True)
+        ycur = end_row_box.top_unit
+        inst1 = self.add_instance(endb_master, 'X1', loc=(0, ycur), unit_mode=True)
         ycur = inst1.array_box.top_unit + divn_master.array_box.top_unit
         inst2 = self.add_instance(divp_master, 'X2', loc=(0, ycur), orient='MX', unit_mode=True)
         ycur = inst2.array_box.top_unit
         inst0 = self.add_instance(divn_master, 'X0', loc=(0, ycur), unit_mode=True)
         ycur = inst0.array_box.top_unit + endt_master.array_box.top_unit
         inst3 = self.add_instance(endt_master, 'X3', loc=(0, ycur), orient='MX', unit_mode=True)
+        ycur = inst3.array_box.top_unit + end_row_box.top_unit
+        top_row = self.add_instance(end_row_master, 'XROWT', loc=(0, ycur), orient='MX',
+                                    unit_mode=True)
         inst_list = [inst0, inst1, inst2, inst3]
 
         # set size
-        self.set_size_from_bound_box(top_layer, inst1.bound_box.merge(inst3.bound_box))
+        self.set_size_from_bound_box(top_layer, bot_row.bound_box.merge(top_row.bound_box))
         self.array_box = self.bound_box
 
         tr_manager = TrackManager(self.grid, tr_widths, tr_spaces, half_space=True)
