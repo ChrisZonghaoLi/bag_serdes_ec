@@ -10,7 +10,7 @@ from bag.layout.util import BBox
 from bag.layout.routing import TrackManager, TrackID
 from bag.layout.template import TemplateBase
 
-from abs_templates_ec.analog_core.base import AnalogBaseEnd
+from abs_templates_ec.analog_core.base import AnalogBase, AnalogBaseEnd
 
 from ..laygo.divider import SinClkDivider
 from .base import HybridQDRBaseInfo, HybridQDRBase
@@ -66,8 +66,11 @@ class Tap1SummerRow(HybridQDRBase):
         # type: () -> Dict[str, Any]
         return dict(
             fg_min=0,
-            show_pins=True,
             options=None,
+            min_height=0,
+            vss_tid=None,
+            vdd_tid=None,
+            show_pins=True,
         )
 
     @classmethod
@@ -85,8 +88,11 @@ class Tap1SummerRow(HybridQDRBase):
             tr_widths='Track width dictionary.',
             tr_spaces='Track spacing dictionary.',
             fg_min='Minimum number of core fingers.',
-            show_pins='True to create pin labels.',
             options='other AnalogBase options',
+            min_height='Minimum height.',
+            vss_tid='VSS track information.',
+            vdd_tid='VDD track information.',
+            show_pins='True to create pin labels.',
         )
 
     def draw_layout(self):
@@ -101,8 +107,11 @@ class Tap1SummerRow(HybridQDRBase):
         tr_widths = self.params['tr_widths']
         tr_spaces = self.params['tr_spaces']
         fg_min = self.params['fg_min']
-        show_pins = self.params['show_pins']
         options = self.params['options']
+        min_height = self.params['min_height']
+        vss_tid = self.params['vss_tid']
+        vdd_tid = self.params['vdd_tid']
+        show_pins = self.params['show_pins']
 
         if options is None:
             options = {}
@@ -142,7 +151,8 @@ class Tap1SummerRow(HybridQDRBase):
         fg_duml = fg_tot - fg_dumr - fg_amp
 
         self.draw_rows(lch, fg_tot, ptap_w, ntap_w, w_dict, th_dict, tr_manager,
-                       wire_names, top_layer=top_layer, end_mode=end_mode, **options)
+                       wire_names, top_layer=top_layer, end_mode=end_mode,
+                       min_height=min_height, **options)
 
         # draw amplifier
         main_ports, _ = self.draw_integ_amp(fg_duml, seg_main, fg_dum=0,
@@ -151,7 +161,19 @@ class Tap1SummerRow(HybridQDRBase):
                                           fg_dum=0, fg_sep_hm=fg_sep_hm, net_suffix='_f')
 
         w_sup = tr_manager.get_width(hm_layer, 'sup')
-        vss_warrs, vdd_warrs = self.fill_dummy(vdd_width=w_sup, vss_width=w_sup)
+        sup_tids = [None, None]
+        if vss_tid is None:
+            vss_width = w_sup
+        else:
+            sup_tids[0] = vss_tid[0]
+            vss_width = vss_tid[1]
+        if vdd_tid is None:
+            vdd_width = w_sup
+        else:
+            sup_tids[1] = vdd_tid[0]
+            vdd_width = vdd_tid[1]
+        vss_warrs, vdd_warrs = self.fill_dummy(vdd_width=vdd_width, vss_width=vss_width,
+                                               sup_tids=sup_tids)
         ports_list = [main_ports, fb_ports]
 
         for name in ('outp', 'outn', 'en2', 'clkp', 'clkn'):
@@ -236,8 +258,11 @@ class Tap1LatchRow(TemplateBase):
         return dict(
             div_pos_edge=True,
             fg_min=0,
-            show_pins=True,
             options=None,
+            min_height=0,
+            vss_tid=None,
+            vdd_tid=None,
+            show_pins=True,
         )
 
     @classmethod
@@ -258,8 +283,11 @@ class Tap1LatchRow(TemplateBase):
             tr_spaces='Track spacing dictionary.',
             div_pos_edge='True if the divider triggers off positive edge of the clock.',
             fg_min='Minimum number of core fingers.',
-            show_pins='True to create pin labels.',
             options='other AnalogBase options',
+            min_height='Minimum height.',
+            vss_tid='VSS track information.',
+            vdd_tid='VDD track information.',
+            show_pins='True to create pin labels.',
         )
 
     def draw_layout(self):
@@ -268,11 +296,11 @@ class Tap1LatchRow(TemplateBase):
         seg_div = self.params['seg_div']
         seg_pul = self.params['seg_pul']
         fg_dum = self.params['fg_dum']
-        show_pins = self.params['show_pins']
         tr_widths = self.params['tr_widths']
         tr_spaces = self.params['tr_spaces']
         div_pos_edge = self.params['div_pos_edge']
         fg_min = self.params['fg_min']
+        show_pins = self.params['show_pins']
 
         no_dig = (seg_div is None and seg_pul is None)
 
@@ -532,19 +560,60 @@ class Tap1Summer(TemplateBase):
         # get parameters
         seg_div = self.params['seg_div']
         fg_min = self.params['fg_min']
+        row_heights = self.params['row_heights']
+        vss_tids = self.params['vss_tids']
+        vdd_tids = self.params['vdd_tids']
         show_pins = self.params['show_pins']
 
-        # get layout masters
-        row_params = self.params.copy()
-        row_params['show_pins'] = False
-        if seg_div is None:
-            l_master = self.new_template(params=row_params, temp_cls=Tap1LatchRow)
-            row_params['fg_min'] = max(fg_min, l_master.fg_core)
-            m_master = self.new_template(params=row_params, temp_cls=Tap1SummerRow)
+        # handle row_heights/substrate tracks
+        if row_heights is None:
+            bot_params = dict(
+                min_height=0,
+                vss_tid=None,
+                vdd_tid=None,
+            )
+            top_params = bot_params.copy()
         else:
-            m_master = self.new_template(params=row_params, temp_cls=Tap1SummerRow)
-            row_params['fg_min'] = max(fg_min, m_master.fg_core)
-            l_master = self.new_template(params=row_params, temp_cls=Tap1LatchRow)
+            hm_layer = AnalogBase.get_mos_conn_layer(self.grid.tech_info) + 1
+            ytop = row_heights[0] + row_heights[1]
+            tr_off = self.grid.find_next_track(hm_layer, ytop, half_track=True, mode=-1,
+                                               unit_mode=True)
+            if vss_tids is None:
+                vss_bot_tid = vss_top_tid = None
+            else:
+                vss_bot_tid = vss_tids[0]
+                vss_top_tid = (tr_off - vss_tids[1][0], vss_tids[1][1])
+            if vdd_tids is None:
+                vdd_bot_tid = vdd_top_tid = None
+            else:
+                vdd_bot_tid = vdd_tids[0]
+                vdd_top_tid = (tr_off - vdd_tids[1][0], vdd_tids[1][1])
+
+            bot_params = dict(
+                min_height=row_heights[0],
+                vss_tid=vss_bot_tid,
+                vdd_tid=vdd_bot_tid,
+            )
+            top_params = dict(
+                min_height=row_heights[1],
+                vss_tid=vss_top_tid,
+                vdd_tid=vdd_top_tid,
+            )
+
+        # get layout masters
+        bot_params.update(self.params)
+        bot_params['show_pins'] = False
+        top_params.update(self.params)
+        top_params['show_pins'] = False
+
+        if seg_div is None:
+            l_master = self.new_template(params=top_params, temp_cls=Tap1LatchRow)
+            bot_params['fg_min'] = max(fg_min, l_master.fg_core)
+            m_master = self.new_template(params=bot_params, temp_cls=Tap1SummerRow)
+        else:
+            m_master = self.new_template(params=bot_params, temp_cls=Tap1SummerRow)
+            top_params['fg_min'] = max(fg_min, m_master.fg_core)
+            l_master = self.new_template(params=top_params, temp_cls=Tap1LatchRow)
 
         self._fg_core = max(fg_min, l_master.fg_core, m_master.fg_core)
         if l_master.fg_core < self._fg_core:

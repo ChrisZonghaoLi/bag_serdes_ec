@@ -93,9 +93,12 @@ class IntegAmp(HybridQDRBase):
             flip_sign=False,
             but_sw=False,
             top_layer=None,
-            show_pins=True,
             end_mode=15,
             options=None,
+            min_height=0,
+            vss_tid=None,
+            vdd_tid=None,
+            show_pins=True,
         )
 
     @classmethod
@@ -115,9 +118,12 @@ class IntegAmp(HybridQDRBase):
             flip_sign='True to flip summer output sign.',
             but_sw='True to reserve space for butterfly switch.',
             top_layer='Top layer ID',
-            show_pins='True to create pin labels.',
             end_mode='The AnalogBase end_mode flag.',
             options='other AnalogBase options',
+            min_height='Minimum height.',
+            vss_tid='VSS track information.',
+            vdd_tid='VDD track information.',
+            show_pins='True to create pin labels.',
         )
 
     def draw_layout(self):
@@ -134,9 +140,12 @@ class IntegAmp(HybridQDRBase):
         flip_sign = self.params['flip_sign']
         but_sw = self.params['but_sw']
         top_layer = self.params['top_layer']
-        show_pins = self.params['show_pins']
         end_mode = self.params['end_mode']
         options = self.params['options']
+        min_height = self.params['min_height']
+        vss_tid = self.params['vss_tid']
+        vdd_tid = self.params['vdd_tid']
+        show_pins = self.params['show_pins']
 
         if options is None:
             options = {}
@@ -173,14 +182,26 @@ class IntegAmp(HybridQDRBase):
         fg_amp = amp_info['fg_tot']
         fg_tot = fg_amp + fg_duml + fg_dumr
         self.draw_rows(lch, fg_tot, ptap_w, ntap_w, w_dict, th_dict, tr_manager, wire_names,
-                       top_layer=top_layer, end_mode=end_mode, **options)
+                       top_layer=top_layer, end_mode=end_mode, min_height=min_height, **options)
 
         # draw amplifier
         ports, _ = self.draw_integ_amp(fg_duml, seg_dict, invert=flip_sign,
                                        fg_dum=0, fg_sep_hm=fg_sep_hm)
 
         w_sup = tr_manager.get_width(hm_layer, 'sup')
-        vss_warrs, vdd_warrs = self.fill_dummy(vdd_width=w_sup, vss_width=w_sup)
+        sup_tids = [None, None]
+        if vss_tid is None:
+            vss_width = w_sup
+        else:
+            sup_tids[0] = vss_tid[0]
+            vss_width = vss_tid[1]
+        if vdd_tid is None:
+            vdd_width = w_sup
+        else:
+            sup_tids[1] = vdd_tid[0]
+            vdd_width = vdd_tid[1]
+        vss_warrs, vdd_warrs = self.fill_dummy(vdd_width=vdd_width, vss_width=vss_width,
+                                               sup_tids=sup_tids)
         vss_warr = vss_warrs[0]
         vdd_warr = vdd_warrs[0]
         self.add_pin('VSS', vss_warr, show=show_pins)
