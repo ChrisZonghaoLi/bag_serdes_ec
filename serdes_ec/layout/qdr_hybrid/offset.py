@@ -55,6 +55,8 @@ class HighPassColumn(TemplateBase):
             top_layer='The top layer ID',
             nser='number of resistors in series in a branch.',
             ndum='number of dummy resistors.',
+            in_tr_info='Input track info.',
+            out_tr_info='Output track info.',
             tr_widths='Track width dictionary.',
             tr_spaces='Track spacing dictionary.',
             res_type='Resistor intent',
@@ -90,6 +92,8 @@ class HighPassColumn(TemplateBase):
         top_layer = self.params['top_layer']
         nser = self.params['nser']
         ndum = self.params['ndum']
+        in_tr_info = self.params['in_tr_info']
+        out_tr_info = self.params['out_tr_info']
         tr_widths = self.params['tr_widths']
         tr_spaces = self.params['tr_spaces']
         res_type = self.params['res_type']
@@ -106,9 +110,10 @@ class HighPassColumn(TemplateBase):
 
         rc_params = dict(w=w, h_unit=h_unit, sub_w=ptap_w, sub_lch=lch, sub_type='ptap',
                          threshold=threshold, top_layer=top_layer, nser=nser, ndum=ndum,
-                         res_type=res_type, res_options=res_options, cap_spx=cap_spx,
-                         cap_spy=cap_spy, cap_margin=cap_margin, end_mode=12, sub_tr_w=sub_tr_w,
-                         sub_tids=sub_tids, show_pins=False)
+                         in_tr_info=in_tr_info, out_tr_info=out_tr_info, res_type=res_type,
+                         res_options=res_options, cap_spx=cap_spx, cap_spy=cap_spy,
+                         cap_margin=cap_margin, end_mode=12, sub_tr_w=sub_tr_w, sub_tids=sub_tids,
+                         show_pins=False)
         master = self.new_template(params=rc_params, temp_cls=HighPassDiff)
         fg_sub = master.fg_sub
 

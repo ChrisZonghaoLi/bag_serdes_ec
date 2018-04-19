@@ -2,7 +2,7 @@
 
 """This module defines classes needed to build the Hybrid-QDR FFE/DFE summer."""
 
-from typing import TYPE_CHECKING, Dict, Any, Set
+from typing import TYPE_CHECKING, Dict, Any, Set, Tuple, Union
 
 from itertools import chain
 
@@ -1197,6 +1197,7 @@ class TapXColumn(TemplateBase):
         TemplateBase.__init__(self, temp_db, lib_name, params, used_names, **kwargs)
         self._sch_params = None
         self._vss_tids = None
+        self._out_tr_info = None
 
     @property
     def sch_params(self):
@@ -1207,6 +1208,11 @@ class TapXColumn(TemplateBase):
     def vss_tids(self):
         # type: () -> TrackID
         return self._vss_tids
+
+    @property
+    def out_tr_info(self):
+        # type: () -> Tuple[Union[float, int], Union[float, int], int]
+        return self._out_tr_info
 
     @classmethod
     def get_default_param_values(cls):
@@ -1400,6 +1406,11 @@ class TapXColumn(TemplateBase):
                               divn_master.sch_params['last_params'],
                               endt_master.sch_params['last_params']],
         )
+        outp_s = endb_master.get_port('outp_s').get_pins()[0]
+        outn_s = endb_master.get_port('outn_s').get_pins()[0]
+        self._out_tr_info = (outp_s.track_id.base_index, outn_s.track_id.base_index,
+                             outp_s.track_id.width)
+        print(self._out_tr_info)
 
     def _connect_ffe(self, tr_manager, vm_layer, num_sig, track_info, inst_list, show_pins):
         vm_w_casc = tr_manager.get_width(vm_layer, 'casc')
