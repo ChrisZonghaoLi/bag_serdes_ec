@@ -2,7 +2,7 @@
 
 """This module defines classes needed to build the Hybrid-QDR DFE tap1 summer."""
 
-from typing import TYPE_CHECKING, Dict, Any, Set, List, Union
+from typing import TYPE_CHECKING, Dict, Any, Set, List, Union, Tuple
 
 from itertools import chain
 
@@ -689,11 +689,17 @@ class Tap1Column(TemplateBase):
         # type: (TemplateDB, str, Dict[str, Any], Set[str], **kwargs) -> None
         TemplateBase.__init__(self, temp_db, lib_name, params, used_names, **kwargs)
         self._sch_params = None
+        self._in_tr_info = None
 
     @property
     def sch_params(self):
         # type: () -> Dict[str, Any]
         return self._sch_params
+
+    @property
+    def in_tr_info(self):
+        # type: () -> Tuple[Union[float, int], Union[float, int], int]
+        return self._in_tr_info
 
     @classmethod
     def get_default_param_values(cls):
@@ -937,3 +943,7 @@ class Tap1Column(TemplateBase):
             div_params=divp_master.sch_params['lat_params']['div_params'],
             pul_params=endt_master.sch_params['lat_params']['pul_params'],
         )
+        inp = endb_master.get_port('inp').get_pins()[0]
+        inn = endb_master.get_port('inn').get_pins()[0]
+        self._in_tr_info = (inp.track_id.base_index, inn.track_id.base_index,
+                            inp.track_id.width)
