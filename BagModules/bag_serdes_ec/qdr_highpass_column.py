@@ -56,7 +56,8 @@ class bag_serdes_ec__qdr_highpass_column(Module):
 
         for idx in range(4):
             name = 'X%d' % idx
-            self.instances[name].design(l, w, intent, nser, ndum, res_in_info,
-                                        res_out_info, sub_name)
+            self.instances[name].design(l=l, w=w, intent=intent, nser=nser, ndum=ndum,
+                                        res_in_info=res_in_info, res_out_info=res_out_info,
+                                        sub_name=sub_name)
             if rename:
                 self.reconnect_instance_terminal(name, sub_name, sub_name)

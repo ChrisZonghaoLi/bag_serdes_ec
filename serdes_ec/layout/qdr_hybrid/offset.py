@@ -57,6 +57,7 @@ class HighPassColumn(TemplateBase):
             ndum='number of dummy resistors.',
             in_tr_info='Input track info.',
             out_tr_info='Output track info.',
+            vdd_tr_info='Supply track info.',
             tr_widths='Track width dictionary.',
             tr_spaces='Track spacing dictionary.',
             res_type='Resistor intent',
@@ -94,6 +95,7 @@ class HighPassColumn(TemplateBase):
         ndum = self.params['ndum']
         in_tr_info = self.params['in_tr_info']
         out_tr_info = self.params['out_tr_info']
+        vdd_tr_info = self.params['vdd_tr_info']
         tr_widths = self.params['tr_widths']
         tr_spaces = self.params['tr_spaces']
         res_type = self.params['res_type']
@@ -110,10 +112,10 @@ class HighPassColumn(TemplateBase):
 
         rc_params = dict(w=w, h_unit=h_unit, sub_w=ptap_w, sub_lch=lch, sub_type='ptap',
                          threshold=threshold, top_layer=top_layer, nser=nser, ndum=ndum,
-                         in_tr_info=in_tr_info, out_tr_info=out_tr_info, res_type=res_type,
-                         res_options=res_options, cap_spx=cap_spx, cap_spy=cap_spy,
-                         cap_margin=cap_margin, end_mode=12, sub_tr_w=sub_tr_w, sub_tids=sub_tids,
-                         show_pins=False)
+                         in_tr_info=in_tr_info, out_tr_info=out_tr_info, vdd_tr_info=vdd_tr_info,
+                         res_type=res_type, res_options=res_options, cap_spx=cap_spx,
+                         cap_spy=cap_spy, cap_margin=cap_margin, end_mode=12, sub_tr_w=sub_tr_w,
+                         sub_tids=sub_tids, show_pins=False)
         master = self.new_template(params=rc_params, temp_cls=HighPassDiff)
         fg_sub = master.fg_sub
 
@@ -136,9 +138,26 @@ class HighPassColumn(TemplateBase):
             _, inst_list = self._place_instances(0, master)
             bound_box = inst_list[0].bound_box.merge(inst_list[-1].bound_box)
 
+        vdd_list, vss_list = [], []
+        for idx, inst in enumerate(inst_list):
+            suffix = '<%d>' % idx
+            for name in inst.port_names_iter():
+                if name == 'VDD':
+                    vdd_list.extend(inst.port_pins_iter('VDD'))
+                elif name == 'VSS':
+                    vss_list.extend(inst.port_pins_iter('VSS'))
+                else:
+                    self.reexport(inst.get_port(name), net_name=name + suffix, show=show_pins)
+
+        self.add_pin('VDD', vdd_list, label='VDD:', show=show_pins)
+        self.add_pin('VSS', vss_list, label='VSS:', show=show_pins)
+
         # set size
         self.set_size_from_bound_box(top_layer, bound_box)
         self.array_box = bound_box
+
+        # set schematic parameters
+        self._sch_params = master.sch_params.copy()
 
     def _place_instances(self, ycur, master):
         inst_list = []
