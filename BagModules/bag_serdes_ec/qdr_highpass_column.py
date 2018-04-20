@@ -31,7 +31,6 @@ class bag_serdes_ec__qdr_highpass_column(Module):
             intent='resistor type.',
             nser='number of resistors in series in a branch.',
             ndum='number of dummy resistors.',
-            res_vm_info='vertical metal resistor information.',
             res_in_info='input metal resistor information.',
             res_out_info='output metal resistor information.',
             sub_name='substrate name.  Empty string to disable.',
@@ -44,17 +43,20 @@ class bag_serdes_ec__qdr_highpass_column(Module):
             sub_name='VSS',
         )
 
-    def design(self, l, w, intent, nser, ndum, res_vm_info, res_in_info, res_out_info, sub_name):
+    def design(self, l, w, intent, nser, ndum, res_in_info, res_out_info, sub_name):
         rename = False
         if not sub_name:
-            self.remove_pin(sub_name)
+            self.remove_pin('VSS')
         elif sub_name != 'VSS':
-            self.rename_pin('VSS', sub_name)
-            rename = True
+            if sub_name == 'VDD':
+                self.remove_pin('VSS')
+            else:
+                self.rename_pin('VSS', sub_name)
+                rename = True
 
         for idx in range(4):
             name = 'X%d' % idx
-            self.instances[name].design(l, w, intent, nser, ndum, res_vm_info, res_in_info,
+            self.instances[name].design(l, w, intent, nser, ndum, res_in_info,
                                         res_out_info, sub_name)
             if rename:
-                self.reconnect_instance_terminal(name, 'VSS', sub_name)
+                self.reconnect_instance_terminal(name, sub_name, sub_name)
