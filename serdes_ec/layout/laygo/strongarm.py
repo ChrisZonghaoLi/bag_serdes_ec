@@ -123,8 +123,8 @@ class SenseAmpStrongArm(LaygoBase):
             dict(ds=['sup', 'sup'],),
             dict(g=['clk'], gb=['tail'],),
             dict(g=['in'], gb=['mid'],),
-            dict(g=['out'], gb=['out'],),
-            dict(g=['clk'], gb=['out', 'mid'],),
+            dict(g=['nand', 'nand'], gb=['out'],),
+            dict(g=['nand', 'nand'], gb=['out', 'mid'],),
             dict(ds=['sup', 'sup'],),
         ]
 
@@ -225,7 +225,7 @@ class SenseAmpStrongArm(LaygoBase):
         cur_col += n_sp
         nandnl = self.add_laygo_mos(row_idx, cur_col, n_nand, stack=True, gate_loc='s')
         cur_col += n_nand * 2 + n_nand_sp
-        nandnr = self.add_laygo_mos(row_idx, cur_col, n_nand, stack=True, gate_loc='s', flip=True)
+        nandnr = self.add_laygo_mos(row_idx, cur_col, n_nand, stack=True, gate_loc='s')
 
         # nmos input row
         cur_col, row_idx = 0, 2
@@ -235,7 +235,7 @@ class SenseAmpStrongArm(LaygoBase):
         cur_col = self._draw_nsep_dummy(row_idx, cur_col, n_sep, ndum_list)
         inp = self.add_laygo_mos(row_idx, cur_col, n_in)
         cur_col += n_in
-        cur_col = self._draw_nedge_dummy(row_idx, cur_col, n_tot - cur_col, ndum_list, left=False)
+        self._draw_nedge_dummy(row_idx, cur_col, n_tot - cur_col, ndum_list, left=False)
 
         # nmos tail row
         cur_col, row_idx = 0, 1
@@ -288,108 +288,99 @@ class SenseAmpStrongArm(LaygoBase):
         self.add_pin('inp', inp_warr, show=show_pins)
         self.add_pin('inn', inn_warr, show=show_pins)
 
-        """
         # get output/mid horizontal track id
-        nout_tid = self.make_track_id(3, 'gb', loc_gb_invn[0], width=tr_w_out)
-        mid_tid = self.make_track_id(2, 'gb', loc_gb_in[0], width=tr_w_mid)
-
+        nout_tid = self.get_wire_id(3, 'gb', wire_idx=0)
+        mid_tid = self.get_wire_id(2, 'gb', wire_idx=0)
         # connect nmos mid
-        nmidp = inn.get_all_port_pins('s') + invn_outp.get_all_port_pins('s')
-        nmidn = inp.get_all_port_pins('s') + invn_outn.get_all_port_pins('s')
-        nmidp = self.connect_wires(nmidp)
-        nmidn = self.connect_wires(nmidn)
+        nmidp = [inn['s'], invn_outp['s']]
+        nmidn = [inp['s'], invn_outn['s']]
         nmidp = self.connect_to_tracks(nmidp, mid_tid)
         nmidn = self.connect_to_tracks(nmidn, mid_tid)
 
         # connect pmos mid
-        mid_tid = self.make_track_id(4, 'gb', loc_gb_invp[1], width=tr_w_mid)
-        pmidp = self.connect_to_tracks(rst_midp.get_all_port_pins('d'), mid_tid, min_len_mode=-1)
-        pmidn = self.connect_to_tracks(rst_midn.get_all_port_pins('d'), mid_tid, min_len_mode=1)
+        mid_tid = self.get_wire_id(4, 'gb', wire_name='mid')
+        pmidp = self.connect_to_tracks(rst_midp['d'], mid_tid, min_len_mode=-1)
+        pmidn = self.connect_to_tracks(rst_midn['d'], mid_tid, min_len_mode=1)
 
         # connect nmos output
-        noutp = self.connect_to_tracks(invn_outp.get_all_port_pins('d'), nout_tid, min_len_mode=0)
-        noutn = self.connect_to_tracks(invn_outn.get_all_port_pins('d'), nout_tid, min_len_mode=0)
+        noutp = self.connect_to_tracks(invn_outp['d'], nout_tid, min_len_mode=0)
+        noutn = self.connect_to_tracks(invn_outn['d'], nout_tid, min_len_mode=0)
 
         # connect pmos output
-        pout_tid = self.make_track_id(4, 'gb', loc_gb_invp[0], width=tr_w_mid)
-        poutp = invp_outp.get_all_port_pins('d') + rst_outp.get_all_port_pins('d')
-        poutn = invp_outn.get_all_port_pins('d') + rst_outn.get_all_port_pins('d')
+        pout_tid = self.get_wire_id(4, 'gb', wire_name='out')
+        poutp = [invp_outp['d'], rst_outp['d']]
+        poutn = [invp_outn['d'], rst_outn['d']]
         poutp = self.connect_to_tracks(poutp, pout_tid)
         poutn = self.connect_to_tracks(poutn, pout_tid)
 
         # connect clock in inverter row
-        pclk = []
-        for inst in (rst_midp, rst_midn, rst_outp, rst_outn):
-            pclk.extend(inst.get_all_port_pins('g'))
-        pclk_tid = self.make_track_id(4, 'g', loc_g_invp[0], width=tr_w_clk)
+        pclk = [rst_midp['g'], rst_midn['g'], rst_outp['g'], rst_outn['g']]
+        pclk_tid = self.get_wire_id(4, 'g', wire_idx=0)
         clk_list.append(self.connect_to_tracks(pclk, pclk_tid))
 
         # connect inverter gate
-        invg_tid = self.make_track_id(3, 'g', loc_g_invn[0], width=tr_w_out)
-        invgp = invn_outp.get_all_port_pins('g') + invp_outp.get_all_port_pins('g')
-        invgp = self.connect_to_tracks(invgp, invg_tid)
-        invgn = invn_outn.get_all_port_pins('g') + invp_outn.get_all_port_pins('g')
-        invgn = self.connect_to_tracks(invgn, invg_tid)
+        invg_tid = self.get_wire_id(3, 'g', wire_idx=1)
+        invgp = self.connect_to_tracks([invn_outp['g'], invp_outp['g']], invg_tid)
+        invgn = self.connect_to_tracks([invn_outn['g'], invp_outn['g']], invg_tid)
 
         # connect vdd
-        source_vdd = nw_tap.get_all_port_pins('VDD')
-        source_vdd.extend(invp_outp.get_all_port_pins('s'))
-        source_vdd.extend(invp_outn.get_all_port_pins('s'))
-        source_vdd.extend(rst_midp.get_all_port_pins('s'))
-        source_vdd.extend(rst_midn.get_all_port_pins('s'))
-        source_vdd.extend(nandpl['s'])
-        source_vdd.extend(nandpr['s'])
-        drain_vdd = []
-        for inst, _ in pdum_list:
-            source_vdd.extend(inst.get_all_port_pins('s'))
-            drain_vdd.extend(inst.get_all_port_pins('d'))
-            drain_vdd.extend(inst.get_all_port_pins('g'))
-        source_vdd_tid = self.make_track_id(5, 'ds', loc_ds_sub[0], width=tr_w_sup)
-        drain_vdd_tid = self.make_track_id(5, 'ds', loc_ds_sub[1], width=tr_w_sup)
-        source_vdd_warrs = self.connect_to_tracks(source_vdd, source_vdd_tid)
-        drain_vdd_warrs = self.connect_to_tracks(drain_vdd, drain_vdd_tid)
-        self.add_pin('VDD', source_vdd_warrs, show=show_pins)
-        self.add_pin('VDD', drain_vdd_warrs, show=show_pins)
+        vdd_s = [nw_tap['VDD_s'], invp_outp['s'], invp_outn['s'], rst_midp['s'],
+                 rst_midn['s'], nandpl['s'], nandpr['s']]
+        vdd_d = [nw_tap['VDD_d']]
+        for inst in pdum_list:
+            vdd_d.append(inst['d'])
+            vdd_d.append(inst['g'])
+            vdd_s.append(inst['s'])
+        vdd_d_tid = self.get_wire_id(5, 'ds', wire_idx=0)
+        vdd_s_tid = self.get_wire_id(5, 'ds', wire_idx=1)
+        self.add_pin('VDD', self.connect_to_tracks(vdd_s, vdd_s_tid), show=show_pins)
+        self.add_pin('VDD', self.connect_to_tracks(vdd_d, vdd_d_tid), show=show_pins)
 
         # connect nand
-        nand_gbl_tid = self.make_track_id(3, 'g', loc_g_invn2[1], width=tr_w_nand)
-        nand_gtl_id = self.get_track_index(3, 'g', loc_g_invn2[0])
-        nand_gtr_id = self.get_track_index(4, 'g', loc_g_invp2[0])
-        nand_gbr_tid = self.make_track_id(4, 'g', loc_g_invp2[1], width=tr_w_nand)
-        nand_nmos_out_tid = self.make_track_id(3, 'gb', (tr_w_nand - 1) // 2, width=tr_w_nand)
+        nand_gbl_tid = self.get_wire_id(3, 'g', wire_idx=0)
+        nand_gtl_tid = self.get_wire_id(3, 'g', wire_idx=1)
+        nand_gtr_tid = self.get_wire_id(4, 'g', wire_idx=0)
+        nand_gbr_tid = self.get_wire_id(4, 'g', wire_idx=1)
+        nand_nmos_out_tid = self.get_wire_id(3, 'gb', wire_idx=0)
         nand_outnl = self.connect_to_tracks(nandnl['d'], nand_nmos_out_tid, min_len_mode=0)
         nand_outnr = self.connect_to_tracks(nandnr['d'], nand_nmos_out_tid, min_len_mode=0)
 
-        nand_gtl = nandnl['gt'] + nandpl['gt']
-        nand_gtl.extend(nandpr['d'])
-        nand_gtr = nandnr['gt'] + nandpr['gt']
-        nand_gtr.extend(nandpl['d'])
-        nand_outpl, nand_outpr = self.connect_differential_tracks(nand_gtr, nand_gtl, hm_layer, nand_gtr_id,
-                                                                  nand_gtl_id, width=tr_w_nand)
-
-        nand_gbl = self.connect_to_tracks(nandnl['gb'] + nandpl['gb'], nand_gbl_tid)
-        nand_gbr = self.connect_to_tracks(nandnr['gb'] + nandpr['gb'], nand_gbr_tid)
+        nand_gtl = [nandnl['g1'], nandpl['g1'], nandpr['d']]
+        nand_gtr = [nandnr['g1'], nandpr['g1'], nandpl['d']]
+        tr_w = nand_gtr_tid.width
+        pidx = nand_gtr_tid.base_index
+        nidx = nand_gtl_tid.base_index
+        nand_outpl, nand_outpr = self.connect_differential_tracks(nand_gtr, nand_gtl, hm_layer,
+                                                                  pidx, nidx, width=tr_w)
+        nand_gbl = self.connect_to_tracks([nandnl['g0'], nandpl['g0']], nand_gbl_tid)
+        nand_gbr = self.connect_to_tracks([nandnr['g0'], nandpr['g0']], nand_gbr_tid)
 
         # connect nand ym wires
         tr_w_nand_y = tr_manager.get_width(ym_layer, 'nand')
-        nand_outl_id = self.grid.coord_to_nearest_track(ym_layer, nand_outnl.middle, half_track=True, mode=1)
-        nand_outr_id = self.grid.coord_to_nearest_track(ym_layer, nand_outnr.middle, half_track=True, mode=-1)
-        nand_gbr_yt = self.grid.get_wire_bounds(hm_layer, nand_gbr_tid.base_index, unit_mode=True)[1]
+        nand_outl_id = self.grid.coord_to_nearest_track(ym_layer, nand_outnl.middle,
+                                                        half_track=True, mode=1)
+        nand_outr_id = self.grid.coord_to_nearest_track(ym_layer, nand_outnr.middle,
+                                                        half_track=True, mode=-1)
+        nand_gbr_yt = self.grid.get_wire_bounds(hm_layer, nand_gbr_tid.base_index,
+                                                unit_mode=True)[1]
         ym_via_ext = self.grid.get_via_extensions(hm_layer, 1, 1, unit_mode=True)[1]
         out_upper = nand_gbr_yt + ym_via_ext
         nand_outl, nand_outr = self.connect_differential_tracks(nand_outpl, nand_outpr, ym_layer,
-                                                                nand_outl_id, nand_outr_id, track_upper=out_upper,
+                                                                nand_outl_id, nand_outr_id,
+                                                                track_upper=out_upper,
                                                                 width=tr_w_nand_y, unit_mode=True)
-        nand_outl = self.connect_to_tracks(nand_outnl, nand_outl.track_id, track_upper=out_upper, unit_mode=True)
-        nand_outr = self.connect_to_tracks(nand_outnr, nand_outr.track_id, track_upper=out_upper, unit_mode=True)
-
+        nand_outl = self.connect_to_tracks(nand_outnl, nand_outl.track_id,
+                                           track_upper=out_upper, unit_mode=True)
+        nand_outr = self.connect_to_tracks(nand_outnr, nand_outr.track_id,
+                                           track_upper=out_upper, unit_mode=True)
         self.add_pin('outp', nand_outl, show=show_pins)
         self.add_pin('outn', nand_outr, show=show_pins)
 
         sp_nand_ym = tr_manager.get_space(ym_layer, ('nand', 'nand')) + tr_w_nand_y
         nand_inn_tid = nand_outl_id - sp_nand_ym
         nand_inp_tid = nand_outr_id + sp_nand_ym
-        self.connect_differential_tracks(nand_gbl, nand_gbr, ym_layer, nand_inn_tid, nand_inp_tid, width=tr_w_nand_y)
+        self.connect_differential_tracks(nand_gbl, nand_gbr, ym_layer, nand_inn_tid,
+                                         nand_inp_tid, width=tr_w_nand_y)
 
         # connect ym wires
         clk_tid = TrackID(ym_layer, clk_idx, width=tr_manager.get_width(ym_layer, 'clk'))
@@ -408,7 +399,8 @@ class SenseAmpStrongArm(LaygoBase):
         outn2 = self.connect_to_tracks(invgp, on_tid)
 
         tr_w_mid_ym = tr_manager.get_width(ym_layer, 'mid')
-        sp_out_mid = sp_out_ym + tr_manager.get_space(ym_layer, ('out', 'mid')) + (tr_w_mid_ym + tr_w_out_ym) / 2
+        sp_om_y = tr_manager.get_space(ym_layer, ('out', 'mid'))
+        sp_out_mid = sp_out_ym + sp_om_y + (tr_w_mid_ym + tr_w_out_ym) / 2
         mn_tid = TrackID(ym_layer, on_idx + sp_out_mid, width=tr_w_mid_ym)
         mp_tid = TrackID(ym_layer, op_idx - sp_out_mid, width=tr_w_mid_ym)
         self.connect_to_tracks([nmidn, pmidn], mn_tid)
@@ -425,9 +417,8 @@ class SenseAmpStrongArm(LaygoBase):
                                                       outp_idx, outn_idx, width=tr_w_out_xm)
         self.add_pin('midp', outp, show=show_pins)
         self.add_pin('midn', outn, show=show_pins)
-        self.connect_differential_tracks(outn, outp, ym_layer, nand_inn_tid, nand_inp_tid, width=tr_w_nand_y)
-
-        """
+        self.connect_differential_tracks(outn, outp, ym_layer, nand_inn_tid, nand_inp_tid,
+                                         width=tr_w_nand_y)
 
     def _draw_nsep_dummy(self, row_idx, cur_col, n_sep, ndum_list):
         ndum_list.append((self.add_laygo_mos(row_idx, cur_col, 2), 1))
