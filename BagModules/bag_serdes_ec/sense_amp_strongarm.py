@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from typing import Dict
+from typing import Dict, Any
 
 import os
 import pkg_resources
@@ -30,7 +30,29 @@ class bag_serdes_ec__sense_amp_strongarm(Module):
             w_dict='width dictionary.',
             th_dict='threshold dictionary.',
             seg_dict='number of segments dictionary.',
+            dum_info='Dummy information data structure.',
         )
 
-    def design(self, lch, w_dict, th_dict, seg_dict):
-        pass
+    @classmethod
+    def get_default_param_values(cls):
+        # type: () -> Dict[str, Any]
+        return dict(
+            dum_info=None,
+        )
+
+    def design(self, lch, w_dict, th_dict, seg_dict, dum_info):
+        tran_info_list = [('XTAILL', 'tail'), ('XTAILR', 'tail'),
+                          ('XINL', 'in'), ('XINR', 'in'),
+                          ('XNINVL', 'ninv'), ('XNINVR', 'ninv'),
+                          ('XPINVL', 'pinv'), ('XPINVR', 'pinv'),
+                          ('XRML', 'pinv'), ('XRMR', 'pinv'),
+                          ('XRIL', 'pinv'), ('XRIR', 'pinv'),
+                          ]
+
+        for inst_name, inst_type in tran_info_list:
+            w = w_dict[inst_type]
+            th = th_dict[inst_type]
+            seg = seg_dict[inst_type]
+            self.instances[inst_name].design(w=w, l=lch, nf=seg, intent=th)
+
+        self.design_dummy_transistors(dum_info, 'XDUM', 'VDD', 'VSS')

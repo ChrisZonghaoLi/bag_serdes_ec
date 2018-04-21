@@ -2,26 +2,6 @@ lib_name: bag_serdes_ec
 cell_name: sense_amp_strongarm
 pins: [ "VDD", "VSS", "clk", "inp", "outn", "midp", "midn", "outp", "inn" ]
 instances:
-  XDUM:
-    lib_name: BAG_prim
-    cell_name: nmos4_standard
-    instpins:
-      S:
-        direction: inputOutput
-        net_name: "VSS"
-        num_bits: 1
-      D:
-        direction: inputOutput
-        net_name: "VSS"
-        num_bits: 1
-      B:
-        direction: inputOutput
-        net_name: "VSS"
-        num_bits: 1
-      G:
-        direction: inputOutput
-        net_name: "VSS"
-        num_bits: 1
   XINL:
     lib_name: BAG_prim
     cell_name: nmos4_standard
@@ -52,7 +32,7 @@ instances:
         num_bits: 1
       D:
         direction: inputOutput
-        net_name: "midp"
+        net_name: "intp"
         num_bits: 1
       B:
         direction: inputOutput
@@ -61,6 +41,26 @@ instances:
       G:
         direction: inputOutput
         net_name: "inn"
+        num_bits: 1
+  XDUM:
+    lib_name: BAG_prim
+    cell_name: nmos4_standard
+    instpins:
+      S:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      D:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      B:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      G:
+        direction: inputOutput
+        net_name: "VSS"
         num_bits: 1
   XTAILR:
     lib_name: BAG_prim
@@ -128,7 +128,7 @@ instances:
     instpins:
       S:
         direction: inputOutput
-        net_name: "midp"
+        net_name: "intp"
         num_bits: 1
       D:
         direction: inputOutput
@@ -252,7 +252,7 @@ instances:
         num_bits: 1
       D:
         direction: inputOutput
-        net_name: "midp"
+        net_name: "intp"
         num_bits: 1
       B:
         direction: inputOutput
