@@ -8,7 +8,7 @@ from serdes_ec.layout.laygo.strongarm import SenseAmpStrongArm
 
 
 if __name__ == '__main__':
-    with open('specs_test/strongarm.yaml', 'r') as f:
+    with open('specs_test/qdr_hybrid/strongarm.yaml', 'r') as f:
         block_specs = yaml.load(f)
 
     local_dict = locals()
@@ -20,5 +20,5 @@ if __name__ == '__main__':
         print('loading BAG project')
         bprj = local_dict['bprj']
 
-    bprj.generate_cell(block_specs, SenseAmpStrongArm, gen_sch=False,
-                       run_lvs=False, use_cybagoa=True)
+    bprj.generate_cell(block_specs, SenseAmpStrongArm)
+    # generate(bprj, block_specs, gen_sch=True, run_lvs=False, use_cybagoa=True)

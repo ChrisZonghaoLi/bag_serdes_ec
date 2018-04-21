@@ -313,8 +313,8 @@ class SinClkDivider(LaygoBase):
         seg_pen = seg_dict['inv_pen']
         seg_inv = seg_dict['inv_inv']
 
-        xleft = self.laygo_info.col_to_coord(start, 's', unit_mode=True)
-        xright = self.laygo_info.col_to_coord(start + seg_tot, 's', unit_mode=True)
+        xleft = self.laygo_info.col_to_coord(start, unit_mode=True)
+        xright = self.laygo_info.col_to_coord(start + seg_tot, unit_mode=True)
 
         col_inv = start + (seg_pen + 2) // 2
         ridx = 3
@@ -348,8 +348,8 @@ class SinClkDivider(LaygoBase):
                                                   mode=-1)
         ntr = tright - tleft + 1
         vin_locs = tr_manager.align_wires(vm_layer, ['in', 'in'], ntr, alignment=0, start_idx=tleft)
-        xleft = self.laygo_info.col_to_coord(col_inv + seg_inv, 's', unit_mode=True)
-        xright = self.laygo_info.col_to_coord(start + seg_tot + blk_sp, 's', unit_mode=True)
+        xleft = self.laygo_info.col_to_coord(col_inv + seg_inv, unit_mode=True)
+        xright = self.laygo_info.col_to_coord(start + seg_tot + blk_sp, unit_mode=True)
         tleft = self.grid.coord_to_nearest_track(vm_layer, xleft, unit_mode=True, half_track=True,
                                                  mode=1)
         tright = self.grid.coord_to_nearest_track(vm_layer, xright, unit_mode=True, half_track=True,
@@ -403,8 +403,8 @@ class SinClkDivider(LaygoBase):
         seg_pen = seg_dict['int_pen']
         seg_in = seg_dict['int_in']
 
-        xleft = self.laygo_info.col_to_coord(start, 'd', unit_mode=True)
-        xright = self.laygo_info.col_to_coord(start + seg_tot - 1, 's', unit_mode=True)
+        xleft = self.laygo_info.col_to_coord(start + 1, unit_mode=True)
+        xright = self.laygo_info.col_to_coord(start + seg_tot - 1, unit_mode=True)
 
         # place instances
         seg_single = seg_tot // 2
@@ -602,14 +602,14 @@ class SinClkDivider(LaygoBase):
                                                     unit_mode=True)
         vm_q_tid = TrackID(vm_layer, vm_q_idx, width=vm_w_out)
         vm_qb_tid = TrackID(vm_layer, vm_qb_idx, width=vm_w_out)
-        xl = self.laygo_info.col_to_coord(col_spl, 's', unit_mode=True)
-        xr = self.laygo_info.col_to_coord(col_spr, 's', unit_mode=True)
+        xl = self.laygo_info.col_to_coord(col_spl, unit_mode=True)
+        xr = self.laygo_info.col_to_coord(col_spr, unit_mode=True)
         vm_r_idx = self.grid.coord_to_nearest_track(vm_layer, xl, half_track=True, mode=-1,
                                                     unit_mode=True)
         vm_s_idx = self.grid.coord_to_nearest_track(vm_layer, xr, half_track=True, mode=1,
                                                     unit_mode=True)
-        xl = self.laygo_info.col_to_coord(col_norl, 's', unit_mode=True)
-        xr = self.laygo_info.col_to_coord(col_norr, 'd', unit_mode=True)
+        xl = self.laygo_info.col_to_coord(col_norl, unit_mode=True)
+        xr = self.laygo_info.col_to_coord(col_norr, unit_mode=True)
         vm_ssb_idx = self.grid.coord_to_nearest_track(vm_layer, xl, half_track=True, mode=-1,
                                                       unit_mode=True)
         vm_ss_idx = self.grid.coord_to_nearest_track(vm_layer, xr, half_track=True, mode=1,
