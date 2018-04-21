@@ -45,14 +45,29 @@ class bag_serdes_ec__sense_amp_strongarm(Module):
                           ('XINL', 'in'), ('XINR', 'in'),
                           ('XNINVL', 'ninv'), ('XNINVR', 'ninv'),
                           ('XPINVL', 'pinv'), ('XPINVR', 'pinv'),
-                          ('XRML', 'pinv'), ('XRMR', 'pinv'),
-                          ('XRIL', 'pinv'), ('XRIR', 'pinv'),
+                          ('XRML', 'pinv', 'rst'), ('XRMR', 'pinv', 'rst'),
+                          ('XRIL', 'pinv', 'rst'), ('XRIR', 'pinv', 'rst'),
                           ]
 
-        for inst_name, inst_type in tran_info_list:
-            w = w_dict[inst_type]
-            th = th_dict[inst_type]
-            seg = seg_dict[inst_type]
-            self.instances[inst_name].design(w=w, l=lch, nf=seg, intent=th)
+        for inst_info in tran_info_list:
+            w = w_dict[inst_info[1]]
+            th = th_dict[inst_info[1]]
+            if len(inst_info) < 3:
+                seg = seg_dict[inst_info[1]]
+            else:
+                seg = seg_dict[inst_info[2]]
+            self.instances[inst_info[0]].design(w=w, l=lch, nf=seg, intent=th)
 
+        # design NAND gates
+        w_ninv = w_dict['ninv']
+        w_pinv = w_dict['pinv']
+        th_ninv = th_dict['ninv']
+        th_pinv = th_dict['pinv']
+        seg_nand = seg_dict['nand']
+        self.instances['XNANDL'].design(nin=2, lch=lch, wp=w_pinv, wn=w_ninv,
+                                        thp=th_pinv, thn=th_ninv, segp=seg_nand,
+                                        segn=seg_nand)
+        self.instances['XNANDR'].design(nin=2, lch=lch, wp=w_pinv, wn=w_ninv,
+                                        thp=th_pinv, thn=th_ninv, segp=seg_nand,
+                                        segn=seg_nand)
         self.design_dummy_transistors(dum_info, 'XDUM', 'VDD', 'VSS')
