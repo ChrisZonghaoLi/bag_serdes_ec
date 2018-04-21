@@ -256,43 +256,39 @@ class SenseAmpStrongArm(LaygoBase):
         # fill dummy
         self.fill_space()
 
-        """
         # connect ground
-        source_vss = [pw_tap['VSS'], tailn['s'], tailp['s'], nandnl['s'], nandnr['s']]
-        drain_vss = []
+        vss_s = [pw_tap['VSS_s'], tailn['s'], tailp['s'], nandnl['s'], nandnr['s']]
+        vss_d = [pw_tap['VSS_d']]
         for inst, mode in ndum_list:
             if mode == 0:
-                source_vss.append(inst['s'])
-            drain_vss.append(inst['d'])
-            drain_vss.append(inst['g'])
+                vss_s.append(inst['s'])
+            vss_d.append(inst['d'])
+            vss_d.append(inst['g'])
 
-        source_vss_tid = self.make_track_id(0, 'ds', loc_ds_sub[0], width=tr_w_sup)
-        drain_vss_tid = self.make_track_id(0, 'ds', loc_ds_sub[1], width=tr_w_sup)
-        source_vss_warrs = self.connect_to_tracks(source_vss, source_vss_tid)
-        drain_vss_warrs = self.connect_to_tracks(drain_vss, drain_vss_tid)
-        self.add_pin('VSS', source_vss_warrs, show=show_pins)
-        self.add_pin('VSS', drain_vss_warrs, show=show_pins)
+        vss_s_tid = self.get_wire_id(0, 'ds', wire_idx=0)
+        vss_d_tid = self.get_wire_id(0, 'ds', wire_idx=1)
+        vss_s_warrs = self.connect_to_tracks(vss_s, vss_s_tid)
+        vss_d_warrs = self.connect_to_tracks(vss_d, vss_d_tid)
+        self.add_pin('VSS', vss_s_warrs, label='VSS:', show=show_pins)
+        self.add_pin('VSS', vss_d_warrs, label='VSS:', show=show_pins)
 
         # connect tail
-        tail = []
-        for inst in (tailp, tailn, inp, inn):
-            tail.extend(inst.get_all_port_pins('d'))
-        tail_tid = self.make_track_id(1, 'gb', loc_gb_tail[0], width=tr_w_tail)
+        tail = [tailp['d'], tailn['d'], inp['d'], inn['d']]
+        tail_tid = self.get_wire_id(1, 'gb', wire_idx=0)
         self.connect_to_tracks(tail, tail_tid)
 
         # connect tail clk
-        clk_list = []
-        tclk_tid = self.make_track_id(1, 'g', loc_g_tail[0], width=tr_w_clk)
-        tclk = tailp.get_all_port_pins('g') + tailn.get_all_port_pins('g')
-        clk_list.append(self.connect_to_tracks(tclk, tclk_tid))
+        tclk_tid = self.get_wire_id(1, 'g', wire_idx=0)
+        clk_list = [self.connect_to_tracks([tailp['g'], tailn['g']], tclk_tid)]
 
         # connect inputs
-        in_tid = self.make_track_id(2, 'g', loc_g_in[0], width=tr_w_in)
-        inp_warr = self.connect_to_tracks(inp.get_all_port_pins('g'), in_tid, min_len_mode=0)
-        inn_warr = self.connect_to_tracks(inn.get_all_port_pins('g'), in_tid, min_len_mode=0)
+        in_tid = self.get_wire_id(2, 'g', wire_idx=0)
+        inp_warr = self.connect_to_tracks(inp['g'], in_tid, min_len_mode=0)
+        inn_warr = self.connect_to_tracks(inn['g'], in_tid, min_len_mode=0)
         self.add_pin('inp', inp_warr, show=show_pins)
         self.add_pin('inn', inn_warr, show=show_pins)
 
+        """
         # get output/mid horizontal track id
         nout_tid = self.make_track_id(3, 'gb', loc_gb_invn[0], width=tr_w_out)
         mid_tid = self.make_track_id(2, 'gb', loc_gb_in[0], width=tr_w_mid)
