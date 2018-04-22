@@ -62,18 +62,6 @@ class Tap1SummerRow(HybridQDRBase):
         return self._fg_tot
 
     @classmethod
-    def get_default_param_values(cls):
-        # type: () -> Dict[str, Any]
-        return dict(
-            fg_min=0,
-            options=None,
-            min_height=0,
-            vss_tid=None,
-            vdd_tid=None,
-            show_pins=True,
-        )
-
-    @classmethod
     def get_params_info(cls):
         # type: () -> Dict[str, str]
         return dict(
@@ -93,6 +81,18 @@ class Tap1SummerRow(HybridQDRBase):
             vss_tid='VSS track information.',
             vdd_tid='VDD track information.',
             show_pins='True to create pin labels.',
+        )
+
+    @classmethod
+    def get_default_param_values(cls):
+        # type: () -> Dict[str, Any]
+        return dict(
+            fg_min=0,
+            options=None,
+            min_height=0,
+            vss_tid=None,
+            vdd_tid=None,
+            show_pins=True,
         )
 
     def draw_layout(self):
@@ -253,19 +253,6 @@ class Tap1LatchRow(TemplateBase):
         return self._en_locs
 
     @classmethod
-    def get_default_param_values(cls):
-        # type: () -> Dict[str, Any]
-        return dict(
-            div_pos_edge=True,
-            fg_min=0,
-            options=None,
-            min_height=0,
-            vss_tid=None,
-            vdd_tid=None,
-            show_pins=True,
-        )
-
-    @classmethod
     def get_params_info(cls):
         # type: () -> Dict[str, str]
         return dict(
@@ -288,6 +275,19 @@ class Tap1LatchRow(TemplateBase):
             vss_tid='VSS track information.',
             vdd_tid='VDD track information.',
             show_pins='True to create pin labels.',
+        )
+
+    @classmethod
+    def get_default_param_values(cls):
+        # type: () -> Dict[str, Any]
+        return dict(
+            div_pos_edge=True,
+            fg_min=0,
+            options=None,
+            min_height=0,
+            vss_tid=None,
+            vdd_tid=None,
+            show_pins=True,
         )
 
     def draw_layout(self):
@@ -517,19 +517,6 @@ class Tap1Summer(TemplateBase):
         return self._en_locs
 
     @classmethod
-    def get_default_param_values(cls):
-        # type: () -> Dict[str, Any]
-        return dict(
-            div_pos_edge=True,
-            fg_min=0,
-            options=None,
-            row_heights=None,
-            vss_tids=None,
-            vdd_tids=None,
-            show_pins=True,
-        )
-
-    @classmethod
     def get_params_info(cls):
         # type: () -> Dict[str, str]
         return dict(
@@ -554,6 +541,19 @@ class Tap1Summer(TemplateBase):
             vss_tids='VSS tracks information.',
             vdd_tids='VDD tracks information.',
             show_pins='True to create pin labels.',
+        )
+
+    @classmethod
+    def get_default_param_values(cls):
+        # type: () -> Dict[str, Any]
+        return dict(
+            div_pos_edge=True,
+            fg_min=0,
+            options=None,
+            row_heights=None,
+            vss_tids=None,
+            vdd_tids=None,
+            show_pins=True,
         )
 
     def draw_layout(self):
@@ -702,17 +702,6 @@ class Tap1Column(TemplateBase):
         return self._in_tr_info
 
     @classmethod
-    def get_default_param_values(cls):
-        # type: () -> Dict[str, Any]
-        return dict(
-            options=None,
-            row_heights=None,
-            vss_tids=None,
-            vdd_tids=None,
-            show_pins=True,
-        )
-
-    @classmethod
     def get_params_info(cls):
         # type: () -> Dict[str, str]
         return dict(
@@ -735,6 +724,17 @@ class Tap1Column(TemplateBase):
             vss_tids='VSS tracks information for one summer.',
             vdd_tids='VDD tracks information for one summer.',
             show_pins='True to create pin labels.',
+        )
+
+    @classmethod
+    def get_default_param_values(cls):
+        # type: () -> Dict[str, Any]
+        return dict(
+            options=None,
+            row_heights=None,
+            vss_tids=None,
+            vdd_tids=None,
+            show_pins=True,
         )
 
     def draw_layout(self):

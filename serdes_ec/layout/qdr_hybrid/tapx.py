@@ -98,16 +98,6 @@ class TapXSummerCell(TemplateBase):
         return max(top_coord, bot_coord)
 
     @classmethod
-    def get_default_param_values(cls):
-        # type: () -> Dict[str, Any]
-        return dict(
-            flip_sign=False,
-            end_mode=12,
-            show_pins=True,
-            options=None,
-        )
-
-    @classmethod
     def get_params_info(cls):
         # type: () -> Dict[str, str]
         return dict(
@@ -126,8 +116,18 @@ class TapXSummerCell(TemplateBase):
             tr_spaces='Track spacing dictionary.',
             flip_sign='True to flip summer output sign.',
             end_mode='The AnalogBase end_mode flag.',
-            show_pins='True to create pin labels.',
             options='other AnalogBase options',
+            show_pins='True to create pin labels.',
+        )
+
+    @classmethod
+    def get_default_param_values(cls):
+        # type: () -> Dict[str, Any]
+        return dict(
+            flip_sign=False,
+            end_mode=12,
+            options=None,
+            show_pins=True,
         )
 
     def draw_layout(self):
@@ -290,20 +290,6 @@ class TapXSummerLast(TemplateBase):
         return self._row_heights
 
     @classmethod
-    def get_default_param_values(cls):
-        # type: () -> Dict[str, Any]
-        return dict(
-            div_pos_edge=True,
-            flip_sign=False,
-            fg_min=0,
-            end_mode=12,
-            show_pins=True,
-            options=None,
-            left_edge_info=None,
-            right_edge_info=None,
-        )
-
-    @classmethod
     def get_params_info(cls):
         # type: () -> Dict[str, str]
         return dict(
@@ -326,10 +312,24 @@ class TapXSummerLast(TemplateBase):
             flip_sign='True to flip summer output sign.',
             fg_min='Minimum number of core fingers.',
             end_mode='The AnalogBase end_mode flag.',
-            show_pins='True to create pin labels.',
             options='other AnalogBase options',
             left_edge_info='left edge information for digital.',
             right_edge_info='right edge information for digital.',
+            show_pins='True to create pin labels.',
+        )
+
+    @classmethod
+    def get_default_param_values(cls):
+        # type: () -> Dict[str, Any]
+        return dict(
+            div_pos_edge=True,
+            flip_sign=False,
+            fg_min=0,
+            end_mode=12,
+            options=None,
+            left_edge_info=None,
+            right_edge_info=None,
+            show_pins=True,
         )
 
     def draw_layout(self):
@@ -559,14 +559,6 @@ class TapXSummerNoLast(TemplateBase):
         return self._fg_tot
 
     @classmethod
-    def get_default_param_values(cls):
-        # type: () -> Dict[str, Any]
-        return dict(
-            show_pins=True,
-            options=None,
-        )
-
-    @classmethod
     def get_params_info(cls):
         # type: () -> Dict[str, str]
         return dict(
@@ -584,8 +576,16 @@ class TapXSummerNoLast(TemplateBase):
             fg_dum='Number of single-sided edge dummy fingers.',
             tr_widths='Track width dictionary.',
             tr_spaces='Track spacing dictionary.',
-            show_pins='True to create pin labels.',
             options='other AnalogBase options',
+            show_pins='True to create pin labels.',
+        )
+
+    @classmethod
+    def get_default_param_values(cls):
+        # type: () -> Dict[str, Any]
+        return dict(
+            options=None,
+            show_pins=True,
         )
 
     def draw_layout(self):
@@ -959,16 +959,6 @@ class TapXSummer(TemplateBase):
         return self._row_heights
 
     @classmethod
-    def get_default_param_values(cls):
-        # type: () -> Dict[str, Any]
-        return dict(
-            div_pos_edge=True,
-            fg_min_last=0,
-            show_pins=True,
-            options=None,
-        )
-
-    @classmethod
     def get_params_info(cls):
         # type: () -> Dict[str, str]
         return dict(
@@ -991,8 +981,18 @@ class TapXSummer(TemplateBase):
             tr_spaces='Track spacing dictionary.',
             div_pos_edge='True if the divider triggers off positive edge of the clock.',
             fg_min_last='Minimum number of core fingers for last cell.',
-            show_pins='True to create pin labels.',
             options='other AnalogBase options',
+            show_pins='True to create pin labels.',
+        )
+
+    @classmethod
+    def get_default_param_values(cls):
+        # type: () -> Dict[str, Any]
+        return dict(
+            div_pos_edge=True,
+            fg_min_last=0,
+            options=None,
+            show_pins=True,
         )
 
     def draw_layout(self):
@@ -1189,7 +1189,7 @@ class TapXSummer(TemplateBase):
 
 
 class TapXColumn(TemplateBase):
-    """The column of DFE tap1 summers.
+    """The column of FFE/DFE summers.
 
     Parameters
     ----------
@@ -1241,14 +1241,6 @@ class TapXColumn(TemplateBase):
         return self._out_tr_info
 
     @classmethod
-    def get_default_param_values(cls):
-        # type: () -> Dict[str, Any]
-        return dict(
-            show_pins=True,
-            options=None,
-        )
-
-    @classmethod
     def get_params_info(cls):
         # type: () -> Dict[str, str]
         return dict(
@@ -1269,8 +1261,16 @@ class TapXColumn(TemplateBase):
             fg_dum='Number of single-sided edge dummy fingers.',
             tr_widths='Track width dictionary.',
             tr_spaces='Track spacing dictionary.',
-            show_pins='True to create pin labels.',
             options='other AnalogBase options',
+            show_pins='True to create pin labels.',
+        )
+
+    @classmethod
+    def get_default_param_values(cls):
+        # type: () -> Dict[str, Any]
+        return dict(
+            options=None,
+            show_pins=True,
         )
 
     def draw_layout(self):
