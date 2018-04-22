@@ -90,11 +90,12 @@ class SenseAmpStrongArm(LaygoBase):
         n_rst = seg_dict['rst']
         n_dum = seg_dict['dum']
         n_nand = seg_dict['nand']
-        n_nand_sp = 2
+        n_buf = seg_dict['buf']
+        blk_sp = seg_dict.get('sp', 2)
 
         # error checking
         for name, val in seg_dict.items():
-            if val % 2 != 0 or val <= 0:
+            if name != 'sp' and (val % 2 != 0 or val <= 0):
                 raise ValueError('seg_%s = %d is not even or positive.' % (name, val))
 
         w_sub = self.params['config']['w_sub']
@@ -122,9 +123,9 @@ class SenseAmpStrongArm(LaygoBase):
         wire_names = [
             dict(ds=['sup', 'sup'],),
             dict(g=['clk'], gb=['tail'],),
-            dict(g=['in'], gb=['mid'],),
-            dict(g=['nand', 'nand'], gb=['out'],),
-            dict(g=['nand', 'nand'], gb=['out', 'mid'],),
+            dict(g=['in'], gb=['out'],),
+            dict(g=['out', 'out'], gb=['out'],),
+            dict(g=['out', 'out'], gb=['out', 'out'],),
             dict(ds=['sup', 'sup'],),
         ]
 
@@ -134,12 +135,12 @@ class SenseAmpStrongArm(LaygoBase):
         hm_layer = self.conn_layer + 1
         ym_layer = hm_layer + 1
         # determine number of separation blocks needed for mid reset wires to be DRC clean
-        tr_w_mid = tr_manager.get_width(hm_layer, 'mid')
+        hm_w_out = tr_manager.get_width(hm_layer, 'out')
         vm_w = self.grid.get_track_width(hm_layer - 1, 1, unit_mode=True)  # type: int
-        mid_via_ext = self.grid.get_via_extensions(hm_layer - 1, 1, tr_w_mid,
+        hm_out_vext = self.grid.get_via_extensions(hm_layer - 1, 1, hm_w_out,
                                                    unit_mode=True)[1]  # type: int
-        mid_sp_le = self.grid.get_line_end_space(hm_layer, tr_w_mid, unit_mode=True)  # type: int
-        n_sep = -(-(vm_w + mid_via_ext * 2 + mid_sp_le) // (2 * laygo_info.col_width)) * 2
+        hm_out_sple = self.grid.get_line_end_space(hm_layer, hm_w_out, unit_mode=True)  # type: int
+        n_sep = -(-(vm_w + hm_out_vext * 2 + hm_out_sple) // (2 * laygo_info.col_width)) * 2
         # determine total number of latch blocks
         n_ptot = n_pinv + 2 * n_rst
         n_ntot = max(n_ninv, n_in, n_tail)
@@ -161,15 +162,14 @@ class SenseAmpStrongArm(LaygoBase):
         op_ridx2 = tr_manager.get_next_track(ym_layer, clk_ridx, 'clk', 'out', up=False)
         op_ridx = min(op_ridx, op_ridx2)
         # step 3: find NAND outp relative track index
-        num_ym_tracks, loc_ym = tr_manager.place_wires(ym_layer, ['out', 'out', 'mid',
-                                                                  'nand', 'nand'])
+        num_ym_tracks, loc_ym = tr_manager.place_wires(ym_layer, ['out'] * 6)
         on_ridx = clk_ridx + (clk_ridx - op_ridx)
         nand_op_ridx = on_ridx + loc_ym[-1] - loc_ym[0]
         # step 4: find left NAND gate column index, then compute number of space columns
         col_nand = laygo_info.rel_track_to_nearest_col(ym_layer, nand_op_ridx, mode=1)
-        n_sp = max(col_nand - n_latch - n_nand, 2)
-        n_nand_tot = n_sp + 4 * n_nand + n_nand_sp
-        n_tot = n_latch + n_nand_tot
+        n_sp = max(col_nand - n_latch - n_nand - blk_sp - n_buf, blk_sp)
+        n_sr_tot = 2 * n_buf + 3 * blk_sp + 4 * n_nand
+        n_tot = n_latch + n_sp + n_sr_tot
 
         # specify row types
         self.set_row_types(row_list, w_list, orient_list, thres_list, draw_boundaries, end_mode,
@@ -210,9 +210,13 @@ class SenseAmpStrongArm(LaygoBase):
         cur_col += n_rst
         pdum_list.append(self.add_laygo_mos(row_idx, cur_col, col_p))
         cur_col += col_p + n_sp
+        pbufl = self.add_laygo_mos(row_idx, cur_col, n_buf)
+        cur_col += n_buf + blk_sp
         nandpl = self.add_laygo_mos(row_idx, cur_col, n_nand * 2, gate_loc='s')
-        cur_col += n_nand * 2 + n_nand_sp
+        cur_col += n_nand * 2 + blk_sp
         nandpr = self.add_laygo_mos(row_idx, cur_col, n_nand * 2, gate_loc='s')
+        cur_col += n_nand * 2 + blk_sp
+        pbufr = self.add_laygo_mos(row_idx, cur_col, n_buf)
         dum_info_list.append((('pch', w_pinv, lch, th_pinv, '', ''), 2 * col_p + n_sep))
 
         # nmos inverter row
@@ -225,9 +229,13 @@ class SenseAmpStrongArm(LaygoBase):
         cur_col += n_ninv
         cur_col = self._draw_nedge_dummy(row_idx, cur_col, col_ninv, ndum_list, left=False)
         cur_col += n_sp
+        nbufl = self.add_laygo_mos(row_idx, cur_col, n_buf)
+        cur_col += n_buf + blk_sp
         nandnl = self.add_laygo_mos(row_idx, cur_col, n_nand, stack=True, gate_loc='s')
-        cur_col += n_nand * 2 + n_nand_sp
+        cur_col += n_nand * 2 + blk_sp
         nandnr = self.add_laygo_mos(row_idx, cur_col, n_nand, stack=True, gate_loc='s')
+        cur_col += n_nand * 2 + blk_sp
+        nbufr = self.add_laygo_mos(row_idx, cur_col, n_buf)
         dum_info_list.append((('nch', w_ninv, lch, th_ninv, '', ''), 2 * col_ninv + n_sep - 4))
         dum_info_list.append((('nch', w_ninv, lch, th_ninv, '', 'intp'), 2))
         dum_info_list.append((('nch', w_ninv, lch, th_ninv, '', 'intn'), 2))
@@ -268,7 +276,8 @@ class SenseAmpStrongArm(LaygoBase):
         self.fill_space()
 
         # connect ground
-        vss_s = [pw_tap['VSS_s'], tailn['s'], tailp['s'], nandnl['s'], nandnr['s']]
+        vss_s = [pw_tap['VSS_s'], tailn['s'], tailp['s'], nandnl['s'], nandnr['s'],
+                 nbufl['s'], nbufr['s']]
         vss_d = [pw_tap['VSS_d']]
         for inst, mode in ndum_list:
             if mode == 0:
@@ -309,7 +318,7 @@ class SenseAmpStrongArm(LaygoBase):
         nmidn = self.connect_to_tracks(nmidn, mid_tid)
 
         # connect pmos mid
-        mid_tid = self.get_wire_id(4, 'gb', wire_name='mid')
+        mid_tid = self.get_wire_id(4, 'gb', wire_idx=1)
         pmidp = self.connect_to_tracks(rst_midp['d'], mid_tid, min_len_mode=-1)
         pmidn = self.connect_to_tracks(rst_midn['d'], mid_tid, min_len_mode=1)
 
@@ -318,7 +327,7 @@ class SenseAmpStrongArm(LaygoBase):
         noutn = self.connect_to_tracks(ninv_outn['d'], nout_tid, min_len_mode=0)
 
         # connect pmos output
-        pout_tid = self.get_wire_id(4, 'gb', wire_name='out')
+        pout_tid = self.get_wire_id(4, 'gb', wire_idx=0)
         poutp = [pinv_outp['d'], rst_outp['d']]
         poutn = [pinv_outn['d'], rst_outn['d']]
         poutp = self.connect_to_tracks(poutp, pout_tid)
@@ -336,7 +345,7 @@ class SenseAmpStrongArm(LaygoBase):
 
         # connect vdd
         vdd_s = [nw_tap['VDD_s'], pinv_outp['s'], pinv_outn['s'], rst_midp['s'],
-                 rst_midn['s'], nandpl['s'], nandpr['s']]
+                 rst_midn['s'], nandpl['s'], nandpr['s'], pbufl['s'], pbufr['s']]
         vdd_d = [nw_tap['VDD_d']]
         for inst in pdum_list:
             vdd_d.append(inst['d'])
@@ -367,7 +376,7 @@ class SenseAmpStrongArm(LaygoBase):
         nand_gbr = self.connect_to_tracks([nandnr['g0'], nandpr['g0']], nand_gbr_tid)
 
         # connect nand ym wires
-        tr_w_nand_y = tr_manager.get_width(ym_layer, 'nand')
+        ym_w_out = tr_manager.get_width(ym_layer, 'out')
         nand_outl_id = self.grid.coord_to_nearest_track(ym_layer, nand_outnl.middle,
                                                         half_track=True, mode=1)
         nand_outr_id = self.grid.coord_to_nearest_track(ym_layer, nand_outnr.middle,
@@ -379,7 +388,7 @@ class SenseAmpStrongArm(LaygoBase):
         nand_outl, nand_outr = self.connect_differential_tracks(nand_outpl, nand_outpr, ym_layer,
                                                                 nand_outl_id, nand_outr_id,
                                                                 track_upper=out_upper,
-                                                                width=tr_w_nand_y, unit_mode=True)
+                                                                width=ym_w_out, unit_mode=True)
         nand_outl = self.connect_to_tracks(nand_outnl, nand_outl.track_id,
                                            track_upper=out_upper, unit_mode=True)
         nand_outr = self.connect_to_tracks(nand_outnr, nand_outr.track_id,
@@ -387,11 +396,11 @@ class SenseAmpStrongArm(LaygoBase):
         self.add_pin('outp', nand_outl, show=show_pins)
         self.add_pin('outn', nand_outr, show=show_pins)
 
-        sp_nand_ym = tr_manager.get_space(ym_layer, ('nand', 'nand')) + tr_w_nand_y
-        nand_inn_tid = nand_outl_id - sp_nand_ym
-        nand_inp_tid = nand_outr_id + sp_nand_ym
+        ym_pitch_out = tr_manager.get_space(ym_layer, ('out', 'out')) + ym_w_out
+        nand_inn_tid = nand_outl_id - ym_pitch_out
+        nand_inp_tid = nand_outr_id + ym_pitch_out
         self.connect_differential_tracks(nand_gbl, nand_gbr, ym_layer, nand_inn_tid,
-                                         nand_inp_tid, width=tr_w_nand_y)
+                                         nand_inp_tid, width=ym_w_out)
 
         # connect ym wires
         clk_tid = TrackID(ym_layer, clk_idx, width=tr_manager.get_width(ym_layer, 'clk'))
@@ -409,11 +418,10 @@ class SenseAmpStrongArm(LaygoBase):
         outp2 = self.connect_to_tracks(invgn, op_tid)
         outn2 = self.connect_to_tracks(invgp, on_tid)
 
-        tr_w_mid_ym = tr_manager.get_width(ym_layer, 'mid')
-        sp_om_y = tr_manager.get_space(ym_layer, ('out', 'mid'))
-        sp_out_mid = sp_out_ym + sp_om_y + (tr_w_mid_ym + tr_w_out_ym) / 2
-        mn_tid = TrackID(ym_layer, on_idx + sp_out_mid, width=tr_w_mid_ym)
-        mp_tid = TrackID(ym_layer, op_idx - sp_out_mid, width=tr_w_mid_ym)
+        ym_sp_out = tr_manager.get_space(ym_layer, ('out', 'out'))
+        sp_out_mid = sp_out_ym + ym_sp_out + (ym_w_out + tr_w_out_ym) / 2
+        mn_tid = TrackID(ym_layer, on_idx + sp_out_mid, width=ym_w_out)
+        mp_tid = TrackID(ym_layer, op_idx - sp_out_mid, width=ym_w_out)
         self.connect_to_tracks([nmidn, pmidn], mn_tid)
         self.connect_to_tracks([nmidp, pmidp], mp_tid)
 
@@ -429,7 +437,7 @@ class SenseAmpStrongArm(LaygoBase):
         self.add_pin('midp', outp, show=show_pins)
         self.add_pin('midn', outn, show=show_pins)
         self.connect_differential_tracks(outn, outp, ym_layer, nand_inn_tid, nand_inp_tid,
-                                         width=tr_w_nand_y)
+                                         width=ym_w_out)
 
         # set schematic parameters
         self._sch_params = dict(
