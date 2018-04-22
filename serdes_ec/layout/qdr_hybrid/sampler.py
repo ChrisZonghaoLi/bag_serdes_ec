@@ -129,6 +129,7 @@ class SenseAmpColumn(TemplateBase):
                                       orient='MX', unit_mode=True)
             inst_list.append(binst)
             inst_list.append(tinst)
+        ycur += eayt
         top_row = self.add_instance(end_row_master, 'XROWT', loc=(0, ycur), orient='MX',
                                     unit_mode=True)
 

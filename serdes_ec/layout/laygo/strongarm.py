@@ -125,21 +125,23 @@ class SenseAmpStrongArm(LaygoBase):
         tr_manager = TrackManager(self.grid, tr_widths, tr_spaces)
 
         # get row information
-        row_list = ['ptap', 'nch', 'nch', 'nch', 'pch', 'ntap']
-        orient_list = ['R0', 'R0', 'MX', 'MX', 'R0', 'MX']
-        thres_list = [th_tail, th_tail, th_in, th_ninv, th_pinv, th_pinv]
-        w_list = [w_sub, w_tail, w_in, w_ninv, w_pinv, w_sub]
+        row_list = ['ptap', 'ptap', 'nch', 'nch', 'nch', 'pch', 'ntap', 'ntap']
+        orient_list = ['R0', 'R0', 'R0', 'MX', 'MX', 'R0', 'MX', 'MX']
+        thres_list = [th_tail, th_tail, th_tail, th_in, th_ninv, th_pinv, th_pinv, th_pinv]
+        w_list = [w_sub, w_sub, w_tail, w_in, w_ninv, w_pinv, w_sub, w_sub]
         if end_mode is None:
             end_mode = 15 if draw_boundaries else 0
 
         # get track information
         wire_names = [
+            dict(ds=['sup'], ),
             dict(ds=['sup', 'sup'],),
             dict(g=['clk'], gb=['tail'],),
             dict(g=['in'], gb=['out'],),
             dict(g=['out', 'out'], gb=['out'],),
             dict(g=['out', 'out'], gb=['out', 'out'],),
             dict(ds=['sup', 'sup'],),
+            dict(ds=['sup'], ),
         ]
 
         # determine number of blocks
@@ -200,11 +202,15 @@ class SenseAmpStrongArm(LaygoBase):
         ndum_list, pdum_list, dum_info_list = [], [], []
 
         # nwell tap
-        cur_col, row_idx = 0, 5
-        nw_tap = self.add_laygo_mos(row_idx, cur_col, n_tot)
+        row_off = 1
+        cur_col, row_idx = 0, 7
+        nw_tap1 = self.add_laygo_mos(row_idx, cur_col, n_tot)
+        row_idx -= 1
+        nw_tap0 = self.add_laygo_mos(row_idx, cur_col, n_tot)
+        row_idx -= 1
 
         # pmos inverter row
-        cur_col, row_idx = 0, 4
+        cur_col = 0
         pdum_list.append(self.add_laygo_mos(row_idx, cur_col, col_p))
         cur_col += col_p
         rst_midp = self.add_laygo_mos(row_idx, cur_col, n_rst)
@@ -231,9 +237,10 @@ class SenseAmpStrongArm(LaygoBase):
         cur_col += n_nand * 2 + blk_sp
         pbufr = self.add_laygo_mos(row_idx, cur_col, n_buf)
         dum_info_list.append((('pch', w_pinv, lch, th_pinv, '', ''), 2 * col_p + n_sep))
+        row_idx -= 1
 
         # nmos inverter row
-        cur_col, row_idx = 0, 3
+        cur_col = 0
         cur_col = self._draw_nedge_dummy(row_idx, cur_col, col_ninv, ndum_list, left=True)
         ninv_outp = self.add_laygo_mos(row_idx, cur_col, n_ninv)
         cur_col += n_ninv
@@ -252,9 +259,10 @@ class SenseAmpStrongArm(LaygoBase):
         dum_info_list.append((('nch', w_ninv, lch, th_ninv, '', ''), 2 * col_ninv + n_sep - 4))
         dum_info_list.append((('nch', w_ninv, lch, th_ninv, '', 'intp'), 2))
         dum_info_list.append((('nch', w_ninv, lch, th_ninv, '', 'intn'), 2))
+        row_idx -= 1
 
         # nmos input row
-        cur_col, row_idx = 0, 2
+        cur_col = 0
         cur_col = self._draw_nedge_dummy(row_idx, cur_col, col_in, ndum_list, left=True)
         inn = self.add_laygo_mos(row_idx, cur_col, n_in)
         cur_col += n_in
@@ -266,9 +274,10 @@ class SenseAmpStrongArm(LaygoBase):
         dum_info_list.append((('nch', w_in, lch, th_in, '', ''), col_in + ndum + n_sep - 4))
         dum_info_list.append((('nch', w_in, lch, th_in, '', 'intp'), 2))
         dum_info_list.append((('nch', w_in, lch, th_in, '', 'intn'), 2))
+        row_idx -= 1
 
         # nmos tail row
-        cur_col, row_idx = 0, 1
+        cur_col = 0
         ndum_list.append((self.add_laygo_mos(row_idx, cur_col, col_tail), 0))
         cur_col += col_tail
         tailn = self.add_laygo_mos(row_idx, cur_col, n_tail)
@@ -280,26 +289,29 @@ class SenseAmpStrongArm(LaygoBase):
         ndum = n_tot - cur_col
         ndum_list.append((self.add_laygo_mos(row_idx, cur_col, ndum), 0))
         dum_info_list.append((('nch', w_tail, lch, th_tail, '', ''), col_in + ndum + n_sep))
+        row_idx -= 1
 
         # pwell tap
-        cur_col, row_idx = 0, 0
-        pw_tap = self.add_laygo_mos(row_idx, cur_col, n_tot)
+        cur_col = 0
+        pw_tap0 = self.add_laygo_mos(row_idx, cur_col, n_tot)
+        row_idx -= 1
+        pw_tap1 = self.add_laygo_mos(row_idx, cur_col, n_tot)
 
         # fill dummy
         self.fill_space()
 
         # connect ground
-        vss_s = [pw_tap['VSS_s'], tailn['s'], tailp['s'], nandnl['s'], nandnr['s'],
-                 nbufl['s'], nbufr['s']]
-        vss_d = [pw_tap['VSS_d']]
+        vss_s = [pw_tap0['VSS_s'], tailn['s'], tailp['s'], nandnl['s'], nandnr['s'],
+                 nbufl['s'], nbufr['s'], pw_tap1['VSS_s']]
+        vss_d = [pw_tap0['VSS_d'], pw_tap1['VSS_d']]
         for inst, mode in ndum_list:
             if mode == 0:
                 vss_s.append(inst['s'])
             vss_d.append(inst['d'])
             vss_d.append(inst['g'])
 
-        vss_s_tid = self.get_wire_id(0, 'ds', wire_idx=1)
-        vss_d_tid = self.get_wire_id(0, 'ds', wire_idx=0)
+        vss_s_tid = self.get_wire_id(row_off, 'ds', wire_idx=1)
+        vss_d_tid = self.get_wire_id(row_off, 'ds', wire_idx=0)
         vss_s_warrs = self.connect_to_tracks(vss_s, vss_s_tid)
         vss_d_warrs = self.connect_to_tracks(vss_d, vss_d_tid)
         self.add_pin('VSS', vss_s_warrs, label='VSS:', show=show_pins)
@@ -307,23 +319,23 @@ class SenseAmpStrongArm(LaygoBase):
 
         # connect tail
         tail = [tailp['d'], tailn['d'], inp['d'], inn['d']]
-        tail_tid = self.get_wire_id(1, 'gb', wire_idx=0)
+        tail_tid = self.get_wire_id(row_off + 1, 'gb', wire_idx=0)
         self.connect_to_tracks(tail, tail_tid)
 
         # connect tail clk
-        tclk_tid = self.get_wire_id(1, 'g', wire_idx=0)
+        tclk_tid = self.get_wire_id(row_off + 1, 'g', wire_idx=0)
         clk_list = [self.connect_to_tracks([tailp['g'], tailn['g']], tclk_tid)]
 
         # connect inputs
-        in_tid = self.get_wire_id(2, 'g', wire_idx=0)
+        in_tid = self.get_wire_id(row_off + 2, 'g', wire_idx=0)
         inp_warr = self.connect_to_tracks(inp['g'], in_tid, min_len_mode=0)
         inn_warr = self.connect_to_tracks(inn['g'], in_tid, min_len_mode=0)
         self.add_pin('inp', inp_warr, show=show_pins)
         self.add_pin('inn', inn_warr, show=show_pins)
 
         # get output/mid horizontal track id
-        nout_tid = self.get_wire_id(3, 'gb', wire_idx=0)
-        mid_tid = self.get_wire_id(2, 'gb', wire_idx=0)
+        nout_tid = self.get_wire_id(row_off + 3, 'gb', wire_idx=0)
+        mid_tid = self.get_wire_id(row_off + 2, 'gb', wire_idx=0)
         # connect nmos mid
         nmidp = [inn['s'], ninv_outp['s']]
         nmidn = [inp['s'], ninv_outn['s']]
@@ -331,7 +343,7 @@ class SenseAmpStrongArm(LaygoBase):
         nmidn = self.connect_to_tracks(nmidn, mid_tid)
 
         # connect pmos mid
-        mid_tid = self.get_wire_id(4, 'gb', wire_idx=1)
+        mid_tid = self.get_wire_id(row_off + 4, 'gb', wire_idx=1)
         pmidp = self.connect_to_tracks(rst_midp['d'], mid_tid, min_len_mode=-1)
         pmidn = self.connect_to_tracks(rst_midn['d'], mid_tid, min_len_mode=1)
 
@@ -340,7 +352,7 @@ class SenseAmpStrongArm(LaygoBase):
         noutn = self.connect_to_tracks(ninv_outn['d'], nout_tid, min_len_mode=0)
 
         # connect pmos output
-        pout_tid = self.get_wire_id(4, 'gb', wire_idx=0)
+        pout_tid = self.get_wire_id(row_off + 4, 'gb', wire_idx=0)
         poutp = [pinv_outp['d'], rst_outp['d']]
         poutn = [pinv_outn['d'], rst_outn['d']]
         poutp = self.connect_to_tracks(poutp, pout_tid)
@@ -348,33 +360,34 @@ class SenseAmpStrongArm(LaygoBase):
 
         # connect clock in inverter row
         pclk = [rst_midp['g'], rst_midn['g'], rst_outp['g'], rst_outn['g']]
-        pclk_tid = self.get_wire_id(4, 'g', wire_idx=0)
+        pclk_tid = self.get_wire_id(row_off + 4, 'g', wire_idx=0)
         clk_list.append(self.connect_to_tracks(pclk, pclk_tid))
 
         # connect inverter gate
-        invg_tid = self.get_wire_id(3, 'g', wire_idx=1)
+        invg_tid = self.get_wire_id(row_off + 3, 'g', wire_idx=1)
         invgp = self.connect_to_tracks([ninv_outp['g'], pinv_outp['g']], invg_tid)
         invgn = self.connect_to_tracks([ninv_outn['g'], pinv_outn['g']], invg_tid)
 
         # connect vdd
-        vdd_s = [nw_tap['VDD_s'], pinv_outp['s'], pinv_outn['s'], rst_midp['s'],
-                 rst_midn['s'], nandpl['s'], nandpr['s'], pbufl['s'], pbufr['s']]
-        vdd_d = [nw_tap['VDD_d']]
+        vdd_s = [nw_tap0['VDD_s'], pinv_outp['s'], pinv_outn['s'], rst_midp['s'],
+                 rst_midn['s'], nandpl['s'], nandpr['s'], pbufl['s'], pbufr['s'],
+                 nw_tap1['VDD_s']]
+        vdd_d = [nw_tap0['VDD_d'], nw_tap1['VDD_d']]
         for inst in pdum_list:
             vdd_d.append(inst['d'])
             vdd_d.append(inst['g'])
             vdd_s.append(inst['s'])
-        vdd_d_tid = self.get_wire_id(5, 'ds', wire_idx=1)
-        vdd_s_tid = self.get_wire_id(5, 'ds', wire_idx=0)
+        vdd_d_tid = self.get_wire_id(row_off + 5, 'ds', wire_idx=1)
+        vdd_s_tid = self.get_wire_id(row_off + 5, 'ds', wire_idx=0)
         self.add_pin('VDD', self.connect_to_tracks(vdd_s, vdd_s_tid), show=show_pins)
         self.add_pin('VDD', self.connect_to_tracks(vdd_d, vdd_d_tid), show=show_pins)
 
         # connect nand
-        nand_gbl_tid = self.get_wire_id(3, 'g', wire_idx=0)
-        nand_gtl_tid = self.get_wire_id(3, 'g', wire_idx=1)
-        nand_gtr_tid = self.get_wire_id(4, 'g', wire_idx=0)
-        nand_gbr_tid = self.get_wire_id(4, 'g', wire_idx=1)
-        nand_nmos_out_tid = self.get_wire_id(3, 'gb', wire_idx=0)
+        nand_gbl_tid = self.get_wire_id(row_off + 3, 'g', wire_idx=0)
+        nand_gtl_tid = self.get_wire_id(row_off + 3, 'g', wire_idx=1)
+        nand_gtr_tid = self.get_wire_id(row_off + 4, 'g', wire_idx=0)
+        nand_gbr_tid = self.get_wire_id(row_off + 4, 'g', wire_idx=1)
+        nand_nmos_out_tid = self.get_wire_id(row_off + 3, 'gb', wire_idx=0)
         nand_outnl = self.connect_to_tracks(nandnl['d'], nand_nmos_out_tid, min_len_mode=0)
         nand_outnr = self.connect_to_tracks(nandnr['d'], nand_nmos_out_tid, min_len_mode=0)
 
@@ -389,7 +402,7 @@ class SenseAmpStrongArm(LaygoBase):
         nand_gbr = self.connect_to_tracks([nandnr['g0'], nandpr['g0']], nand_gbr_tid)
 
         # connect buffer
-        buf_pmos_out_tid = self.get_wire_id(4, 'gb', wire_idx=0)
+        buf_pmos_out_tid = self.get_wire_id(row_off + 4, 'gb', wire_idx=0)
         buf_noutl = self.connect_to_tracks(nbufl['d'], nand_nmos_out_tid, min_len_mode=0)
         buf_noutr = self.connect_to_tracks(nbufr['d'], nand_nmos_out_tid, min_len_mode=0)
         buf_poutl = self.connect_to_tracks(pbufl['d'], buf_pmos_out_tid, min_len_mode=0)
