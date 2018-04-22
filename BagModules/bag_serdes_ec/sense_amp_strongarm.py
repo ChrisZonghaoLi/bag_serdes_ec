@@ -31,6 +31,7 @@ class bag_serdes_ec__sense_amp_strongarm(Module):
             th_dict='threshold dictionary.',
             seg_dict='number of segments dictionary.',
             dum_info='Dummy information data structure.',
+            export_probe='True to export probe pins.',
         )
 
     @classmethod
@@ -38,9 +39,14 @@ class bag_serdes_ec__sense_amp_strongarm(Module):
         # type: () -> Dict[str, Any]
         return dict(
             dum_info=None,
+            export_probe=False,
         )
 
-    def design(self, lch, w_dict, th_dict, seg_dict, dum_info):
+    def design(self, lch, w_dict, th_dict, seg_dict, dum_info, export_probe):
+        if not export_probe:
+            for name in ['midp', 'midn', 'qp', 'qn']:
+                self.remove_pin(name)
+
         tran_info_list = [('XTAILL', 'tail'), ('XTAILR', 'tail'),
                           ('XINL', 'in'), ('XINR', 'in'),
                           ('XNINVL', 'ninv'), ('XNINVR', 'ninv'),
@@ -58,6 +64,9 @@ class bag_serdes_ec__sense_amp_strongarm(Module):
                 seg = seg_dict[inst_info[2]]
             self.instances[inst_info[0]].design(w=w, l=lch, nf=seg, intent=th)
 
+        # design dummies
+        self.design_dummy_transistors(dum_info, 'XDUM', 'VDD', 'VSS')
+
         # design NAND gates
         w_ninv = w_dict['ninv']
         w_pinv = w_dict['pinv']
@@ -70,4 +79,10 @@ class bag_serdes_ec__sense_amp_strongarm(Module):
         self.instances['XNANDR'].design(nin=2, lch=lch, wp=w_pinv, wn=w_ninv,
                                         thp=th_pinv, thn=th_ninv, segp=seg_nand,
                                         segn=seg_nand)
-        self.design_dummy_transistors(dum_info, 'XDUM', 'VDD', 'VSS')
+
+        # design buffers
+        seg_buf = seg_dict['buf']
+        self.instances['XINVL'].design(lch=lch, wp=w_pinv, wn=w_ninv, thp=th_pinv,
+                                       thn=th_ninv, segp=seg_buf, segn=seg_buf)
+        self.instances['XINVR'].design(lch=lch, wp=w_pinv, wn=w_ninv, thp=th_pinv,
+                                       thn=th_ninv, segp=seg_buf, segn=seg_buf)

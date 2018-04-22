@@ -57,6 +57,7 @@ class SenseAmpStrongArm(LaygoBase):
             end_mode='Boundary end mode.',
             min_height='Minimum height.',
             show_pins='True to draw pin geometries.',
+            export_probe='True to export probe pins.',
         )
 
     @classmethod
@@ -67,6 +68,7 @@ class SenseAmpStrongArm(LaygoBase):
             end_mode=None,
             min_height=0,
             show_pins=True,
+            export_probe=False,
         )
 
     def draw_layout(self):
@@ -82,6 +84,7 @@ class SenseAmpStrongArm(LaygoBase):
         end_mode = self.params['end_mode']
         min_height = self.params['min_height']
         show_pins = self.params['show_pins']
+        export_probe = self.params['export_probe'] and show_pins
 
         n_in = seg_dict['in']
         n_tail = seg_dict['tail']
@@ -285,8 +288,8 @@ class SenseAmpStrongArm(LaygoBase):
             vss_d.append(inst['d'])
             vss_d.append(inst['g'])
 
-        vss_s_tid = self.get_wire_id(0, 'ds', wire_idx=0)
-        vss_d_tid = self.get_wire_id(0, 'ds', wire_idx=1)
+        vss_s_tid = self.get_wire_id(0, 'ds', wire_idx=1)
+        vss_d_tid = self.get_wire_id(0, 'ds', wire_idx=0)
         vss_s_warrs = self.connect_to_tracks(vss_s, vss_s_tid)
         vss_d_warrs = self.connect_to_tracks(vss_d, vss_d_tid)
         self.add_pin('VSS', vss_s_warrs, label='VSS:', show=show_pins)
@@ -351,8 +354,8 @@ class SenseAmpStrongArm(LaygoBase):
             vdd_d.append(inst['d'])
             vdd_d.append(inst['g'])
             vdd_s.append(inst['s'])
-        vdd_d_tid = self.get_wire_id(5, 'ds', wire_idx=0)
-        vdd_s_tid = self.get_wire_id(5, 'ds', wire_idx=1)
+        vdd_d_tid = self.get_wire_id(5, 'ds', wire_idx=1)
+        vdd_s_tid = self.get_wire_id(5, 'ds', wire_idx=0)
         self.add_pin('VDD', self.connect_to_tracks(vdd_s, vdd_s_tid), show=show_pins)
         self.add_pin('VDD', self.connect_to_tracks(vdd_d, vdd_d_tid), show=show_pins)
 
@@ -365,8 +368,8 @@ class SenseAmpStrongArm(LaygoBase):
         nand_outnl = self.connect_to_tracks(nandnl['d'], nand_nmos_out_tid, min_len_mode=0)
         nand_outnr = self.connect_to_tracks(nandnr['d'], nand_nmos_out_tid, min_len_mode=0)
 
-        nand_gtl = [nandnl['g1'], nandpl['g1'], nandpr['d']]
-        nand_gtr = [nandnr['g1'], nandpr['g1'], nandpl['d']]
+        nand_gtl = [nandnl['g1'], nandpl['g1'], nandpr['d'], nbufr['g'], pbufr['g']]
+        nand_gtr = [nandnr['g1'], nandpr['g1'], nandpl['d'], nbufl['g'], pbufl['g']]
         tr_w = nand_gtr_tid.width
         pidx = nand_gtr_tid.base_index
         nidx = nand_gtl_tid.base_index
@@ -375,12 +378,29 @@ class SenseAmpStrongArm(LaygoBase):
         nand_gbl = self.connect_to_tracks([nandnl['g0'], nandpl['g0']], nand_gbl_tid)
         nand_gbr = self.connect_to_tracks([nandnr['g0'], nandpr['g0']], nand_gbr_tid)
 
-        # connect nand ym wires
+        # connect buffer
+        buf_pmos_out_tid = self.get_wire_id(4, 'gb', wire_idx=0)
+        buf_noutl = self.connect_to_tracks(nbufl['d'], nand_nmos_out_tid, min_len_mode=0)
+        buf_noutr = self.connect_to_tracks(nbufr['d'], nand_nmos_out_tid, min_len_mode=0)
+        buf_poutl = self.connect_to_tracks(pbufl['d'], buf_pmos_out_tid, min_len_mode=0)
+        buf_poutr = self.connect_to_tracks(pbufr['d'], buf_pmos_out_tid, min_len_mode=0)
+
+        # connect buffer ym wires
         ym_w_out = tr_manager.get_width(ym_layer, 'out')
-        nand_outl_id = self.grid.coord_to_nearest_track(ym_layer, nand_outnl.middle,
-                                                        half_track=True, mode=1)
-        nand_outr_id = self.grid.coord_to_nearest_track(ym_layer, nand_outnr.middle,
-                                                        half_track=True, mode=-1)
+        outb_tid = self.grid.coord_to_nearest_track(ym_layer, buf_noutl.middle_unit,
+                                                    half_track=True, mode=1, unit_mode=True)
+        out_tid = self.grid.coord_to_nearest_track(ym_layer, buf_noutr.middle_unit,
+                                                   half_track=True, mode=-1, unit_mode=True)
+        self.connect_to_tracks([buf_noutl, buf_poutl], TrackID(ym_layer, outb_tid, width=ym_w_out))
+        out = self.connect_to_tracks([buf_noutr, buf_poutr],
+                                     TrackID(ym_layer, out_tid, width=ym_w_out))
+        self.add_pin('out', out, show=show_pins)
+
+        # connect nand ym wires
+        nand_outl_id = self.grid.coord_to_nearest_track(ym_layer, nand_outnl.middle_unit,
+                                                        half_track=True, mode=1, unit_mode=True)
+        nand_outr_id = self.grid.coord_to_nearest_track(ym_layer, nand_outnr.middle_unit,
+                                                        half_track=True, mode=-1, unit_mode=True)
         nand_gbr_yt = self.grid.get_wire_bounds(hm_layer, nand_gbr_tid.base_index,
                                                 unit_mode=True)[1]
         ym_via_ext = self.grid.get_via_extensions(hm_layer, 1, 1, unit_mode=True)[1]
@@ -393,8 +413,8 @@ class SenseAmpStrongArm(LaygoBase):
                                            track_upper=out_upper, unit_mode=True)
         nand_outr = self.connect_to_tracks(nand_outnr, nand_outr.track_id,
                                            track_upper=out_upper, unit_mode=True)
-        self.add_pin('outp', nand_outl, show=show_pins)
-        self.add_pin('outn', nand_outr, show=show_pins)
+        self.add_pin('qp', nand_outl, show=export_probe)
+        self.add_pin('qn', nand_outr, show=export_probe)
 
         ym_pitch_out = tr_manager.get_space(ym_layer, ('out', 'out')) + ym_w_out
         nand_inn_tid = nand_outl_id - ym_pitch_out
@@ -434,18 +454,19 @@ class SenseAmpStrongArm(LaygoBase):
         tr_w_out_xm = tr_manager.get_width(xm_layer, 'out')
         outp, outn = self.connect_differential_tracks([outp1, outp2], [outn1, outn2], xm_layer,
                                                       outp_idx, outn_idx, width=tr_w_out_xm)
-        self.add_pin('midp', outp, show=show_pins)
-        self.add_pin('midn', outn, show=show_pins)
+        self.add_pin('midp', outp, show=export_probe)
+        self.add_pin('midn', outn, show=export_probe)
         self.connect_differential_tracks(outn, outp, ym_layer, nand_inn_tid, nand_inp_tid,
                                          width=ym_w_out)
 
         # set schematic parameters
         self._sch_params = dict(
-            lch=self.params['config']['lch'],
+            lch=lch,
             w_dict=w_dict,
             th_dict=th_dict,
             seg_dict=seg_dict,
             dum_info=dum_info_list,
+            export_probe=export_probe,
         )
 
     def _draw_nsep_dummy(self, row_idx, cur_col, n_sep, ndum_list):
