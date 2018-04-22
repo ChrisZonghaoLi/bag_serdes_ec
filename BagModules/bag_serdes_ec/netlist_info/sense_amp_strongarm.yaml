@@ -1,6 +1,6 @@
 lib_name: bag_serdes_ec
 cell_name: sense_amp_strongarm
-pins: [ "VDD", "VSS", "clk", "inp", "outn", "midp", "midn", "outp", "inn" ]
+pins: [ "VDD", "VSS", "clk", "inp", "qp", "midp", "midn", "qn", "inn", "out" ]
 instances:
   XINL:
     lib_name: BAG_prim
@@ -282,7 +282,7 @@ instances:
     lib_name: basic
     cell_name: ipin
     instpins: {}
-  PIN7:
+  PIN10:
     lib_name: basic
     cell_name: opin
     instpins: {}
@@ -294,13 +294,17 @@ instances:
     lib_name: basic
     cell_name: opin
     instpins: {}
-  PIN8:
+  PIN9:
     lib_name: basic
     cell_name: opin
     instpins: {}
-  XNANDR:
+  PIN11:
+    lib_name: basic
+    cell_name: opin
+    instpins: {}
+  XINVR:
     lib_name: bag_digital_ec
-    cell_name: nand
+    cell_name: inv
     instpins:
       VSS:
         direction: inputOutput
@@ -312,12 +316,40 @@ instances:
         num_bits: 1
       out:
         direction: output
-        net_name: "outp"
+        net_name: "out"
         num_bits: 1
-      in<1:0>:
+      in:
         direction: input
-        net_name: "outn,midn"
-        num_bits: 2
+        net_name: "qn"
+        num_bits: 1
+  XINVL:
+    lib_name: bag_digital_ec
+    cell_name: inv
+    instpins:
+      VSS:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      VDD:
+        direction: inputOutput
+        net_name: "VDD"
+        num_bits: 1
+      out:
+        direction: output
+        net_name: "outb"
+        num_bits: 1
+      in:
+        direction: input
+        net_name: "qp"
+        num_bits: 1
+  XNC:
+    lib_name: basic
+    cell_name: noConn
+    instpins:
+      noConn:
+        direction: inputOutput
+        net_name: "outb"
+        num_bits: 1
   XNANDL:
     lib_name: bag_digital_ec
     cell_name: nand
@@ -332,9 +364,29 @@ instances:
         num_bits: 1
       out:
         direction: output
-        net_name: "outn"
+        net_name: "qp"
         num_bits: 1
       in<1:0>:
         direction: input
-        net_name: "outp,midp"
+        net_name: "qn,midn"
+        num_bits: 2
+  XNANDR:
+    lib_name: bag_digital_ec
+    cell_name: nand
+    instpins:
+      VSS:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      VDD:
+        direction: inputOutput
+        net_name: "VDD"
+        num_bits: 1
+      out:
+        direction: output
+        net_name: "qn"
+        num_bits: 1
+      in<1:0>:
+        direction: input
+        net_name: "qp,midp"
         num_bits: 2

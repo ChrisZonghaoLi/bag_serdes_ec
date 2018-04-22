@@ -1,0 +1,188 @@
+lib_name: bag_serdes_ec
+cell_name: qdr_retimer
+pins: [ "in<3:0>", "clk<3:0>", "out<3:0>", "VDD", "VSS" ]
+instances:
+  XLAT0:
+    lib_name: bag_digital_ec
+    cell_name: latch_ck2
+    instpins:
+      VSS:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      VDD:
+        direction: inputOutput
+        net_name: "VDD"
+        num_bits: 1
+      out:
+        direction: output
+        net_name: "out<0>"
+        num_bits: 1
+      in:
+        direction: input
+        net_name: "in<0>"
+        num_bits: 1
+      clk:
+        direction: input
+        net_name: "clk<2>"
+        num_bits: 1
+      clkb:
+        direction: input
+        net_name: "clk<0>"
+        num_bits: 1
+  XLAT1:
+    lib_name: bag_digital_ec
+    cell_name: latch_ck2
+    instpins:
+      VSS:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      VDD:
+        direction: inputOutput
+        net_name: "VDD"
+        num_bits: 1
+      out:
+        direction: output
+        net_name: "mid<1>"
+        num_bits: 1
+      in:
+        direction: input
+        net_name: "in<1>"
+        num_bits: 1
+      clk:
+        direction: input
+        net_name: "clk<3>"
+        num_bits: 1
+      clkb:
+        direction: input
+        net_name: "clk<1>"
+        num_bits: 1
+  XFF2:
+    lib_name: bag_digital_ec
+    cell_name: dff_ck2
+    instpins:
+      VSS:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      VDD:
+        direction: inputOutput
+        net_name: "VDD"
+        num_bits: 1
+      out:
+        direction: output
+        net_name: "out<2>"
+        num_bits: 1
+      in:
+        direction: input
+        net_name: "in<2>"
+        num_bits: 1
+      clk:
+        direction: input
+        net_name: "clk<2>"
+        num_bits: 1
+      clkb:
+        direction: input
+        net_name: "clk<0>"
+        num_bits: 1
+  XFF3:
+    lib_name: bag_digital_ec
+    cell_name: dff_ck2
+    instpins:
+      VSS:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      VDD:
+        direction: inputOutput
+        net_name: "VDD"
+        num_bits: 1
+      out:
+        direction: output
+        net_name: "out<3>"
+        num_bits: 1
+      in:
+        direction: input
+        net_name: "in<3>"
+        num_bits: 1
+      clk:
+        direction: input
+        net_name: "clk<3>"
+        num_bits: 1
+      clkb:
+        direction: input
+        net_name: "clk<1>"
+        num_bits: 1
+  XPASS3:
+    lib_name: basic
+    cell_name: cds_thru
+    instpins:
+      src:
+        direction: inputOutput
+        net_name: "in<3>"
+        num_bits: 1
+      dst:
+        direction: inputOutput
+        net_name: "out<3>"
+        num_bits: 1
+  XINV1:
+    lib_name: bag_digital_ec
+    cell_name: inv
+    instpins:
+      VSS:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      VDD:
+        direction: inputOutput
+        net_name: "VDD"
+        num_bits: 1
+      out:
+        direction: output
+        net_name: "out<1>"
+        num_bits: 1
+      in:
+        direction: input
+        net_name: "midb<1>"
+        num_bits: 1
+  XINV0:
+    lib_name: bag_digital_ec
+    cell_name: inv
+    instpins:
+      VSS:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      VDD:
+        direction: inputOutput
+        net_name: "VDD"
+        num_bits: 1
+      out:
+        direction: output
+        net_name: "midb<1>"
+        num_bits: 1
+      in:
+        direction: input
+        net_name: "mid<1>"
+        num_bits: 1
+  PIN2:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN0:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN1:
+    lib_name: basic
+    cell_name: opin
+    instpins: {}
+  PIN4:
+    lib_name: basic
+    cell_name: iopin
+    instpins: {}
+  PIN3:
+    lib_name: basic
+    cell_name: iopin
+    instpins: {}
