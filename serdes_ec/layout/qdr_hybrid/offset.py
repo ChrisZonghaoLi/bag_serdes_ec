@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 
 
 class HighPassColumn(TemplateBase):
-    """A column of differential high-pass RC filters..
+    """A column of differential high-pass RC filters.
 
     Parameters
     ----------

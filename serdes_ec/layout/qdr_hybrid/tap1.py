@@ -10,11 +10,12 @@ from bag.layout.util import BBox
 from bag.layout.routing import TrackManager, TrackID
 from bag.layout.template import TemplateBase
 
-from abs_templates_ec.analog_core.base import AnalogBase, AnalogBaseEnd
+from abs_templates_ec.analog_core.base import AnalogBaseEnd
 
 from ..laygo.divider import SinClkDivider
 from .base import HybridQDRBaseInfo, HybridQDRBase
 from .amp import IntegAmp
+from .util import get_row_params
 
 
 if TYPE_CHECKING:
@@ -566,39 +567,7 @@ class Tap1Summer(TemplateBase):
         show_pins = self.params['show_pins']
 
         # handle row_heights/substrate tracks
-        if row_heights is None:
-            bot_params = dict(
-                min_height=0,
-                vss_tid=None,
-                vdd_tid=None,
-            )
-            top_params = bot_params.copy()
-        else:
-            hm_layer = AnalogBase.get_mos_conn_layer(self.grid.tech_info) + 1
-            ytop = row_heights[0] + row_heights[1]
-            tr_off = self.grid.find_next_track(hm_layer, ytop, half_track=True, mode=-1,
-                                               unit_mode=True)
-            if vss_tids is None:
-                vss_bot_tid = vss_top_tid = None
-            else:
-                vss_bot_tid = vss_tids[0]
-                vss_top_tid = (tr_off - vss_tids[1][0], vss_tids[1][1])
-            if vdd_tids is None:
-                vdd_bot_tid = vdd_top_tid = None
-            else:
-                vdd_bot_tid = vdd_tids[0]
-                vdd_top_tid = (tr_off - vdd_tids[1][0], vdd_tids[1][1])
-
-            bot_params = dict(
-                min_height=row_heights[0],
-                vss_tid=vss_bot_tid,
-                vdd_tid=vdd_bot_tid,
-            )
-            top_params = dict(
-                min_height=row_heights[1],
-                vss_tid=vss_top_tid,
-                vdd_tid=vdd_top_tid,
-            )
+        bot_params, top_params = get_row_params(self.grid, row_heights, vss_tids, vdd_tids)
 
         # get layout masters
         bot_params.update(self.params)

@@ -36,11 +36,17 @@ class SenseAmpStrongArm(LaygoBase):
         # type: (TemplateDB, str, Dict[str, Any], Set[str], **Any) -> None
         LaygoBase.__init__(self, temp_db, lib_name, params, used_names, **kwargs)
         self._sch_params = None
+        self._fg_tot = None
 
     @property
     def sch_params(self):
         # type: () -> Dict[str, Any]
         return self._sch_params
+
+    @property
+    def fg_tot(self):
+        # type: () -> int
+        return self._fg_tot
 
     @classmethod
     def get_params_info(cls):
@@ -56,6 +62,8 @@ class SenseAmpStrongArm(LaygoBase):
             draw_boundaries='True to draw boundaries.',
             end_mode='Boundary end mode.',
             min_height='Minimum height.',
+            vss_tid='VSS track information.',
+            vdd_tid='VDD track information.',
             show_pins='True to draw pin geometries.',
             export_probe='True to export probe pins.',
         )
@@ -67,6 +75,8 @@ class SenseAmpStrongArm(LaygoBase):
             draw_boundaries=True,
             end_mode=None,
             min_height=0,
+            vss_tid=None,
+            vdd_tid=None,
             show_pins=True,
             export_probe=False,
         )
@@ -468,6 +478,7 @@ class SenseAmpStrongArm(LaygoBase):
             dum_info=dum_info_list,
             export_probe=export_probe,
         )
+        self._fg_tot = n_tot
 
     def _draw_nsep_dummy(self, row_idx, cur_col, n_sep, ndum_list):
         ndum_list.append((self.add_laygo_mos(row_idx, cur_col, 2), 1))
