@@ -93,6 +93,8 @@ class SenseAmpStrongArm(LaygoBase):
         draw_boundaries = self.params['draw_boundaries']
         end_mode = self.params['end_mode']
         min_height = self.params['min_height']
+        vss_tid = self.params['vss_tid']
+        vdd_tid = self.params['vdd_tid']
         show_pins = self.params['show_pins']
         export_probe = self.params['export_probe'] and show_pins
 
@@ -135,12 +137,12 @@ class SenseAmpStrongArm(LaygoBase):
         # get track information
         wire_names = [
             dict(ds=['sup'], ),
-            dict(ds=['sup', 'sup'],),
+            dict(ds=['sup'],),
             dict(g=['clk'], gb=['tail'],),
             dict(g=['in'], gb=['out'],),
             dict(g=['out', 'out'], gb=['out'],),
             dict(g=['out', 'out'], gb=['out', 'out'],),
-            dict(ds=['sup', 'sup'],),
+            dict(ds=['sup'],),
             dict(ds=['sup'], ),
         ]
 
@@ -149,6 +151,7 @@ class SenseAmpStrongArm(LaygoBase):
         lch = laygo_info.lch
         hm_layer = self.conn_layer + 1
         ym_layer = hm_layer + 1
+        xm_layer = ym_layer + 1
         # determine number of separation blocks needed for mid reset wires to be DRC clean
         hm_w_out = tr_manager.get_width(hm_layer, 'out')
         vm_w = self.grid.get_track_width(hm_layer - 1, 1, unit_mode=True)  # type: int
@@ -300,7 +303,7 @@ class SenseAmpStrongArm(LaygoBase):
         # fill dummy
         self.fill_space()
 
-        # connect ground
+        # connect vss
         vss_s = [pw_tap0['VSS_s'], tailn['s'], tailp['s'], nandnl['s'], nandnr['s'],
                  nbufl['s'], nbufr['s'], pw_tap1['VSS_s']]
         vss_d = [pw_tap0['VSS_d'], pw_tap1['VSS_d']]
@@ -310,12 +313,37 @@ class SenseAmpStrongArm(LaygoBase):
             vss_d.append(inst['d'])
             vss_d.append(inst['g'])
 
-        vss_s_tid = self.get_wire_id(row_off, 'ds', wire_idx=1)
-        vss_d_tid = self.get_wire_id(row_off, 'ds', wire_idx=0)
+        sup_tid = self.get_sup_tid(n_tot)
+        vss_s_tid = self.get_wire_id(row_off, 'ds')
+        vss_s_tid2 = self.get_wire_id(0, 'ds')
+        self.connect_wires(vss_d)
         vss_s_warrs = self.connect_to_tracks(vss_s, vss_s_tid)
-        vss_d_warrs = self.connect_to_tracks(vss_d, vss_d_tid)
-        self.add_pin('VSS', vss_s_warrs, label='VSS:', show=show_pins)
-        self.add_pin('VSS', vss_d_warrs, label='VSS:', show=show_pins)
+        vss_s2_warrs = self.connect_to_tracks(vss_s, vss_s_tid2)
+        vss_warrs = self.connect_to_tracks([vss_s_warrs, vss_s2_warrs], sup_tid)
+        if vss_tid is not None:
+            vss_warrs = self.connect_to_tracks(vss_warrs, TrackID(xm_layer, vss_tid[0],
+                                                                  width=vss_tid[1]))
+        self.add_pin('VSS', vss_warrs, show=show_pins)
+
+        # connect vdd
+        vdd_s = [nw_tap0['VDD_s'], pinv_outp['s'], pinv_outn['s'], rst_midp['s'],
+                 rst_midn['s'], nandpl['s'], nandpr['s'], pbufl['s'], pbufr['s'],
+                 nw_tap1['VDD_s']]
+        vdd_d = [nw_tap0['VDD_d'], nw_tap1['VDD_d']]
+        for inst in pdum_list:
+            vdd_d.append(inst['d'])
+            vdd_d.append(inst['g'])
+            vdd_s.append(inst['s'])
+        vdd_s_tid = self.get_wire_id(row_off + 5, 'ds')
+        vdd_s2_tid = self.get_wire_id(row_off + 6, 'ds')
+        self.connect_wires(vdd_d)
+        vdd_s_warrs = self.connect_to_tracks(vdd_s, vdd_s_tid)
+        vdd_s2_warrs = self.connect_to_tracks(vdd_s, vdd_s2_tid)
+        vdd_warrs = self.connect_to_tracks([vdd_s_warrs, vdd_s2_warrs], sup_tid)
+        if vdd_tid is not None:
+            vdd_warrs = self.connect_to_tracks(vdd_warrs, TrackID(xm_layer, vdd_tid[0],
+                                                                  width=vdd_tid[1]))
+        self.add_pin('VDD', vdd_warrs, show=show_pins)
 
         # connect tail
         tail = [tailp['d'], tailn['d'], inp['d'], inn['d']]
@@ -367,20 +395,6 @@ class SenseAmpStrongArm(LaygoBase):
         invg_tid = self.get_wire_id(row_off + 3, 'g', wire_idx=1)
         invgp = self.connect_to_tracks([ninv_outp['g'], pinv_outp['g']], invg_tid)
         invgn = self.connect_to_tracks([ninv_outn['g'], pinv_outn['g']], invg_tid)
-
-        # connect vdd
-        vdd_s = [nw_tap0['VDD_s'], pinv_outp['s'], pinv_outn['s'], rst_midp['s'],
-                 rst_midn['s'], nandpl['s'], nandpr['s'], pbufl['s'], pbufr['s'],
-                 nw_tap1['VDD_s']]
-        vdd_d = [nw_tap0['VDD_d'], nw_tap1['VDD_d']]
-        for inst in pdum_list:
-            vdd_d.append(inst['d'])
-            vdd_d.append(inst['g'])
-            vdd_s.append(inst['s'])
-        vdd_d_tid = self.get_wire_id(row_off + 5, 'ds', wire_idx=1)
-        vdd_s_tid = self.get_wire_id(row_off + 5, 'ds', wire_idx=0)
-        self.add_pin('VDD', self.connect_to_tracks(vdd_s, vdd_s_tid), show=show_pins)
-        self.add_pin('VDD', self.connect_to_tracks(vdd_d, vdd_d_tid), show=show_pins)
 
         # connect nand
         nand_gbl_tid = self.get_wire_id(row_off + 3, 'g', wire_idx=0)
@@ -468,7 +482,6 @@ class SenseAmpStrongArm(LaygoBase):
         self.connect_to_tracks([nmidn, pmidn], mn_tid)
         self.connect_to_tracks([nmidp, pmidp], mp_tid)
 
-        xm_layer = ym_layer + 1
         om_idx = self.grid.coord_to_nearest_track(xm_layer, outp1.middle, half_track=True)
         _, loc_xm_out = tr_manager.place_wires(xm_layer, ['out', 'out'])
         out_mid_idx = (loc_xm_out[0] + loc_xm_out[1]) / 2
@@ -492,6 +505,17 @@ class SenseAmpStrongArm(LaygoBase):
             export_probe=export_probe,
         )
         self._fg_tot = n_tot
+
+    def get_sup_tid(self, n_tot):
+        vm_layer = self.conn_layer + 2
+        xl = self.laygo_info.col_to_coord(0, unit_mode=True)
+        xr = self.laygo_info.col_to_coord(n_tot, unit_mode=True)
+        tl = self.grid.coord_to_nearest_track(vm_layer, xl, half_track=True,
+                                              mode=1, unit_mode=True)
+        tr = self.grid.coord_to_nearest_track(vm_layer, xr, half_track=True,
+                                              mode=-1, unit_mode=True)
+        num = int((tr - tl + 2) // 2)
+        return TrackID(vm_layer, tl, num=num, pitch=2)
 
     def _draw_nsep_dummy(self, row_idx, cur_col, n_sep, ndum_list):
         ndum_list.append((self.add_laygo_mos(row_idx, cur_col, 2), 1))
