@@ -54,7 +54,8 @@ class SenseAmpColumn(TemplateBase):
             tr_spaces='Track spacing dictionary.',
             row_heights='row heights for one summer.',
             sup_tids='supply tracks information.',
-            in_tids='input tracks information.',
+            data_tids='data input tracks information.',
+            dlev_tids='dlev input tracks information.',
             options='other AnalogBase options',
             show_pins='True to draw pin geometries.',
         )
@@ -76,7 +77,8 @@ class SenseAmpColumn(TemplateBase):
         tr_spaces = self.params['tr_spaces']
         row_heights = self.params['row_heights']
         sup_tids = self.params['sup_tids']
-        in_tids = self.params['in_tids']
+        data_tids = self.params['data_tids']
+        dlev_tids = self.params['dlev_tids']
         options = self.params['options']
         show_pins = self.params['show_pins']
 
@@ -85,12 +87,12 @@ class SenseAmpColumn(TemplateBase):
         bot_params = dict(config=config, w_dict=w_dict, th_dict=th_dict, seg_dict=seg_dict,
                           tr_widths=tr_widths, tr_spaces=tr_spaces, top_layer=top_layer,
                           draw_boundaries=True, end_mode=12, show_pins=False, export_probe=False,
-                          sup_tids=sup_tids[0], min_height=row_heights[0], in_tids=in_tids[0])
+                          sup_tids=sup_tids[0], min_height=row_heights[0], in_tids=dlev_tids)
 
         # create masters
         bot_master = self.new_template(params=bot_params, temp_cls=SenseAmpStrongArm)
         top_master = bot_master.new_template_with(min_height=row_heights[1], sup_tids=sup_tids[1],
-                                                  in_tids=in_tids[1])
+                                                  in_tids=data_tids)
 
         end_row_params = dict(
             lch=config['lch'],

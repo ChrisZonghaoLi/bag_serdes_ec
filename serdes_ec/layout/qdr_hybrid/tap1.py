@@ -222,6 +222,7 @@ class Tap1LatchRow(TemplateBase):
         self._sch_params = None
         self._fg_core = None
         self._en_locs = None
+        self._out_tr_info = None
 
     @property
     def sch_params(self):
@@ -237,6 +238,11 @@ class Tap1LatchRow(TemplateBase):
     def en_locs(self):
         # type: () -> List[Union[int, float]]
         return self._en_locs
+
+    @property
+    def out_tr_info(self):
+        # type: () -> Tuple[Union[int, float], Union[int, float], int]
+        return self._out_tr_info
 
     @classmethod
     def get_params_info(cls):
@@ -452,6 +458,9 @@ class Tap1LatchRow(TemplateBase):
             div_params=div_sch_params,
             pul_params=pul_sch_params,
         )
+        outp_tid = m_inst.get_pin('outp').track_id
+        self._out_tr_info = (outp_tid.base_index, m_inst.get_pin('outn').track_id.base_index,
+                             outp_tid.width)
 
 
 class Tap1Summer(TemplateBase):
@@ -479,6 +488,7 @@ class Tap1Summer(TemplateBase):
         self._fg_tot = None
         self._fg_core = None
         self._en_locs = None
+        self._data_tr_info = None
 
     @property
     def sch_params(self):
@@ -499,6 +509,11 @@ class Tap1Summer(TemplateBase):
     def en_locs(self):
         # type: () -> List[Union[int, float]]
         return self._en_locs
+
+    @property
+    def data_tr_info(self):
+        # type: () -> Tuple[Union[int, float], Union[int, float], int]
+        return self._data_tr_info
 
     @classmethod
     def get_params_info(cls):
@@ -621,6 +636,7 @@ class Tap1Summer(TemplateBase):
             lat_params=l_master.sch_params,
         )
         self._fg_tot = m_master.fg_tot
+        self._data_tr_info = l_master.out_tr_info
 
 
 class Tap1Column(TemplateBase):
@@ -918,8 +934,6 @@ class Tap1Column(TemplateBase):
         inn = endb_master.get_port('inn').get_pins()[0].track_id
         outp_m = endb_master.get_port('outp_m').get_pins()[0].track_id
         outn_m = endb_master.get_port('outn_m').get_pins()[0].track_id
-        outp_d = endb_master.get_port('outp_d').get_pins()[0].track_id
-        outn_d = endb_master.get_port('outn_d').get_pins()[0].track_id
         self._in_tr_info = (inp.base_index, inn.base_index, inp.width)
         self._out_tr_info = (outp_m.base_index, outn_m.base_index, outp_m.width)
-        self._data_tr_info = (outp_d.base_index, outn_d.base_index, outp_d.width)
+        self._data_tr_info = endb_master.data_tr_info
