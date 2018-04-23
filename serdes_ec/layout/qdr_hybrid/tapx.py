@@ -403,12 +403,8 @@ class TapXSummerLast(TemplateBase):
                 fg_dumr2 = fg_dumr + fg_inc - fg_inc2
                 s_master = s_master.new_template_with(fg_duml=fg_duml2, fg_dumr=fg_dumr2)
 
-            tr_info = dict(
-                VDD=lat_tr_info['VDD'],
-                VSS=lat_tr_info['VSS'],
-            )
             dig_params['num_col'] = s_master.fg_tot
-            dig_params['tr_info'] = tr_info
+            dig_params['sup_tids'] = (lat_tr_info['VSS'][0], lat_tr_info['VDD'][0])
             d_master = self.new_template(params=dig_params, temp_cls=LaygoDummy)
             div_sch_params = pul_sch_params = None
         else:

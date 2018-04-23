@@ -23,7 +23,8 @@ def run_main(prj):
     params = div_specs['params']
     params['sum_row_info'] = summer.sum_row_info
     params['lat_row_info'] = summer.lat_row_info
-    params['tr_info'] = summer.div_tr_info
+    params['div_tr_info'] = summer.div_tr_info
+    params['sup_tids'] = summer.params['sup_tids']
 
     prj.generate_cell(div_specs, DividerColumn, debug=True)
     # bprj.generate_cell(block_specs, DividerColumn, gen_sch=True, run_lvs=True)

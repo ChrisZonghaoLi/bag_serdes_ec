@@ -196,7 +196,8 @@ class DividerColumn(TemplateBase):
             seg_dict='Number of segments dictionary.',
             tr_widths='Track width dictionary.',
             tr_spaces='Track spacing dictionary.',
-            tr_info='output track information dictionary.',
+            div_tr_info='divider track information dictionary.',
+            sup_tids='supply tracks information.',
             options='other AnalogBase options',
             show_pins='True to draw pin geometries.',
         )
@@ -216,23 +217,25 @@ class DividerColumn(TemplateBase):
         seg_dict = self.params['seg_dict']
         tr_widths = self.params['tr_widths']
         tr_spaces = self.params['tr_spaces']
-        tr_info = self.params['tr_info']
+        div_tr_info = self.params['div_tr_info']
+        sup_tids = self.params['sup_tids']
         options = self.params['options']
         show_pins = self.params['show_pins']
 
         # create masters
         div_params = dict(config=config, row_layout_info=lat_row_info, seg_dict=seg_dict,
-                          tr_widths=tr_widths, tr_spaces=tr_spaces, tr_info=tr_info, fg_min=0,
+                          tr_widths=tr_widths, tr_spaces=tr_spaces, tr_info=div_tr_info, fg_min=0,
                           end_mode=12, abut_mode=0, show_pins=False)
 
         div_master = self.new_template(params=div_params, temp_cls=SinClkDivider)
         fg_tot = div_master.fg_tot
 
         dums_params = dict(config=config, row_layout_info=sum_row_info, num_col=fg_tot,
-                           tr_widths=tr_widths, tr_spaces=tr_spaces, tr_info=tr_info, end_mode=12,
-                           abut_mode=0, show_pins=False)
+                           tr_widths=tr_widths, tr_spaces=tr_spaces, sup_tids=sup_tids[0],
+                           end_mode=12, abut_mode=0, show_pins=False)
         dums_master = self.new_template(params=dums_params, temp_cls=LaygoDummy)
-        duml_master = dums_master.new_template_with(row_layout_info=lat_row_info)
+        duml_master = dums_master.new_template_with(row_layout_info=lat_row_info,
+                                                    sup_tids=sup_tids[1])
 
         top_layer = sum_row_info['top_layer']
         end_row_params = dict(

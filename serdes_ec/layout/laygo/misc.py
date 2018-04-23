@@ -50,7 +50,7 @@ class LaygoDummy(LaygoBase):
             num_col='Number of laygo olumns.',
             tr_widths='Track width dictionary.',
             tr_spaces='Track spacing dictionary.',
-            tr_info='supply track information dictionary.',
+            sup_tids='supply track information.',
             end_mode='The LaygoBase end_mode flag.',
             abut_mode='The left/right abut mode flag.',
             abut_sp='Abutment space.',
@@ -61,7 +61,7 @@ class LaygoDummy(LaygoBase):
     def get_default_param_values(cls):
         # type: () -> Dict[str, Any]
         return dict(
-            tr_info=None,
+            sup_tids=None,
             end_mode=15,
             abut_mode=0,
             abut_sp=2,
@@ -73,13 +73,17 @@ class LaygoDummy(LaygoBase):
         num_col = self.params['num_col']
         tr_widths = self.params['tr_widths']
         tr_spaces = self.params['tr_spaces']
-        tr_info = self.params['tr_info']
+        sup_tids = self.params['sup_tids']
         end_mode = self.params['end_mode']
         abut_mode = self.params['abut_mode']
         abut_sp = self.params['abut_sp']
         show_pins = self.params['show_pins']
 
+        hm_layer = self.conn_layer + 1
+        xm_layer = hm_layer + 2
         tr_manager = TrackManager(self.grid, tr_widths, tr_spaces, half_space=True)
+        hm_w_sup = tr_manager.get_width(hm_layer, 'sup')
+        xm_w_sup = tr_manager.get_width(xm_layer, 'sup')
 
         inc_col = 0
         if abut_mode & 1 != 0:
@@ -103,15 +107,12 @@ class LaygoDummy(LaygoBase):
         # connect supply wires
         vss_intv = self.get_track_interval(0, 'ds')
         vdd_intv = self.get_track_interval(self.num_rows - 1, 'ds')
-        vss = self._connect_supply(vss_w, vss_intv, tr_manager, round_up=False)
-        vdd = self._connect_supply(vdd_w, vdd_intv, tr_manager, round_up=True)
+        vss = self._connect_supply(vss_w, vss_intv, hm_w_sup, round_up=False)
+        vdd = self._connect_supply(vdd_w, vdd_intv, hm_w_sup, round_up=True)
 
-        if tr_info is not None:
-            xm_layer = self.conn_layer + 3
-            vdd_idx, w_vdd = tr_info['VDD']
-            vss_idx, w_vss = tr_info['VSS']
-            vdd = self.connect_to_tracks(vdd, TrackID(xm_layer, vdd_idx, width=w_vdd))
-            vss = self.connect_to_tracks(vss, TrackID(xm_layer, vss_idx, width=w_vss))
+        if sup_tids is not None:
+            vdd = self.connect_to_tracks(vdd, TrackID(xm_layer, sup_tids[1], width=xm_w_sup))
+            vss = self.connect_to_tracks(vss, TrackID(xm_layer, sup_tids[0], width=xm_w_sup))
 
         self.add_pin('VDD', vdd, show=show_pins)
         self.add_pin('VSS', vss, show=show_pins)
@@ -130,7 +131,7 @@ class LaygoDummy(LaygoBase):
         psub = self.add_laygo_mos(self.num_rows - 1, col_start, num_col)
         return nsub['VSS_s'], psub['VDD_s']
 
-    def _connect_supply(self, sup_warr, sup_intv, tr_manager, round_up=False):
+    def _connect_supply(self, sup_warr, sup_intv, hm_w_sup, round_up=False):
         # gather list of track indices and wires
         warr_list = sup_warr.to_warr_list()
         min_tid = max_tid = None
@@ -144,7 +145,6 @@ class LaygoDummy(LaygoBase):
 
         hm_layer = self.conn_layer + 1
         vm_layer = hm_layer + 1
-        sup_w = tr_manager.get_width(hm_layer, 'sup')
         sup_idx = self.grid.get_middle_track(sup_intv[0], sup_intv[1] - 1, round_up=round_up)
 
         xl = self.grid.track_to_coord(self.conn_layer, min_tid, unit_mode=True)
@@ -156,5 +156,5 @@ class LaygoDummy(LaygoBase):
 
         num = int((tr - tl + 2) // 2)
         tid = TrackID(vm_layer, tl, num=num, pitch=2)
-        sup = self.connect_to_tracks(warr_list, TrackID(hm_layer, sup_idx, width=sup_w))
+        sup = self.connect_to_tracks(warr_list, TrackID(hm_layer, sup_idx, width=hm_w_sup))
         return self.connect_to_tracks(sup, tid, min_len_mode=0)
