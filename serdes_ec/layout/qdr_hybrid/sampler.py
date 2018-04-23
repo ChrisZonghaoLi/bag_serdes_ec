@@ -8,14 +8,16 @@ from bag.layout.template import TemplateBase
 
 from abs_templates_ec.analog_core.base import AnalogBase, AnalogBaseEnd
 
+from ..laygo.misc import LaygoDummy
 from ..laygo.strongarm import SenseAmpStrongArm
+from ..laygo.divider import SinClkDivider
 
 if TYPE_CHECKING:
     from bag.layout.template import TemplateDB
 
 
 class SenseAmpColumn(TemplateBase):
-    """A column of differential high-pass RC filters..
+    """A column of StrongArm sense amplifiers.
 
     Parameters
     ----------
@@ -154,3 +156,63 @@ class SenseAmpColumn(TemplateBase):
 
         self.add_pin('VSS', vss_list, label='VSS:', show=show_pins)
         self.add_pin('VDD', vdd_list, label='VDD:', show=show_pins)
+
+
+class DividerColumn(TemplateBase):
+    """A column of clock dividers.
+
+    Parameters
+    ----------
+    temp_db : TemplateDB
+        the template database.
+    lib_name : str
+        the layout library name.
+    params : Dict[str, Any]
+        the parameter values.
+    used_names : Set[str]
+        a set of already used cell names.
+    **kwargs
+        dictionary of optional parameters.  See documentation of
+        :class:`bag.layout.template.TemplateBase` for details.
+    """
+
+    def __init__(self, temp_db, lib_name, params, used_names, **kwargs):
+        # type: (TemplateDB, str, Dict[str, Any], Set[str], **kwargs) -> None
+        TemplateBase.__init__(self, temp_db, lib_name, params, used_names, **kwargs)
+        self._sch_params = None
+
+    @property
+    def sch_params(self):
+        # type: () -> Dict[str, Any]
+        return self._sch_params
+
+    @classmethod
+    def get_params_info(cls):
+        # type: () -> Dict[str, str]
+        return dict(
+            config='laygo configuration dictionary.',
+            sum_row_info='Summer row AnalogBase layout information dictionary.',
+            lat_row_info='Latch row AnalogBase layout information dictionary.',
+            seg_dict='Number of segments dictionary.',
+            tr_widths='Track width dictionary.',
+            tr_spaces='Track spacing dictionary.',
+            tr_info='output track information dictionary.',
+            show_pins='True to draw pin geometries.',
+        )
+
+    @classmethod
+    def get_default_param_values(cls):
+        # type: () -> Dict[str, Any]
+        return dict(
+            show_pins=True,
+        )
+
+    def draw_layout(self):
+        config = self.params['config']
+        sum_row_info = self.params['sum_row_info']
+        lat_row_info = self.params['lat_row_info']
+        seg_dict = self.params['seg_dict']
+        tr_widths = self.params['tr_widths']
+        tr_spaces = self.params['tr_spaces']
+        tr_info = self.params['tr_info']
+        show_pins = self.params['show_pins']
