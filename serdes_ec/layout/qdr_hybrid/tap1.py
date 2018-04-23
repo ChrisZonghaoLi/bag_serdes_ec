@@ -359,9 +359,8 @@ class Tap1LatchRow(TemplateBase):
         # compute fg_core, and resize main tap if necessary
         if self._fg_core < fg_min:
             fg_inc = fg_min - self._fg_core
-            fg_duml = fg_dum + fg_inc // 2
-            fg_dumr = 2 * fg_dum + fg_inc - fg_duml
-            l_master = l_master.new_template_with(fg_duml=fg_duml, fg_dumr=fg_dumr)
+            fg_duml = fg_dum + fg_inc
+            l_master = l_master.new_template_with(fg_duml=fg_duml)
             self._fg_core = fg_min
 
         # place instances and set bounding box
