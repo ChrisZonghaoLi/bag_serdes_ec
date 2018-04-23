@@ -1232,6 +1232,7 @@ class TapXColumn(TemplateBase):
         self._row_heights = None
         self._sup_tids = None
         self._vss_tids = None
+        self._vdd_tids = None
         self._out_tr_info = None
 
     @property
@@ -1253,6 +1254,11 @@ class TapXColumn(TemplateBase):
     def vss_tids(self):
         # type: () -> Tuple[Tuple[NumType, NumType], Tuple[NumType, NumType]]
         return self._vss_tids
+
+    @property
+    def vdd_tids(self):
+        # type: () -> Tuple[Tuple[NumType, NumType], Tuple[NumType, NumType]]
+        return self._vdd_tids
 
     @property
     def out_tr_info(self):
@@ -1451,15 +1457,15 @@ class TapXColumn(TemplateBase):
         vss_tid = endb_master.get_port('VSS').get_pins(vm_layer - 1)[0].track_id
         self._vss_tids = ((vss_tid.base_index, vss_tid.width),
                           (vss_tid.base_index + vss_tid.pitch, vss_tid.width))
+        vdd_tid = endb_master.get_port('VDD').get_pins(vm_layer - 1)[0].track_id
+        self._vdd_tids = ((vdd_tid.base_index, vdd_tid.width),
+                          (vdd_tid.base_index + vdd_tid.pitch, vdd_tid.width))
         outp_s = endb_master.get_port('outp_s').get_pins()[0]
         outn_s = endb_master.get_port('outn_s').get_pins()[0]
         self._out_tr_info = (outp_s.track_id.base_index, outn_s.track_id.base_index,
                              outp_s.track_id.width)
         self._row_heights = endb_master.row_heights
         self._sup_tids = endb_master.sup_tids
-        print(self._row_heights)
-        print(self._sup_tids)
-        print(self._vss_tids)
 
     def _connect_ffe(self, tr_manager, vm_layer, num_sig, track_info, inst_list, show_pins):
         vm_w_casc = tr_manager.get_width(vm_layer, 'casc')

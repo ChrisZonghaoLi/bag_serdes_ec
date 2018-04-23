@@ -646,6 +646,8 @@ class Tap1Column(TemplateBase):
         TemplateBase.__init__(self, temp_db, lib_name, params, used_names, **kwargs)
         self._sch_params = None
         self._in_tr_info = None
+        self._out_tr_info = None
+        self._data_tr_info = None
 
     @property
     def sch_params(self):
@@ -656,6 +658,16 @@ class Tap1Column(TemplateBase):
     def in_tr_info(self):
         # type: () -> Tuple[Union[float, int], Union[float, int], int]
         return self._in_tr_info
+
+    @property
+    def out_tr_info(self):
+        # type: () -> Tuple[Union[float, int], Union[float, int], int]
+        return self._out_tr_info
+
+    @property
+    def data_tr_info(self):
+        # type: () -> Tuple[Union[float, int], Union[float, int], int]
+        return self._data_tr_info
 
     @classmethod
     def get_params_info(cls):
@@ -897,7 +909,12 @@ class Tap1Column(TemplateBase):
             div_params=divp_master.sch_params['lat_params']['div_params'],
             pul_params=endt_master.sch_params['lat_params']['pul_params'],
         )
-        inp = endb_master.get_port('inp').get_pins()[0]
-        inn = endb_master.get_port('inn').get_pins()[0]
-        self._in_tr_info = (inp.track_id.base_index, inn.track_id.base_index,
-                            inp.track_id.width)
+        inp = endb_master.get_port('inp').get_pins()[0].track_id
+        inn = endb_master.get_port('inn').get_pins()[0].track_id
+        outp_m = endb_master.get_port('outp_m').get_pins()[0].track_id
+        outn_m = endb_master.get_port('outn_m').get_pins()[0].track_id
+        outp_d = endb_master.get_port('outp_d').get_pins()[0].track_id
+        outn_d = endb_master.get_port('outn_d').get_pins()[0].track_id
+        self._in_tr_info = (inp.base_index, inn.base_index, inp.width)
+        self._out_tr_info = (outp_m.base_index, outn_m.base_index, outp_m.width)
+        self._data_tr_info = (outp_d.base_index, outn_d.base_index, outp_d.width)
