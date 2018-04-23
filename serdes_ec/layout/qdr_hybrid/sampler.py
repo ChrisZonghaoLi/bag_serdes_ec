@@ -32,6 +32,11 @@ class SenseAmpColumn(TemplateBase):
         :class:`bag.layout.template.TemplateBase` for details.
     """
 
+    # input index list
+    in_idx_list = [1, 0, 1, 2, 0, 3, 2, 3]
+    # input type list
+    in_type_list = ['dlev', 'data', 'data', 'dlev'] * 2
+
     def __init__(self, temp_db, lib_name, params, used_names, **kwargs):
         # type: (TemplateDB, str, Dict[str, Any], Set[str], **kwargs) -> None
         TemplateBase.__init__(self, temp_db, lib_name, params, used_names, **kwargs)
@@ -132,3 +137,20 @@ class SenseAmpColumn(TemplateBase):
         # set size
         self.set_size_from_bound_box(top_layer, bot_row.bound_box.merge(top_row.bound_box))
         self.array_box = self.bound_box
+
+        # reexport pins
+        vss_list, vdd_list = [], []
+        for inst, in_idx, in_type in zip(inst_list, self.in_idx_list, self.in_type_list):
+            self.reexport(inst.get_port('inp'), net_name='inp_%s<%d>' % (in_type, in_idx),
+                          show=show_pins)
+            self.reexport(inst.get_port('inn'), net_name='inn_%s<%d>' % (in_type, in_idx),
+                          show=show_pins)
+            vss_list.append(inst.get_pin('VSS'))
+            vdd_list.append(inst.get_pin('VDD'))
+            out_idx = (in_idx - 2) % 4
+            self.reexport(inst.get_port('out'), net_name='sa_%s<%d>' % (in_type, out_idx),
+                          show=show_pins)
+            self.reexport(inst.get_port('clk'), net_name='en<%d>' % out_idx, show=show_pins)
+
+        self.add_pin('VSS', vss_list, label='VSS:', show=show_pins)
+        self.add_pin('VDD', vdd_list, label='VDD:', show=show_pins)
