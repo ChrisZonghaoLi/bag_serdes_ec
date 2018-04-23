@@ -17,6 +17,7 @@ from .amp import IntegAmp
 
 if TYPE_CHECKING:
     from bag.layout.template import TemplateDB
+    NumType = Union[float, int]
 
 
 def _record_track(track_info, name, tidx):
@@ -259,6 +260,7 @@ class TapXSummerLast(TemplateBase):
         self._amp_master = None
         self._sd_pitch = None
         self._row_heights = None
+        self._sup_tids = None
 
     @property
     def sch_params(self):
@@ -288,6 +290,11 @@ class TapXSummerLast(TemplateBase):
     def row_heights(self):
         # type: () -> Tuple[int, int]
         return self._row_heights
+
+    @property
+    def sup_tids(self):
+        # type: () -> Tuple[Tuple[NumType, NumType], Tuple[NumType, NumType]]
+        return self._sup_tids
 
     @classmethod
     def get_params_info(cls):
@@ -500,6 +507,11 @@ class TapXSummerLast(TemplateBase):
         self._amp_master = s_master
         self._sd_pitch = s_master.sd_pitch_unit
         self._row_heights = (s_master.bound_box.height_unit, d_master.bound_box.height_unit)
+        s_tids = (s_master.get_port('VSS').get_pins()[0].track_id.base_index,
+                  s_master.get_port('VDD').get_pins()[0].track_id.base_index, )
+        d_tids = (d_master.get_port('VSS').get_pins()[0].track_id.base_index,
+                  d_master.get_port('VDD').get_pins()[0].track_id.base_index, )
+        self._sup_tids = (s_tids, d_tids)
 
 
 class TapXSummerNoLast(TemplateBase):
@@ -929,6 +941,7 @@ class TapXSummer(TemplateBase):
         self._ffe_track_info = None
         self._dfe_track_info = None
         self._row_heights = None
+        self._sup_tids = None
 
     @property
     def sch_params(self):
@@ -957,6 +970,11 @@ class TapXSummer(TemplateBase):
     def row_heights(self):
         # type: () -> Tuple[int, int]
         return self._row_heights
+
+    @property
+    def sup_tids(self):
+        # type: () -> Tuple[Tuple[NumType, NumType], Tuple[NumType, NumType]]
+        return self._sup_tids
 
     @classmethod
     def get_params_info(cls):
@@ -1186,6 +1204,7 @@ class TapXSummer(TemplateBase):
             last_params=last_master.sch_params,
         )
         self._row_heights = last_master.row_heights
+        self._sup_tids = last_master.sup_tids
 
 
 class TapXColumn(TemplateBase):
@@ -1210,9 +1229,9 @@ class TapXColumn(TemplateBase):
         # type: (TemplateDB, str, Dict[str, Any], Set[str], **kwargs) -> None
         TemplateBase.__init__(self, temp_db, lib_name, params, used_names, **kwargs)
         self._sch_params = None
-        self._vss_tids = None
-        self._vdd_tids = None
         self._row_heights = None
+        self._sup_tids = None
+        self._vss_tids = None
         self._out_tr_info = None
 
     @property
@@ -1221,23 +1240,23 @@ class TapXColumn(TemplateBase):
         return self._sch_params
 
     @property
-    def vss_tids(self):
-        # type: () -> Tuple[Tuple[Union[float, int], int]]
-        return self._vss_tids
-
-    @property
-    def vdd_tids(self):
-        # type: () -> Tuple[Tuple[Union[float, int], int]]
-        return self._vdd_tids
-
-    @property
     def row_heights(self):
         # type: () -> Tuple[int, int]
         return self._row_heights
 
     @property
+    def sup_tids(self):
+        # type: () -> Tuple[Tuple[NumType, NumType], Tuple[NumType, NumType]]
+        return self._sup_tids
+
+    @property
+    def vss_tids(self):
+        # type: () -> Tuple[Tuple[NumType, NumType], Tuple[NumType, NumType]]
+        return self._vss_tids
+
+    @property
     def out_tr_info(self):
-        # type: () -> Tuple[Union[float, int], Union[float, int], int]
+        # type: () -> Tuple[NumType, NumType, int]
         return self._out_tr_info
 
     @classmethod
@@ -1432,14 +1451,15 @@ class TapXColumn(TemplateBase):
         vss_tid = endb_master.get_port('VSS').get_pins(vm_layer - 1)[0].track_id
         self._vss_tids = ((vss_tid.base_index, vss_tid.width),
                           (vss_tid.base_index + vss_tid.pitch, vss_tid.width))
-        vdd_tid = endb_master.get_port('VDD').get_pins(vm_layer - 1)[0].track_id
-        self._vdd_tids = ((vdd_tid.base_index, vdd_tid.width),
-                          (vdd_tid.base_index + vdd_tid.pitch, vdd_tid.width))
         outp_s = endb_master.get_port('outp_s').get_pins()[0]
         outn_s = endb_master.get_port('outn_s').get_pins()[0]
         self._out_tr_info = (outp_s.track_id.base_index, outn_s.track_id.base_index,
                              outp_s.track_id.width)
         self._row_heights = endb_master.row_heights
+        self._sup_tids = endb_master.sup_tids
+        print(self._row_heights)
+        print(self._sup_tids)
+        print(self._vss_tids)
 
     def _connect_ffe(self, tr_manager, vm_layer, num_sig, track_info, inst_list, show_pins):
         vm_w_casc = tr_manager.get_width(vm_layer, 'casc')

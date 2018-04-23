@@ -62,9 +62,8 @@ class SenseAmpStrongArm(LaygoBase):
             draw_boundaries='True to draw boundaries.',
             end_mode='Boundary end mode.',
             min_height='Minimum height.',
+            sup_tids='supply track information.',
             in_tids='input track information.',
-            vss_tid='VSS track information.',
-            vdd_tid='VDD track information.',
             show_pins='True to draw pin geometries.',
             export_probe='True to export probe pins.',
         )
@@ -76,9 +75,8 @@ class SenseAmpStrongArm(LaygoBase):
             draw_boundaries=True,
             end_mode=None,
             min_height=0,
+            sup_tids=None,
             in_tids=None,
-            vss_tid=None,
-            vdd_tid=None,
             show_pins=True,
             export_probe=False,
         )
@@ -95,9 +93,8 @@ class SenseAmpStrongArm(LaygoBase):
         draw_boundaries = self.params['draw_boundaries']
         end_mode = self.params['end_mode']
         min_height = self.params['min_height']
+        sup_tids = self.params['sup_tids']
         in_tids = self.params['in_tids']
-        vss_tid = self.params['vss_tid']
-        vdd_tid = self.params['vdd_tid']
         show_pins = self.params['show_pins']
         export_probe = self.params['export_probe'] and show_pins
 
@@ -345,6 +342,7 @@ class SenseAmpStrongArm(LaygoBase):
         self.add_pin('inn', inn_warr, show=show_pins)
 
         # connect vss
+        xm_w_sup = tr_manager.get_width(xm_layer, 'sup')
         vss_s = [pw_tap0['VSS_s'], tailn['s'], tailp['s'], nandnl['s'], nandnr['s'],
                  nbufl['s'], nbufr['s'], pw_tap1['VSS_s']]
         vss_d = [pw_tap0['VSS_d'], pw_tap1['VSS_d']]
@@ -360,9 +358,9 @@ class SenseAmpStrongArm(LaygoBase):
         vss_s_warrs = self.connect_to_tracks(vss_s, vss_s_tid)
         vss_s2_warrs = self.connect_to_tracks(vss_s, vss_s_tid2)
         vss_warrs = self.connect_to_tracks([vss_s_warrs, vss_s2_warrs], sup_tid)
-        if vss_tid is not None:
-            vss_warrs = self.connect_to_tracks(vss_warrs, TrackID(xm_layer, vss_tid[0],
-                                                                  width=vss_tid[1]))
+        if sup_tids is not None:
+            vss_warrs = self.connect_to_tracks(vss_warrs, TrackID(xm_layer, sup_tids[0],
+                                                                  width=xm_w_sup))
         self.add_pin('VSS', vss_warrs, show=show_pins)
 
         # connect vdd
@@ -384,9 +382,9 @@ class SenseAmpStrongArm(LaygoBase):
         if shields is not None:
             self.connect_to_tracks(vdd_hm_list, shields.track_id)
             vdd_warrs = [vdd_warrs, shields]
-        if vdd_tid is not None:
-            vdd_warrs = self.connect_to_tracks(vdd_warrs, TrackID(xm_layer, vdd_tid[0],
-                                                                  width=vdd_tid[1]))
+        if sup_tids is not None:
+            vdd_warrs = self.connect_to_tracks(vdd_warrs, TrackID(xm_layer, sup_tids[1],
+                                                                  width=xm_w_sup))
         self.add_pin('VDD', vdd_warrs, show=show_pins)
 
         # connect tail

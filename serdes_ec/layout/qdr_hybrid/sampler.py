@@ -10,8 +10,6 @@ from abs_templates_ec.analog_core.base import AnalogBase, AnalogBaseEnd
 
 from ..laygo.strongarm import SenseAmpStrongArm
 
-from .util import get_row_params
-
 if TYPE_CHECKING:
     from bag.layout.template import TemplateDB
 
@@ -54,10 +52,10 @@ class SenseAmpColumn(TemplateBase):
             seg_dict='number of segments dictionary.',
             tr_widths='Track width dictionary.',
             tr_spaces='Track spacing dictionary.',
-            options='other AnalogBase options',
             row_heights='row heights for one summer.',
-            vss_tids='VSS tracks information.',
-            vdd_tids='VDD tracks information.',
+            sup_tids='supply tracks information.',
+            in_tids='input tracks information.',
+            options='other AnalogBase options',
             show_pins='True to draw pin geometries.',
         )
 
@@ -66,9 +64,6 @@ class SenseAmpColumn(TemplateBase):
         # type: () -> Dict[str, Any]
         return dict(
             options=None,
-            row_heights=None,
-            vss_tids=None,
-            vdd_tids=None,
             show_pins=True,
         )
 
@@ -79,24 +74,23 @@ class SenseAmpColumn(TemplateBase):
         seg_dict = self.params['seg_dict']
         tr_widths = self.params['tr_widths']
         tr_spaces = self.params['tr_spaces']
-        options = self.params['options']
         row_heights = self.params['row_heights']
-        vss_tids = self.params['vss_tids']
-        vdd_tids = self.params['vdd_tids']
+        sup_tids = self.params['sup_tids']
+        in_tids = self.params['in_tids']
+        options = self.params['options']
         show_pins = self.params['show_pins']
 
         # handle row_heights/substrate tracks
-        bot_params, top_params = get_row_params(self.grid, row_heights, vss_tids, vdd_tids)
-
         top_layer = AnalogBase.get_mos_conn_layer(self.grid.tech_info) + 2
-        sa_params = dict(config=config, w_dict=w_dict, th_dict=th_dict, seg_dict=seg_dict,
-                         tr_widths=tr_widths, tr_spaces=tr_spaces, top_layer=top_layer,
-                         draw_boundaries=True, end_mode=12, show_pins=False, export_probe=False)
-        bot_params.update(sa_params)
+        bot_params = dict(config=config, w_dict=w_dict, th_dict=th_dict, seg_dict=seg_dict,
+                          tr_widths=tr_widths, tr_spaces=tr_spaces, top_layer=top_layer,
+                          draw_boundaries=True, end_mode=12, show_pins=False, export_probe=False,
+                          sup_tids=sup_tids[0], min_height=row_heights[0], in_tids=in_tids[0])
 
         # create masters
         bot_master = self.new_template(params=bot_params, temp_cls=SenseAmpStrongArm)
-        top_master = bot_master.new_template_with(**top_params)
+        top_master = bot_master.new_template_with(min_height=row_heights[1], sup_tids=sup_tids[1],
+                                                  in_tids=in_tids[1])
 
         end_row_params = dict(
             lch=config['lch'],
