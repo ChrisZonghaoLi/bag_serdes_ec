@@ -197,6 +197,7 @@ class DividerColumn(TemplateBase):
             tr_widths='Track width dictionary.',
             tr_spaces='Track spacing dictionary.',
             tr_info='output track information dictionary.',
+            options='other AnalogBase options',
             show_pins='True to draw pin geometries.',
         )
 
@@ -204,6 +205,7 @@ class DividerColumn(TemplateBase):
     def get_default_param_values(cls):
         # type: () -> Dict[str, Any]
         return dict(
+            options=None,
             show_pins=True,
         )
 
@@ -215,4 +217,70 @@ class DividerColumn(TemplateBase):
         tr_widths = self.params['tr_widths']
         tr_spaces = self.params['tr_spaces']
         tr_info = self.params['tr_info']
+        options = self.params['options']
         show_pins = self.params['show_pins']
+
+        # create masters
+        div_params = dict(config=config, row_layout_info=lat_row_info, seg_dict=seg_dict,
+                          tr_widths=tr_widths, tr_spaces=tr_spaces, tr_info=tr_info, fg_min=0,
+                          end_mode=12, abut_mode=0, show_pins=False)
+
+        div_master = self.new_template(params=div_params, temp_cls=SinClkDivider)
+        fg_tot = div_master.fg_tot
+
+        dums_params = dict(config=config, row_layout_info=sum_row_info, num_col=fg_tot,
+                           tr_widths=tr_widths, tr_spaces=tr_spaces, tr_info=tr_info, end_mode=12,
+                           abut_mode=0, show_pins=False)
+        dums_master = self.new_template(params=dums_params, temp_cls=LaygoDummy)
+        duml_master = dums_master.new_template_with(row_layout_info=lat_row_info)
+
+        top_layer = sum_row_info['top_layer']
+        end_row_params = dict(
+            lch=config['lch'],
+            fg=fg_tot,
+            sub_type='ptap',
+            threshold=sum_row_info['row_prop_list'][0]['threshold'],
+            top_layer=sum_row_info['top_layer'],
+            end_mode=0b11,
+            guard_ring_nf=0,
+            options=options,
+        )
+        end_row_master = self.new_template(params=end_row_params, temp_cls=AnalogBaseEnd)
+        eayt = end_row_master.array_box.top_unit
+
+        # place instances
+        vdd_list, vss_list = [], []
+        bot_div, top_div = None, None
+        bayt, tayt = dums_master.array_box.top_unit, duml_master.array_box.top_unit
+        bot_row = self.add_instance(end_row_master, 'XROWB', loc=(0, 0), unit_mode=True)
+        ycur = eayt
+        for idx in range(4):
+            is_even = idx % 2 == 0
+            if is_even:
+                m0, m1 = dums_master, duml_master
+                if idx == 2:
+                    m1 = div_master
+            else:
+                m0, m1 = duml_master, dums_master
+                if idx == 1:
+                    m0 = div_master
+            binst = self.add_instance(m0, 'X%d' % (idx * 2), loc=(0, ycur),
+                                      orient='R0', unit_mode=True)
+            ycur += bayt + tayt
+            tinst = self.add_instance(m1, 'X%d' % (idx * 2 + 1), loc=(0, ycur),
+                                      orient='MX', unit_mode=True)
+
+            for inst in (binst, tinst):
+                vdd_list.append(inst.get_pin('VDD'))
+                vss_list.append(inst.get_pin('VSS'))
+            if m0 is div_master:
+                bot_div = binst
+            if m1 is div_master:
+                top_div = tinst
+        ycur += eayt
+        top_row = self.add_instance(end_row_master, 'XROWT', loc=(0, ycur), orient='MX',
+                                    unit_mode=True)
+
+        # set size
+        self.set_size_from_bound_box(top_layer, bot_row.bound_box.merge(top_row.bound_box))
+        self.array_box = self.bound_box

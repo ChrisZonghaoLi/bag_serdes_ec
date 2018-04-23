@@ -223,6 +223,8 @@ class Tap1LatchRow(TemplateBase):
         self._fg_core = None
         self._en_locs = None
         self._out_tr_info = None
+        self._div_tr_info = None
+        self._row_layout_info = None
 
     @property
     def sch_params(self):
@@ -243,6 +245,16 @@ class Tap1LatchRow(TemplateBase):
     def out_tr_info(self):
         # type: () -> Tuple[Union[int, float], Union[int, float], int]
         return self._out_tr_info
+
+    @property
+    def div_tr_info(self):
+        # type: () -> Dict[str, Tuple[Union[float, int], int]]
+        return self._div_tr_info
+
+    @property
+    def row_layout_info(self):
+        # type: () -> Dict[str, Any]
+        return self._row_layout_info
 
     @classmethod
     def get_params_info(cls):
@@ -315,6 +327,7 @@ class Tap1LatchRow(TemplateBase):
             lat_params['top_layer'] = top_layer
             l_master = self.new_template(params=lat_params, temp_cls=IntegAmp)
             self._fg_core = l_master.layout_info.fg_core
+            self._div_tr_info = None
         else:
             l_master = self.new_template(params=lat_params, temp_cls=IntegAmp)
             m_tr_info = l_master.track_info
@@ -325,7 +338,10 @@ class Tap1LatchRow(TemplateBase):
                 qb=m_tr_info['inn'],
                 en=m_tr_info['nen3'],
                 clk=m_tr_info['clkp'] if div_pos_edge else m_tr_info['clkn'],
+                clkp=m_tr_info['clkp'],
+                clkn=m_tr_info['clkn'],
             )
+            self._div_tr_info = tr_info
 
             if seg_pul is None:
                 seg_dig = seg_div
@@ -460,6 +476,7 @@ class Tap1LatchRow(TemplateBase):
         outp_tid = m_inst.get_pin('outp').track_id
         self._out_tr_info = (outp_tid.base_index, m_inst.get_pin('outn').track_id.base_index,
                              outp_tid.width)
+        self._row_layout_info = l_master.row_layout_info
 
 
 class Tap1Summer(TemplateBase):
@@ -488,6 +505,9 @@ class Tap1Summer(TemplateBase):
         self._fg_core = None
         self._en_locs = None
         self._data_tr_info = None
+        self._div_tr_info = None
+        self._sum_row_info = None
+        self._lat_row_info = None
 
     @property
     def sch_params(self):
@@ -513,6 +533,21 @@ class Tap1Summer(TemplateBase):
     def data_tr_info(self):
         # type: () -> Tuple[Union[int, float], Union[int, float], int]
         return self._data_tr_info
+
+    @property
+    def div_tr_info(self):
+        # type: () -> Dict[str, Tuple[Union[float, int], int]]
+        return self._div_tr_info
+
+    @property
+    def sum_row_info(self):
+        # type: () -> Dict[str, Any]
+        return self._sum_row_info
+
+    @property
+    def lat_row_info(self):
+        # type: () -> Dict[str, Any]
+        return self._lat_row_info
 
     @classmethod
     def get_params_info(cls):
@@ -636,6 +671,9 @@ class Tap1Summer(TemplateBase):
         )
         self._fg_tot = m_master.fg_tot
         self._data_tr_info = l_master.out_tr_info
+        self._div_tr_info = l_master.div_tr_info
+        self._sum_row_info = m_master.row_layout_info
+        self._lat_row_info = l_master.row_layout_info
 
 
 class Tap1Column(TemplateBase):
@@ -663,6 +701,9 @@ class Tap1Column(TemplateBase):
         self._in_tr_info = None
         self._out_tr_info = None
         self._data_tr_info = None
+        self._div_tr_info = None
+        self._sum_row_info = None
+        self._lat_row_info = None
 
     @property
     def sch_params(self):
@@ -683,6 +724,21 @@ class Tap1Column(TemplateBase):
     def data_tr_info(self):
         # type: () -> Tuple[Union[float, int], Union[float, int], int]
         return self._data_tr_info
+
+    @property
+    def div_tr_info(self):
+        # type: () -> Dict[str, Tuple[Union[float, int], int]]
+        return self._div_tr_info
+
+    @property
+    def sum_row_info(self):
+        # type: () -> Dict[str, Any]
+        return self._sum_row_info
+
+    @property
+    def lat_row_info(self):
+        # type: () -> Dict[str, Any]
+        return self._lat_row_info
 
     @classmethod
     def get_params_info(cls):
@@ -936,3 +992,6 @@ class Tap1Column(TemplateBase):
         self._in_tr_info = (inp.base_index, inn.base_index, inp.width)
         self._out_tr_info = (outp_m.base_index, outn_m.base_index, outp_m.width)
         self._data_tr_info = endb_master.data_tr_info
+        self._div_tr_info = divp_master.div_tr_info
+        self._sum_row_info = endb_master.sum_row_info
+        self._lat_row_info = endb_master.lat_row_info

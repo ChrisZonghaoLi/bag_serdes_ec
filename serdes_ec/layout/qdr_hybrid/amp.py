@@ -2,7 +2,7 @@
 
 """This module defines amplifier generators based on HybridQDRBase."""
 
-from typing import TYPE_CHECKING, Dict, Any, Set, Tuple
+from typing import TYPE_CHECKING, Dict, Any, Set, Tuple, Union
 
 
 from bag.layout.routing import TrackManager
@@ -52,7 +52,7 @@ class IntegAmp(HybridQDRBase):
 
     @property
     def track_info(self):
-        # type: () -> Dict[str, Tuple[float, int]]
+        # type: () -> Dict[str, Tuple[Union[float, int], int]]
         return self._track_info
 
     def get_vm_coord(self, vm_width, is_left, mode):

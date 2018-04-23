@@ -34,11 +34,17 @@ class SinClkDivider(LaygoBase):
         # type: (TemplateDB, str, Dict[str, Any], Set[str], **kwargs) -> None
         LaygoBase.__init__(self, temp_db, lib_name, params, used_names, **kwargs)
         self._sch_params = None
+        self._fg_tot = None
 
     @property
     def sch_params(self):
         # type: () -> Dict[str, Any]
         return self._sch_params
+
+    @property
+    def fg_tot(self):
+        # type: () -> int
+        return self._fg_tot
 
     @classmethod
     def get_params_info(cls):
@@ -105,6 +111,7 @@ class SinClkDivider(LaygoBase):
         if fg_core < fg_min:
             num_col += (fg_min - fg_core)
         self.set_laygo_size(num_col)
+        self._fg_tot = num_col
 
         # draw individual blocks
         vss_w, vdd_w = self._draw_substrate(col_inv, num_col, num_col - inc_col)
