@@ -62,6 +62,7 @@ class SenseAmpStrongArm(LaygoBase):
             draw_boundaries='True to draw boundaries.',
             end_mode='Boundary end mode.',
             min_height='Minimum height.',
+            in_tids='input track information.',
             vss_tid='VSS track information.',
             vdd_tid='VDD track information.',
             show_pins='True to draw pin geometries.',
@@ -75,6 +76,7 @@ class SenseAmpStrongArm(LaygoBase):
             draw_boundaries=True,
             end_mode=None,
             min_height=0,
+            in_tids=None,
             vss_tid=None,
             vdd_tid=None,
             show_pins=True,
@@ -93,6 +95,7 @@ class SenseAmpStrongArm(LaygoBase):
         draw_boundaries = self.params['draw_boundaries']
         end_mode = self.params['end_mode']
         min_height = self.params['min_height']
+        in_tids = self.params['in_tids']
         vss_tid = self.params['vss_tid']
         vdd_tid = self.params['vdd_tid']
         show_pins = self.params['show_pins']
@@ -137,12 +140,12 @@ class SenseAmpStrongArm(LaygoBase):
         # get track information
         wire_names = [
             dict(ds=['sup'], ),
-            dict(ds=['sup'],),
-            dict(g=['clk'], gb=['tail'],),
-            dict(g=['in'], gb=['out'],),
-            dict(g=['out', 'out'], gb=['out'],),
-            dict(g=['out', 'out'], gb=['out', 'out'],),
-            dict(ds=['sup'],),
+            dict(ds=['sup'], ),
+            dict(g=['clk'], gb=['tail'], ),
+            dict(g=['in', 'in'], gb=['out'], ),
+            dict(g=['out', 'out'], gb=['out'], ),
+            dict(g=['out', 'out'], gb=['out', 'out'], ),
+            dict(ds=['sup'], ),
             dict(ds=['sup'], ),
         ]
 
@@ -302,6 +305,44 @@ class SenseAmpStrongArm(LaygoBase):
 
         # fill dummy
         self.fill_space()
+        sup_tid = self.get_sup_tid(n_tot)
+
+        # connect inputs
+        inn_tid = self.get_wire_id(row_off + 2, 'g', wire_idx=0)
+        inp_tid = self.get_wire_id(row_off + 2, 'g', wire_idx=1)
+        inp_idx, inn_idx = inp_tid.base_index, inn_tid.base_index
+        inp_warr, inn_warr = self.connect_differential_tracks(inp['g'], inn['g'],
+                                                              hm_layer, inp_idx, inn_idx,
+                                                              width=inp_tid.width)
+        if in_tids is not None:
+            ym_w_in = tr_manager.get_width(ym_layer, 'in')
+            shr_idx = sup_tid.base_index
+            inp_idx = tr_manager.get_next_track(ym_layer, shr_idx, 1, 'in', up=False)
+            inn_idx = tr_manager.get_next_track(ym_layer, inp_idx, 'in', 'in', up=False)
+            shl_idx = tr_manager.get_next_track(ym_layer, inn_idx, 'in', 1, up=False)
+            inp_ym, inn_ym = self.connect_differential_tracks(inp_warr, inn_warr,
+                                                              ym_layer, inp_idx, inn_idx,
+                                                              width=ym_w_in)
+            xm_w_in = in_tids[2]
+            vext = self.grid.get_via_extensions(ym_layer, ym_w_in, xm_w_in, unit_mode=True)[1]
+            xl = self.grid.get_wire_bounds(ym_layer, inn_idx, width=ym_w_in, unit_mode=True)[0]
+            xr = self.grid.get_wire_bounds(ym_layer, inp_idx, width=ym_w_in, unit_mode=True)[1]
+            inp_warr = self.add_wires(xm_layer, in_tids[0], xl - vext, xr + vext, width=xm_w_in,
+                                      unit_mode=True)
+            inn_warr = self.add_wires(xm_layer, in_tids[1], xl - vext, xr + vext, width=xm_w_in,
+                                      unit_mode=True)
+            inp_ym, inn_ym, self.connect_differential_tracks(inp_warr, inn_warr, ym_layer, inp_idx,
+                                                             inn_idx, width=ym_w_in,
+                                                             track_lower=inp_ym.lower_unit,
+                                                             track_upper=inp_ym.upper_unit,
+                                                             unit_mode=True)
+            shields = self.add_wires(ym_layer, shl_idx, inp_ym.lower_unit, inp_ym.upper_unit,
+                                     num=2, pitch=shr_idx - shl_idx, unit_mode=True)
+        else:
+            shields = None
+
+        self.add_pin('inp', inp_warr, show=show_pins)
+        self.add_pin('inn', inn_warr, show=show_pins)
 
         # connect vss
         vss_s = [pw_tap0['VSS_s'], tailn['s'], tailp['s'], nandnl['s'], nandnr['s'],
@@ -313,7 +354,6 @@ class SenseAmpStrongArm(LaygoBase):
             vss_d.append(inst['d'])
             vss_d.append(inst['g'])
 
-        sup_tid = self.get_sup_tid(n_tot)
         vss_s_tid = self.get_wire_id(row_off, 'ds')
         vss_s_tid2 = self.get_wire_id(0, 'ds')
         self.connect_wires(vss_d)
@@ -339,7 +379,11 @@ class SenseAmpStrongArm(LaygoBase):
         self.connect_wires(vdd_d)
         vdd_s_warrs = self.connect_to_tracks(vdd_s, vdd_s_tid)
         vdd_s2_warrs = self.connect_to_tracks(vdd_s, vdd_s2_tid)
-        vdd_warrs = self.connect_to_tracks([vdd_s_warrs, vdd_s2_warrs], sup_tid)
+        vdd_hm_list = [vdd_s_warrs, vdd_s2_warrs]
+        vdd_warrs = self.connect_to_tracks(vdd_hm_list, sup_tid)
+        if shields is not None:
+            self.connect_to_tracks(vdd_hm_list, shields.track_id)
+            vdd_warrs = [vdd_warrs, shields]
         if vdd_tid is not None:
             vdd_warrs = self.connect_to_tracks(vdd_warrs, TrackID(xm_layer, vdd_tid[0],
                                                                   width=vdd_tid[1]))
@@ -353,13 +397,6 @@ class SenseAmpStrongArm(LaygoBase):
         # connect tail clk
         tclk_tid = self.get_wire_id(row_off + 1, 'g', wire_idx=0)
         clk_list = [self.connect_to_tracks([tailp['g'], tailn['g']], tclk_tid)]
-
-        # connect inputs
-        in_tid = self.get_wire_id(row_off + 2, 'g', wire_idx=0)
-        inp_warr = self.connect_to_tracks(inp['g'], in_tid, min_len_mode=0)
-        inn_warr = self.connect_to_tracks(inn['g'], in_tid, min_len_mode=0)
-        self.add_pin('inp', inp_warr, show=show_pins)
-        self.add_pin('inn', inn_warr, show=show_pins)
 
         # get output/mid horizontal track id
         nout_tid = self.get_wire_id(row_off + 3, 'gb', wire_idx=0)
