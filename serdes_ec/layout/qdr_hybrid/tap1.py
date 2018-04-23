@@ -759,10 +759,6 @@ class Tap1Column(TemplateBase):
                                     unit_mode=True)
         inst_list = [inst0, inst1, inst2, inst3]
 
-        # set size
-        self.set_size_from_bound_box(top_layer, bot_row.bound_box.merge(top_row.bound_box))
-        self.array_box = self.bound_box
-
         tr_manager = TrackManager(self.grid, tr_widths, tr_spaces, half_space=True)
 
         # re-export supply pins
@@ -824,7 +820,7 @@ class Tap1Column(TemplateBase):
                 clk_warrs[1].extend(inst.port_pins_iter('clkp'))
                 clk_warrs[0].extend(inst.port_pins_iter('clkn'))
 
-        # connect output wires and draw shields
+        # connect output wires
         out_map = [4, 4, 1, 1]
         vm_w_out = tr_manager.get_width(vm_layer, 'out')
         for outp, outn, idx in zip(outp_warrs, outn_warrs, out_map):
@@ -881,6 +877,15 @@ class Tap1Column(TemplateBase):
         self.add_pin('biasn_m', bmn, show=show_pins)
         self.add_pin('biasp_d', bdp, show=show_pins)
         self.add_pin('biasn_d', bdn, show=show_pins)
+
+        # set size
+        bnd_box = bot_row.bound_box.merge(top_row.bound_box)
+        bnd_xr = self.grid.track_to_coord(vm_layer, out_locs[0] + 2 * shield_pitch + 0.5,
+                                          unit_mode=True)
+        bnd_box = bnd_box.extend(x=bnd_xr, unit_mode=True)
+        self.set_size_from_bound_box(top_layer, bnd_box)
+        self.array_box = bnd_box
+        self.add_cell_boundary(bnd_box)
 
         # draw en_div/scan wires
         tr_scan = shield_tidl - 1

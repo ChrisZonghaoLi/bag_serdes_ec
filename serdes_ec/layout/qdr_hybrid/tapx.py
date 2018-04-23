@@ -1358,10 +1358,6 @@ class TapXColumn(TemplateBase):
                                     unit_mode=True)
         inst_list = [inst0, inst1, inst2, inst3]
 
-        # set size
-        self.set_size_from_bound_box(vm_layer, bot_row.bound_box.merge(top_row.bound_box))
-        self.array_box = self.bound_box
-
         # re-export supply pins
         vdd_list = list(chain(*(inst.port_pins_iter('VDD') for inst in inst_list)))
         vss_list = list(chain(*(inst.port_pins_iter('VSS') for inst in inst_list)))
@@ -1440,10 +1436,21 @@ class TapXColumn(TemplateBase):
                 sh_lower = warr.lower_unit
                 sh_upper = warr.upper_unit
             vm_vss_list.append(warr)
+
+        bnd_xr = 0
         for tr_idx in chain(ffe_track_info['VDD'], dfe_track_info['VDD']):
+            cur_xr = self.grid.track_to_coord(vm_layer, tr_idx + 0.5, unit_mode=True)
+            bnd_xr = max(cur_xr, bnd_xr)
             warr = self.connect_to_tracks(vdd_list, TrackID(vm_layer, tr_idx), track_lower=sh_lower,
                                           track_upper=sh_upper, unit_mode=True)
             vm_vdd_list.append(warr)
+
+        # set size
+        bnd_box = bot_row.bound_box.merge(top_row.bound_box)
+        bnd_box = bnd_box.extend(x=bnd_xr, unit_mode=True)
+        self.set_size_from_bound_box(vm_layer, bnd_box)
+        self.array_box = bnd_box
+        self.add_cell_boundary(bnd_box)
 
         # set schematic parameters and various properties
         self._sch_params = dict(
