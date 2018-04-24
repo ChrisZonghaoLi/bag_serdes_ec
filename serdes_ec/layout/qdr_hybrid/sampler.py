@@ -7,6 +7,9 @@ from typing import TYPE_CHECKING, Dict, Any, Set
 from bag.layout.template import TemplateBase
 
 from abs_templates_ec.analog_core.base import AnalogBase, AnalogBaseEnd
+from abs_templates_ec.digital.core import DigitalBase
+
+from digital_ec.layout.stdcells.latch import DFlipFlopCK2, LatchCK2
 
 from ..laygo.misc import LaygoDummy
 from ..laygo.strongarm import SenseAmpStrongArm
@@ -287,3 +290,82 @@ class DividerColumn(TemplateBase):
         # set size
         self.set_size_from_bound_box(top_layer, bot_row.bound_box.merge(top_row.bound_box))
         self.array_box = self.bound_box
+
+
+class Retimer(DigitalBase):
+    """A class that wraps a given standard cell with proper boundaries.
+
+    This class is usually used just for layout debugging (i.e. DRC checking).
+
+    Parameters
+    ----------
+    temp_db : TemplateDB
+            the template database.
+    lib_name : str
+        the layout library name.
+    params : Dict[str, Any]
+        the parameter values.
+    used_names : Set[str]
+        a set of already used cell names.
+    **kwargs
+        dictionary of optional parameters.  See documentation of
+        :class:`bag.layout.template.TemplateBase` for details.
+    """
+
+    def __init__(self, temp_db, lib_name, params, used_names, **kwargs):
+        # type: (TemplateDB, str, Dict[str, Any], Set[str], **Any) -> None
+        DigitalBase.__init__(self, temp_db, lib_name, params, used_names, **kwargs)
+        self._sch_params = None
+
+    @property
+    def sch_params(self):
+        # type: () -> Dict[str, Any]
+        return self._sch_params
+
+
+    @classmethod
+    def get_params_info(cls):
+        # type: () -> Dict[str, str]
+        return dict(
+            config='laygo configuration dictionary.',
+            wp='pmos widths.',
+            wn='nmos widths.',
+            seg_dict='number of segments dictionary.',
+            tr_widths='Track width dictionary.',
+            tr_spaces='Track spacing dictionary.',
+            show_pins='True to draw pin geometries.',
+        )
+
+    @classmethod
+    def get_default_param_values(cls):
+        # type: () -> Dict[str, Any]
+        return dict(
+            show_pins=True,
+        )
+
+    def draw_layout(self):
+        seg_dict = self.params['seg_dict']
+        show_pins = self.params['show_pins']
+
+        base_params = dict(
+            config=self.params['config'],
+            wp=self.params['wp'],
+            wn=self.params['wn'],
+            tr_widths=self.params['tr_widths'],
+            tr_spaces=self.params['tr_spaces'],
+            show_pins=False,
+        )
+
+        base_params['seg'] = seg_dict['dff']
+        ff_master = self.new_template(params=base_params, temp_cls=DFlipFlopCK2)
+        base_params['seg'] = seg_dict['latch']
+        lat_master = self.new_template(params=base_params, temp_cls=LatchCK2)
+
+        ncol = max(ff_master.num_cols, lat_master.num_cols)
+        self.initialize(ff_master.row_layout_info, 3, ncol)
+
+        self.add_digital_block(ff_master, (0, 0))
+        self.add_digital_block(ff_master, (0, 1))
+        self.add_digital_block(lat_master, (0, 2))
+
+        self.fill_space()
