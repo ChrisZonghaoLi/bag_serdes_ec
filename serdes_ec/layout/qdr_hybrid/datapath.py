@@ -79,6 +79,10 @@ class RXDatapath(TemplateBase):
         offlev = self.add_instance(loff_master, 'XOFFL', loc=(xcur, 0), unit_mode=True)
         xcur += loff_master.bound_box.width_unit
 
+        bnd_box = tapx.bound_box.merge(offlev.bound_box)
+        self.set_size_from_bound_box(tapx_master.top_layer, bnd_box)
+        self.array_box = bnd_box
+
     def _create_masters(self):
         show_pins_debug = True
 
