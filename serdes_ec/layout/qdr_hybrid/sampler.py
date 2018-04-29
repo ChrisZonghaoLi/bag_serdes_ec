@@ -9,7 +9,7 @@ from bag.layout.template import TemplateBase
 from abs_templates_ec.analog_core.base import AnalogBase, AnalogBaseEnd
 
 from digital_ec.layout.stdcells.core import StdDigitalTemplate
-from digital_ec.layout.stdcells.inv import Inverter
+from digital_ec.layout.stdcells.inv import InvChain
 from digital_ec.layout.stdcells.latch import DFlipFlopCK2, LatchCK2
 
 from ..laygo.misc import LaygoDummy
@@ -364,22 +364,39 @@ class Retimer(StdDigitalTemplate):
         base_params['seg'] = seg_dict['latch']
         base_params['row_layout_info'] = ff_master.row_layout_info
         lat_master = self.new_template(params=base_params, temp_cls=LatchCK2)
-        base_params['seg'] = seg_dict['inv']
-        inv_master = self.new_template(params=base_params, temp_cls=Inverter)
+        base_params['seg_list'] = seg_dict['inv']
+        buf_master = self.new_template(params=base_params, temp_cls=InvChain)
 
         tap_ncol = self.sub_columns
-        inst_ncol = max(ff_master.num_cols, lat_master.num_cols)
-        ncol = inst_ncol + blk_sp + tap_ncol
-        self.initialize(ff_master.row_layout_info, 3, ncol)
+        ff_ncol = ff_master.num_cols
+        lat_ncol = lat_master.num_cols
+        buf_ncol = buf_master.num_cols
+        inst_ncol = max(ff_ncol, lat_ncol + blk_sp + buf_ncol)
+        ncol = inst_ncol + 2 * blk_sp + 2 * tap_ncol
+        self.initialize(ff_master.row_layout_info, 4, ncol)
 
-        self.add_digital_block(ff_master, (0, 0))
-        self.add_digital_block(ff_master, (0, 1))
-        self.add_digital_block(lat_master, (0, 2))
-        self.add_substrate_tap((inst_ncol + blk_sp, 0))
-        self.add_substrate_tap((inst_ncol + blk_sp, 1))
-        self.add_substrate_tap((inst_ncol + blk_sp, 2))
+        # draw taps and get supplies
+        vdd_list, vss_list = [], []
+        for cidx in (0, tap_ncol + inst_ncol + 2 * blk_sp):
+            for ridx in range(4):
+                tap = self.add_substrate_tap((cidx, ridx))
+                vdd_list.extend(tap.port_pins_iter('VDD'))
+                vss_list.extend(tap.port_pins_iter('VSS'))
+        vdd = self.connect_wires(vdd_list)
+        vss = self.connect_wires(vss_list)
+
+        # draw instances
+        cidx = tap_ncol + blk_sp
+        ff3 = self.add_digital_block(ff_master, (cidx, 3))
+        ff2 = self.add_digital_block(ff_master, (cidx, 2))
+        lat1 = self.add_digital_block(lat_master, (cidx, 1))
+        buf1 = self.add_digital_block(buf_master, (cidx + lat_ncol + blk_sp, 1))
+        lat0 = self.add_digital_block(lat_master, (cidx, 0))
 
         self.fill_space()
+
+        self.add_pin('VDD', vdd, show=show_pins)
+        self.add_pin('VSS', vss, show=show_pins)
 
 
 class SamplerColumn(TemplateBase):
