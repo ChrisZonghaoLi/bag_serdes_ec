@@ -537,7 +537,7 @@ class SamplerColumn(TemplateBase):
             config='laygo configuration dictionary.',
             sa_params='sense amplifier parameters.',
             div_params='divider parameters.',
-            retime_params='retimer parameters.',
+            re_params='retimer parameters.',
             tr_widths='Track width dictionary.',
             tr_spaces='Track spacing dictionary.',
             sup_tids='supply tracks information.',
@@ -557,13 +557,14 @@ class SamplerColumn(TemplateBase):
         config = self.params['config']
         sa_params = self.params['sa_params']
         div_params = self.params['div_params']
+        re_params = self.params['re_params']
         tr_widths = self.params['tr_widths']
         tr_spaces = self.params['tr_spaces']
         sup_tids = self.params['sup_tids']
         options = self.params['options']
         show_pins = self.params['show_pins']
 
-        debug = True
+        debug = False
 
         # create masters
         sa_params = sa_params.copy()
@@ -584,15 +585,31 @@ class SamplerColumn(TemplateBase):
         div_params['show_pins'] = debug
         div_master = self.new_template(params=div_params, temp_cls=DividerColumn)
 
+        re_params = re_params.copy()
+        re_params['config'] = config
+        re_params['show_pins'] = debug
+        re_master = self.new_template(params=re_params, temp_cls=RetimerColumn)
+
         sa_inst = self.add_instance(sa_master, 'XSA', unit_mode=True)
         x0 = sa_inst.bound_box.right_unit
         div_inst = self.add_instance(div_master, 'XDIV', loc=(x0, 0), unit_mode=True)
+        div_box = div_inst.bound_box
+        x0 = div_box.right_unit
+        div_h = div_box.height_unit
+        re_h = re_master.bound_box.height_unit
+        y0 = (div_h - re_h) // 2
+        re_inst = self.add_instance(re_master, 'XRE', loc=(x0, y0), unit_mode=True)
 
-        bnd_box = sa_inst.bound_box.merge(div_inst.bound_box)
+        bnd_box = sa_inst.bound_box.merge(re_inst.bound_box)
         self.set_size_from_bound_box(sa_master.top_layer, bnd_box)
         self.array_box = bnd_box
+
+        for name in re_inst.port_names_iter():
+            if name.startswith('data') or name.startswith('dlev'):
+                self.reexport(re_inst.get_port(name), show=show_pins)
 
         self._sch_params = dict(
             sa_params=sa_master.sch_params,
             div_params=div_master.sch_params,
+            re_params=re_master.sch_params,
         )
