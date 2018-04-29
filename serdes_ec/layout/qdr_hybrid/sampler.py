@@ -9,6 +9,7 @@ from bag.layout.template import TemplateBase
 from abs_templates_ec.analog_core.base import AnalogBase, AnalogBaseEnd
 from abs_templates_ec.digital.core import DigitalBase
 
+from digital_ec.layout.stdcells.inv import Inverter
 from digital_ec.layout.stdcells.latch import DFlipFlopCK2, LatchCK2
 
 from ..laygo.misc import LaygoDummy
@@ -343,11 +344,14 @@ class Retimer(DigitalBase):
         )
 
     def draw_layout(self):
+        blk_sp = 2
+
+        config = self.params['config']
         seg_dict = self.params['seg_dict']
         show_pins = self.params['show_pins']
 
         base_params = dict(
-            config=self.params['config'],
+            config=config,
             wp=self.params['wp'],
             wn=self.params['wn'],
             tr_widths=self.params['tr_widths'],
@@ -359,13 +363,22 @@ class Retimer(DigitalBase):
         ff_master = self.new_template(params=base_params, temp_cls=DFlipFlopCK2)
         base_params['seg'] = seg_dict['latch']
         lat_master = self.new_template(params=base_params, temp_cls=LatchCK2)
+        base_params['seg'] = seg_dict['inv']
+        inv_master = self.new_template(params=base_params, temp_cls=Inverter)
 
-        ncol = max(ff_master.num_cols, lat_master.num_cols)
+        lch = config['lch']
+        lch_unit = int(round(lch / self.grid.layout_unit / self.grid.resolution))
+        inst_ncol = max(ff_master.num_cols, lat_master.num_cols)
+        tap_ncol = self.get_sub_columns(self.grid.tech_info, lch_unit)
+        ncol = inst_ncol + blk_sp + tap_ncol
         self.initialize(ff_master.row_layout_info, 3, ncol)
 
         self.add_digital_block(ff_master, (0, 0))
         self.add_digital_block(ff_master, (0, 1))
         self.add_digital_block(lat_master, (0, 2))
+        self.add_substrate_tap((inst_ncol + blk_sp, 0))
+        self.add_substrate_tap((inst_ncol + blk_sp, 1))
+        self.add_substrate_tap((inst_ncol + blk_sp, 2))
 
         self.fill_space()
 

@@ -20,5 +20,5 @@ if __name__ == '__main__':
         print('loading BAG project')
         bprj = local_dict['bprj']
 
-    StdCellWrapper.generate_cells(bprj, block_specs)
+    StdCellWrapper.generate_cells(bprj, block_specs, debug=True)
     # StdCellWrapper.generate_cells(bprj, block_specs, gen_sch=True, run_lvs=True)
