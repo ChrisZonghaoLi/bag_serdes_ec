@@ -540,7 +540,13 @@ class SamplerColumn(TemplateBase):
             re_params='retimer parameters.',
             tr_widths='Track width dictionary.',
             tr_spaces='Track spacing dictionary.',
+            row_heights='row heights for one summer.',
             sup_tids='supply tracks information.',
+            data_tids='data input tracks information.',
+            dlev_tids='dlev input tracks information.',
+            sum_row_info='Summer row AnalogBase layout information dictionary.',
+            lat_row_info='Latch row AnalogBase layout information dictionary.',
+            div_tr_info='divider track information dictionary.',
             options='other AnalogBase options',
             show_pins='True to draw pin geometries.',
         )
@@ -560,7 +566,13 @@ class SamplerColumn(TemplateBase):
         re_params = self.params['re_params']
         tr_widths = self.params['tr_widths']
         tr_spaces = self.params['tr_spaces']
+        row_heights = self.params['row_heights']
         sup_tids = self.params['sup_tids']
+        data_tids = self.params['data_tids']
+        dlev_tids = self.params['dlev_tids']
+        sum_row_info = self.params['sum_row_info']
+        lat_row_info = self.params['lat_row_info']
+        div_tr_info = self.params['div_tr_info']
         options = self.params['options']
         show_pins = self.params['show_pins']
 
@@ -571,15 +583,21 @@ class SamplerColumn(TemplateBase):
         sa_params['config'] = config
         sa_params['tr_widths'] = tr_widths
         sa_params['tr_spaces'] = tr_spaces
+        sa_params['row_heights'] = row_heights
         sa_params['sup_tids'] = sup_tids
+        sa_params['data_tids'] = data_tids
+        sa_params['dlev_tids'] = dlev_tids
         sa_params['options'] = options
         sa_params['show_pins'] = debug
         sa_master = self.new_template(params=sa_params, temp_cls=SenseAmpColumn)
 
         div_params = div_params.copy()
         div_params['config'] = config
+        div_params['sum_row_info'] = sum_row_info
+        div_params['lat_row_info'] = lat_row_info
         div_params['tr_widths'] = tr_widths
         div_params['tr_spaces'] = tr_spaces
+        div_params['div_tr_info'] = div_tr_info
         div_params['sup_tids'] = sup_tids
         div_params['options'] = options
         div_params['show_pins'] = debug
@@ -603,6 +621,7 @@ class SamplerColumn(TemplateBase):
         bnd_box = sa_inst.bound_box.merge(re_inst.bound_box)
         self.set_size_from_bound_box(sa_master.top_layer, bnd_box)
         self.array_box = bnd_box
+        self.add_cell_boundary(bnd_box)
 
         for name in re_inst.port_names_iter():
             if name.startswith('data') or name.startswith('dlev'):

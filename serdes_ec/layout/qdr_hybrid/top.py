@@ -50,6 +50,7 @@ class RXFrontend(TemplateBase):
             ntap_w='PMOS substrate width, in meters/number of fins.',
             sum_params='summer parameters dictionary.',
             hp_params='highpass filter parameters dictionary.',
+            samp_params='sampler parameters dictionary.',
             fg_dum='Number of single-sided edge dummy fingers.',
             tr_widths='Track width dictionary.',
             tr_spaces='Track spacing dictionary.',
@@ -68,17 +69,24 @@ class RXFrontend(TemplateBase):
     def draw_layout(self):
         ml, mr, mt, mb = 30000, 10000, 20000, 20000
 
-        master = self.new_template(params=self.params, temp_cls=RXDatapath)
+        show_pins = self.params['show_pins']
+
+        params = self.params.copy()
+        params['show_pins'] = False
+        master = self.new_template(params=params, temp_cls=RXDatapath)
         blk_w, blk_h = self.grid.get_block_size(master.top_layer, unit_mode=True)
         ml = -(-ml // blk_w) * blk_w
         mr = -(-mr // blk_w) * blk_w
         mt = -(-mt // blk_h) * blk_h
         mb = -(-mb // blk_h) * blk_h
 
-        self.add_instance(master, 'XDATA', loc=(ml, mb), unit_mode=True)
+        inst = self.add_instance(master, 'XDATA', loc=(ml, mb), unit_mode=True)
         bnd_box = master.bound_box
         bnd_box = BBox(0, 0, bnd_box.width_unit + ml + mr, bnd_box.height_unit + mt + mb,
                        self.grid.resolution, unit_mode=True)
         self.set_size_from_bound_box(master.top_layer, bnd_box)
         self.array_box = bnd_box
         self.add_cell_boundary(bnd_box)
+
+        for name in inst.port_names_iter():
+            self.reexport(inst.get_port(name), show=show_pins)

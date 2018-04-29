@@ -21,9 +21,9 @@ def run_main(prj):
     summer = tdb.new_template(params=sum_specs['params'], temp_cls=Tap1Summer)
 
     params = samp_specs['params']
-    params['div_params']['sum_row_info'] = summer.sum_row_info
-    params['div_params']['lat_row_info'] = summer.lat_row_info
-    params['div_params']['div_tr_info'] = summer.div_tr_info
+    params['sum_row_info'] = summer.sum_row_info
+    params['lat_row_info'] = summer.lat_row_info
+    params['div_tr_info'] = summer.div_tr_info
     params['sup_tids'] = summer.params['sup_tids']
 
     prj.generate_cell(samp_specs, SamplerColumn, debug=True)
