@@ -328,11 +328,11 @@ class Retimer(StdDigitalTemplate):
         # type: () -> Dict[str, str]
         return dict(
             config='laygo configuration dictionary.',
-            wp='pmos widths.',
-            wn='nmos widths.',
             seg_dict='number of segments dictionary.',
             tr_widths='Track width dictionary.',
             tr_spaces='Track spacing dictionary.',
+            wp='pmos width.',
+            wn='nmos width.',
             show_pins='True to draw pin geometries.',
         )
 
@@ -340,6 +340,8 @@ class Retimer(StdDigitalTemplate):
     def get_default_param_values(cls):
         # type: () -> Dict[str, Any]
         return dict(
+            wp=None,
+            wn=None,
             show_pins=True,
         )
 
@@ -352,10 +354,10 @@ class Retimer(StdDigitalTemplate):
 
         base_params = dict(
             config=config,
-            wp=self.params['wp'],
-            wn=self.params['wn'],
             tr_widths=self.params['tr_widths'],
             tr_spaces=self.params['tr_spaces'],
+            wp=self.params['wp'],
+            wn=self.params['wn'],
             show_pins=False,
         )
 
@@ -408,6 +410,12 @@ class Retimer(StdDigitalTemplate):
         self.add_pin('VDD', vdd, show=show_pins)
         self.add_pin('VSS', vss, show=show_pins)
 
+        self._sch_params = dict(
+            ff_params=ff_master.sch_params,
+            lat_params=lat_master.sch_params,
+            buf_params=buf_master.sch_params,
+        )
+
 
 class RetimerColumn(StdDigitalTemplate):
     """A class that wraps a given standard cell with proper boundaries.
@@ -444,11 +452,11 @@ class RetimerColumn(StdDigitalTemplate):
         # type: () -> Dict[str, str]
         return dict(
             config='laygo configuration dictionary.',
-            wp='pmos widths.',
-            wn='nmos widths.',
             seg_dict='number of segments dictionary.',
             tr_widths='Track width dictionary.',
             tr_spaces='Track spacing dictionary.',
+            wp='pmos widths.',
+            wn='nmos widths.',
             show_pins='True to draw pin geometries.',
         )
 
@@ -456,6 +464,8 @@ class RetimerColumn(StdDigitalTemplate):
     def get_default_param_values(cls):
         # type: () -> Dict[str, Any]
         return dict(
+            wp=None,
+            wn=None,
             show_pins=True,
         )
 
@@ -486,6 +496,8 @@ class RetimerColumn(StdDigitalTemplate):
             vss_list.extend(inst.port_pins_iter('VSS'))
         self.add_pin('VDD', self.connect_wires(vdd_list), show=show_pins)
         self.add_pin('VSS', self.connect_wires(vss_list), show=show_pins)
+
+        self._sch_params = master.sch_params.copy()
 
 
 class SamplerColumn(TemplateBase):
@@ -525,6 +537,7 @@ class SamplerColumn(TemplateBase):
             config='laygo configuration dictionary.',
             sa_params='sense amplifier parameters.',
             div_params='divider parameters.',
+            retime_params='retimer parameters.',
             tr_widths='Track width dictionary.',
             tr_spaces='Track spacing dictionary.',
             sup_tids='supply tracks information.',
