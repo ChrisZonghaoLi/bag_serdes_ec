@@ -392,8 +392,18 @@ class Retimer(StdDigitalTemplate):
         lat1 = self.add_digital_block(lat_master, (cidx, 1))
         buf1 = self.add_digital_block(buf_master, (cidx + lat_ncol + blk_sp, 1))
         lat0 = self.add_digital_block(lat_master, (cidx, 0))
-
+        out_insts = [lat0, buf1, ff2, ff3]
         self.fill_space()
+
+        # export output
+        xm_layer = self.conn_layer + 3
+        num_x_tracks = self.get_num_x_tracks(xm_layer, half_int=True)
+        tr_idx = (num_x_tracks // 2) / 2
+        for idx, inst in enumerate(out_insts):
+            warr = inst.get_pin('out')
+            tid = self.make_x_track_id(xm_layer, idx, tr_idx)
+            warr = self.connect_to_tracks(warr, tid, min_len_mode=1)
+            self.add_pin('out<%d>' % idx, warr, show=show_pins)
 
         self.add_pin('VDD', vdd, show=show_pins)
         self.add_pin('VSS', vss, show=show_pins)
