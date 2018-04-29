@@ -409,6 +409,85 @@ class Retimer(StdDigitalTemplate):
         self.add_pin('VSS', vss, show=show_pins)
 
 
+class RetimerColumn(StdDigitalTemplate):
+    """A class that wraps a given standard cell with proper boundaries.
+
+    This class is usually used just for layout debugging (i.e. DRC checking).
+
+    Parameters
+    ----------
+    temp_db : TemplateDB
+            the template database.
+    lib_name : str
+        the layout library name.
+    params : Dict[str, Any]
+        the parameter values.
+    used_names : Set[str]
+        a set of already used cell names.
+    **kwargs
+        dictionary of optional parameters.  See documentation of
+        :class:`bag.layout.template.TemplateBase` for details.
+    """
+
+    def __init__(self, temp_db, lib_name, params, used_names, **kwargs):
+        # type: (TemplateDB, str, Dict[str, Any], Set[str], **Any) -> None
+        StdDigitalTemplate.__init__(self, temp_db, lib_name, params, used_names, **kwargs)
+        self._sch_params = None
+
+    @property
+    def sch_params(self):
+        # type: () -> Dict[str, Any]
+        return self._sch_params
+
+    @classmethod
+    def get_params_info(cls):
+        # type: () -> Dict[str, str]
+        return dict(
+            config='laygo configuration dictionary.',
+            wp='pmos widths.',
+            wn='nmos widths.',
+            seg_dict='number of segments dictionary.',
+            tr_widths='Track width dictionary.',
+            tr_spaces='Track spacing dictionary.',
+            show_pins='True to draw pin geometries.',
+        )
+
+    @classmethod
+    def get_default_param_values(cls):
+        # type: () -> Dict[str, Any]
+        return dict(
+            show_pins=True,
+        )
+
+    def draw_layout(self):
+        show_pins = self.params['show_pins']
+
+        retime_params = self.params.copy()
+        retime_params['show_pins'] = False
+        master = self.new_template(params=retime_params, temp_cls=Retimer)
+        ncol, nrow = master.digital_size
+        self.initialize(master.row_layout_info, nrow * 2, ncol, draw_boundaries=True,
+                        end_mode=15)
+
+        data_inst = self.add_digital_block(master, (0, 0))
+        dlev_inst = self.add_digital_block(master, (0, 4))
+        self.fill_space()
+
+        # export output
+        for idx in range(4):
+            pin_name = 'out<%d>' % idx
+            self.add_pin('data<%d>' % idx, data_inst.get_pin(pin_name), show=show_pins)
+            self.add_pin('dlev<%d>' % idx, dlev_inst.get_pin(pin_name), show=show_pins)
+
+        # connect supplies
+        vdd_list, vss_list = [], []
+        for inst in (data_inst, dlev_inst):
+            vdd_list.extend(inst.port_pins_iter('VDD'))
+            vss_list.extend(inst.port_pins_iter('VSS'))
+        self.add_pin('VDD', self.connect_wires(vdd_list), show=show_pins)
+        self.add_pin('VSS', self.connect_wires(vss_list), show=show_pins)
+
+
 class SamplerColumn(TemplateBase):
     """A class that wraps a given standard cell with proper boundaries.
 
