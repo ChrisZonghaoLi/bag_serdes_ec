@@ -7,8 +7,8 @@ from typing import TYPE_CHECKING, Dict, Any, Set
 from bag.layout.template import TemplateBase
 
 from abs_templates_ec.analog_core.base import AnalogBase, AnalogBaseEnd
-from abs_templates_ec.digital.core import DigitalBase
 
+from digital_ec.layout.stdcells.core import StdDigitalTemplate
 from digital_ec.layout.stdcells.inv import Inverter
 from digital_ec.layout.stdcells.latch import DFlipFlopCK2, LatchCK2
 
@@ -293,7 +293,7 @@ class DividerColumn(TemplateBase):
         self.array_box = self.bound_box
 
 
-class Retimer(DigitalBase):
+class Retimer(StdDigitalTemplate):
     """A class that wraps a given standard cell with proper boundaries.
 
     This class is usually used just for layout debugging (i.e. DRC checking).
@@ -315,7 +315,7 @@ class Retimer(DigitalBase):
 
     def __init__(self, temp_db, lib_name, params, used_names, **kwargs):
         # type: (TemplateDB, str, Dict[str, Any], Set[str], **Any) -> None
-        DigitalBase.__init__(self, temp_db, lib_name, params, used_names, **kwargs)
+        StdDigitalTemplate.__init__(self, temp_db, lib_name, params, used_names, **kwargs)
         self._sch_params = None
 
     @property
@@ -362,14 +362,13 @@ class Retimer(DigitalBase):
         base_params['seg'] = seg_dict['dff']
         ff_master = self.new_template(params=base_params, temp_cls=DFlipFlopCK2)
         base_params['seg'] = seg_dict['latch']
+        base_params['row_layout_info'] = ff_master.row_layout_info
         lat_master = self.new_template(params=base_params, temp_cls=LatchCK2)
         base_params['seg'] = seg_dict['inv']
         inv_master = self.new_template(params=base_params, temp_cls=Inverter)
 
-        lch = config['lch']
-        lch_unit = int(round(lch / self.grid.layout_unit / self.grid.resolution))
+        tap_ncol = self.sub_columns
         inst_ncol = max(ff_master.num_cols, lat_master.num_cols)
-        tap_ncol = self.get_sub_columns(self.grid.tech_info, lch_unit)
         ncol = inst_ncol + blk_sp + tap_ncol
         self.initialize(ff_master.row_layout_info, 3, ncol)
 
