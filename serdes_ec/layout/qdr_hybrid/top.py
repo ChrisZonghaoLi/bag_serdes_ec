@@ -54,6 +54,7 @@ class RXFrontend(TemplateBase):
             fg_dum='Number of single-sided edge dummy fingers.',
             tr_widths='Track width dictionary.',
             tr_spaces='Track spacing dictionary.',
+            fill_config='Fill configuration dictionary.',
             ana_options='other AnalogBase options',
             show_pins='True to create pin labels.',
         )
@@ -67,23 +68,23 @@ class RXFrontend(TemplateBase):
         )
 
     def draw_layout(self):
-        ml, mr, mt, mb = 30000, 10000, 20000, 20000
+        ml, mt, mb = 30000, 20000, 20000
 
+        fill_config = self.params['fill_config']
         show_pins = self.params['show_pins']
 
         params = self.params.copy()
         params['show_pins'] = False
         master = self.new_template(params=params, temp_cls=RXDatapath)
-        blk_w, blk_h = self.grid.get_block_size(master.top_layer, unit_mode=True)
-        ml = -(-ml // blk_w) * blk_w
-        mr = -(-mr // blk_w) * blk_w
-        mt = -(-mt // blk_h) * blk_h
-        mb = -(-mb // blk_h) * blk_h
-
-        inst = self.add_instance(master, 'XDATA', loc=(ml, mb), unit_mode=True)
+        top_layer = master.top_layer
         bnd_box = master.bound_box
-        bnd_box = BBox(0, 0, bnd_box.width_unit + ml + mr, bnd_box.height_unit + mt + mb,
-                       self.grid.resolution, unit_mode=True)
+        blk_w, blk_h = self.grid.get_fill_size(top_layer, fill_config, unit_mode=True)
+        tot_w = -(-(bnd_box.width_unit + ml) // blk_w) * blk_w
+        tot_h = -(-(bnd_box.height_unit + mt + mb) // blk_h) * blk_h
+        x0 = tot_w - bnd_box.width_unit
+        y0 = (tot_h - bnd_box.height_unit) // 2
+        inst = self.add_instance(master, 'XDATA', loc=(x0, y0), unit_mode=True)
+        bnd_box = BBox(0, 0, tot_w, tot_h, self.grid.resolution, unit_mode=True)
         self.set_size_from_bound_box(master.top_layer, bnd_box)
         self.array_box = bnd_box
         self.add_cell_boundary(bnd_box)
