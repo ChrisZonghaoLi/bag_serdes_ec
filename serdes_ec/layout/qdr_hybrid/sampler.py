@@ -322,7 +322,6 @@ class Retimer(DigitalBase):
         # type: () -> Dict[str, Any]
         return self._sch_params
 
-
     @classmethod
     def get_params_info(cls):
         # type: () -> Dict[str, str]
@@ -369,3 +368,100 @@ class Retimer(DigitalBase):
         self.add_digital_block(lat_master, (0, 2))
 
         self.fill_space()
+
+
+class SamplerColumn(TemplateBase):
+    """A class that wraps a given standard cell with proper boundaries.
+
+    This class is usually used just for layout debugging (i.e. DRC checking).
+
+    Parameters
+    ----------
+    temp_db : TemplateDB
+            the template database.
+    lib_name : str
+        the layout library name.
+    params : Dict[str, Any]
+        the parameter values.
+    used_names : Set[str]
+        a set of already used cell names.
+    **kwargs
+        dictionary of optional parameters.  See documentation of
+        :class:`bag.layout.template.TemplateBase` for details.
+    """
+
+    def __init__(self, temp_db, lib_name, params, used_names, **kwargs):
+        # type: (TemplateDB, str, Dict[str, Any], Set[str], **Any) -> None
+        TemplateBase.__init__(self, temp_db, lib_name, params, used_names, **kwargs)
+        self._sch_params = None
+
+    @property
+    def sch_params(self):
+        # type: () -> Dict[str, Any]
+        return self._sch_params
+
+    @classmethod
+    def get_params_info(cls):
+        # type: () -> Dict[str, str]
+        return dict(
+            config='laygo configuration dictionary.',
+            sa_params='sense amplifier parameters.',
+            div_params='divider parameters.',
+            tr_widths='Track width dictionary.',
+            tr_spaces='Track spacing dictionary.',
+            sup_tids='supply tracks information.',
+            options='other AnalogBase options',
+            show_pins='True to draw pin geometries.',
+        )
+
+    @classmethod
+    def get_default_param_values(cls):
+        # type: () -> Dict[str, Any]
+        return dict(
+            options=None,
+            show_pins=True,
+        )
+
+    def draw_layout(self):
+        config = self.params['config']
+        sa_params = self.params['sa_params']
+        div_params = self.params['div_params']
+        tr_widths = self.params['tr_widths']
+        tr_spaces = self.params['tr_spaces']
+        sup_tids = self.params['sup_tids']
+        options = self.params['options']
+        show_pins = self.params['show_pins']
+
+        debug = True
+
+        # create masters
+        sa_params = sa_params.copy()
+        sa_params['config'] = config
+        sa_params['tr_widths'] = tr_widths
+        sa_params['tr_spaces'] = tr_spaces
+        sa_params['sup_tids'] = sup_tids
+        sa_params['options'] = options
+        sa_params['show_pins'] = debug
+        sa_master = self.new_template(params=sa_params, temp_cls=SenseAmpColumn)
+
+        div_params = div_params.copy()
+        div_params['config'] = config
+        div_params['tr_widths'] = tr_widths
+        div_params['tr_spaces'] = tr_spaces
+        div_params['sup_tids'] = sup_tids
+        div_params['options'] = options
+        div_params['show_pins'] = debug
+        div_master = self.new_template(params=div_params, temp_cls=DividerColumn)
+
+        sa_inst = self.add_instance(sa_master, 'XSA', unit_mode=True)
+        x0 = sa_inst.bound_box.right_unit
+        div_inst = self.add_instance(div_master, 'XDIV', loc=(x0, 0), unit_mode=True)
+
+        bnd_box = sa_inst.bound_box.merge(div_inst.bound_box)
+        self.set_size_from_bound_box(sa_master.top_layer, bnd_box)
+        self.array_box = bnd_box
+
+        self._sch_params = dict(
+            sa_params=sa_master.sch_params,
+            div_params=div_master.sch_params,
+        )
