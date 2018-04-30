@@ -91,3 +91,5 @@ class RXFrontend(TemplateBase):
 
         for name in inst.port_names_iter():
             self.reexport(inst.get_port(name), show=show_pins)
+
+        self._sch_params = master.sch_params
