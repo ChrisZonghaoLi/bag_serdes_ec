@@ -8,7 +8,8 @@ import pkg_resources
 from bag.design import Module
 
 
-yaml_file = pkg_resources.resource_filename(__name__, os.path.join('netlist_info', 'qdr_retimer_column.yaml'))
+yaml_file = pkg_resources.resource_filename(__name__, os.path.join('netlist_info',
+                                                                   'qdr_retimer_column.yaml'))
 
 
 # noinspection PyPep8Naming
@@ -24,30 +25,17 @@ class bag_serdes_ec__qdr_retimer_column(Module):
     @classmethod
     def get_params_info(cls):
         # type: () -> Dict[str, str]
-        """Returns a dictionary from parameter names to descriptions.
-
-        Returns
-        -------
-        param_info : Optional[Dict[str, str]]
-            dictionary from parameter names to descriptions.
-        """
         return dict(
+            ff_params='flip-flop parameters.',
+            lat_params='latch parameters.',
+            buf_params='inverter chain parameters.',
+            clk_params='clock buffer parameters.',
         )
 
-    def design(self):
-        """To be overridden by subclasses to design this module.
-
-        This method should fill in values for all parameters in
-        self.parameters.  To design instances of this module, you can
-        call their design() method or any other ways you coded.
-
-        To modify schematic structure, call:
-
-        rename_pin()
-        delete_instance()
-        replace_instance_master()
-        reconnect_instance_terminal()
-        restore_instance()
-        array_instance()
-        """
-        pass
+    def design(self, ff_params, lat_params, buf_params, clk_params):
+        self.instances['XRTD'].design(ff_params=ff_params, lat_params=lat_params,
+                                      buf_params=buf_params, delay_ck3=False)
+        self.instances['XRTL'].design(ff_params=ff_params, lat_params=lat_params,
+                                      buf_params=buf_params, delay_ck3=True)
+        self.instances['XINV3'].design(**clk_params)
+        self.instances['XINV1'].design(**clk_params)

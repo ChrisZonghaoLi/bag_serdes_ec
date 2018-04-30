@@ -9,7 +9,7 @@ from bag.layout.template import TemplateBase
 from abs_templates_ec.analog_core.base import AnalogBase, AnalogBaseEnd
 
 from digital_ec.layout.stdcells.core import StdDigitalTemplate
-from digital_ec.layout.stdcells.inv import InvChain
+from digital_ec.layout.stdcells.inv import Inverter, InvChain
 from digital_ec.layout.stdcells.latch import DFlipFlopCK2, LatchCK2
 
 from ..laygo.misc import LaygoDummy
@@ -335,6 +335,7 @@ class Retimer(StdDigitalTemplate):
             seg_dict='number of segments dictionary.',
             tr_widths='Track width dictionary.',
             tr_spaces='Track spacing dictionary.',
+            delay_ck3='True to delay phase 3.',
             wp='pmos width.',
             wn='nmos width.',
             show_pins='True to draw pin geometries.',
@@ -344,6 +345,7 @@ class Retimer(StdDigitalTemplate):
     def get_default_param_values(cls):
         # type: () -> Dict[str, Any]
         return dict(
+            delay_ck3=True,
             wp=None,
             wn=None,
             show_pins=True,
@@ -354,6 +356,7 @@ class Retimer(StdDigitalTemplate):
 
         config = self.params['config']
         seg_dict = self.params['seg_dict']
+        delay_ck3 = self.params['delay_ck3']
         show_pins = self.params['show_pins']
 
         base_params = dict(
@@ -370,7 +373,7 @@ class Retimer(StdDigitalTemplate):
         base_params['seg'] = seg_dict['latch']
         base_params['row_layout_info'] = ff_master.row_layout_info
         lat_master = self.new_template(params=base_params, temp_cls=LatchCK2)
-        base_params['seg_list'] = seg_dict['inv']
+        base_params['seg_list'] = seg_dict['buf']
         buf_master = self.new_template(params=base_params, temp_cls=InvChain)
 
         tap_ncol = self.sub_columns
@@ -393,12 +396,15 @@ class Retimer(StdDigitalTemplate):
 
         # draw instances
         cidx = tap_ncol + blk_sp
-        ff3 = self.add_digital_block(ff_master, (cidx, 3))
+        if delay_ck3:
+            inst3 = self.add_digital_block(ff_master, (cidx, 3))
+        else:
+            inst3 = self.add_digital_block(buf_master, (cidx, 3))
         ff2 = self.add_digital_block(ff_master, (cidx, 2))
         lat1 = self.add_digital_block(lat_master, (cidx, 1))
         buf1 = self.add_digital_block(buf_master, (cidx + lat_ncol + blk_sp, 1))
         lat0 = self.add_digital_block(lat_master, (cidx, 0))
-        out_insts = [lat0, buf1, ff2, ff3]
+        out_insts = [lat0, buf1, ff2, inst3]
         self.fill_space()
 
         # export output
@@ -406,9 +412,8 @@ class Retimer(StdDigitalTemplate):
         num_x_tracks = self.get_num_x_tracks(xm_layer, half_int=True)
         tr_idx = (num_x_tracks // 2) / 2
         for idx, inst in enumerate(out_insts):
-            warr = inst.get_pin('out')
             tid = self.make_x_track_id(xm_layer, idx, tr_idx)
-            warr = self.connect_to_tracks(warr, tid, min_len_mode=1)
+            warr = self.connect_to_tracks(inst.get_pin('out'), tid, min_len_mode=1)
             self.add_pin('out<%d>' % idx, warr, show=show_pins)
 
         self.add_pin('VDD', vdd, show=show_pins)
@@ -418,6 +423,7 @@ class Retimer(StdDigitalTemplate):
             ff_params=ff_master.sch_params,
             lat_params=lat_master.sch_params,
             buf_params=buf_master.sch_params,
+            delay_ck3=delay_ck3,
         )
 
 
@@ -474,18 +480,46 @@ class RetimerColumn(StdDigitalTemplate):
         )
 
     def draw_layout(self):
+        seg_dict = self.params['seg_dict']
         show_pins = self.params['show_pins']
 
-        retime_params = self.params.copy()
-        retime_params['show_pins'] = False
-        master = self.new_template(params=retime_params, temp_cls=Retimer)
-        ncol, nrow = master.digital_size
-        self.initialize(master.row_layout_info, nrow * 2, ncol, draw_boundaries=True,
+        re_params = self.params.copy()
+        re_params['delay_ck3'] = False
+        re_params['show_pins'] = False
+        data_master = self.new_template(params=re_params, temp_cls=Retimer)
+        dlev_master = data_master.new_template_with(delay_ck3=True)
+
+        clk_params = dict(
+            config=self.params['config'],
+            seg=seg_dict['clk'],
+            tr_widths=self.params['tr_widths'],
+            tr_spaces=self.params['tr_spaces'],
+            wp=self.params['wp'],
+            wn=self.params['wn'],
+            show_pins=False,
+        )
+        inv_master = self.new_template(params=clk_params, temp_cls=Inverter)
+
+        ncol, nrow = data_master.digital_size
+        self.initialize(data_master.row_layout_info, nrow * 2 + 2, ncol, draw_boundaries=True,
                         end_mode=15)
 
-        data_inst = self.add_digital_block(master, (0, 0))
-        dlev_inst = self.add_digital_block(master, (0, 4))
+        data_inst = self.add_digital_block(data_master, (0, 0))
+        dlev_inst = self.add_digital_block(dlev_master, (0, 6))
+        ckb_inst = self.add_digital_block(inv_master, (0, 4))
+        ck_inst = self.add_digital_block(inv_master, (0, 5))
         self.fill_space()
+
+        # export clock output
+        xm_layer = self.conn_layer + 3
+        num_x_tracks = self.get_num_x_tracks(xm_layer, half_int=True)
+        tr_idx = (num_x_tracks // 2) / 2
+        tid = self.make_x_track_id(xm_layer, 4, tr_idx)
+        warr = self.connect_to_tracks(ckb_inst.get_pin('out'), tid, min_len_mode=1)
+        self.add_pin('des_clkb', warr, show=show_pins)
+        tid = self.make_x_track_id(xm_layer, 5, tr_idx)
+        warr = self.connect_to_tracks(ck_inst.get_pin('out'), tid, min_len_mode=1)
+        self.add_pin('des_clk', warr, show=show_pins)
 
         # export output
         for idx in range(4):
@@ -495,13 +529,15 @@ class RetimerColumn(StdDigitalTemplate):
 
         # connect supplies
         vdd_list, vss_list = [], []
-        for inst in (data_inst, dlev_inst):
+        for inst in (data_inst, dlev_inst, ckb_inst, ck_inst):
             vdd_list.extend(inst.port_pins_iter('VDD'))
             vss_list.extend(inst.port_pins_iter('VSS'))
         self.add_pin('VDD', self.connect_wires(vdd_list), show=show_pins)
         self.add_pin('VSS', self.connect_wires(vss_list), show=show_pins)
 
-        self._sch_params = master.sch_params.copy()
+        self._sch_params = data_master.sch_params.copy()
+        del self._sch_params['delay_ck3']
+        self._sch_params['clk_params'] = inv_master.sch_params
 
 
 class SamplerColumn(TemplateBase):
