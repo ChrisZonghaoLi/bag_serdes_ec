@@ -8,7 +8,8 @@ import pkg_resources
 from bag.design import Module
 
 
-yaml_file = pkg_resources.resource_filename(__name__, os.path.join('netlist_info', 'qdr_sampler_column.yaml'))
+yaml_file = pkg_resources.resource_filename(__name__, os.path.join('netlist_info',
+                                                                   'qdr_sampler_column.yaml'))
 
 
 # noinspection PyPep8Naming
@@ -24,30 +25,13 @@ class bag_serdes_ec__qdr_sampler_column(Module):
     @classmethod
     def get_params_info(cls):
         # type: () -> Dict[str, str]
-        """Returns a dictionary from parameter names to descriptions.
-
-        Returns
-        -------
-        param_info : Optional[Dict[str, str]]
-            dictionary from parameter names to descriptions.
-        """
         return dict(
+            sa_params='sense-amp column parameters.',
+            div_params='divider column parameters.',
+            re_params='retimer column parameters.',
         )
 
-    def design(self):
-        """To be overridden by subclasses to design this module.
-
-        This method should fill in values for all parameters in
-        self.parameters.  To design instances of this module, you can
-        call their design() method or any other ways you coded.
-
-        To modify schematic structure, call:
-
-        rename_pin()
-        delete_instance()
-        replace_instance_master()
-        reconnect_instance_terminal()
-        restore_instance()
-        array_instance()
-        """
-        pass
+    def design(self, sa_params, div_params, re_params):
+        self.instances['XSA'].design(**sa_params)
+        self.instances['XDIV'].design(**div_params)
+        self.instances['XRE'].design(**re_params)

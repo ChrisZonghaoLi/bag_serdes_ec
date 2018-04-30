@@ -37,5 +37,11 @@ class bag_serdes_ec__qdr_retimer_column(Module):
                                       buf_params=buf_params, delay_ck3=False)
         self.instances['XRTL'].design(ff_params=ff_params, lat_params=lat_params,
                                       buf_params=buf_params, delay_ck3=True)
-        self.instances['XINV3'].design(**clk_params)
-        self.instances['XINV1'].design(**clk_params)
+        self.instances['XBUF3'].design(**clk_params)
+        self.instances['XBUF1'].design(**clk_params)
+
+        # reconnect outputs if necessary
+        nck_inv = len(clk_params['wp_list'])
+        if nck_inv % 2 == 1:
+            self.reconnect_instance_terminal('XBUF3', 'out', 'des_clkb')
+            self.reconnect_instance_terminal('XBUF1', 'out', 'des_clk')

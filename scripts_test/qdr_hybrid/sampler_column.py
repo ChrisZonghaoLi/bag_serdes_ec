@@ -26,7 +26,8 @@ def run_main(prj):
     params['div_tr_info'] = summer.div_tr_info
     params['sup_tids'] = summer.params['sup_tids']
 
-    prj.generate_cell(samp_specs, SamplerColumn, debug=True)
+    # prj.generate_cell(samp_specs, SamplerColumn, debug=True)
+    prj.generate_cell(samp_specs, SamplerColumn, gen_sch=True, run_lvs=False, debug=True)
 
 
 if __name__ == '__main__':

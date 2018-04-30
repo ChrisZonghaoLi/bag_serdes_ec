@@ -9,7 +9,7 @@ from bag.layout.template import TemplateBase
 from abs_templates_ec.analog_core.base import AnalogBase, AnalogBaseEnd
 
 from digital_ec.layout.stdcells.core import StdDigitalTemplate
-from digital_ec.layout.stdcells.inv import Inverter, InvChain
+from digital_ec.layout.stdcells.inv import InvChain
 from digital_ec.layout.stdcells.latch import DFlipFlopCK2, LatchCK2
 
 from ..laygo.misc import LaygoDummy
@@ -491,14 +491,14 @@ class RetimerColumn(StdDigitalTemplate):
 
         clk_params = dict(
             config=self.params['config'],
-            seg=seg_dict['clk'],
+            seg_list=seg_dict['clk'],
             tr_widths=self.params['tr_widths'],
             tr_spaces=self.params['tr_spaces'],
             wp=self.params['wp'],
             wn=self.params['wn'],
             show_pins=False,
         )
-        inv_master = self.new_template(params=clk_params, temp_cls=Inverter)
+        buf_master = self.new_template(params=clk_params, temp_cls=InvChain)
 
         ncol, nrow = data_master.digital_size
         self.initialize(data_master.row_layout_info, nrow * 2 + 2, ncol, draw_boundaries=True,
@@ -506,8 +506,8 @@ class RetimerColumn(StdDigitalTemplate):
 
         data_inst = self.add_digital_block(data_master, (0, 0))
         dlev_inst = self.add_digital_block(dlev_master, (0, 6))
-        ckb_inst = self.add_digital_block(inv_master, (0, 4))
-        ck_inst = self.add_digital_block(inv_master, (0, 5))
+        ckb_inst = self.add_digital_block(buf_master, (0, 4))
+        ck_inst = self.add_digital_block(buf_master, (0, 5))
         self.fill_space()
 
         # export clock output
@@ -537,7 +537,7 @@ class RetimerColumn(StdDigitalTemplate):
 
         self._sch_params = data_master.sch_params.copy()
         del self._sch_params['delay_ck3']
-        self._sch_params['clk_params'] = inv_master.sch_params
+        self._sch_params['clk_params'] = buf_master.sch_params
 
 
 class SamplerColumn(TemplateBase):
