@@ -2,158 +2,6 @@ lib_name: bag_serdes_ec
 cell_name: qdr_sampler_column
 pins: [ "VDD", "VSS", "inp_data<3:0>", "inn_data<3:0>", "inp_dlev<3:0>", "inn_dlev<3:0>", "clkp", "clkn", "data<3:0>", "scan_div<3:2>", "en_div<3:2>", "dlev<3:0>", "des_clk" ]
 instances:
-  XDATA<3:0>:
-    lib_name: bag_serdes_ec
-    cell_name: sense_amp_strongarm
-    instpins:
-      out:
-        direction: output
-        net_name: "sa_data<3:0>"
-        num_bits: 4
-      qp:
-        direction: output
-        net_name: "net01<0:3>"
-        num_bits: 4
-      qn:
-        direction: output
-        net_name: "net02<0:3>"
-        num_bits: 4
-      midn:
-        direction: output
-        net_name: "net03<0:3>"
-        num_bits: 4
-      VSS:
-        direction: inputOutput
-        net_name: "<*4>VSS"
-        num_bits: 4
-      VDD:
-        direction: inputOutput
-        net_name: "<*4>VDD"
-        num_bits: 4
-      inp:
-        direction: input
-        net_name: "inp_data<0>,inp_data<3:1>"
-        num_bits: 4
-      inn:
-        direction: input
-        net_name: "inn_data<0>,inn_data<3:1>"
-        num_bits: 4
-      clk:
-        direction: input
-        net_name: "en<3:0>"
-        num_bits: 4
-      midp:
-        direction: output
-        net_name: "net04<0:3>"
-        num_bits: 4
-  XDLEV<3:0>:
-    lib_name: bag_serdes_ec
-    cell_name: sense_amp_strongarm
-    instpins:
-      out:
-        direction: output
-        net_name: "sa_dlev<3:0>"
-        num_bits: 4
-      qp:
-        direction: output
-        net_name: "net05<0:3>"
-        num_bits: 4
-      qn:
-        direction: output
-        net_name: "net06<0:3>"
-        num_bits: 4
-      midn:
-        direction: output
-        net_name: "net07<0:3>"
-        num_bits: 4
-      VSS:
-        direction: inputOutput
-        net_name: "<*4>VSS"
-        num_bits: 4
-      VDD:
-        direction: inputOutput
-        net_name: "<*4>VDD"
-        num_bits: 4
-      inp:
-        direction: input
-        net_name: "inp_dlev<0>,inp_dlev<3:1>"
-        num_bits: 4
-      inn:
-        direction: input
-        net_name: "inn_dlev<0>,inn_dlev<3:1>"
-        num_bits: 4
-      clk:
-        direction: input
-        net_name: "en<3:0>"
-        num_bits: 4
-      midp:
-        direction: output
-        net_name: "net08<0:3>"
-        num_bits: 4
-  XDIV2:
-    lib_name: bag_serdes_ec
-    cell_name: div2_sin_clk
-    instpins:
-      VSS:
-        direction: inputOutput
-        net_name: "VSS"
-        num_bits: 1
-      VDD:
-        direction: inputOutput
-        net_name: "VDD"
-        num_bits: 1
-      q:
-        direction: output
-        net_name: "en<2>"
-        num_bits: 1
-      qb:
-        direction: output
-        net_name: "en<0>"
-        num_bits: 1
-      clk:
-        direction: input
-        net_name: "clkn"
-        num_bits: 1
-      en:
-        direction: input
-        net_name: "en_div<2>"
-        num_bits: 1
-      scan_s:
-        direction: input
-        net_name: "scan_div<2>"
-        num_bits: 1
-  XDIV3:
-    lib_name: bag_serdes_ec
-    cell_name: div2_sin_clk
-    instpins:
-      VSS:
-        direction: inputOutput
-        net_name: "VSS"
-        num_bits: 1
-      VDD:
-        direction: inputOutput
-        net_name: "VDD"
-        num_bits: 1
-      q:
-        direction: output
-        net_name: "en<3>"
-        num_bits: 1
-      qb:
-        direction: output
-        net_name: "en<1>"
-        num_bits: 1
-      clk:
-        direction: input
-        net_name: "clkp"
-        num_bits: 1
-      en:
-        direction: input
-        net_name: "en_div<3>"
-        num_bits: 1
-      scan_s:
-        direction: input
-        net_name: "scan_div<3>"
-        num_bits: 1
   PIN1:
     lib_name: basic
     cell_name: iopin
@@ -206,9 +54,9 @@ instances:
     lib_name: basic
     cell_name: opin
     instpins: {}
-  XRTD:
+  XSA:
     lib_name: bag_serdes_ec
-    cell_name: qdr_retimer
+    cell_name: qdr_senseamp_column
     instpins:
       VSS:
         direction: inputOutput
@@ -218,45 +66,37 @@ instances:
         direction: inputOutput
         net_name: "VDD"
         num_bits: 1
-      out<3:0>:
-        direction: output
-        net_name: "data<0>,data<3:1>"
-        num_bits: 4
-      in<3:0>:
-        direction: input
-        net_name: "sa_data<3:0>"
-        num_bits: 4
-      clk<3:0>:
+      en<3:0>:
         direction: input
         net_name: "en<3:0>"
         num_bits: 4
-  XRTL:
-    lib_name: bag_serdes_ec
-    cell_name: qdr_retimer
-    instpins:
-      VSS:
-        direction: inputOutput
-        net_name: "VSS"
-        num_bits: 1
-      VDD:
-        direction: inputOutput
-        net_name: "VDD"
-        num_bits: 1
-      out<3:0>:
+      sa_dlev<3:0>:
         direction: output
-        net_name: "dlev<3:0>"
-        num_bits: 4
-      in<3:0>:
-        direction: input
         net_name: "sa_dlev<3:0>"
         num_bits: 4
-      clk<3:0>:
-        direction: input
-        net_name: "en<3:0>"
+      sa_data<3:0>:
+        direction: output
+        net_name: "sa_data<3:0>"
         num_bits: 4
-  XINV1:
-    lib_name: bag_digital_ec
-    cell_name: inv
+      inn_data<3:0>:
+        direction: input
+        net_name: "inn_data<3:0>"
+        num_bits: 4
+      inn_dlev<3:0>:
+        direction: input
+        net_name: "inn_dlev<3:0>"
+        num_bits: 4
+      inp_data<3:0>:
+        direction: input
+        net_name: "inp_data<3:0>"
+        num_bits: 4
+      inp_dlev<3:0>:
+        direction: input
+        net_name: "inp_dlev<3:0>"
+        num_bits: 4
+  XDIV:
+    lib_name: bag_serdes_ec
+    cell_name: qdr_divider_column
     instpins:
       VSS:
         direction: inputOutput
@@ -266,17 +106,33 @@ instances:
         direction: inputOutput
         net_name: "VDD"
         num_bits: 1
-      out:
+      en<3:0>:
+        direction: output
+        net_name: "en<3:0>"
+        num_bits: 4
+      des_clk:
         direction: output
         net_name: "des_clk"
         num_bits: 1
-      in:
+      clkn:
         direction: input
-        net_name: "des_clkb"
+        net_name: "clkn"
         num_bits: 1
-  XINV0:
-    lib_name: bag_digital_ec
-    cell_name: inv
+      clkp:
+        direction: input
+        net_name: "clkp"
+        num_bits: 1
+      en_div<3:2>:
+        direction: input
+        net_name: "en_div<3:2>"
+        num_bits: 2
+      scan_div<3:2>:
+        direction: input
+        net_name: "scan_div<3:2>"
+        num_bits: 2
+  XRE:
+    lib_name: bag_serdes_ec
+    cell_name: qdr_retimer_column
     instpins:
       VSS:
         direction: inputOutput
@@ -286,11 +142,23 @@ instances:
         direction: inputOutput
         net_name: "VDD"
         num_bits: 1
-      out:
+      data<3:0>:
         direction: output
-        net_name: "des_clkb"
-        num_bits: 1
-      in:
+        net_name: "data<3:0>"
+        num_bits: 4
+      dlev<3:0>:
+        direction: output
+        net_name: "dlev<3:0>"
+        num_bits: 4
+      sa_dlev<3:0>:
         direction: input
-        net_name: "en<3>"
-        num_bits: 1
+        net_name: "sa_dlev<3:0>"
+        num_bits: 4
+      sa_data<3:0>:
+        direction: input
+        net_name: "sa_data<3:0>"
+        num_bits: 4
+      en<3:0>:
+        direction: input
+        net_name: "en<3:0>"
+        num_bits: 4

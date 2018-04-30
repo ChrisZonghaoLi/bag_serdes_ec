@@ -1,0 +1,128 @@
+lib_name: bag_serdes_ec
+cell_name: qdr_senseamp_column
+pins: [ "VDD", "VSS", "inp_data<3:0>", "inn_data<3:0>", "inp_dlev<3:0>", "inn_dlev<3:0>", "sa_data<3:0>", "en<3:0>", "sa_dlev<3:0>" ]
+instances:
+  XDATA<3:0>:
+    lib_name: bag_serdes_ec
+    cell_name: sense_amp_strongarm
+    instpins:
+      out:
+        direction: output
+        net_name: "sa_data<3:0>"
+        num_bits: 4
+      qp:
+        direction: output
+        net_name: "net01<0:3>"
+        num_bits: 4
+      qn:
+        direction: output
+        net_name: "net02<0:3>"
+        num_bits: 4
+      midn:
+        direction: output
+        net_name: "net03<0:3>"
+        num_bits: 4
+      VSS:
+        direction: inputOutput
+        net_name: "<*4>VSS"
+        num_bits: 4
+      VDD:
+        direction: inputOutput
+        net_name: "<*4>VDD"
+        num_bits: 4
+      inp:
+        direction: input
+        net_name: "inp_data<1:0>,inp_data<3:2>"
+        num_bits: 4
+      inn:
+        direction: input
+        net_name: "inn_data<1:0>,inn_data<3:2>"
+        num_bits: 4
+      clk:
+        direction: input
+        net_name: "en<3:0>"
+        num_bits: 4
+      midp:
+        direction: output
+        net_name: "net04<0:3>"
+        num_bits: 4
+  XDLEV<3:0>:
+    lib_name: bag_serdes_ec
+    cell_name: sense_amp_strongarm
+    instpins:
+      out:
+        direction: output
+        net_name: "sa_dlev<3:0>"
+        num_bits: 4
+      qp:
+        direction: output
+        net_name: "net05<0:3>"
+        num_bits: 4
+      qn:
+        direction: output
+        net_name: "net06<0:3>"
+        num_bits: 4
+      midn:
+        direction: output
+        net_name: "net07<0:3>"
+        num_bits: 4
+      VSS:
+        direction: inputOutput
+        net_name: "<*4>VSS"
+        num_bits: 4
+      VDD:
+        direction: inputOutput
+        net_name: "<*4>VDD"
+        num_bits: 4
+      inp:
+        direction: input
+        net_name: "inp_dlev<1:0>,inp_dlev<3:2>"
+        num_bits: 4
+      inn:
+        direction: input
+        net_name: "inn_dlev<1:0>,inn_dlev<3:2>"
+        num_bits: 4
+      clk:
+        direction: input
+        net_name: "en<3:0>"
+        num_bits: 4
+      midp:
+        direction: output
+        net_name: "net08<0:3>"
+        num_bits: 4
+  PIN1:
+    lib_name: basic
+    cell_name: iopin
+    instpins: {}
+  PIN0:
+    lib_name: basic
+    cell_name: iopin
+    instpins: {}
+  PIN12:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN5:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN4:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN3:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN2:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN11:
+    lib_name: basic
+    cell_name: opin
+    instpins: {}
+  PIN10:
+    lib_name: basic
+    cell_name: opin
+    instpins: {}

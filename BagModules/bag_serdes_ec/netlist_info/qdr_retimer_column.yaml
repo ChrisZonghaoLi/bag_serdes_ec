@@ -1,0 +1,80 @@
+lib_name: bag_serdes_ec
+cell_name: qdr_retimer_column
+pins: [ "VDD", "VSS", "sa_data<3:0>", "sa_dlev<3:0>", "data<3:0>", "en<3:0>", "dlev<3:0>" ]
+instances:
+  PIN1:
+    lib_name: basic
+    cell_name: iopin
+    instpins: {}
+  PIN0:
+    lib_name: basic
+    cell_name: iopin
+    instpins: {}
+  PIN13:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN14:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN15:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN11:
+    lib_name: basic
+    cell_name: opin
+    instpins: {}
+  PIN10:
+    lib_name: basic
+    cell_name: opin
+    instpins: {}
+  XRTD:
+    lib_name: bag_serdes_ec
+    cell_name: qdr_retimer
+    instpins:
+      VSS:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      VDD:
+        direction: inputOutput
+        net_name: "VDD"
+        num_bits: 1
+      out<3:0>:
+        direction: output
+        net_name: "data<0>,data<3:1>"
+        num_bits: 4
+      in<3:0>:
+        direction: input
+        net_name: "sa_data<3:0>"
+        num_bits: 4
+      clk<3:0>:
+        direction: input
+        net_name: "en<3:0>"
+        num_bits: 4
+  XRTL:
+    lib_name: bag_serdes_ec
+    cell_name: qdr_retimer
+    instpins:
+      VSS:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      VDD:
+        direction: inputOutput
+        net_name: "VDD"
+        num_bits: 1
+      out<3:0>:
+        direction: output
+        net_name: "dlev<3:0>"
+        num_bits: 4
+      in<3:0>:
+        direction: input
+        net_name: "sa_dlev<3:0>"
+        num_bits: 4
+      clk<3:0>:
+        direction: input
+        net_name: "en<3:0>"
+        num_bits: 4
