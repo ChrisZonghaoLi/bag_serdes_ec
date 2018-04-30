@@ -1,6 +1,6 @@
 lib_name: bag_serdes_ec
 cell_name: qdr_sampler_column
-pins: [ "VDD", "VSS", "inp_data<3:0>", "inn_data<3:0>", "inp_dlev<3:0>", "inn_dlev<3:0>", "clkp", "clkn", "data<3:0>", "scan_div<3:2>", "en_div<3:2>", "dlev<3:0>", "des_clk" ]
+pins: [ "VDD", "VSS", "inp_data<3:0>", "inn_data<3:0>", "inp_dlev<3:0>", "inn_dlev<3:0>", "clkp", "clkn", "data<3:0>", "scan_div<3:2>", "en_div<3:2>", "dlev<3:0>", "des_clk", "des_clkb" ]
 instances:
   PIN1:
     lib_name: basic
@@ -43,6 +43,10 @@ instances:
     cell_name: ipin
     instpins: {}
   PIN12:
+    lib_name: basic
+    cell_name: opin
+    instpins: {}
+  PIN13:
     lib_name: basic
     cell_name: opin
     instpins: {}
@@ -110,10 +114,6 @@ instances:
         direction: output
         net_name: "en<3:0>"
         num_bits: 4
-      des_clk:
-        direction: output
-        net_name: "des_clk"
-        num_bits: 1
       clkn:
         direction: input
         net_name: "clkn"
@@ -134,6 +134,14 @@ instances:
     lib_name: bag_serdes_ec
     cell_name: qdr_retimer_column
     instpins:
+      des_clkb:
+        direction: output
+        net_name: "des_clkb"
+        num_bits: 1
+      des_clk:
+        direction: output
+        net_name: "des_clk"
+        num_bits: 1
       VSS:
         direction: inputOutput
         net_name: "VSS"

@@ -294,6 +294,8 @@ class DividerColumn(TemplateBase):
         self.set_size_from_bound_box(top_layer, bot_row.bound_box.merge(top_row.bound_box))
         self.array_box = self.bound_box
 
+        self._sch_params = div_master.sch_params
+
 
 class Retimer(StdDigitalTemplate):
     """A class that wraps a given standard cell with proper boundaries.

@@ -27,7 +27,7 @@ def run_main(prj):
     params['sup_tids'] = summer.params['sup_tids']
 
     prj.generate_cell(div_specs, DividerColumn, debug=True)
-    # bprj.generate_cell(block_specs, DividerColumn, gen_sch=True, run_lvs=True)
+    # prj.generate_cell(div_specs, DividerColumn, gen_sch=True, run_lvs=False, debug=True)
 
 
 if __name__ == '__main__':

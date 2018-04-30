@@ -1,6 +1,6 @@
 lib_name: bag_serdes_ec
 cell_name: qdr_divider_column
-pins: [ "VDD", "VSS", "clkp", "clkn", "scan_div<3:2>", "en_div<3:2>", "en<3:0>", "des_clk" ]
+pins: [ "VDD", "VSS", "clkp", "clkn", "scan_div<3:2>", "en_div<3:2>", "en<3:0>" ]
 instances:
   XDIV2:
     lib_name: bag_serdes_ec
@@ -90,79 +90,7 @@ instances:
     lib_name: basic
     cell_name: ipin
     instpins: {}
-  PIN12:
-    lib_name: basic
-    cell_name: opin
-    instpins: {}
   PIN13:
     lib_name: basic
     cell_name: opin
     instpins: {}
-  XINV2:
-    lib_name: bag_digital_ec
-    cell_name: inv
-    instpins:
-      VSS:
-        direction: inputOutput
-        net_name: "VSS"
-        num_bits: 1
-      VDD:
-        direction: inputOutput
-        net_name: "VDD"
-        num_bits: 1
-      out:
-        direction: output
-        net_name: "des_clk"
-        num_bits: 1
-      in:
-        direction: input
-        net_name: "des_clkb"
-        num_bits: 1
-  XINV0:
-    lib_name: bag_digital_ec
-    cell_name: inv
-    instpins:
-      VSS:
-        direction: inputOutput
-        net_name: "VSS"
-        num_bits: 1
-      VDD:
-        direction: inputOutput
-        net_name: "VDD"
-        num_bits: 1
-      out:
-        direction: output
-        net_name: "des_clkb"
-        num_bits: 1
-      in:
-        direction: input
-        net_name: "en<3>"
-        num_bits: 1
-  XINV1:
-    lib_name: bag_digital_ec
-    cell_name: inv
-    instpins:
-      VSS:
-        direction: inputOutput
-        net_name: "VSS"
-        num_bits: 1
-      VDD:
-        direction: inputOutput
-        net_name: "VDD"
-        num_bits: 1
-      out:
-        direction: output
-        net_name: "dum_clk"
-        num_bits: 1
-      in:
-        direction: input
-        net_name: "en<1>"
-        num_bits: 1
-  XNC:
-    lib_name: basic
-    cell_name: noConn
-    instpins:
-      noConn:
-        direction: inputOutput
-        net_name: "dum_clk"
-        num_bits: 1

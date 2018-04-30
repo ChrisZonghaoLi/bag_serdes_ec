@@ -1,7 +1,47 @@
 lib_name: bag_serdes_ec
 cell_name: qdr_retimer_column
-pins: [ "VDD", "VSS", "sa_data<3:0>", "sa_dlev<3:0>", "data<3:0>", "en<3:0>", "dlev<3:0>" ]
+pins: [ "VDD", "VSS", "sa_data<3:0>", "sa_dlev<3:0>", "des_clkb", "data<3:0>", "en<3:0>", "des_clk", "dlev<3:0>" ]
 instances:
+  XINV3:
+    lib_name: bag_digital_ec
+    cell_name: inv
+    instpins:
+      VSS:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      VDD:
+        direction: inputOutput
+        net_name: "VDD"
+        num_bits: 1
+      out:
+        direction: output
+        net_name: "des_clkb"
+        num_bits: 1
+      in:
+        direction: input
+        net_name: "en<3>"
+        num_bits: 1
+  XINV1:
+    lib_name: bag_digital_ec
+    cell_name: inv
+    instpins:
+      VSS:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      VDD:
+        direction: inputOutput
+        net_name: "VDD"
+        num_bits: 1
+      out:
+        direction: output
+        net_name: "des_clk"
+        num_bits: 1
+      in:
+        direction: input
+        net_name: "en<1>"
+        num_bits: 1
   PIN1:
     lib_name: basic
     cell_name: iopin
@@ -21,6 +61,14 @@ instances:
   PIN15:
     lib_name: basic
     cell_name: ipin
+    instpins: {}
+  PIN17:
+    lib_name: basic
+    cell_name: opin
+    instpins: {}
+  PIN16:
+    lib_name: basic
+    cell_name: opin
     instpins: {}
   PIN11:
     lib_name: basic
