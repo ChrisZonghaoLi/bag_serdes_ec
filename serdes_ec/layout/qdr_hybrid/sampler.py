@@ -161,6 +161,8 @@ class SenseAmpColumn(TemplateBase):
         self.add_pin('VSS', vss_list, label='VSS:', show=show_pins)
         self.add_pin('VDD', vdd_list, label='VDD:', show=show_pins)
 
+        self._sch_params = bot_master.sch_params
+
 
 class DividerColumn(TemplateBase):
     """A column of clock dividers.
