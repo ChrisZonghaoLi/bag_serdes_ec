@@ -8,7 +8,8 @@ import pkg_resources
 from bag.design import Module
 
 
-yaml_file = pkg_resources.resource_filename(__name__, os.path.join('netlist_info', 'qdr_datapath.yaml'))
+yaml_file = pkg_resources.resource_filename(__name__, os.path.join('netlist_info',
+                                                                   'qdr_datapath.yaml'))
 
 
 # noinspection PyPep8Naming
@@ -24,30 +25,17 @@ class bag_serdes_ec__qdr_datapath(Module):
     @classmethod
     def get_params_info(cls):
         # type: () -> Dict[str, str]
-        """Returns a dictionary from parameter names to descriptions.
-
-        Returns
-        -------
-        param_info : Optional[Dict[str, str]]
-            dictionary from parameter names to descriptions.
-        """
         return dict(
+            tapx_params='TapX summer parmeters.',
+            off_params='Offset cancel parameters.',
+            tap1_params='Tap1 summer parameters.',
+            loff_params='dlev offset parameters.',
+            samp_params='sampler parameters.',
         )
 
-    def design(self):
-        """To be overridden by subclasses to design this module.
-
-        This method should fill in values for all parameters in
-        self.parameters.  To design instances of this module, you can
-        call their design() method or any other ways you coded.
-
-        To modify schematic structure, call:
-
-        rename_pin()
-        delete_instance()
-        replace_instance_master()
-        reconnect_instance_terminal()
-        restore_instance()
-        array_instance()
-        """
-        pass
+    def design(self, tapx_params, off_params, tap1_params, loff_params, samp_params):
+        self.instances['XTAPX'].design(**tapx_params)
+        self.instances['XOFF'].design(**off_params)
+        self.instances['XTAP1'].design(**tap1_params)
+        self.instances['XOFFL'].design(**loff_params)
+        self.instances['XSAMP'].design(**samp_params)

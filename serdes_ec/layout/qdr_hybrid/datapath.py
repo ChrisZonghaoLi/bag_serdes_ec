@@ -90,6 +90,14 @@ class RXDatapath(TemplateBase):
         for name in samp.port_names_iter():
             self.reexport(samp.get_port(name), show=show_pins)
 
+        self._sch_params = dict(
+            tapx_params=tapx_master.sch_params,
+            off_params=offset_master.sch_params,
+            tap1_params=tap1_master.sch_params,
+            loff_params=loff_master.sch_params,
+            samp_params=samp_master.sch_params,
+        )
+
     def _create_masters(self):
         show_pins_debug = True
 
