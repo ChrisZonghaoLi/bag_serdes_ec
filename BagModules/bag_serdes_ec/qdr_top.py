@@ -57,7 +57,7 @@ class bag_serdes_ec__qdr_top(Module):
             self.remove_pin('setn')
         for way_idx in range(4):
             for ffe_idx in range(2, num_ffe + 1):
-                self.add_pin('bias_way%d_ffe_%d<7:0>' % (way_idx, ffe_idx), 'input')
+                self.add_pin('bias_way_%d_ffe_%d<7:0>' % (way_idx, ffe_idx), 'input')
             for dfe_idx in range(3, num_dfe + 1):
-                self.add_pin('bias_way%d_dfe_%d_s<1:0>' % (way_idx, dfe_idx), 'input')
-                self.add_pin('bias_way%d_dfe_%d_m<7:0>' % (way_idx, dfe_idx), 'input')
+                self.add_pin('bias_way_%d_dfe_%d_s<1:0>' % (way_idx, dfe_idx), 'input')
+                self.add_pin('bias_way_%d_dfe_%d_m<7:0>' % (way_idx, dfe_idx), 'input')
