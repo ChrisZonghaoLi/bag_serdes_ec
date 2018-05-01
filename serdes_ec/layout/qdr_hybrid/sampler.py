@@ -664,7 +664,7 @@ class SamplerColumn(TemplateBase):
         self.add_cell_boundary(bnd_box)
 
         for name in re_inst.port_names_iter():
-            if name.startswith('data') or name.startswith('dlev'):
+            if name.startswith('data') or name.startswith('dlev') or name.startswith('des_clk'):
                 self.reexport(re_inst.get_port(name), show=show_pins)
 
         self._sch_params = dict(
