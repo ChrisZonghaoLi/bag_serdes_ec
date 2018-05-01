@@ -7,6 +7,8 @@ from typing import TYPE_CHECKING, Dict, Any, Set
 from bag.layout.util import BBox
 from bag.layout.template import TemplateBase
 
+from analog_ec.layout.dac.rladder.top import RDACArray
+
 from .datapath import RXDatapath
 
 if TYPE_CHECKING:
@@ -93,3 +95,95 @@ class RXFrontend(TemplateBase):
             self.reexport(inst.get_port(name), show=show_pins)
 
         self._sch_params = master.sch_params
+
+
+class RXTop(TemplateBase):
+    """The receiver datapath.
+
+    Parameters
+    ----------
+    temp_db : TemplateDB
+        the template database.
+    lib_name : str
+        the layout library name.
+    params : Dict[str, Any]
+        the parameter values.
+    used_names : Set[str]
+        a set of already used cell names.
+    **kwargs
+        dictionary of optional parameters.  See documentation of
+        :class:`bag.layout.template.TemplateBase` for details.
+    """
+
+    def __init__(self, temp_db, lib_name, params, used_names, **kwargs):
+        # type: (TemplateDB, str, Dict[str, Any], Set[str], **kwargs) -> None
+        TemplateBase.__init__(self, temp_db, lib_name, params, used_names, **kwargs)
+        self._sch_params = None
+
+    @property
+    def sch_params(self):
+        # type: () -> Dict[str, Any]
+        return self._sch_params
+
+    @classmethod
+    def get_params_info(cls):
+        # type: () -> Dict[str, str]
+        return dict(
+            fe_params='RX frontend parameters.',
+            dac_params='RX DAC parameters.',
+            fill_config='fill configuration dictionary.',
+            bias_config='bias configuration dictionary.',
+            fill_orient_mode='fill orientation mode.',
+            show_pins='True to show pins.',
+        )
+
+    @classmethod
+    def get_default_param_values(cls):
+        # type: () -> Dict[str, Any]
+        return dict(
+            fill_orient_mode=0,
+            show_pins=True,
+        )
+
+    def draw_layout(self):
+        fe_params = self.params['fe_params'].copy()
+        dac_params = self.params['dac_params'].copy()
+        fill_config = self.params['fill_config']
+        bias_config = self.params['bias_config']
+        fill_orient_mode = self.params['fill_orient_mode']
+        show_pins = self.params['show_pins']
+
+        fe_params['fill_config'] = dac_params['fill_config'] = fill_config
+        fe_params['bias_config'] = dac_params['bias_config'] = bias_config
+        fe_params['fill_orient_mode'] = dac_params['fill_orient_mode'] = fill_orient_mode
+        fe_params['show_pins'] = dac_params['show_pins'] = False
+
+        fe_master = self.new_template(params=fe_params, temp_cls=RXFrontend)
+        dac_master = self.new_template(params=dac_params, temp_cls=RDACArray)
+
+        top_layer = dac_master.top_layer
+        w_fe = fe_master.bound_box.width_unit
+        w_dac = dac_master.bound_box.width_unit
+        w_tot = max(w_fe, w_dac)
+        x_fe = w_tot - w_fe
+        x_dac = w_tot - w_dac
+
+        inst_fe = self.add_instance(fe_master, 'XFE', loc=(x_fe, 0), unit_mode=True)
+        inst_dac = self.add_instance(dac_master, 'XDAC', loc=(x_dac, inst_fe.bound_box.top_unit),
+                                     unit_mode=True)
+
+        bnd_box = inst_dac.bound_box.extend(x=0, y=0, unit_mode=True)
+        self.set_size_from_bound_box(top_layer, bnd_box)
+        self.array_box = bnd_box
+        self.add_cell_boundary(bnd_box)
+
+        for name in inst_dac.port_names_iter():
+            if name.startswith('bias_'):
+                self.reexport(inst_dac.get_port(name), show=show_pins)
+        for name in inst_fe.port_names_iter():
+            self.reexport(inst_fe.get_port(name), show=show_pins)
+
+        self._sch_params = dict(
+            fe_params=fe_master.sch_params,
+            dac_params=dac_master.sch_params,
+        )
