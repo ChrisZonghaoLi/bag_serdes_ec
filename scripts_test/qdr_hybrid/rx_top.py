@@ -33,7 +33,7 @@ def gen_top_sch(prj, specs):
 
 
 if __name__ == '__main__':
-    with open('specs_test/qdr_hybrid/frontend.yaml', 'r') as f:
+    with open('specs_test/serdes_ec/qdr_hybrid/frontend.yaml', 'r') as f:
         block_specs = yaml.load(f)
 
     local_dict = locals()
