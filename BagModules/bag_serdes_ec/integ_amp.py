@@ -32,6 +32,7 @@ class bag_serdes_ec__integ_amp(Module):
             seg_dict='number of segments dictionary.',
             flip_sign='True to flip output sign.',
             dum_info='Dummy information data structure.',
+            export_debug='True to export debug ports.',
         )
 
     @classmethod
@@ -40,9 +41,10 @@ class bag_serdes_ec__integ_amp(Module):
         return dict(
             flip_sign=False,
             dum_info=None,
+            export_debug=False,
         )
 
-    def design(self, lch, w_dict, th_dict, seg_dict, flip_sign, dum_info):
+    def design(self, lch, w_dict, th_dict, seg_dict, flip_sign, dum_info, export_debug):
         seg_load = seg_dict.get('load', 0)
         seg_set = seg_dict.get('set', 0)
         seg_sen = seg_dict.get('sen', 0)
@@ -123,4 +125,5 @@ class bag_serdes_ec__integ_amp(Module):
             # delete intermediate ports
             for pin_name in ('pm0p', 'pm0n', 'pm1p', 'pm1n', 'tail', 'foot', 'nmp', 'nmn',
                              'nsp', 'nsn'):
-                self.remove_pin(pin_name)
+                if not export_debug or (pin_name != 'tail' and pin_name != 'foot'):
+                    self.remove_pin(pin_name)

@@ -99,6 +99,7 @@ class IntegAmp(HybridQDRBase):
             vss_tid=None,
             vdd_tid=None,
             show_pins=True,
+            export_debug=False,
         )
 
     @classmethod
@@ -124,6 +125,7 @@ class IntegAmp(HybridQDRBase):
             vss_tid='VSS track information.',
             vdd_tid='VDD track information.',
             show_pins='True to create pin labels.',
+            export_debug='TRue to export debug ports.',
         )
 
     def draw_layout(self):
@@ -146,6 +148,7 @@ class IntegAmp(HybridQDRBase):
         vss_tid = self.params['vss_tid']
         vdd_tid = self.params['vdd_tid']
         show_pins = self.params['show_pins']
+        export_debug = self.params['export_debug']
 
         if options is None:
             options = {}
@@ -216,6 +219,10 @@ class IntegAmp(HybridQDRBase):
             self.add_pin(name, warr, show=show_pins)
             self._track_info[name] = (warr.track_id.base_index, warr.track_id.width)
 
+        if export_debug:
+            for name in ('foot', 'tail'):
+                self.add_pin(name, ports[name], show=export_debug)
+
         nen3 = ports['nen3']
         self.add_pin('nen3', nen3, show=False)
         self._track_info['nen3'] = (nen3.track_id.base_index, nen3.track_id.width)
@@ -254,6 +261,7 @@ class IntegAmp(HybridQDRBase):
             th_dict=th_dict,
             seg_dict=seg_dict,
             flip_sign=flip_sign,
+            export_debug=export_debug,
             dum_info=self.get_sch_dummy_info(),
         )
         self._fg_tot = fg_tot
