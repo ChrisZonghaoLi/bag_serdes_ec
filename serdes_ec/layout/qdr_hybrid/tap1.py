@@ -361,7 +361,6 @@ class Tap1LatchRow(TemplateBase):
                 end_mode=dig_end_mode,
                 abut_mode=dig_abut_mode,
                 show_pins=False,
-                laygo_endr_infos=l_master.get_left_edge_info(),
             )
             d_master = self.new_template(params=dig_params, temp_cls=dig_cls)
             if seg_pul is None:
