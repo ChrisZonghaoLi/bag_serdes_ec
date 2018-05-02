@@ -155,21 +155,25 @@ class RXTop(TemplateBase):
 
         fe_params['fill_config'] = dac_params['fill_config'] = fill_config
         fe_params['bias_config'] = dac_params['bias_config'] = bias_config
-        fe_params['fill_orient_mode'] = dac_params['fill_orient_mode'] = fill_orient_mode
+        fe_params['fill_orient_mode'] = fill_orient_mode
+        dac_params['fill_orient_mode'] = fill_orient_mode ^ 2
         fe_params['show_pins'] = dac_params['show_pins'] = False
 
-        fe_master = self.new_template(params=fe_params, temp_cls=RXFrontend)
-        dac_master = self.new_template(params=dac_params, temp_cls=RDACArray)
+        master_fe = self.new_template(params=fe_params, temp_cls=RXFrontend)
+        master_dac = self.new_template(params=dac_params, temp_cls=RDACArray)
+        box_fe = master_fe.bound_box
+        box_dac = master_dac.bound_box
 
-        top_layer = dac_master.top_layer
-        w_fe = fe_master.bound_box.width_unit
-        w_dac = dac_master.bound_box.width_unit
+        top_layer = master_dac.top_layer
+        w_fe = box_fe.width_unit
+        w_dac = box_dac.width_unit
         w_tot = max(w_fe, w_dac)
         x_fe = w_tot - w_fe
         x_dac = w_tot - w_dac
+        h_tot = box_fe.height_unit + box_dac.height_unit
 
-        inst_fe = self.add_instance(fe_master, 'XFE', loc=(x_fe, 0), unit_mode=True)
-        inst_dac = self.add_instance(dac_master, 'XDAC', loc=(x_dac, inst_fe.bound_box.top_unit),
+        inst_fe = self.add_instance(master_fe, 'XFE', loc=(x_fe, 0), unit_mode=True)
+        inst_dac = self.add_instance(master_dac, 'XDAC', loc=(x_dac, h_tot), orient='MX',
                                      unit_mode=True)
 
         bnd_box = inst_dac.bound_box.extend(x=0, y=0, unit_mode=True)
@@ -184,6 +188,6 @@ class RXTop(TemplateBase):
             self.reexport(inst_fe.get_port(name), show=show_pins)
 
         self._sch_params = dict(
-            fe_params=fe_master.sch_params,
-            dac_params=dac_master.sch_params,
+            fe_params=master_fe.sch_params,
+            dac_params=master_dac.sch_params,
         )
