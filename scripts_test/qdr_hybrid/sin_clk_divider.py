@@ -4,28 +4,30 @@ import yaml
 
 from bag.core import BagProject
 
-from serdes_ec.layout.qdr_hybrid.tap1 import IntegAmp
+from serdes_ec.layout.qdr_hybrid.tap1 import Tap1Summer
 from serdes_ec.layout.laygo.divider import SinClkDivider
 
 
-def generate(prj, specs, gen_sch=True, run_lvs=False, use_cybagoa=False):
-    impl_lib = specs['impl_lib']
-    grid_specs = specs['routing_grid']
-    ana_params = specs['ana_params']
-    params = specs['params']
+def run_main(prj):
+    with open('specs_test/serdes_ec/qdr_hybrid/sin_clk_divider.yaml', 'r') as f:
+        div_specs = yaml.load(f)
+    with open('specs_test/serdes_ec/qdr_hybrid/tap1_summer.yaml', 'r') as f:
+        sum_specs = yaml.load(f)
 
-    temp_db = prj.make_template_db(impl_lib, grid_specs)
-    temp1 = temp_db.new_template(params=ana_params, temp_cls=IntegAmp, debug=False)
+    impl_lib = div_specs['impl_lib']
+    grid_specs = div_specs['routing_grid']
 
-    params['row_layout_info'] = temp1.row_layout_info
-    prj.generate_cell(specs, SinClkDivider, gen_sch=gen_sch, run_lvs=run_lvs,
-                      use_cybagoa=use_cybagoa)
+    tdb = prj.make_template_db(impl_lib, grid_specs)
+    summer = tdb.new_template(params=sum_specs['params'], temp_cls=Tap1Summer)
+
+    params = div_specs['params']
+    params['row_layout_info'] = summer.lat_row_info
+    params['tr_info'] = summer.div_tr_info
+    prj.generate_cell(div_specs, SinClkDivider, debug=True)
+    # prj.generate_cell(div_specs, SinClkDivider, gen_sch=True, run_lvs=False, debug=True)
 
 
 if __name__ == '__main__':
-    with open('specs_test/qdr_hybrid/sin_clk_divider.yaml', 'r') as f:
-        block_specs = yaml.load(f)
-
     local_dict = locals()
     if 'bprj' not in local_dict:
         print('creating BAG project')
@@ -35,5 +37,4 @@ if __name__ == '__main__':
         print('loading BAG project')
         bprj = local_dict['bprj']
 
-    # generate(bprj, block_specs, gen_sch=False, run_lvs=False, use_cybagoa=True)
-    generate(bprj, block_specs, gen_sch=True, run_lvs=False, use_cybagoa=True)
+    run_main(bprj)
