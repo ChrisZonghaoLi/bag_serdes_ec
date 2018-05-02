@@ -8,7 +8,7 @@ from serdes_ec.layout.qdr_hybrid.tapx import TapXColumn
 
 
 if __name__ == '__main__':
-    with open('specs_test/qdr_hybrid/tapx_column.yaml', 'r') as f:
+    with open('specs_test/serdes_ec/qdr_hybrid/tapx_column.yaml', 'r') as f:
         block_specs = yaml.load(f)
 
     local_dict = locals()
@@ -21,4 +21,4 @@ if __name__ == '__main__':
         bprj = local_dict['bprj']
 
     bprj.generate_cell(block_specs, TapXColumn, debug=True)
-    # bprj.generate_cell(block_specs, TapXColumn, gen_sch=True, run_lvs=True)
+    # bprj.generate_cell(block_specs, TapXColumn, gen_sch=True, run_rcx=True, debug=True)
