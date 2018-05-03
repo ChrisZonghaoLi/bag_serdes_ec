@@ -222,7 +222,7 @@ class DividerColumn(TemplateBase):
         # type: () -> Dict[str, Any]
         return dict(
             options=None,
-            right_edge_info=False,
+            right_edge_info=None,
             invert_clk=False,
             show_pins=True,
         )
