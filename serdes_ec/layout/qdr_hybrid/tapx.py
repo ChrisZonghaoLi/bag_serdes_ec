@@ -255,9 +255,9 @@ class TapXSummerCell(TemplateBase):
         self._sd_pitch = s_master.sd_pitch_unit
 
         tr_manager = TrackManager(self.grid, tr_widths, tr_spaces, half_space=True)
-        en_idx, w_en = m_tr_info['nen3']
+        tid = l_master.get_wire_id('nch', 1, 'g', wire_name='clk')
         hm_layer = IntegAmp.get_mos_conn_layer(self.grid.tech_info) + 1
-        en_idx = tr_manager.get_next_track(hm_layer, en_idx, w_en, 1, up=False)
+        en_idx = tr_manager.get_next_track(hm_layer, tid.base_index, tid.width, 1, up=False)
         self._div_tr_info = dict(
             VDD=m_tr_info['VDD'],
             VSS=m_tr_info['VSS'],
@@ -350,7 +350,7 @@ class TapXSummerLast(TemplateBase):
             fg_dumr='Number of right edge dummy fingers.',
             tr_widths='Track width dictionary.',
             tr_spaces='Track spacing dictionary.',
-            lat_tr_info='latch output track information dictionary.',
+            div_tr_info='divider track information dictionary.',
             div_pos_edge='True if the divider triggers off positive edge of the clock.',
             flip_sign='True to flip summer output sign.',
             fg_min='Minimum number of core fingers.',
@@ -384,7 +384,7 @@ class TapXSummerLast(TemplateBase):
         fg_dumr = self.params['fg_dumr']
         tr_widths = self.params['tr_widths']
         tr_spaces = self.params['tr_spaces']
-        lat_tr_info = self.params['lat_tr_info']
+        div_tr_info = self.params['div_tr_info']
         div_pos_edge = self.params['div_pos_edge']
         flip_sign = self.params['flip_sign']
         fg_min = self.params['fg_min']
@@ -440,27 +440,13 @@ class TapXSummerLast(TemplateBase):
                 s_master = s_master.new_template_with(fg_duml=fg_duml2, fg_dumr=fg_dumr2)
 
             dig_params['num_col'] = s_master.fg_tot
-            dig_params['sup_tids'] = (lat_tr_info['VSS'][0], lat_tr_info['VDD'][0])
+            dig_params['sup_tids'] = (div_tr_info['VSS'][0], div_tr_info['VDD'][0])
             d_master = self.new_template(params=dig_params, temp_cls=LaygoDummy)
             div_sch_params = pul_sch_params = None
         else:
             # draw divider
-            tr_manager = TrackManager(self.grid, tr_widths, tr_spaces, half_space=True)
-            hm_layer = s_master.mos_conn_layer + 1
-            en_idx, w_en = lat_tr_info['nen3']
-            en_idx = tr_manager.get_next_track(hm_layer, en_idx, w_en, 1, up=False)
-
-            tr_info = dict(
-                VDD=lat_tr_info['VDD'],
-                VSS=lat_tr_info['VSS'],
-                q=lat_tr_info['outp'],
-                qb=lat_tr_info['outn'],
-                en=(en_idx, 1),
-                clkp=lat_tr_info['clkp'],
-                clkn=lat_tr_info['clkn'],
-            )
             dig_params['seg_dict'] = seg_div
-            dig_params['tr_info'] = tr_info
+            dig_params['tr_info'] = div_tr_info
             dig_params['fg_min'] = fg_min
             dig_params['div_pos_edge'] = div_pos_edge
             d_master = self.new_template(params=dig_params, temp_cls=SinClkDivider)
@@ -1132,7 +1118,7 @@ class TapXSummer(TemplateBase):
                            lch=lch, ptap_w=ptap_w, ntap_w=ntap_w, w_sum=w_sum, th_sum=th_sum,
                            seg_sum=seg_sum_list[num_ffe], seg_div=seg_div, seg_pul=seg_pul,
                            fg_duml=fg_dum, fg_dumr=fg_dum, tr_widths=tr_widths, tr_spaces=tr_spaces,
-                           lat_tr_info=main.lat_track_info, div_pos_edge=div_pos_edge,
+                           div_tr_info=main.div_tr_info, div_pos_edge=div_pos_edge,
                            flip_sign=flip_sign_list[num_ffe], fg_min=fg_min_last,
                            end_mode=0b1000, show_pins=False, options=options,
                            left_edge_info=main.lat_lr_edge_info[1],
@@ -1442,8 +1428,10 @@ class TapXColumn(TemplateBase):
         # re-export supply pins
         vdd_list = list(chain(*(inst.port_pins_iter('VDD') for inst in inst_list)))
         vss_list = list(chain(*(inst.port_pins_iter('VSS') for inst in inst_list)))
-        self.add_pin('VDD', vdd_list, label='VDD', show=show_pins)
-        self.add_pin('VSS', vss_list, label='VSS', show=show_pins)
+        vdd_list.extend(div_inst.port_pins_iter('VDD'))
+        vss_list.extend(div_inst.port_pins_iter('VSS'))
+        self.add_pin('VDD', self.connect_wires(vdd_list), label='VDD', show=show_pins)
+        self.add_pin('VSS', self.connect_wires(vss_list), label='VSS', show=show_pins)
 
         # draw wires
         tr_manager = TrackManager(self.grid, tr_widths, tr_spaces, half_space=True)
@@ -1483,7 +1471,6 @@ class TapXColumn(TemplateBase):
                                     show_pins, export_probe)
 
         # connect shields
-        left_vss_tidx = None
         sh_lower, sh_upper = None, None
         vm_vss_list, vm_vdd_list = [], []
         for tr_idx in chain(ffe_track_info['VSS'], dfe_track_info['VSS']):
@@ -1492,9 +1479,6 @@ class TapXColumn(TemplateBase):
             if sh_lower is None:
                 sh_lower = warr.lower_unit
                 sh_upper = warr.upper_unit
-                left_vss_tidx = cur_tidx
-            else:
-                left_vss_tidx = min(left_vss_tidx, cur_tidx)
             vm_vss_list.append(warr)
 
         bnd_xr = 0
@@ -1518,7 +1502,9 @@ class TapXColumn(TemplateBase):
         # connect divider column
         clkp_list.extend(nclkp_list)
         clkn_list.extend(nclkn_list)
-        self._connect_div_column(tr_manager, vm_layer, div_inst, left_vss_tidx, clkp_list,
+        right_vdd_tidx = self.grid.find_next_track(vm_layer, x0, half_track=True,
+                                                   mode=-1, unit_mode=True)
+        self._connect_div_column(tr_manager, vm_layer, div_inst, right_vdd_tidx, clkp_list,
                                  clkn_list, en_list, vdd_list, sh_lower, sh_upper, show_pins)
 
         # set schematic parameters and various properties
@@ -1552,7 +1538,7 @@ class TapXColumn(TemplateBase):
         tr0 = right_tidx - locs[-1]
 
         # connect VDD shield
-        for tidx in (locs[2] + tr0, locs[5] + tr0):
+        for tidx in (locs[2] + tr0, locs[5] + tr0, locs[10] + tr0):
             warr = self.connect_to_tracks(vdd_list, TrackID(vm_layer, tidx), track_lower=sh_lower,
                                           track_upper=sh_upper, unit_mode=True)
             self.add_pin('VDD', warr, show=show_pins)
