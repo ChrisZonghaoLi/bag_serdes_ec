@@ -59,6 +59,7 @@ class SinClkDivider(LaygoBase):
             fg_min='Minimum number of core fingers.',
             end_mode='The LaygoBase end_mode flag.',
             abut_mode='The left/right abut mode flag.',
+            div_pos_edge='True to divider off of clkp.',
             show_pins='True to show pins.',
         )
 
@@ -70,6 +71,7 @@ class SinClkDivider(LaygoBase):
             fg_min=0,
             end_mode=None,
             abut_mode=0,
+            div_pos_edge=True,
             show_pins=True,
         )
 
@@ -82,6 +84,7 @@ class SinClkDivider(LaygoBase):
         fg_min = self.params['fg_min']
         end_mode = self.params['end_mode']
         abut_mode = self.params['abut_mode']
+        div_pos_edge = self.params['div_pos_edge']
         show_pins = self.params['show_pins']
 
         tr_manager = TrackManager(self.grid, tr_widths, tr_spaces, half_space=True)
@@ -168,7 +171,7 @@ class SinClkDivider(LaygoBase):
             q_idx, w_q = tr_info['q']
             qb_idx = tr_info['qb'][0]
             en_idx, w_en = tr_info['en']
-            clk_idx, w_clk = tr_info['clk']
+            clk_idx, w_clk = tr_info['clkp'] if div_pos_edge else tr_info['clkn']
             vdd_idx, w_vdd = tr_info['VDD']
             vss_idx, w_vss = tr_info['VSS']
             s_idx = tr_manager.get_next_track(xm_layer, en_idx, w_en, 1, up=False)

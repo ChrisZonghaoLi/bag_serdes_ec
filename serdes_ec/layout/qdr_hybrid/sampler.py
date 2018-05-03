@@ -231,10 +231,12 @@ class DividerColumn(TemplateBase):
         # create masters
         div_params = dict(config=config, row_layout_info=lat_row_info, seg_dict=seg_dict,
                           tr_widths=tr_widths, tr_spaces=tr_spaces, tr_info=div_tr_info, fg_min=0,
-                          end_mode=12, abut_mode=0, show_pins=False)
+                          end_mode=12, abut_mode=0, div_pos_edge=True, show_pins=False)
 
-        div_master = self.new_template(params=div_params, temp_cls=SinClkDivider)
-        fg_tot = div_master.fg_tot
+        divp_master = self.new_template(params=div_params, temp_cls=SinClkDivider)
+        div_params['div_pos_edge'] = False
+        divn_master = self.new_template(params=div_params, temp_cls=SinClkDivider)
+        fg_tot = divp_master.fg_tot
 
         dums_params = dict(config=config, row_layout_info=sum_row_info, num_col=fg_tot,
                            tr_widths=tr_widths, tr_spaces=tr_spaces, sup_tids=sup_tids[0],
@@ -259,7 +261,6 @@ class DividerColumn(TemplateBase):
 
         # place instances
         vdd_list, vss_list = [], []
-        bot_div, top_div = None, None
         bayt, tayt = dums_master.array_box.top_unit, duml_master.array_box.top_unit
         bot_row = self.add_instance(end_row_master, 'XROWB', loc=(0, 0), unit_mode=True)
         ycur = eayt
@@ -268,11 +269,11 @@ class DividerColumn(TemplateBase):
             if is_even:
                 m0, m1 = dums_master, duml_master
                 if idx == 2:
-                    m1 = div_master
+                    m1 = divp_master
             else:
                 m0, m1 = duml_master, dums_master
                 if idx == 1:
-                    m0 = div_master
+                    m0 = divn_master
             binst = self.add_instance(m0, 'X%d' % (idx * 2), loc=(0, ycur),
                                       orient='R0', unit_mode=True)
             ycur += bayt + tayt
@@ -282,10 +283,6 @@ class DividerColumn(TemplateBase):
             for inst in (binst, tinst):
                 vdd_list.append(inst.get_pin('VDD'))
                 vss_list.append(inst.get_pin('VSS'))
-            if m0 is div_master:
-                bot_div = binst
-            if m1 is div_master:
-                top_div = tinst
         ycur += eayt
         top_row = self.add_instance(end_row_master, 'XROWT', loc=(0, ycur), orient='MX',
                                     unit_mode=True)
@@ -294,7 +291,7 @@ class DividerColumn(TemplateBase):
         self.set_size_from_bound_box(top_layer, bot_row.bound_box.merge(top_row.bound_box))
         self.array_box = self.bound_box
 
-        self._sch_params = div_master.sch_params
+        self._sch_params = divn_master.sch_params
 
 
 class Retimer(StdDigitalTemplate):

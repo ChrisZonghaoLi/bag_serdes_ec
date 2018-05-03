@@ -52,6 +52,7 @@ class TapXSummerCell(TemplateBase):
         self._lat_row_layout_info = None
         self._lat_edge_info = None
         self._lat_track_info = None
+        self._div_tr_info = None
         self._amp_masters = None
         self._sd_pitch = None
         self._fg_tot = None
@@ -74,6 +75,11 @@ class TapXSummerCell(TemplateBase):
     def lat_track_info(self):
         # type: () -> Dict[str, Any]
         return self._lat_track_info
+
+    @property
+    def div_tr_info(self):
+        # type: () -> Dict[str, Any]
+        return self._div_tr_info
 
     @property
     def sd_pitch(self):
@@ -230,9 +236,18 @@ class TapXSummerCell(TemplateBase):
         )
         self._lat_row_layout_info = l_master.row_layout_info
         self._lat_edge_info = l_master.lr_edge_info[1]
-        self._lat_track_info = l_master.track_info
+        self._lat_track_info = m_tr_info = l_master.track_info
         self._amp_masters = s_master, l_master
         self._sd_pitch = s_master.sd_pitch_unit
+        self._div_tr_info = dict(
+            VDD=m_tr_info['VDD'],
+            VSS=m_tr_info['VSS'],
+            q=m_tr_info['inp'],
+            qb=m_tr_info['inn'],
+            en=m_tr_info['nen3'],
+            clkp=m_tr_info['clkp'],
+            clkn=m_tr_info['clkn'],
+        )
 
 
 class TapXSummerLast(TemplateBase):
@@ -538,6 +553,7 @@ class TapXSummerNoLast(TemplateBase):
         self._sch_params = None
         self._ffe_track_info = None
         self._dfe_track_info = None
+        self._div_tr_info = None
         self._analog_master = None
         self._place_info = None
         self._fg_tot = None
@@ -554,6 +570,10 @@ class TapXSummerNoLast(TemplateBase):
     @property
     def dfe_track_info(self):
         return self._dfe_track_info
+
+    @property
+    def div_tr_info(self):
+        return self._div_tr_info
 
     @property
     def analog_master(self):
@@ -649,6 +669,7 @@ class TapXSummerNoLast(TemplateBase):
                                      route_locs, place_info, vdd_list, vss_list, 'a', sig_off=0,
                                      sum_off=0, is_end=True, left_out=True)
         ffe_masters, self._ffe_track_info, ffe_sch_params, ffe_insts, place_info = tmp
+        self._div_tr_info = ffe_masters[0].div_tr_info
 
         dfe_sig_list = self._get_dfe_signals(num_dfe)
         tmp = self._create_and_place(tr_manager, num_dfe - 1, seg_dfe_list, seg_sum_list,
@@ -940,6 +961,7 @@ class TapXSummer(TemplateBase):
         self._fg_core_last = None
         self._ffe_track_info = None
         self._dfe_track_info = None
+        self._div_tr_info = None
         self._row_heights = None
         self._sup_tids = None
 
@@ -965,6 +987,11 @@ class TapXSummer(TemplateBase):
     @property
     def dfe_track_info(self):
         return self._dfe_track_info
+
+    @property
+    def div_tr_info(self):
+        # type: () -> Dict[str, Any]
+        return self._div_tr_info
 
     @property
     def row_heights(self):
@@ -1044,6 +1071,7 @@ class TapXSummer(TemplateBase):
         inst = self.add_instance(sub_master, 'XSUB', loc=(0, 0), unit_mode=True)
         self._ffe_track_info = sub_master.ffe_track_info
         self._dfe_track_info = sub_master.dfe_track_info.copy()
+        self._div_tr_info = sub_master.div_tr_info
         prev_data_w, prev_data_tr, prev_type, prev_tr, xarr = sub_master.place_info
         vdd_list = inst.get_all_port_pins('VDD')
         vss_list = inst.get_all_port_pins('VSS')

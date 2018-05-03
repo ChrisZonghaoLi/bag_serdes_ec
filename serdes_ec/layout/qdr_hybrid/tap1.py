@@ -337,7 +337,6 @@ class Tap1LatchRow(TemplateBase):
                 q=m_tr_info['inp'],
                 qb=m_tr_info['inn'],
                 en=m_tr_info['nen3'],
-                clk=m_tr_info['clkp'] if div_pos_edge else m_tr_info['clkn'],
                 clkp=m_tr_info['clkp'],
                 clkn=m_tr_info['clkn'],
             )
@@ -360,6 +359,7 @@ class Tap1LatchRow(TemplateBase):
                 tr_spaces=tr_spaces,
                 end_mode=dig_end_mode,
                 abut_mode=dig_abut_mode,
+                div_pos_edge=div_pos_edge,
                 show_pins=False,
             )
             d_master = self.new_template(params=dig_params, temp_cls=dig_cls)
