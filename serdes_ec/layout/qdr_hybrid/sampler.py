@@ -259,7 +259,7 @@ class DividerColumn(TemplateBase):
         duml_master = dums_master.new_template_with(row_layout_info=lat_row_info,
                                                     sup_tids=sup_tids[1])
 
-        top_layer = sum_row_info['top_layer']
+        top_layer = divp_master.top_layer
         end_row_params = dict(
             lch=config['lch'],
             fg=fg_tot,
@@ -271,28 +271,34 @@ class DividerColumn(TemplateBase):
             options=options,
         )
         end_row_master = self.new_template(params=end_row_params, temp_cls=AnalogBaseEnd)
-        eayt = end_row_master.array_box.top_unit
+        bot_row = self.add_instance(end_row_master, 'XROWB', loc=(0, 0), unit_mode=True)
+        ycur = eayt = end_row_master.array_box.top_unit
 
         # place instances
-        vdd_list, vss_list = [], []
-        bayt, tayt = dums_master.array_box.top_unit, duml_master.array_box.top_unit
-        bot_row = self.add_instance(end_row_master, 'XROWB', loc=(0, 0), unit_mode=True)
-        ycur = eayt
+        vdd_list = []
+        vss_list = []
+        bayt = dums_master.array_box.top_unit
+        tayt = duml_master.array_box.top_unit
+        botp = topn = None
         for idx in range(4):
             is_even = idx % 2 == 0
             if is_even:
                 m0, m1 = dums_master, duml_master
                 if idx == 2:
-                    m1 = divp_master
+                    m1 = divn_master
             else:
                 m0, m1 = duml_master, dums_master
                 if idx == 1:
-                    m0 = divn_master
+                    m0 = divp_master
             binst = self.add_instance(m0, 'X%d' % (idx * 2), loc=(0, ycur),
                                       orient='R0', unit_mode=True)
+            if m0 is divp_master:
+                botp = binst
             ycur += bayt + tayt
             tinst = self.add_instance(m1, 'X%d' % (idx * 2 + 1), loc=(0, ycur),
                                       orient='MX', unit_mode=True)
+            if m1 is divn_master:
+                topn = tinst
 
             for inst in (binst, tinst):
                 vdd_list.append(inst.get_pin('VDD'))
@@ -302,8 +308,22 @@ class DividerColumn(TemplateBase):
                                     unit_mode=True)
 
         # set size
-        self.set_size_from_bound_box(top_layer, bot_row.bound_box.merge(top_row.bound_box))
-        self.array_box = self.bound_box
+        bnd_box = self.array_box = bot_row.bound_box.merge(top_row.bound_box)
+        self.set_size_from_bound_box(top_layer, bnd_box)
+
+        # export pins
+        self.add_pin('VDD', vdd_list, label='VDD:', show=show_pins)
+        self.add_pin('VSS', vss_list, label='VSS:', show=show_pins)
+        self.reexport(topn.get_port('clk'), net_name='clkn', show=show_pins)
+        self.reexport(topn.get_port('en'), net_name='en_div<3>', show=show_pins)
+        self.reexport(topn.get_port('scan_s'), net_name='scan_div<3>', show=show_pins)
+        self.reexport(topn.get_port('q'), net_name='en<3>', show=show_pins)
+        self.reexport(topn.get_port('qb'), net_name='en<1>', show=show_pins)
+        self.reexport(botp.get_port('clk'), net_name='clkp', show=show_pins)
+        self.reexport(botp.get_port('en'), net_name='en_div<2>', show=show_pins)
+        self.reexport(botp.get_port('scan_s'), net_name='scan_div<2>', show=show_pins)
+        self.reexport(botp.get_port('q'), net_name='en<2>', show=show_pins)
+        self.reexport(botp.get_port('qb'), net_name='en<0>', show=show_pins)
 
         self._sch_params = divn_master.sch_params
 
