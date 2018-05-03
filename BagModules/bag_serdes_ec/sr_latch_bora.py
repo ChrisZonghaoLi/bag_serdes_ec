@@ -99,7 +99,7 @@ class bag_serdes_ec__sr_latch_bora(Module):
                      ('XPNL0', 'p'), ('XPNL1', 'p'),
                      ('XPNR0', 'p'), ('XPNR1', 'p'),
                      ]
-        seg_str = '<%d:0>' % seg_nand
+        seg_str = '<%d:0>' % (seg_nand - 1)
         for name, row in tran_info:
             w = w_dict[row]
             th = th_dict[row]
