@@ -204,7 +204,8 @@ class DividerColumn(TemplateBase):
             tr_spaces='Track spacing dictionary.',
             div_tr_info='divider track information dictionary.',
             sup_tids='supply tracks information.',
-            options='other AnalogBase options',
+            options='other AnalogBase options.',
+            right_edge_info='If not None, abut on right edge.',
             show_pins='True to draw pin geometries.',
         )
 
@@ -213,6 +214,7 @@ class DividerColumn(TemplateBase):
         # type: () -> Dict[str, Any]
         return dict(
             options=None,
+            right_edge_info=False,
             show_pins=True,
         )
 
@@ -226,12 +228,23 @@ class DividerColumn(TemplateBase):
         div_tr_info = self.params['div_tr_info']
         sup_tids = self.params['sup_tids']
         options = self.params['options']
+        right_edge_info = self.params['right_edge_info']
         show_pins = self.params['show_pins']
 
         # create masters
+        if right_edge_info is None:
+            abut_mode = 0
+            end_mode = 12
+            er_end_mode = 0b11
+        else:
+            abut_mode = 2
+            end_mode = 4
+            er_end_mode = 0b01
+
         div_params = dict(config=config, row_layout_info=lat_row_info, seg_dict=seg_dict,
                           tr_widths=tr_widths, tr_spaces=tr_spaces, tr_info=div_tr_info, fg_min=0,
-                          end_mode=12, abut_mode=0, div_pos_edge=True, show_pins=False)
+                          end_mode=end_mode, abut_mode=abut_mode, div_pos_edge=True,
+                          laygo_edger=right_edge_info, show_pins=False)
 
         divp_master = self.new_template(params=div_params, temp_cls=SinClkDivider)
         div_params['div_pos_edge'] = False
@@ -240,7 +253,8 @@ class DividerColumn(TemplateBase):
 
         dums_params = dict(config=config, row_layout_info=sum_row_info, num_col=fg_tot,
                            tr_widths=tr_widths, tr_spaces=tr_spaces, sup_tids=sup_tids[0],
-                           end_mode=12, abut_mode=0, show_pins=False)
+                           end_mode=end_mode, abut_mode=abut_mode, laygo_edger=right_edge_info,
+                           show_pins=False)
         dums_master = self.new_template(params=dums_params, temp_cls=LaygoDummy)
         duml_master = dums_master.new_template_with(row_layout_info=lat_row_info,
                                                     sup_tids=sup_tids[1])
@@ -252,7 +266,7 @@ class DividerColumn(TemplateBase):
             sub_type='ptap',
             threshold=sum_row_info['row_prop_list'][0]['threshold'],
             top_layer=sum_row_info['top_layer'],
-            end_mode=0b11,
+            end_mode=er_end_mode,
             guard_ring_nf=0,
             options=options,
         )

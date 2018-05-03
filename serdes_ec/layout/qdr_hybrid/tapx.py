@@ -50,7 +50,8 @@ class TapXSummerCell(TemplateBase):
         TemplateBase.__init__(self, temp_db, lib_name, params, used_names, **kwargs)
         self._sch_params = None
         self._lat_row_layout_info = None
-        self._lat_edge_info = None
+        self._sum_row_layout_info = None
+        self._lat_lr_edge_info = None
         self._lat_track_info = None
         self._div_tr_info = None
         self._amp_masters = None
@@ -68,8 +69,13 @@ class TapXSummerCell(TemplateBase):
         return self._lat_row_layout_info
 
     @property
-    def lat_edge_info(self):
-        return self._lat_edge_info
+    def sum_row_layout_info(self):
+        # type: () -> Dict[str, Any]
+        return self._sum_row_layout_info
+
+    @property
+    def lat_lr_edge_info(self):
+        return self._lat_lr_edge_info
 
     @property
     def lat_track_info(self):
@@ -144,12 +150,16 @@ class TapXSummerCell(TemplateBase):
         flip_sign = self.params['flip_sign']
         end_mode = self.params['end_mode']
         show_pins = self.params['show_pins']
+        tr_widths = self.params['tr_widths']
+        tr_spaces = self.params['tr_spaces']
 
         # get layout parameters
         sum_params = dict(
             w_dict=self.params['w_sum'],
             th_dict=self.params['th_sum'],
             seg_dict=self.params['seg_sum'],
+            tr_widths=tr_widths,
+            tr_spaces=tr_spaces,
             top_layer=None,
             flip_sign=flip_sign,
             but_sw=True,
@@ -160,14 +170,15 @@ class TapXSummerCell(TemplateBase):
             w_dict=self.params['w_lat'],
             th_dict=self.params['th_lat'],
             seg_dict=self.params['seg_lat'],
+            tr_widths=tr_widths,
+            tr_spaces=tr_spaces,
             top_layer=None,
             flip_sign=False,
             but_sw=False,
             show_pins=False,
             end_mode=end_mode & 0b1100,
         )
-        for key in ('lch', 'ptap_w', 'ntap_w', 'fg_duml', 'fg_dumr', 'tr_widths',
-                    'tr_spaces', 'options'):
+        for key in ('lch', 'ptap_w', 'ntap_w', 'fg_duml', 'fg_dumr', 'options'):
             sum_params[key] = lat_params[key] = self.params[key]
 
         # get masters
@@ -234,17 +245,23 @@ class TapXSummerCell(TemplateBase):
             sum_params=s_master.sch_params,
             lat_params=l_master.sch_params,
         )
+        self._sum_row_layout_info = s_master.row_layout_info
         self._lat_row_layout_info = l_master.row_layout_info
-        self._lat_edge_info = l_master.lr_edge_info[1]
+        self._lat_lr_edge_info = l_master.lr_edge_info
         self._lat_track_info = m_tr_info = l_master.track_info
         self._amp_masters = s_master, l_master
         self._sd_pitch = s_master.sd_pitch_unit
+
+        tr_manager = TrackManager(self.grid, tr_widths, tr_spaces, half_space=True)
+        en_idx, w_en = m_tr_info['nen3']
+        hm_layer = IntegAmp.get_mos_conn_layer(self.grid.tech_info) + 1
+        en_idx = tr_manager.get_next_track(hm_layer, en_idx, w_en, 1, up=False)
         self._div_tr_info = dict(
             VDD=m_tr_info['VDD'],
             VSS=m_tr_info['VSS'],
-            q=m_tr_info['inp'],
-            qb=m_tr_info['inn'],
-            en=m_tr_info['nen3'],
+            q=m_tr_info['outp'],
+            qb=m_tr_info['outn'],
+            en=(en_idx, 1),
             clkp=m_tr_info['clkp'],
             clkn=m_tr_info['clkn'],
         )
@@ -429,19 +446,21 @@ class TapXSummerLast(TemplateBase):
             tr_manager = TrackManager(self.grid, tr_widths, tr_spaces, half_space=True)
             hm_layer = s_master.mos_conn_layer + 1
             en_idx, w_en = lat_tr_info['nen3']
-            en_idx = tr_manager.get_next_track(hm_layer, en_idx, w_en, w_en, up=False)
+            en_idx = tr_manager.get_next_track(hm_layer, en_idx, w_en, 1, up=False)
 
             tr_info = dict(
                 VDD=lat_tr_info['VDD'],
                 VSS=lat_tr_info['VSS'],
                 q=lat_tr_info['outp'],
                 qb=lat_tr_info['outn'],
-                en=(en_idx, w_en),
-                clk=lat_tr_info['clkp'] if div_pos_edge else lat_tr_info['clkn'],
+                en=(en_idx, 1),
+                clkp=lat_tr_info['clkp'],
+                clkn=lat_tr_info['clkn'],
             )
             dig_params['seg_dict'] = seg_div
             dig_params['tr_info'] = tr_info
             dig_params['fg_min'] = fg_min
+            dig_params['div_pos_edge'] = div_pos_edge
             d_master = self.new_template(params=dig_params, temp_cls=SinClkDivider)
             div_sch_params = d_master.sch_params
             pul_sch_params = None
@@ -553,7 +572,6 @@ class TapXSummerNoLast(TemplateBase):
         self._sch_params = None
         self._ffe_track_info = None
         self._dfe_track_info = None
-        self._div_tr_info = None
         self._analog_master = None
         self._place_info = None
         self._fg_tot = None
@@ -570,10 +588,6 @@ class TapXSummerNoLast(TemplateBase):
     @property
     def dfe_track_info(self):
         return self._dfe_track_info
-
-    @property
-    def div_tr_info(self):
-        return self._div_tr_info
 
     @property
     def analog_master(self):
@@ -962,6 +976,9 @@ class TapXSummer(TemplateBase):
         self._ffe_track_info = None
         self._dfe_track_info = None
         self._div_tr_info = None
+        self._left_edge_info = None
+        self._sum_row_info = None
+        self._lat_row_info = None
         self._row_heights = None
         self._sup_tids = None
 
@@ -992,6 +1009,18 @@ class TapXSummer(TemplateBase):
     def div_tr_info(self):
         # type: () -> Dict[str, Any]
         return self._div_tr_info
+
+    @property
+    def left_edge_info(self):
+        return self._left_edge_info
+
+    @property
+    def sum_row_info(self):
+        return self._sum_row_info
+
+    @property
+    def lat_row_info(self):
+        return self._lat_row_info
 
     @property
     def row_heights(self):
@@ -1071,7 +1100,6 @@ class TapXSummer(TemplateBase):
         inst = self.add_instance(sub_master, 'XSUB', loc=(0, 0), unit_mode=True)
         self._ffe_track_info = sub_master.ffe_track_info
         self._dfe_track_info = sub_master.dfe_track_info.copy()
-        self._div_tr_info = sub_master.div_tr_info
         prev_data_w, prev_data_tr, prev_type, prev_tr, xarr = sub_master.place_info
         vdd_list = inst.get_all_port_pins('VDD')
         vss_list = inst.get_all_port_pins('VSS')
@@ -1095,6 +1123,10 @@ class TapXSummer(TemplateBase):
 
         # create and place last summer cell
         main = sub_master.analog_master
+        self._left_edge_info = main.lat_lr_edge_info[0]
+        self._div_tr_info = main.div_tr_info
+        self._sum_row_info = main.sum_row_layout_info
+        self._lat_row_info = main.lat_row_layout_info
         last_params = dict(config=config, row_layout_info=main.lat_row_layout_info,
                            lch=lch, ptap_w=ptap_w, ntap_w=ntap_w, w_sum=w_sum, th_sum=th_sum,
                            seg_sum=seg_sum_list[num_ffe], seg_div=seg_div, seg_pul=seg_pul,
@@ -1102,7 +1134,7 @@ class TapXSummer(TemplateBase):
                            lat_tr_info=main.lat_track_info, div_pos_edge=div_pos_edge,
                            flip_sign=flip_sign_list[num_ffe], fg_min=fg_min_last,
                            end_mode=0b1000, show_pins=False, options=options,
-                           left_edge_info=main.lat_edge_info,
+                           left_edge_info=main.lat_lr_edge_info[1],
                            )
         last_master = self.new_template(params=last_params, temp_cls=TapXSummerLast)
 
