@@ -177,7 +177,7 @@ class IntegAmp(HybridQDRBase):
             top_layer = hm_layer
         qdr_info = HybridQDRBaseInfo(self.grid, lch, 0, top_layer=top_layer,
                                      end_mode=end_mode, **options)
-        fg_sep_hm = qdr_info.get_fg_sep_from_hm_space(tr_manager.get_width(hm_layer, 'en'),
+        fg_sep_hm = qdr_info.get_fg_sep_from_hm_space(tr_manager.get_width(hm_layer, 1),
                                                       round_even=True)
         fg_sep_hm = max(0, fg_sep_hm)
 

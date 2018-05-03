@@ -1435,7 +1435,7 @@ class TapXColumn(TemplateBase):
         ycur = inst2.array_box.top_unit + endt_master.array_box.top_unit
         inst1 = self.add_instance(endt_master, 'X1', loc=(x0, ycur), orient='MX', unit_mode=True)
         ycur = inst1.array_box.top_unit + end_row_box.top_unit
-        top_row = self.add_instance(end_row_master, 'XROWT', loc=(0, ycur), orient='MX',
+        top_row = self.add_instance(end_row_master, 'XROWT', loc=(xdiv, ycur), orient='MX',
                                     unit_mode=True)
         inst_list = [inst0, inst1, inst2, inst3]
 
@@ -1523,7 +1523,7 @@ class TapXColumn(TemplateBase):
 
         # set schematic parameters and various properties
         self._sch_params = dict(
-            div_params_list=div_col_master.sch_params,
+            div_params=div_col_master.sch_params,
             ffe_params_list=divp_master.sch_params['ffe_params_list'],
             dfe_params_list=divp_master.sch_params['dfe_params_list'],
             last_params_list=[endb_master.sch_params['last_params'],

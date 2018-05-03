@@ -594,3 +594,35 @@ instances:
     lib_name: basic
     cell_name: opin
     instpins: {}
+  XDIV:
+    lib_name: bag_serdes_ec
+    cell_name: qdr_divider_column
+    instpins:
+      VSS:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      VDD:
+        direction: inputOutput
+        net_name: "VDD"
+        num_bits: 1
+      en<3:0>:
+        direction: output
+        net_name: "en<3:0>"
+        num_bits: 4
+      clkn:
+        direction: input
+        net_name: "clkn"
+        num_bits: 1
+      clkp:
+        direction: input
+        net_name: "clkp"
+        num_bits: 1
+      en_div<3:2>:
+        direction: input
+        net_name: "en_div<3:2>"
+        num_bits: 2
+      scan_div<3:2>:
+        direction: input
+        net_name: "scan_div<3:2>"
+        num_bits: 2

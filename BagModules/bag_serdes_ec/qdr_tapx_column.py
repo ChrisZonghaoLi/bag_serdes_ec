@@ -26,6 +26,7 @@ class bag_serdes_ec__qdr_tapx_column(Module):
     def get_params_info(cls):
         # type: () -> Dict[str, str]
         return dict(
+            div_params='Divider column parameters.',
             ffe_params_list='List of FFE summer cell parameters.',
             dfe_params_list='List of DFE summer cell parameters.',
             last_params_list='List of last summer cell parameters, from bottom to top.',
@@ -39,7 +40,10 @@ class bag_serdes_ec__qdr_tapx_column(Module):
             export_probe=False,
         )
 
-    def design(self, ffe_params_list, dfe_params_list, last_params_list, export_probe):
+    def design(self, div_params, ffe_params_list, dfe_params_list, last_params_list, export_probe):
+        # design divider
+        self.instances['XDIV'].design(**div_params)
+
         num_ffe = len(ffe_params_list)
         num_dfe = len(dfe_params_list) + 2
 

@@ -95,7 +95,7 @@ class HybridQDRBaseInfo(AnalogBaseInfo):
             seg_pc = 0
         else:
             if not self.abut_analog_mos or fg_sep_load > 0 or seg_load > seg_pen:
-                fg_sep_load = max(fg_sep_load, fg_sep)
+                fg_sep_load = max(fg_sep_load, fg_sep_min)
             else:
                 fg_sep_load = 0
             seg_pc = seg_ps * 2 + fg_sep_load
