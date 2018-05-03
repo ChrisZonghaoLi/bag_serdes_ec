@@ -798,13 +798,13 @@ class TapXSummerNoLast(TemplateBase):
     @classmethod
     def _get_ffe_signals(cls, num_ffe):
         if num_ffe == 1:
-            return [([1, 'out', 'out', 1, 1, 'clk', 'clk', 'clk', 'clk', 'clk', 'clk', 1],
+            return [([1, 'out', 'out', 1, 1, 'clk', 'clk', 'clk', 'clk', 1],
                      ['VDD', 'outp_a<0>', 'outn_a<0>', 'VDD',
-                      'VSS', 'clkp', 'biasp_a', 'biasp_m', 'biasn_m', 'biasn_a', 'clkn', 'VSS'],
+                      'VSS', 'biasp_a', 'biasp_m', 'biasn_m', 'biasn_a', 'VSS'],
                      False)]
         else:
-            sig_list = [(['out', 'out', 1, 'clk', 'clk', 1],
-                         ['outp_a<0>', 'outn_a<0>', 'VDD', 'clkp', 'clkn', 'VDD'],
+            sig_list = [(['out', 'out', 1],
+                         ['outp_a<0>', 'outn_a<0>', 'VDD'],
                          False),
                         ([1, 'clk', 'clk', 'clk', 'clk', 1, 1, 'casc', 'casc'],
                          ['VSS', 'biasp_a', 'biasp_m', 'biasn_m', 'biasn_a', 'VSS',
@@ -1403,7 +1403,7 @@ class TapXColumn(TemplateBase):
                               tr_widths=tr_widths, tr_spaces=tr_spaces,
                               div_tr_info=divn_master.div_tr_info, sup_tids=divn_master.sup_tids,
                               options=options, right_edge_info=divn_master.left_edge_info,
-                              show_pins=False)
+                              invert_clk=True, show_pins=False)
         div_col_master = self.new_template(params=div_col_params, temp_cls=DividerColumn)
 
         vm_layer = endt_master.top_layer
@@ -1442,33 +1442,17 @@ class TapXColumn(TemplateBase):
         # re-export supply pins
         vdd_list = list(chain(*(inst.port_pins_iter('VDD') for inst in inst_list)))
         vss_list = list(chain(*(inst.port_pins_iter('VSS') for inst in inst_list)))
-        self.add_pin('VDD', vdd_list, label='VDD:', show=show_pins)
-        self.add_pin('VSS', vss_list, label='VSS:', show=show_pins)
+        self.add_pin('VDD', vdd_list, label='VDD', show=show_pins)
+        self.add_pin('VSS', vss_list, label='VSS', show=show_pins)
 
         # draw wires
         tr_manager = TrackManager(self.grid, tr_widths, tr_spaces, half_space=True)
 
-        # re-export ports, and gather wires
-        biasm_warrs = [0, 0, 0, 0]
-        clk_warrs = [[], []]
-        biasa_warrs = [[], []]
-        biasd_warrs = [[], []]
+        # export outputs
         for idx, inst in enumerate(inst_list):
             nidx = (idx - 1) % 4
-            biasm_warrs[nidx] = inst.get_pin('biasn_m')
-
             self.reexport(inst.get_port('outp_s'), net_name='outp<%d>' % nidx, show=show_pins)
             self.reexport(inst.get_port('outn_s'), net_name='outn<%d>' % nidx, show=show_pins)
-            if idx % 2 == 1:
-                biasa_warrs[0].extend(inst.port_pins_iter('biasp_a'))
-                biasd_warrs[0].extend(inst.port_pins_iter('biasp_d'))
-                clk_warrs[0].extend(inst.port_pins_iter('clkp'))
-                clk_warrs[1].extend(inst.port_pins_iter('clkn'))
-            else:
-                biasa_warrs[1].extend(inst.port_pins_iter('biasp_a'))
-                biasd_warrs[1].extend(inst.port_pins_iter('biasp_d'))
-                clk_warrs[1].extend(inst.port_pins_iter('clkp'))
-                clk_warrs[0].extend(inst.port_pins_iter('clkn'))
 
         # connect DFE/FFE signals
         ffe_track_info = endb_master.ffe_track_info
@@ -1488,23 +1472,29 @@ class TapXColumn(TemplateBase):
             self.add_pin('inn_d<%d>' % cidx, warrn, show=show_pins)
 
         # connect FFE biases/clks
-        clkp_list, clkn_list = self._connect_ffe(tr0, tr_manager, vm_layer, num_ffe, ffe_track_info,
-                                                 inst_list, show_pins)
+        tmp = self._connect_ffe(tr0, tr_manager, vm_layer, num_ffe, ffe_track_info,
+                                inst_list, show_pins)
+        clkp_list, clkn_list, nclkp_list, nclkn_list = tmp
         # connect DFE biases/clks
         self._connect_dfe(tr0, tr_manager, vm_layer, num_dfe, dfe_track_info, inst_list, clkp_list,
                           clkn_list, show_pins)
         # connect divider signals
-        self._connect_div(tr0, tr_manager, vm_layer, dfe_track_info, inst_list, show_pins,
-                          export_probe)
+        en_list = self._connect_div(tr0, tr_manager, vm_layer, dfe_track_info, inst_list,
+                                    show_pins, export_probe)
 
         # connect shields
+        left_vss_tidx = None
         sh_lower, sh_upper = None, None
         vm_vss_list, vm_vdd_list = [], []
         for tr_idx in chain(ffe_track_info['VSS'], dfe_track_info['VSS']):
-            warr = self.connect_to_tracks(vss_list, TrackID(vm_layer, tr_idx + tr0))
+            cur_tidx = tr_idx + tr0
+            warr = self.connect_to_tracks(vss_list, TrackID(vm_layer, cur_tidx))
             if sh_lower is None:
                 sh_lower = warr.lower_unit
                 sh_upper = warr.upper_unit
+                left_vss_tidx = cur_tidx
+            else:
+                left_vss_tidx = min(left_vss_tidx, cur_tidx)
             vm_vss_list.append(warr)
 
         bnd_xr = 0
@@ -1515,6 +1505,8 @@ class TapXColumn(TemplateBase):
                                           track_lower=sh_lower, track_upper=sh_upper,
                                           unit_mode=True)
             vm_vdd_list.append(warr)
+        self.add_pin('VDD', vm_vdd_list, show=show_pins)
+        self.add_pin('VSS', vm_vss_list, show=show_pins)
 
         # set size
         bnd_box = bot_row.bound_box.merge(top_row.bound_box)
@@ -1523,8 +1515,15 @@ class TapXColumn(TemplateBase):
         self.array_box = bnd_box
         self.add_cell_boundary(bnd_box)
 
+        # connect divider column
+        clkp_list.extend(nclkp_list)
+        clkn_list.extend(nclkn_list)
+        self._connect_div_column(tr_manager, vm_layer, div_inst, left_vss_tidx, clkp_list,
+                                 clkn_list, en_list, vdd_list, sh_lower, sh_upper, show_pins)
+
         # set schematic parameters and various properties
         self._sch_params = dict(
+            div_params_list=div_col_master.sch_params,
             ffe_params_list=divp_master.sch_params['ffe_params_list'],
             dfe_params_list=divp_master.sch_params['dfe_params_list'],
             last_params_list=[endb_master.sch_params['last_params'],
@@ -1545,6 +1544,45 @@ class TapXColumn(TemplateBase):
                              outp_s.track_id.width)
         self._row_heights = endb_master.row_heights
         self._sup_tids = endb_master.sup_tids
+
+    def _connect_div_column(self, tr_manager, vm_layer, inst, right_tidx, clkp_list, clkn_list,
+                            en_list, vdd_list, sh_lower, sh_upper, show_pins):
+        wtype_list = [1, 'clk', 1, 'clk', 'clk', 1, 'en', 'en', 'en', 'en', 1]
+        _, locs = tr_manager.place_wires(vm_layer, wtype_list)
+        tr0 = right_tidx - locs[-1]
+
+        # connect VDD shield
+        for tidx in (locs[2] + tr0, locs[5] + tr0):
+            warr = self.connect_to_tracks(vdd_list, TrackID(vm_layer, tidx), track_lower=sh_lower,
+                                          track_upper=sh_upper, unit_mode=True)
+            self.add_pin('VDD', warr, show=show_pins)
+        # connect enables
+        en_off = 6
+        vm_w_en = tr_manager.get_width(vm_layer, 'en')
+        for en_idx, en_warrs in enumerate(en_list):
+            en_warrs.append(inst.get_pin('en<%d>' % en_idx))
+            tid = TrackID(vm_layer, locs[en_off + en_idx] + tr0, width=vm_w_en)
+            self.connect_to_tracks(en_warrs, tid)
+        # connect clocks
+        vm_w_clk = tr_manager.get_width(vm_layer, 'clk')
+        clkp_list.append(inst.get_pin('clkp'))
+        clkn_list.append(inst.get_pin('clkn'))
+        trp = locs[3] + tr0
+        trn = locs[4] + tr0
+        clkp, clkn = self.connect_differential_tracks(clkp_list, clkn_list, vm_layer, trp, trn,
+                                                      width=vm_w_clk, unit_mode=True)
+        self.add_pin('clkp', clkp)
+        self.add_pin('clkn', clkn)
+        # connect enable and scan
+        scan_tid = TrackID(vm_layer, locs[0] + tr0)
+        en_tid = TrackID(vm_layer, locs[1] + tr0, width=vm_w_clk)
+        for idx in range(2, 4):
+            sname = 'scan_div<%d>' % idx
+            ename = 'en_div<%d>' % idx
+            warr = self.connect_to_tracks(inst.get_pin(sname), scan_tid, min_len_mode=0)
+            self.add_pin(sname, warr, label=sname + ':', show=show_pins)
+            warr = self.connect_to_tracks(inst.get_pin(ename), en_tid, min_len_mode=0)
+            self.add_pin(ename, warr, label=ename + ':', show=show_pins)
 
     def _connect_ffe(self, tr0, tr_manager, vm_layer, num_sig, track_info, inst_list, show_pins):
         vm_w_casc = tr_manager.get_width(vm_layer, 'casc')
@@ -1582,15 +1620,6 @@ class TapXColumn(TemplateBase):
                                               min_len_mode=min_len_mode)
                 self.add_pin('casc<%d>' % (ncidx + sig_idx * 4), warr, show=show_pins)
 
-        # connect clkp/clkn
-        trp = track_info['clkp'][0] + tr0
-        trn = track_info['clkn'][0] + tr0
-        clkp, clkn = self.connect_differential_tracks(clkp_list, clkn_list, vm_layer, trp, trn,
-                                                      width=vm_w_clk)
-        self.connect_differential_tracks(nclkp_list, nclkn_list, vm_layer, trp, trn,
-                                         width=vm_w_clk)
-        self.add_pin('clkp', clkp, show=show_pins)
-        self.add_pin('clkn', clkn, show=show_pins)
         # connect latch bias
         trp = track_info['biasp_a'][0] + tr0
         trn = track_info['biasn_a'][0] + tr0
@@ -1610,7 +1639,7 @@ class TapXColumn(TemplateBase):
         self.add_pin('bias_m<3>', wp, show=show_pins)
         self.add_pin('bias_m<2>', wn, show=show_pins)
 
-        return clkp_list, clkn_list
+        return clkp_list, clkn_list, nclkp_list, nclkn_list
 
     def _connect_dfe(self, tr0, tr_manager, vm_layer, num_sig, track_info, inst_list,
                      clkp_list, clkn_list, show_pins):
@@ -1673,18 +1702,20 @@ class TapXColumn(TemplateBase):
         vm_w_clk = tr_manager.get_width(vm_layer, 'clk')
 
         # connect scan/enable signals
-        en_warrs = [[], [], [], []]
+        div_warrs = [None, None, None, None]
         for inst, pidx, mlm in ((inst_list[2], 2, 1), (inst_list[0], 3, -1)):
             suf = '<%d>' % pidx
             for name in ('scan_div', 'en_div'):
                 warr = inst.get_pin(name)
                 tr = track_info[name][0] + tr0
                 warr = self.connect_to_tracks(warr, TrackID(vm_layer, tr), min_len_mode=mlm)
-                self.add_pin(name + suf, warr, show=show_pins)
-            en_warrs[pidx].append(inst.get_pin('div'))
-            en_warrs[pidx - 2].append(inst.get_pin('divb'))
+                port_name = name + suf
+                self.add_pin(port_name, warr, label=port_name + ':', show=show_pins)
+            div_warrs[pidx] = inst.get_pin('div')
+            div_warrs[pidx - 2] = inst.get_pin('divb')
 
         # connect enable clocks
+        en_warrs = [[], [], [], []]
         for cidx, inst in enumerate(inst_list):
             for en_idx in range(4):
                 cur_idx = (en_idx + (cidx + 1) % 4) % 4
@@ -1692,13 +1723,17 @@ class TapXColumn(TemplateBase):
 
         for en_idx in range(4):
             tr = track_info['en%d' % en_idx][0] + tr0
+            tid = TrackID(vm_layer, tr, width=vm_w_clk)
             if export_probe:
                 en_cur = self.connect_wires(en_warrs[en_idx])
                 en_exp = en_cur[0].to_warr_list()[0]
-                self.add_pin('en<%d>' % en_idx, en_exp, show=True, edge_mode=-1)
+                self.add_pin('en<%d>' % en_idx, en_exp, show=export_probe)
             else:
                 en_cur = en_warrs[en_idx]
-            self.connect_to_tracks(en_cur, TrackID(vm_layer, tr, width=vm_w_clk))
+            self.connect_to_tracks(en_cur, tid)
+            self.connect_to_tracks(div_warrs[en_idx], tid)
+
+        return en_warrs
 
     def _connect_signals(self, tr0, num_sig, track_info, inst_list, vm_layer, vm_width, sig_type,
                          sig_off=0, is_ffe=True):

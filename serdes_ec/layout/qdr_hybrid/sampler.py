@@ -213,6 +213,7 @@ class DividerColumn(TemplateBase):
             sup_tids='supply tracks information.',
             options='other AnalogBase options.',
             right_edge_info='If not None, abut on right edge.',
+            invert_clk='True to invert clock track.',
             show_pins='True to draw pin geometries.',
         )
 
@@ -222,6 +223,7 @@ class DividerColumn(TemplateBase):
         return dict(
             options=None,
             right_edge_info=False,
+            invert_clk=False,
             show_pins=True,
         )
 
@@ -236,6 +238,7 @@ class DividerColumn(TemplateBase):
         sup_tids = self.params['sup_tids']
         options = self.params['options']
         right_edge_info = self.params['right_edge_info']
+        invert_clk = self.params['invert_clk']
         show_pins = self.params['show_pins']
 
         # create masters
@@ -250,11 +253,11 @@ class DividerColumn(TemplateBase):
 
         div_params = dict(config=config, row_layout_info=lat_row_info, seg_dict=seg_dict,
                           tr_widths=tr_widths, tr_spaces=tr_spaces, tr_info=div_tr_info, fg_min=0,
-                          end_mode=end_mode, abut_mode=abut_mode, div_pos_edge=True,
+                          end_mode=end_mode, abut_mode=abut_mode, div_pos_edge=not invert_clk,
                           laygo_edger=right_edge_info, show_pins=False)
 
         divp_master = self.new_template(params=div_params, temp_cls=SinClkDivider)
-        div_params['div_pos_edge'] = False
+        div_params['div_pos_edge'] = invert_clk
         divn_master = self.new_template(params=div_params, temp_cls=SinClkDivider)
         self._fg_tot = divp_master.fg_tot
 
