@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from typing import Dict
+from typing import Dict, Any
 
 import os
 import pkg_resources
@@ -29,11 +29,22 @@ class bag_serdes_ec__qdr_tapx_column(Module):
             ffe_params_list='List of FFE summer cell parameters.',
             dfe_params_list='List of DFE summer cell parameters.',
             last_params_list='List of last summer cell parameters, from bottom to top.',
+            export_probe='True to export probe ports.',
         )
 
-    def design(self, ffe_params_list, dfe_params_list, last_params_list):
+    @classmethod
+    def get_default_param_values(cls):
+        # type: () -> Dict[str, Any]
+        return dict(
+            export_probe=False,
+        )
+
+    def design(self, ffe_params_list, dfe_params_list, last_params_list, export_probe):
         num_ffe = len(ffe_params_list)
         num_dfe = len(dfe_params_list) + 2
+
+        if not export_probe:
+            self.remove_pin('en<3:0>')
 
         if num_dfe == 2 or num_dfe == 3:
             # TODO: add support for 2 or 3 taps.

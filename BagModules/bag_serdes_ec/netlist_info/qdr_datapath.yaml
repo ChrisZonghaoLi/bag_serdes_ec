@@ -242,6 +242,10 @@ instances:
     lib_name: bag_serdes_ec
     cell_name: qdr_tapx_column
     instpins:
+      en<3:0>:
+        direction: output
+        net_name: "net1<0:3>"
+        num_bits: 4
       sgnn<3:0>:
         direction: input
         net_name: "sgnn_dfe<11:8>"

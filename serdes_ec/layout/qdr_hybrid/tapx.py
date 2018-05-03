@@ -1284,6 +1284,7 @@ class TapXColumn(TemplateBase):
             tr_spaces='Track spacing dictionary.',
             options='other AnalogBase options',
             show_pins='True to create pin labels.',
+            export_probe='True to export probe ports.',
         )
 
     @classmethod
@@ -1292,13 +1293,15 @@ class TapXColumn(TemplateBase):
         return dict(
             options=None,
             show_pins=True,
+            export_probe=False,
         )
 
     def draw_layout(self):
         # get parameters
-        show_pins = self.params['show_pins']
         tr_widths = self.params['tr_widths']
         tr_spaces = self.params['tr_spaces']
+        show_pins = self.params['show_pins']
+        export_probe = self.params['export_probe']
 
         num_ffe = len(self.params['seg_ffe_list'])
         num_dfe = len(self.params['seg_dfe_list']) + 1
@@ -1364,7 +1367,6 @@ class TapXColumn(TemplateBase):
         tr_manager = TrackManager(self.grid, tr_widths, tr_spaces, half_space=True)
 
         # re-export ports, and gather wires
-        en_warrs = [[], [], [], []]
         biasm_warrs = [0, 0, 0, 0]
         clk_warrs = [[], []]
         biasa_warrs = [[], []]
@@ -1372,18 +1374,6 @@ class TapXColumn(TemplateBase):
         for idx, inst in enumerate(inst_list):
             nidx = (idx - 1) % 4
             biasm_warrs[nidx] = inst.get_pin('biasn_m')
-            for off in range(4):
-                en_pin = 'en<%d>' % off
-                en_idx = (off + idx + 1) % 4
-                if inst.has_port(en_pin):
-                    en_warrs[en_idx].extend(inst.port_pins_iter(en_pin))
-            if inst.has_port('div'):
-                if idx == 0:
-                    idxp, idxn = 3, 1
-                else:
-                    idxp, idxn = 2, 0
-                en_warrs[idxp].extend(inst.port_pins_iter('div'))
-                en_warrs[idxn].extend(inst.port_pins_iter('divb'))
 
             self.reexport(inst.get_port('outp_s'), net_name='outp<%d>' % nidx, show=show_pins)
             self.reexport(inst.get_port('outn_s'), net_name='outn<%d>' % nidx, show=show_pins)
@@ -1421,7 +1411,7 @@ class TapXColumn(TemplateBase):
         self._connect_dfe(tr_manager, vm_layer, num_dfe, dfe_track_info, inst_list, clkp_list,
                           clkn_list, show_pins)
         # connect divider signals
-        self._connect_div(tr_manager, vm_layer, dfe_track_info, inst_list, show_pins)
+        self._connect_div(tr_manager, vm_layer, dfe_track_info, inst_list, show_pins, export_probe)
 
         # connect shields
         sh_lower, sh_upper = None, None
@@ -1456,6 +1446,7 @@ class TapXColumn(TemplateBase):
                               divp_master.sch_params['last_params'],
                               divn_master.sch_params['last_params'],
                               endt_master.sch_params['last_params']],
+            export_probe=export_probe,
         )
         vss_tid = endb_master.get_port('VSS').get_pins(vm_layer - 1)[0].track_id
         self._vss_tids = ((vss_tid.base_index, vss_tid.width),
@@ -1585,7 +1576,7 @@ class TapXColumn(TemplateBase):
         self.add_pin('biasp_d', wp, show=show_pins)
         self.add_pin('biasn_d', wn, show=show_pins)
 
-    def _connect_div(self, tr_manager, vm_layer, track_info, inst_list, show_pins):
+    def _connect_div(self, tr_manager, vm_layer, track_info, inst_list, show_pins, export_probe):
         vm_w_clk = tr_manager.get_width(vm_layer, 'clk')
 
         # connect scan/enable signals
@@ -1608,7 +1599,12 @@ class TapXColumn(TemplateBase):
 
         for en_idx in range(4):
             tr = track_info['en%d' % en_idx][0]
-            self.connect_to_tracks(en_warrs[en_idx], TrackID(vm_layer, tr, width=vm_w_clk))
+            if export_probe:
+                en_cur = self.connect_wires(en_warrs[en_idx])
+                self.add_pin('en<%d>' % en_idx, en_cur, show=True, edge_mode=-1)
+            else:
+                en_cur = en_warrs[en_idx]
+            self.connect_to_tracks(en_cur, TrackID(vm_layer, tr, width=vm_w_clk))
 
     def _connect_signals(self, num_sig, track_info, inst_list, vm_layer, vm_width, sig_type,
                          sig_off=0, is_ffe=True):
