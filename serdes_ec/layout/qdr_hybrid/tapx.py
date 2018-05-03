@@ -1601,7 +1601,8 @@ class TapXColumn(TemplateBase):
             tr = track_info['en%d' % en_idx][0]
             if export_probe:
                 en_cur = self.connect_wires(en_warrs[en_idx])
-                self.add_pin('en<%d>' % en_idx, en_cur, show=True, edge_mode=-1)
+                en_exp = en_cur[0].to_warr_list()[0]
+                self.add_pin('en<%d>' % en_idx, en_exp, show=True, edge_mode=-1)
             else:
                 en_cur = en_warrs[en_idx]
             self.connect_to_tracks(en_cur, TrackID(vm_layer, tr, width=vm_w_clk))
