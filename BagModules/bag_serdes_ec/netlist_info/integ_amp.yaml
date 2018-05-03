@@ -2,6 +2,26 @@ lib_name: bag_serdes_ec
 cell_name: integ_amp
 pins: [ "VDD", "VSS", "clkp", "clkn", "inp", "inn", "nmp", "casc<1:0>", "outp", "outn", "pm0p", "pm1p", "pm0n", "pm1n", "tail", "foot", "biasp", "nmn", "setp", "setn", "pulse", "nsp", "nsn", "en<3:2>" ]
 instances:
+  XTSW:
+    lib_name: BAG_prim
+    cell_name: nmos4_standard
+    instpins:
+      S:
+        direction: inputOutput
+        net_name: "tail"
+        num_bits: 1
+      D:
+        direction: inputOutput
+        net_name: "VDD"
+        num_bits: 1
+      B:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      G:
+        direction: inputOutput
+        net_name: "clkn"
+        num_bits: 1
   XCASN1:
     lib_name: BAG_prim
     cell_name: nmos4_standard

@@ -50,6 +50,7 @@ class bag_serdes_ec__integ_amp(Module):
         seg_sen = seg_dict.get('sen', 0)
         seg_casc = seg_dict.get('casc', 0)
         seg_casc1 = seg_dict.get('but', 0)
+        seg_tsw = seg_dict.get('tsw', 0)
 
         if seg_casc > 0 and seg_casc1 > 0:
             raise ValueError('Cannot have both cascode transistor and butterfly switch.')
@@ -68,6 +69,7 @@ class bag_serdes_ec__integ_amp(Module):
                           ('XCASP1', 'casc', seg_casc1), ('XCASN1', 'casc', seg_casc1),
                           ('XSETP', 'in', seg_set), ('XSETN', 'in', seg_set),
                           ('XSENP', 'nen', seg_sen), ('XSENN', 'nen', seg_sen),
+                          ('XTSW', 'nen', seg_tsw),
                           ]
 
         outp_name, outn_name = ('outn', 'outp') if flip_sign else ('outp', 'outn')
