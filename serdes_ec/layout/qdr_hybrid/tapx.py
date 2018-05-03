@@ -1309,7 +1309,7 @@ class TapXColumn(TemplateBase):
         # make masters
         div_params = self.params.copy()
         div_params['seg_pul'] = None
-        div_params['div_pos_edge'] = True
+        div_params['div_pos_edge'] = False
         div_params['show_pins'] = False
 
         divn_master = self.new_template(params=div_params, temp_cls=TapXSummer)
@@ -1325,7 +1325,7 @@ class TapXColumn(TemplateBase):
             fg_min_last = endb_master.fg_core_last
             divn_master = divn_master.new_template_with(fg_min_last=fg_min_last)
 
-        divp_master = divn_master.new_template_with(div_pos_edge=False)
+        divp_master = divn_master.new_template_with(div_pos_edge=True)
         endt_master = endb_master.new_template_with(seg_pul=None)
 
         vm_layer = endt_master.top_layer
