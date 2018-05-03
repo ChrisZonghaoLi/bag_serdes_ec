@@ -71,7 +71,8 @@ class HybridQDRBaseInfo(AnalogBaseInfo):
             sd_dict : Dict[Tuple[str, str], str]
                 a dictionary from net name/transistor tuple to source-drain junction type.
         """
-        fg_sep = self.min_fg_sep
+        fg_sep_min = self.min_fg_sep
+        fg_sep = fg_sep_min
         fg_sep_load = max(0, fg_sep_hm - 2)
 
         seg_load = seg_dict.get('load', 0)
@@ -113,9 +114,10 @@ class HybridQDRBaseInfo(AnalogBaseInfo):
         seg_nc = max(seg_casc, seg_in, seg_but_tot)
 
         # calculate number of center fingers and total size
+        fg_sep_amp = fg_sep if seg_tsw == 0 else max(fg_sep, 2 * fg_sep_min + seg_tsw)
         seg_center = max(seg_nc, seg_pc)
         seg_single = max(seg_center, seg_nen, seg_tail)
-        seg_tot = 2 * seg_single + fg_sep
+        seg_tot = 2 * seg_single + fg_sep_amp
         fg_dum = max(fg_dum, -(-(fg_min - seg_tot) // 2))
         fg_tot = seg_tot + 2 * fg_dum
 
@@ -165,6 +167,7 @@ class HybridQDRBaseInfo(AnalogBaseInfo):
         if col_nen < col_in:
             col_nen = fg_dum + min(seg_single - seg_nen, col_in)
         col_dict['nen'] = col_nen
+        col_dict['tsw'] = fg_dum + seg_single + (fg_sep_amp - seg_tsw) // 2
         col_tail = fg_dum + col_nen + seg_nen - seg_tail
         if col_tail < col_nen:
             col_tail = fg_dum + min(seg_single - seg_tail, col_nen)
@@ -273,7 +276,7 @@ class HybridQDRBaseInfo(AnalogBaseInfo):
         return dict(
             fg_tot=fg_tot,
             fg_dum=fg_dum,
-            fg_sep=fg_sep,
+            fg_sep=fg_sep_amp,
             col_dict=col_dict,
             sd_dict=sd_dict,
             sd_dir_dict=sd_dir_dict,
@@ -424,6 +427,20 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
                             ):
         # type: (...) -> Dict[str, List[WireArray]]
         ports = {}
+        # draw tail switch differently than rest of transistors, as it is single-ended.
+        seg_tsw = seg_dict.get('tsw', 0)
+        if seg_tsw > 0:
+            # get transistor info
+            mos_type, row_idx = self.get_row_index('nen')
+            col = col_idx + col_dict['tsw']
+
+            # draw transistors
+            ntsw = self.draw_mos_conn(mos_type, row_idx, col, seg_tsw, 0, 2,
+                                      s_net='tail', d_net='VDD')
+            ports['nclk0'] = [ntsw['g']]
+            ports['tail'] = [ntsw['s']]
+            ports['nvdd'] = [ntsw['d']]
+
         for tran_name, tran_row in self.tran_list:
             seg = seg_dict.get(tran_row, 0)
             if seg > 0:
@@ -536,6 +553,7 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
         seg_load = seg_dict.get('load', 0)
         seg_casc = seg_dict.get('casc', 0)
         seg_but = seg_dict.get('but', 0)
+        seg_tsw = seg_dict.get('tsw', 0)
         fg_tot = amp_info['fg_tot']
         col_dict = amp_info['col_dict']
         sd_dict = amp_info['sd_dict']
@@ -547,7 +565,7 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
         # connect wires
         self.connect_to_substrate('ptap', ports['VSS'])
         # get TrackIDs
-        foot_tid = self.get_wire_id('nch', 0, 'ds', wire_name='ntail')
+        foot_tid = self.get_wire_id('nch', 0, 'ds', wire_idx=0)
         tail_tid = self.get_wire_id('nch', 1, 'ds', wire_name='ntail')
         outn_tid = self.get_wire_id('pch', 0, 'ds2', wire_idx=0, wire_name='out')
         outp_tid = self.get_wire_id('pch', 0, 'ds2', wire_idx=1, wire_name='out')
@@ -629,5 +647,11 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
                                                                 hm_layer, cascp_idx, cascn_idx)
                 ans['casc<0>'] = casc0
                 ans['casc<1>'] = casc1
+
+        # connect tail switch if it exists
+        if seg_tsw > 0:
+            nclk0_tid = self.get_wire_id('nch', 1, 'g', wire_name='clk')
+            ans['nclkn'] = self.connect_to_tracks(ports['nclk0'], nclk0_tid)
+            self.connect_to_substrate('ntap', ports['nvdd'])
 
         return ans, amp_info

@@ -24,8 +24,7 @@ def run_main(prj):
     params['row_layout_info'] = summer.lat_row_info
     params['tr_info'] = summer.div_tr_info
     prj.generate_cell(div_specs, SinClkDivider, debug=True)
-    # prj.generate_cell(div_specs, SinClkDivider, gen_sch=True, run_lvs=False,
-    #                   run_rcx=True, debug=True)
+    # prj.generate_cell(div_specs, SinClkDivider, gen_sch=True, run_lvs=True, debug=True)
 
 
 if __name__ == '__main__':

@@ -162,8 +162,9 @@ class IntegAmp(HybridQDRBase):
         tr_manager = TrackManager(self.grid, tr_widths, tr_spaces, half_space=True)
         wire_names = {
             # TODO: hack tail gate for now, should fix itself later when we specify min height.
-            'tail': dict(g=[1, 'clk'], ds=['ntail']),
-            'nen': dict(g=['en'], ds=['ntail']),
+            'tail': dict(g=[1, 'clk'], ds=[1]),
+            'nen': dict(g=['clk', 'en'], ds=['ntail']),
+            # add a track in input row drain/source for VDD of tail switch
             'in': dict(g2=['in', 'in']),
             'casc': dict(g=casc_g, ds=['ptail']),
             'pen': dict(ds2=['out', 'out'], g=['en', 'en']),
@@ -190,6 +191,12 @@ class IntegAmp(HybridQDRBase):
         # draw amplifier
         ports, _ = self.draw_integ_amp(fg_duml, seg_dict, invert=flip_sign,
                                        fg_dum=0, fg_sep_hm=fg_sep_hm)
+
+        if seg_dict.get('tsw', 0) > 0:
+            clkn_label = 'clkn:'
+            self.add_pin('clkn', ports['nclkn'], label=clkn_label, show=show_pins)
+        else:
+            clkn_label = 'clkn'
 
         w_sup = tr_manager.get_width(hm_layer, 'sup')
         sup_tids = [None, None]
@@ -233,12 +240,16 @@ class IntegAmp(HybridQDRBase):
         else:
             self.add_pin('en<3>', nen3, show=show_pins)
 
-        for name, port_name in (('pen2', 'en<2>'), ('clkp', 'clkp'), ('clkn', 'clkn'),
-                                ('casc', 'casc'), ('casc<0>', 'casc<0>'),
-                                ('casc<1>', 'casc<1>')):
+        for value in (('pen2', 'en<2>'), ('clkp', 'clkp'), ('clkn', 'clkn', clkn_label),
+                      ('casc', 'casc'), ('casc<0>', 'casc<0>'), ('casc<1>', 'casc<1>')):
+            name, port_name = value[:2]
+            if len(value) > 2:
+                label = value[2]
+            else:
+                label = port_name
             if name in ports:
                 warr = ports[name]
-                self.add_pin(port_name, warr, show=show_pins)
+                self.add_pin(port_name, warr, label=label, show=show_pins)
                 if port_name == 'clkp' or port_name == 'clkn':
                     self._track_info[port_name] = (warr.track_id.base_index, warr.track_id.width)
 
