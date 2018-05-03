@@ -4,6 +4,7 @@
 
 from typing import TYPE_CHECKING, Dict, Any, Set
 
+from bag.layout.util import BBox
 from bag.layout.template import TemplateBase
 
 from abs_templates_ec.analog_core.base import AnalogBase, AnalogBaseEnd
@@ -186,11 +187,17 @@ class DividerColumn(TemplateBase):
         # type: (TemplateDB, str, Dict[str, Any], Set[str], **kwargs) -> None
         TemplateBase.__init__(self, temp_db, lib_name, params, used_names, **kwargs)
         self._sch_params = None
+        self._fg_tot = None
 
     @property
     def sch_params(self):
         # type: () -> Dict[str, Any]
         return self._sch_params
+
+    @property
+    def fg_tot(self):
+        # type: () -> int
+        return self._fg_tot
 
     @classmethod
     def get_params_info(cls):
@@ -235,11 +242,11 @@ class DividerColumn(TemplateBase):
         if right_edge_info is None:
             abut_mode = 0
             end_mode = 12
-            er_end_mode = 0b11
+            draw_end_row = True
         else:
             abut_mode = 2
             end_mode = 4
-            er_end_mode = 0b01
+            draw_end_row = False
 
         div_params = dict(config=config, row_layout_info=lat_row_info, seg_dict=seg_dict,
                           tr_widths=tr_widths, tr_spaces=tr_spaces, tr_info=div_tr_info, fg_min=0,
@@ -249,9 +256,9 @@ class DividerColumn(TemplateBase):
         divp_master = self.new_template(params=div_params, temp_cls=SinClkDivider)
         div_params['div_pos_edge'] = False
         divn_master = self.new_template(params=div_params, temp_cls=SinClkDivider)
-        fg_tot = divp_master.fg_tot
+        self._fg_tot = divp_master.fg_tot
 
-        dums_params = dict(config=config, row_layout_info=sum_row_info, num_col=fg_tot,
+        dums_params = dict(config=config, row_layout_info=sum_row_info, num_col=self._fg_tot,
                            tr_widths=tr_widths, tr_spaces=tr_spaces, sup_tids=sup_tids[0],
                            end_mode=end_mode, abut_mode=abut_mode, laygo_edger=right_edge_info,
                            show_pins=False)
@@ -260,19 +267,25 @@ class DividerColumn(TemplateBase):
                                                     sup_tids=sup_tids[1])
 
         top_layer = divp_master.top_layer
-        end_row_params = dict(
-            lch=config['lch'],
-            fg=fg_tot,
-            sub_type='ptap',
-            threshold=sum_row_info['row_prop_list'][0]['threshold'],
-            top_layer=sum_row_info['top_layer'],
-            end_mode=er_end_mode,
-            guard_ring_nf=0,
-            options=options,
-        )
-        end_row_master = self.new_template(params=end_row_params, temp_cls=AnalogBaseEnd)
-        bot_row = self.add_instance(end_row_master, 'XROWB', loc=(0, 0), unit_mode=True)
-        ycur = eayt = end_row_master.array_box.top_unit
+        if draw_end_row:
+            end_row_params = dict(
+                lch=config['lch'],
+                fg=self._fg_tot,
+                sub_type='ptap',
+                threshold=sum_row_info['row_prop_list'][0]['threshold'],
+                top_layer=sum_row_info['top_layer'],
+                end_mode=0b11,
+                guard_ring_nf=0,
+                options=options,
+            )
+            end_row_master = self.new_template(params=end_row_params, temp_cls=AnalogBaseEnd)
+            bot_row = self.add_instance(end_row_master, 'XROWB', loc=(0, 0), unit_mode=True)
+            ycur = eayt = end_row_master.array_box.top_unit
+            bnd_box = bot_row.bound_box
+        else:
+            bnd_box = BBox(0, 0, 0, 0, self.grid.resolution, unit_mode=True)
+            end_row_master = None
+            ycur = eayt = 0
 
         # place instances
         vdd_list = []
@@ -300,15 +313,19 @@ class DividerColumn(TemplateBase):
             if m1 is divn_master:
                 topn = tinst
 
+            bnd_box = bnd_box.merge(tinst.bound_box)
             for inst in (binst, tinst):
                 vdd_list.append(inst.get_pin('VDD'))
                 vss_list.append(inst.get_pin('VSS'))
-        ycur += eayt
-        top_row = self.add_instance(end_row_master, 'XROWT', loc=(0, ycur), orient='MX',
-                                    unit_mode=True)
+
+        if end_row_master is not None:
+            ycur += eayt
+            top_row = self.add_instance(end_row_master, 'XROWT', loc=(0, ycur), orient='MX',
+                                        unit_mode=True)
+            bnd_box = bnd_box.merge(top_row.bound_box)
 
         # set size
-        bnd_box = self.array_box = bot_row.bound_box.merge(top_row.bound_box)
+        self.array_box = bnd_box
         self.set_size_from_bound_box(top_layer, bnd_box)
 
         # export pins
