@@ -603,27 +603,27 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
             ans['clkn'] = pclk0
 
         # connect cascode if necessary
-        if seg_casc > 0:
+        if seg_casc > 0 or seg_but > 0:
             nm_tid = self.get_wire_id('nch', 3, 'ds', wire_name='ptail')
-            casc_tid = self.get_wire_id('nch', 3, 'g', wire_idx=idx_dict.get('casc', -1))
-            nmp = self.connect_to_tracks(ports['nmp'], nm_tid)
-            nmn = self.connect_to_tracks(ports['nmn'], nm_tid)
-            casc = self.connect_to_tracks(ports['casc'], casc_tid)
+            nmp = ports['nmp']
+            if nmp[0].track_id.num == 1:
+                nmp = self.connect_wires(ports['nmp'])[0]
+                nmn = self.connect_wires(ports['nmn'])[0]
+            else:
+                nmp = self.connect_to_tracks(ports['nmp'], nm_tid)
+                nmn = self.connect_to_tracks(ports['nmn'], nm_tid)
             ans['nmp'] = nmp
             ans['nmn'] = nmn
-            ans['casc'] = casc
-        elif seg_but > 0:
-            nm_tid = self.get_wire_id('nch', 3, 'ds', wire_name='ptail')
-            cascp_idx = self.get_wire_id('nch', 3, 'g', wire_idx=-1).base_index
-            cascn_idx = self.get_wire_id('nch', 3, 'g', wire_idx=-2).base_index
-            nmp = self.connect_to_tracks(ports['nmp'], nm_tid)
-            nmn = self.connect_to_tracks(ports['nmn'], nm_tid)
-            ans['nmp'] = nmp
-            ans['nmn'] = nmn
-
-            casc0, casc1 = self.connect_differential_tracks(ports['casc<0>'], ports['casc<1>'],
-                                                            hm_layer, cascp_idx, cascn_idx)
-            ans['casc<0>'] = casc0
-            ans['casc<1>'] = casc1
+            if seg_casc > 0:
+                casc_tid = self.get_wire_id('nch', 3, 'g', wire_idx=idx_dict.get('casc', -1))
+                casc = self.connect_to_tracks(ports['casc'], casc_tid)
+                ans['casc'] = casc
+            else:
+                cascp_idx = self.get_wire_id('nch', 3, 'g', wire_idx=-1).base_index
+                cascn_idx = self.get_wire_id('nch', 3, 'g', wire_idx=-2).base_index
+                casc0, casc1 = self.connect_differential_tracks(ports['casc<0>'], ports['casc<1>'],
+                                                                hm_layer, cascp_idx, cascn_idx)
+                ans['casc<0>'] = casc0
+                ans['casc<1>'] = casc1
 
         return ans, amp_info
