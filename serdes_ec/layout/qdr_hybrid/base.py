@@ -119,15 +119,26 @@ class HybridQDRBaseInfo(AnalogBaseInfo):
         fg_dum = max(fg_dum, -(-(fg_min - seg_tot) // 2))
         fg_tot = seg_tot + 2 * fg_dum
 
+        # if center PMOS transistors and center NMOS transistors differs by 2 mod 4,
+        # shift column by one so we don't end up with odd number of dummies on the edge.
+        # odd number of dummies on the edge is bad because this breaks abutting in
+        # some technologies.
         if abs(seg_pc - seg_nc) % 4 == 2:
             if seg_pc < seg_nc:
                 pcol_delta = 1
-                ncol_delta = 0
+                incol_delta = ncol_delta = 0
             else:
                 pcol_delta = 0
-                ncol_delta = 1
+                incol_delta = ncol_delta = 1
         else:
-            pcol_delta = ncol_delta = 0
+            incol_delta = pcol_delta = ncol_delta = 0
+        # same story with input transistor and cascode/butterfly transistors
+        if abs(seg_nc - seg_in) % 4 == 2:
+            if seg_in < seg_nc:
+                incol_delta += 1
+            else:
+                ncol_delta += 1
+                pcol_delta += 1
 
         # compute column index of each transistor
         col_dict = {}
@@ -145,17 +156,10 @@ class HybridQDRBaseInfo(AnalogBaseInfo):
         if seg_casc > 0:
             col_dict['casc'] = nc_off + (seg_nc - seg_casc) // 2 + ncol_delta
         elif seg_but > 0:
-            col_dict['but0'] = nc_off + pcol_delta
-            col_dict['but1'] = nc_off + seg_nc - seg_but + pcol_delta
-        elif seg_load > 0:
-            # there's output, and input only.  Move input around so we can connect vertically, but
-            # input drain aligns with output source
-            if seg_pc < seg_in:
-                ncol_delta -= 1
-            else:
-                ncol_delta += 1
+            col_dict['but0'] = nc_off + ncol_delta
+            col_dict['but1'] = nc_off + seg_nc - seg_but + ncol_delta
 
-        col_in = nc_off + (seg_nc - seg_in) // 2 + ncol_delta
+        col_in = nc_off + (seg_nc - seg_in) // 2 + incol_delta
         col_dict['in'] = col_in
         col_nen = fg_dum + col_in + seg_in - seg_nen
         if col_nen < col_in:
