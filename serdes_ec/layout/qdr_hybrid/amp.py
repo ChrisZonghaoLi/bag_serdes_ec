@@ -194,7 +194,7 @@ class IntegAmp(HybridQDRBase):
 
         if seg_dict.get('tsw', 0) > 0:
             clkn_label = 'clkn:'
-            self.add_pin('clkn', ports['nclkn'], label=clkn_label, show=show_pins)
+            self.add_pin('nclkn', ports['nclkn'], label=clkn_label, show=show_pins)
         else:
             clkn_label = 'clkn'
 

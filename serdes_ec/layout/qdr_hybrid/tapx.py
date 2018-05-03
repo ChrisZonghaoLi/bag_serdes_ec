@@ -215,6 +215,8 @@ class TapXSummerCell(TemplateBase):
                     (d_inst, 'VDD', 'VDD', True), (d_inst, 'VSS', 'VSS', True),
                     ]
 
+        if d_inst.has_port('nclkn'):
+            self.add_pin('nclkn', d_inst.get_pin('nclkn'), label='clkn:', show=show_pins)
         for inst, port_name, name, vconn in exp_list:
             if inst.has_port(port_name):
                 port = inst.get_port(port_name)
@@ -675,6 +677,8 @@ class TapXSummerNoLast(TemplateBase):
         for fidx, inst in enumerate(ffe_insts):
             if inst.has_port('casc'):
                 self.reexport(inst.get_port('casc'), net_name='casc<%d>' % fidx, show=show_pins)
+            if inst.has_port('nclkn'):
+                self.add_pin('nclkn', inst.get_pin('nclkn'), label='clkn:', show=show_pins)
             biasm_list.append(inst.get_pin('biasn_s'))
             self.reexport(inst.get_port('inp'), net_name='inp_a<%d>' % fidx, show=show_pins)
             self.reexport(inst.get_port('inn'), net_name='inn_a<%d>' % fidx, show=show_pins)
@@ -1187,7 +1191,9 @@ class TapXSummer(TemplateBase):
 
         # re-export rest of the pins
         for name in inst.port_names_iter():
-            if name not in self._exclude_ports:
+            if name == 'nclkn':
+                self.add_pin('nclkn', inst.get_pin('nclkn'), label='clkn:', show=show_pins)
+            elif name not in self._exclude_ports:
                 if name.startswith('outp_') or name.startswith('outn_'):
                     label = name + ':'
                 else:
@@ -1466,7 +1472,10 @@ class TapXColumn(TemplateBase):
         vm_w_clk = tr_manager.get_width(vm_layer, 'clk')
 
         # connect cascodes
-        clkp_list, clkn_list = [], []
+        clkp_list = []
+        clkn_list = []
+        nclkp_list = []
+        nclkn_list = []
         bp_list, bn_list, m_list = [], [], []
         for cidx, inst in enumerate(inst_list):
             ncidx = (cidx - 1) % 4
@@ -1474,10 +1483,12 @@ class TapXColumn(TemplateBase):
             if cidx % 2 == 1:
                 clkp_list.extend(inst.port_pins_iter('clkp'))
                 clkn_list.extend(inst.port_pins_iter('clkn'))
+                nclkn_list.append(inst.get_pin('nclkn'))
                 bp_list.append(inst.get_pin('biasp_a'))
             else:
                 clkp_list.extend(inst.port_pins_iter('clkn'))
                 clkn_list.extend(inst.port_pins_iter('clkp'))
+                nclkp_list.append(inst.get_pin('nclkn'))
                 bn_list.append(inst.get_pin('biasp_a'))
             m_list.append(inst_list[(cidx + 1) % 4].get_pin('biasn_m'))
             # connect cascode biases
@@ -1497,6 +1508,8 @@ class TapXColumn(TemplateBase):
         trn = track_info['clkn'][0]
         clkp, clkn = self.connect_differential_tracks(clkp_list, clkn_list, vm_layer, trp, trn,
                                                       width=vm_w_clk)
+        self.connect_differential_tracks(nclkp_list, nclkn_list, vm_layer, trp, trn,
+                                         width=vm_w_clk)
         self.add_pin('clkp', clkp, show=show_pins)
         self.add_pin('clkn', clkn, show=show_pins)
         # connect latch bias
