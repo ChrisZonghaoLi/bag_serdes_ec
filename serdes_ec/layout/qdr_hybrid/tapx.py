@@ -227,7 +227,7 @@ class TapXSummerCell(TemplateBase):
             lat_params=l_master.sch_params,
         )
         self._lat_row_layout_info = l_master.row_layout_info
-        self._lat_edge_info = l_master.get_right_edge_info()
+        self._lat_edge_info = l_master.lr_edge_info[1]
         self._lat_track_info = l_master.track_info
         self._amp_masters = s_master, l_master
         self._sd_pitch = s_master.sd_pitch_unit
@@ -390,9 +390,9 @@ class TapXSummerLast(TemplateBase):
             show_pins=False,
         )
         if dig_abut_mode & 1 != 0:
-            dig_params['laygo_endl_infos'] = left_edge_info
+            dig_params['laygo_edgel'] = left_edge_info
         if dig_abut_mode & 2 != 0:
-            dig_params['laygo_endr_infos'] = right_edge_info
+            dig_params['laygo_edger'] = right_edge_info
 
         if no_dig:
             # no digital block, draw LaygoDummy
