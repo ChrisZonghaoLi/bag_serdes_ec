@@ -518,7 +518,7 @@ class Retimer(StdDigitalTemplate):
                     clk_name = 'clk<3>'
                     clkb_name = 'clk<1>'
                 if idx < 2:
-                    self.add_pin(clk_name, inst.get_pin('nclkb'), label=clk_name + ':',
+                    self.add_pin(clk_name, inst.get_pin('nclk'), label=clk_name + ':',
                                  show=show_pins)
                     self.add_pin(clkb_name, inst.get_pin('clkb', layer=ym_layer),
                                  label=clkb_name + ':', show=show_pins)
@@ -741,22 +741,30 @@ class RetimerColumn(StdDigitalTemplate):
         # export clock buffer pins
         for name in ('des_clk', 'des_clkb'):
             self.reexport(buf_inst.get_port(name), show=show_pins)
-        self.reexport(buf_inst.get_port('en<3>'), label='en<3>:', show=show_pins)
-        self.reexport(buf_inst.get_port('en<1>'), label='en<1>:', show=show_pins)
 
-        # export retimer pins
+        # export retimer pins, and connect/export clock wires
+        hm_layer = self.conn_layer + 1
+        ym_layer = hm_layer + 1
         for idx in range(4):
-            pin_name = 'out<%d>' % idx
+            suf = '<%d>' % idx
+            pin_name = 'out' + suf
             self.add_pin('data<%d>' % ((idx + 1) % 4), data_inst.get_pin(pin_name), show=show_pins)
-            self.add_pin('dlev<%d>' % idx, dlev_inst.get_pin(pin_name), show=show_pins)
-            pin_name = 'in<%d>' % idx
-            self.add_pin('sa_data<%d>' % idx, data_inst.get_pin(pin_name), show=show_pins)
-            self.add_pin('sa_dlev<%d>' % idx, dlev_inst.get_pin(pin_name), show=show_pins)
-            en_name = 'en<%d>' % idx
-            self.add_pin(en_name, data_inst.get_all_port_pins('clk<%d>' % idx),
-                         label=en_name + ':', show=show_pins)
-            self.add_pin(en_name, dlev_inst.get_all_port_pins('clk<%d>' % idx),
-                         label=en_name + ':', show=show_pins)
+            self.add_pin('dlev' + suf, dlev_inst.get_pin(pin_name), show=show_pins)
+            pin_name = 'in' + suf
+            self.add_pin('sa_data' + suf, data_inst.get_pin(pin_name), show=show_pins)
+            self.add_pin('sa_dlev' + suf, dlev_inst.get_pin(pin_name), show=show_pins)
+
+            clk_name = 'clk' + suf
+            en_name = 'en' + suf
+            hm_en_warrs = []
+            vm_en_warrs = []
+            hm_en_warrs.extend(buf_inst.port_pins_iter(en_name))
+            hm_en_warrs.extend(data_inst.port_pins_iter(clk_name, layer=hm_layer))
+            hm_en_warrs.extend(dlev_inst.port_pins_iter(clk_name, layer=hm_layer))
+            vm_en_warrs.extend(data_inst.port_pins_iter(clk_name, layer=ym_layer))
+            vm_en_warrs.extend(dlev_inst.port_pins_iter(clk_name, layer=ym_layer))
+            en = self.connect_to_track_wires(hm_en_warrs, vm_en_warrs)
+            self.add_pin(en_name, en, show=show_pins)
 
         # connect supplies
         vdd_list, vss_list = [], []
