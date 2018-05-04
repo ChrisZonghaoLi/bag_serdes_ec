@@ -1493,7 +1493,9 @@ class TapXColumn(TemplateBase):
         self.add_pin('VSS', vm_vss_list, show=show_pins)
 
         # set size
-        bnd_box = bot_row.bound_box.merge(top_row.bound_box)
+        blk_w = self.grid.get_block_size(vm_layer, unit_mode=True)[0]
+        bnd_box = bot_row.bound_box.merge(top_row.bound_box).extend()
+        bnd_xr = -(-max(bnd_box.right_unit, bnd_xr) // blk_w) * blk_w
         bnd_box = bnd_box.extend(x=bnd_xr, unit_mode=True).extend(x=0, unit_mode=True)
         self.set_size_from_bound_box(vm_layer, bnd_box)
         self.array_box = bnd_box
