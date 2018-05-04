@@ -64,6 +64,7 @@ class SenseAmpStrongArm(LaygoBase):
             min_height='Minimum height.',
             sup_tids='supply track information.',
             in_tids='input track information.',
+            clk_tidx='If given, connect clock to this track index.',
             show_pins='True to draw pin geometries.',
             export_probe='True to export probe pins.',
         )
@@ -77,6 +78,7 @@ class SenseAmpStrongArm(LaygoBase):
             min_height=0,
             sup_tids=None,
             in_tids=None,
+            clk_tidx=None,
             show_pins=True,
             export_probe=False,
         )
@@ -95,6 +97,7 @@ class SenseAmpStrongArm(LaygoBase):
         min_height = self.params['min_height']
         sup_tids = self.params['sup_tids']
         in_tids = self.params['in_tids']
+        clk_tidx = self.params['clk_tidx']
         show_pins = self.params['show_pins']
         export_probe = self.params['export_probe'] and show_pins
 
@@ -496,6 +499,9 @@ class SenseAmpStrongArm(LaygoBase):
         # connect ym wires
         clk_tid = TrackID(ym_layer, clk_idx, width=tr_manager.get_width(ym_layer, 'clk'))
         clk_warr = self.connect_to_tracks(clk_list, clk_tid)
+        if clk_tidx is not None:
+            clk_tid = TrackID(xm_layer, clk_tidx, width=tr_manager.get_width(xm_layer, 'clk'))
+            clk_warr = self.connect_to_tracks(clk_warr, clk_tid)
         self.add_pin('clk', clk_warr, show=show_pins)
 
         tr_w_out_ym = tr_manager.get_width(ym_layer, 'out')

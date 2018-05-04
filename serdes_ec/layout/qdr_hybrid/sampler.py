@@ -71,6 +71,7 @@ class SenseAmpColumn(TemplateBase):
             sup_tids='supply tracks information.',
             data_tids='data input tracks information.',
             dlev_tids='dlev input tracks information.',
+            clk_tidx='sense amplifier clock track index.',
             options='other AnalogBase options',
             show_pins='True to draw pin geometries.',
         )
@@ -79,6 +80,7 @@ class SenseAmpColumn(TemplateBase):
     def get_default_param_values(cls):
         # type: () -> Dict[str, Any]
         return dict(
+            clk_tidx=None,
             options=None,
             show_pins=True,
         )
@@ -94,6 +96,7 @@ class SenseAmpColumn(TemplateBase):
         sup_tids = self.params['sup_tids']
         data_tids = self.params['data_tids']
         dlev_tids = self.params['dlev_tids']
+        clk_tidx = self.params['clk_tidx']
         options = self.params['options']
         show_pins = self.params['show_pins']
 
@@ -102,7 +105,8 @@ class SenseAmpColumn(TemplateBase):
         bot_params = dict(config=config, w_dict=w_dict, th_dict=th_dict, seg_dict=seg_dict,
                           tr_widths=tr_widths, tr_spaces=tr_spaces, top_layer=top_layer,
                           draw_boundaries=True, end_mode=12, show_pins=False, export_probe=False,
-                          sup_tids=sup_tids[0], min_height=row_heights[0], in_tids=dlev_tids)
+                          sup_tids=sup_tids[0], min_height=row_heights[0], in_tids=dlev_tids,
+                          clk_tidx=clk_tidx)
 
         # create masters
         bot_master = self.new_template(params=bot_params, temp_cls=SenseAmpStrongArm)
@@ -193,6 +197,7 @@ class DividerColumn(TemplateBase):
         TemplateBase.__init__(self, temp_db, lib_name, params, used_names, **kwargs)
         self._sch_params = None
         self._fg_tot = None
+        self._sa_clk_tidx = None
 
     @property
     def sch_params(self):
@@ -203,6 +208,10 @@ class DividerColumn(TemplateBase):
     def fg_tot(self):
         # type: () -> int
         return self._fg_tot
+
+    @property
+    def sa_clk_tidx(self):
+        return self._sa_clk_tidx
 
     @classmethod
     def get_params_info(cls):
@@ -265,6 +274,7 @@ class DividerColumn(TemplateBase):
         div_params['div_pos_edge'] = invert_clk
         divn_master = self.new_template(params=div_params, temp_cls=SinClkDivider)
         self._fg_tot = divp_master.fg_tot
+        self._sa_clk_tidx = divp_master.sa_clk_tidx
 
         dums_params = dict(config=config, row_layout_info=sum_row_info, num_col=self._fg_tot,
                            tr_widths=tr_widths, tr_spaces=tr_spaces, sup_tids=sup_tids[0],
@@ -868,19 +878,6 @@ class SamplerColumn(TemplateBase):
 
         debug = True
 
-        # create masters
-        sa_params = sa_params.copy()
-        sa_params['config'] = config
-        sa_params['tr_widths'] = tr_widths
-        sa_params['tr_spaces'] = tr_spaces
-        sa_params['row_heights'] = row_heights
-        sa_params['sup_tids'] = sup_tids
-        sa_params['data_tids'] = data_tids
-        sa_params['dlev_tids'] = dlev_tids
-        sa_params['options'] = options
-        sa_params['show_pins'] = debug
-        sa_master = self.new_template(params=sa_params, temp_cls=SenseAmpColumn)
-
         div_params = div_params.copy()
         div_params['config'] = config
         div_params['sum_row_info'] = sum_row_info
@@ -892,6 +889,20 @@ class SamplerColumn(TemplateBase):
         div_params['options'] = options
         div_params['show_pins'] = debug
         div_master = self.new_template(params=div_params, temp_cls=DividerColumn)
+
+        # create masters
+        sa_params = sa_params.copy()
+        sa_params['config'] = config
+        sa_params['tr_widths'] = tr_widths
+        sa_params['tr_spaces'] = tr_spaces
+        sa_params['row_heights'] = row_heights
+        sa_params['sup_tids'] = sup_tids
+        sa_params['data_tids'] = data_tids
+        sa_params['dlev_tids'] = dlev_tids
+        sa_params['clk_tidx'] = div_master.sa_clk_tidx
+        sa_params['options'] = options
+        sa_params['show_pins'] = debug
+        sa_master = self.new_template(params=sa_params, temp_cls=SenseAmpColumn)
 
         re_params = re_params.copy()
         re_params['config'] = config
