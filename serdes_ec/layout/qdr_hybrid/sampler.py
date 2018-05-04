@@ -894,8 +894,6 @@ class SamplerColumn(TemplateBase):
 
         re_params = re_params.copy()
         re_params['config'] = config
-        re_params['tr_widths'] = tr_widths
-        re_params['tr_spaces'] = tr_spaces
         re_params['show_pins'] = debug
         re_master = self.new_template(params=re_params, temp_cls=RetimerColumn)
 
