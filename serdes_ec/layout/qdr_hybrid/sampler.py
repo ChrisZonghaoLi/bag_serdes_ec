@@ -4,6 +4,8 @@
 
 from typing import TYPE_CHECKING, Dict, Any, Set
 
+from itertools import repeat, chain
+
 from bag.layout.util import BBox
 from bag.layout.routing.base import TrackManager
 from bag.layout.template import TemplateBase
@@ -678,11 +680,16 @@ class RetimerColumn(StdDigitalTemplate):
         # type: (TemplateDB, str, Dict[str, Any], Set[str], **Any) -> None
         StdDigitalTemplate.__init__(self, temp_db, lib_name, params, used_names, **kwargs)
         self._sch_params = None
+        self._xen3 = None
 
     @property
     def sch_params(self):
         # type: () -> Dict[str, Any]
         return self._sch_params
+
+    @property
+    def xen3(self):
+        return self._xen3
 
     @classmethod
     def get_params_info(cls):
@@ -757,14 +764,17 @@ class RetimerColumn(StdDigitalTemplate):
             clk_name = 'clk' + suf
             en_name = 'en' + suf
             hm_en_warrs = []
-            vm_en_warrs = []
+            ym_en_warrs = []
             hm_en_warrs.extend(buf_inst.port_pins_iter(en_name))
             hm_en_warrs.extend(data_inst.port_pins_iter(clk_name, layer=hm_layer))
             hm_en_warrs.extend(dlev_inst.port_pins_iter(clk_name, layer=hm_layer))
-            vm_en_warrs.extend(data_inst.port_pins_iter(clk_name, layer=ym_layer))
-            vm_en_warrs.extend(dlev_inst.port_pins_iter(clk_name, layer=ym_layer))
-            en = self.connect_to_track_wires(hm_en_warrs, vm_en_warrs)
+            ym_en_warrs.extend(data_inst.port_pins_iter(clk_name, layer=ym_layer))
+            ym_en_warrs.extend(dlev_inst.port_pins_iter(clk_name, layer=ym_layer))
+            en = self.connect_to_track_wires(hm_en_warrs, ym_en_warrs)[0]
             self.add_pin(en_name, en, show=show_pins)
+            if idx == 3:
+                self._xen3 = self.grid.track_to_coord(ym_layer, en.track_id.base_index,
+                                                      unit_mode=True)
 
         # connect supplies
         vdd_list, vss_list = [], []
@@ -884,22 +894,38 @@ class SamplerColumn(TemplateBase):
 
         re_params = re_params.copy()
         re_params['config'] = config
+        re_params['tr_widths'] = tr_widths
+        re_params['tr_spaces'] = tr_spaces
         re_params['show_pins'] = debug
         re_master = self.new_template(params=re_params, temp_cls=RetimerColumn)
 
+        # place sensamp and divider
         sa_inst = self.add_instance(sa_master, 'XSA', unit_mode=True)
         x0 = sa_inst.bound_box.right_unit
         div_inst = self.add_instance(div_master, 'XDIV', loc=(x0, 0), unit_mode=True)
         div_box = div_inst.bound_box
         x0 = div_box.right_unit
+
+        # allocate tracks, and compute retimer placement
+        vm_layer = re_master.conn_layer + 2
+        tr_manager = TrackManager(self.grid, tr_widths, tr_spaces, half_space=True)
+
+        tr0 = self.grid.coord_to_nearest_track(vm_layer, x0, half_track=True,
+                                               mode=1, unit_mode=True)
+        wtype_list = list(chain(['sup'], repeat('sig', 8), ['sup', 'clk']))
+        ntr, locs = tr_manager.place_wires(vm_layer, wtype_list, start_idx=tr0)
+        xen3_targ = self.grid.track_to_coord(vm_layer, locs[-1], unit_mode=True)
+        re_x0 = xen3_targ - re_master.xen3
         div_h = div_box.height_unit
         re_h = re_master.bound_box.height_unit
         y0 = (div_h - re_h) // 2
-        re_inst = self.add_instance(re_master, 'XRE', loc=(x0, y0), unit_mode=True)
+        re_inst = self.add_instance(re_master, 'XRE', loc=(re_x0, y0), unit_mode=True)
 
-        bnd_box = sa_inst.bound_box.merge(re_inst.bound_box)
-        self.set_size_from_bound_box(sa_master.top_layer, bnd_box)
-        self.array_box = bnd_box
+        top_layer = sa_master.top_layer
+        blk_w = self.grid.get_block_size(top_layer, unit_mode=True)[0]
+        xr = -(-re_inst.bound_box.right_unit // blk_w) * blk_w
+        self.array_box = bnd_box = sa_inst.bound_box.extend(x=xr, unit_mode=True)
+        self.set_size_from_bound_box(top_layer, bnd_box)
         self.add_cell_boundary(bnd_box)
 
         for name in re_inst.port_names_iter():
