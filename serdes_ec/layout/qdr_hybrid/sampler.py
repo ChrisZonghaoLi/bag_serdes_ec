@@ -5,6 +5,7 @@
 from typing import TYPE_CHECKING, Dict, Any, Set
 
 from bag.layout.util import BBox
+from bag.layout.routing.base import TrackManager
 from bag.layout.template import TemplateBase
 
 from abs_templates_ec.analog_core.base import AnalogBase, AnalogBaseEnd
@@ -396,6 +397,7 @@ class Retimer(StdDigitalTemplate):
             ncol_min='Minimum number of columns.',
             wp='pmos width.',
             wn='nmos width.',
+            row_layout_info='Row layout information dictionary.',
             show_pins='True to draw pin geometries.',
         )
 
@@ -407,6 +409,7 @@ class Retimer(StdDigitalTemplate):
             ncol_min=0,
             wp=None,
             wn=None,
+            row_layout_info=None,
             show_pins=True,
         )
 
@@ -415,36 +418,62 @@ class Retimer(StdDigitalTemplate):
 
         config = self.params['config']
         seg_dict = self.params['seg_dict']
+        tr_widths = self.params['tr_widths']
+        tr_spaces = self.params['tr_spaces']
         delay_ck3 = self.params['delay_ck3']
         ncol_min = self.params['ncol_min']
+        row_layout_info = self.params['row_layout_info']
         show_pins = self.params['show_pins']
 
         base_params = dict(
             config=config,
-            tr_widths=self.params['tr_widths'],
-            tr_spaces=self.params['tr_spaces'],
+            seg=seg_dict['latch'],
+            tr_widths=tr_widths,
+            tr_spaces=tr_spaces,
             wp=self.params['wp'],
             wn=self.params['wn'],
+            row_layout_info=row_layout_info,
             show_pins=False,
         )
 
-        base_params['seg'] = seg_dict['dff']
-        ff_master = self.new_template(params=base_params, temp_cls=DFlipFlopCK2)
-        base_params['seg'] = seg_dict['latch']
-        base_params['row_layout_info'] = ff_master.row_layout_info
-        lat_master = self.new_template(params=base_params, temp_cls=LatchCK2)
-        lat_out_tidx = lat_master.get_port('out_hm').get_pins()[0].track_id.base_index
+        # setup floorplan
+        lat0_master = self.new_template(params=base_params, temp_cls=LatchCK2)
+        base_params['row_layout_info'] = row_layout_info = lat0_master.row_layout_info
+        self.initialize(row_layout_info, 4)
+
+        # compute track locations
+        hm_layer = self.conn_layer + 1
+        ym_layer = hm_layer + 1
+        tr_manager = TrackManager(self.grid, tr_widths, tr_spaces, half_space=True)
+        clk0_tidx = lat0_master.get_port('clkb').get_pins()[0].track_id.base_index
+        clk1_tidx = tr_manager.get_next_track(ym_layer, clk0_tidx, 'clk', 'clk', up=False)
+        clk2_tidx = tr_manager.get_next_track(ym_layer, clk1_tidx, 'clk', 'clk', up=False)
+        clk3_tidx = tr_manager.get_next_track(ym_layer, clk2_tidx, 'clk', 'clk', up=False)
+
+        # make masters
+        base_params['sig_locs'] = {'clkb': clk1_tidx}
+        lat1_master = self.new_template(params=base_params, temp_cls=LatchCK2)
+        lat_out_tidx = lat1_master.get_port('out_hm').get_pins()[0].track_id.base_index
         base_params['seg_list'] = seg_dict['buf']
         base_params['sig_locs'] = {'in': lat_out_tidx}
         buf_master = self.new_template(params=base_params, temp_cls=InvChain)
+        base_params['seg'] = seg_dict['dff']
+        base_params['sig_locs'] = {'clk': clk2_tidx}
+        ff2_master = self.new_template(params=base_params, temp_cls=DFlipFlopCK2)
+        if delay_ck3:
+            base_params['sig_locs'] = {'clk': clk3_tidx}
+            inst3_master = self.new_template(params=base_params, temp_cls=DFlipFlopCK2)
+        else:
+            inst3_master = buf_master
 
+        # set size
         tap_ncol = self.sub_columns
-        ff_ncol = ff_master.num_cols
-        lat_ncol = lat_master.num_cols
+        ff_ncol = ff2_master.num_cols
+        lat_ncol = lat0_master.num_cols
         buf_ncol = buf_master.num_cols
         inst_ncol = max(ff_ncol, lat_ncol + blk_sp + buf_ncol)
         ncol = max(ncol_min, inst_ncol + 2 * blk_sp + 2 * tap_ncol)
-        self.initialize(ff_master.row_layout_info, 4, ncol)
+        self.set_digital_size(ncol)
 
         # draw taps and get supplies
         vdd_list, vss_list = [], []
@@ -459,14 +488,13 @@ class Retimer(StdDigitalTemplate):
         # draw instances
         cidx = tap_ncol + blk_sp
         if delay_ck3:
-            inst3 = self.add_digital_block(ff_master, (cidx, 3))
+            inst3 = self.add_digital_block(inst3_master, (cidx, 3))
         else:
-            inst3 = self.add_digital_block(buf_master, (cidx, 3))
-
-        ff2 = self.add_digital_block(ff_master, (cidx, 2))
-        lat1 = self.add_digital_block(lat_master, (cidx, 1))
+            inst3 = self.add_digital_block(inst3_master, (ncol - tap_ncol - blk_sp - buf_ncol, 3))
+        ff2 = self.add_digital_block(ff2_master, (cidx, 2))
+        lat1 = self.add_digital_block(lat1_master, (cidx, 1))
         buf1 = self.add_digital_block(buf_master, (cidx + lat_ncol + blk_sp, 1))
-        lat0 = self.add_digital_block(lat_master, (cidx, 0))
+        lat0 = self.add_digital_block(lat0_master, (cidx, 0))
         out_insts = [lat0, lat1, ff2, inst3]
         self.fill_space()
 
@@ -483,25 +511,29 @@ class Retimer(StdDigitalTemplate):
             self.add_pin('out<%d>' % idx, warr, show=show_pins)
             self.reexport(inst.get_port('in'), net_name='in<%d>' % idx, show=show_pins)
             if inst.has_port('clk'):
-                clk_tid = self.make_x_track_id(xm_layer, idx, tr_idx + 1)
-                clkb_tid = self.make_x_track_id(xm_layer, idx, tr_idx - 1)
-                clk_warr = self.connect_to_tracks(inst.get_pin('clk'), clk_tid, min_len_mode=-1)
-                clkb_warr = self.connect_to_tracks(inst.get_pin('clkb'), clkb_tid, min_len_mode=-1)
                 if idx % 2 == 0:
                     clk_name = 'clk<2>'
                     clkb_name = 'clk<0>'
                 else:
                     clk_name = 'clk<3>'
                     clkb_name = 'clk<1>'
-                self.add_pin(clk_name, clk_warr, label=clk_name + ':', show=show_pins)
-                self.add_pin(clkb_name, clkb_warr, label=clkb_name + ':', show=show_pins)
+                if idx < 2:
+                    self.add_pin(clk_name, inst.get_pin('nclkb'), label=clk_name + ':',
+                                 show=show_pins)
+                    self.add_pin(clkb_name, inst.get_pin('clkb', layer=ym_layer),
+                                 label=clkb_name + ':', show=show_pins)
+                else:
+                    self.add_pin(clk_name, inst.get_pin('clk', layer=ym_layer),
+                                 label=clk_name + ':', show=show_pins)
+                    self.add_pin(clkb_name, inst.get_pin('clkb_hm'), label=clkb_name + ':',
+                                 show=show_pins)
 
         self.add_pin('VDD', vdd, show=show_pins)
         self.add_pin('VSS', vss, show=show_pins)
 
         self._sch_params = dict(
-            ff_params=ff_master.sch_params,
-            lat_params=lat_master.sch_params,
+            ff_params=ff2_master.sch_params,
+            lat_params=lat0_master.sch_params,
             buf_params=buf_master.sch_params,
             delay_ck3=delay_ck3,
         )
@@ -602,7 +634,7 @@ class RetimerClkBuffer(StdDigitalTemplate):
         self.add_pin('VSS', vss, show=show_pins)
 
         # draw instances
-        cidx = tap_ncol + blk_sp
+        cidx = ncol - tap_ncol - blk_sp - buf_ncol
         buf0 = self.add_digital_block(buf_master, (cidx, 0))
         buf1 = self.add_digital_block(buf_master, (cidx, 1))
         self.fill_space()
@@ -815,7 +847,7 @@ class SamplerColumn(TemplateBase):
         options = self.params['options']
         show_pins = self.params['show_pins']
 
-        debug = False
+        debug = True
 
         # create masters
         sa_params = sa_params.copy()
