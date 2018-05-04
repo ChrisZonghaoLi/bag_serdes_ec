@@ -458,8 +458,11 @@ class Retimer(StdDigitalTemplate):
         cidx = tap_ncol + blk_sp
         if delay_ck3:
             inst3 = self.add_digital_block(ff_master, (cidx, 3))
+            self.reexport(inst3.get_port('clk'), net_name='clk<3>', show=show_pins)
+            self.reexport(inst3.get_port('clkb'), net_name='clk<1>', show=show_pins)
         else:
             inst3 = self.add_digital_block(buf_master, (cidx, 3))
+
         ff2 = self.add_digital_block(ff_master, (cidx, 2))
         lat1 = self.add_digital_block(lat_master, (cidx, 1))
         buf1 = self.add_digital_block(buf_master, (cidx + lat_ncol + blk_sp, 1))
@@ -467,7 +470,7 @@ class Retimer(StdDigitalTemplate):
         out_insts = [lat0, buf1, ff2, inst3]
         self.fill_space()
 
-        # export output
+        # export input/output
         xm_layer = self.conn_layer + 3
         num_x_tracks = self.get_num_x_tracks(xm_layer, half_int=True)
         tr_idx = (num_x_tracks // 2) / 2
@@ -475,6 +478,17 @@ class Retimer(StdDigitalTemplate):
             tid = self.make_x_track_id(xm_layer, idx, tr_idx)
             warr = self.connect_to_tracks(inst.get_pin('out'), tid, min_len_mode=1)
             self.add_pin('out<%d>' % idx, warr, show=show_pins)
+            self.reexport(inst.get_port('in'), net_name='in<%d>' % idx, show=show_pins)
+
+        self.reexport(lat1.get_port('out'), net_name='mid', show=show_pins)
+        self.reexport(buf1.get_port('in'), net_name='mid', show=show_pins)
+
+        self.reexport(ff2.get_port('clk'), net_name='clk<2>', show=show_pins)
+        self.reexport(ff2.get_port('clkb'), net_name='clk<0>', show=show_pins)
+        self.reexport(lat1.get_port('clk'), net_name='clk<3>', show=show_pins)
+        self.reexport(lat1.get_port('clkb'), net_name='clk<1>', show=show_pins)
+        self.reexport(lat0.get_port('clk'), net_name='clk<0>', show=show_pins)
+        self.reexport(lat0.get_port('clkb'), net_name='clk<2>', show=show_pins)
 
         self.add_pin('VDD', vdd, show=show_pins)
         self.add_pin('VSS', vss, show=show_pins)
