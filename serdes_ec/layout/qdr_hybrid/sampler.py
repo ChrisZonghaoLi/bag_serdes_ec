@@ -149,11 +149,13 @@ class SenseAmpColumn(TemplateBase):
                                     unit_mode=True)
 
         # set size
-        self.set_size_from_bound_box(top_layer, bot_row.bound_box.merge(top_row.bound_box))
-        self.array_box = self.bound_box
+        self.array_box = bnd_box = bot_row.bound_box.merge(top_row.bound_box)
+        self.set_size_from_bound_box(top_layer, bnd_box)
+        bnd_yc = bnd_box.yc_unit
 
         # reexport pins
         vss_list, vdd_list = [], []
+        mid_en_warrs = [None, None, None, None]
         for inst, in_idx, in_type in zip(inst_list, self.in_idx_list, self.in_type_list):
             self.reexport(inst.get_port('inp'), net_name='inp_%s<%d>' % (in_type, in_idx),
                           show=show_pins)
@@ -165,8 +167,22 @@ class SenseAmpColumn(TemplateBase):
             self.reexport(inst.get_port('out'), net_name='sa_%s<%d>' % (in_type, out_idx),
                           show=show_pins)
             en_name = 'en<%d>' % out_idx
-            self.reexport(inst.get_port('clk'), net_name=en_name, label=en_name + ':',
-                          show=show_pins)
+            en_warr = inst.get_pin('clk')
+            self.add_pin(en_name, en_warr, label=en_name + ':', show=show_pins)
+            if mid_en_warrs[out_idx] is None:
+                mid_en_warrs[out_idx] = en_warr
+            else:
+                yc_cur = self.grid.track_to_coord(en_warr.layer_id, en_warr.track_id.base_index,
+                                                  unit_mode=True)
+                mid_warr = mid_en_warrs[out_idx]
+                yc_mid = self.grid.track_to_coord(mid_warr.layer_id, mid_warr.track_id.base_index,
+                                                  unit_mode=True)
+                if abs(yc_cur - bnd_yc) < abs(yc_mid - bnd_yc):
+                    mid_en_warrs[out_idx] = en_warr
+
+        for idx, en_warr in enumerate(mid_en_warrs):
+            en_name = 'en<%d>' % idx
+            self.add_pin('mid_' + en_name, en_warr, label=en_name + ':', show=False)
 
         self.add_pin('VSS', vss_list, label='VSS:', show=show_pins)
         self.add_pin('VDD', vdd_list, label='VDD:', show=show_pins)
@@ -943,6 +959,10 @@ class SamplerColumn(TemplateBase):
         tr_w = tr_manager.get_width(vm_layer, 'out')
         self._connect_io(sa_inst, re_inst, sig_locs, tr_w, vm_layer)
 
+        # connect enable wires
+        ym_layer = vm_layer + 2
+        self._connect_clk(ym_layer, tr_manager, sa_inst, div_inst, re_inst)
+
         # export retimer outputs
         for name in re_inst.port_names_iter():
             if name.startswith('data') or name.startswith('dlev') or name.startswith('des_clk'):
@@ -953,6 +973,23 @@ class SamplerColumn(TemplateBase):
             div_params=div_master.sch_params,
             re_params=re_master.sch_params,
         )
+
+    def _connect_clk(self, ym_layer, tr_manager, sa_inst, div_inst, re_inst):
+        xc = div_inst.get_pin('en<0>').middle_unit
+        tr0 = self.grid.coord_to_nearest_track(ym_layer, xc, half_track=True, mode=-1,
+                                               unit_mode=True)
+
+        locs = tr_manager.place_wires(ym_layer, ['clk', 'clk', 'clk', 'clk'])[1]
+        dtr = tr0 - self.grid.get_middle_track(locs[1], locs[2], round_up=False)
+
+        tr_w = tr_manager.get_width(ym_layer, 'clk')
+        for idx in range(4):
+            en_name = 'en<%d>' % idx
+            en_list = sa_inst.get_all_port_pins(en_name)
+            en_list.extend(div_inst.port_pins_iter(en_name))
+            ym_tr = self.connect_to_tracks(en_list, TrackID(ym_layer, locs[idx] + dtr, width=tr_w))
+            en_re = re_inst.get_pin(en_name)
+            self.connect_to_track_wires([ym_tr, en_re], sa_inst.get_pin('mid_en<%d>' % idx))
 
     def _connect_io(self, sa_inst, re_inst, sig_locs, tr_w, vm_layer):
         tr_off = 1
