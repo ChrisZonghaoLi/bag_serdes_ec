@@ -706,23 +706,33 @@ class RetimerColumn(StdDigitalTemplate):
         dlev_inst = self.add_digital_block(dlev_master, (0, nrow_retime + nrow_buf))
         self.fill_space()
 
-        # export clock output
-        for name in ('des_clk', 'des_clkb', 'en<3>', 'en<1>'):
+        # export clock buffer pins
+        for name in ('des_clk', 'des_clkb'):
             self.reexport(buf_inst.get_port(name), show=show_pins)
+        self.reexport(buf_inst.get_port('en<3>'), label='en<3>:', show=show_pins)
+        self.reexport(buf_inst.get_port('en<1>'), label='en<1>:', show=show_pins)
 
-        # export output
+        # export retimer pins
         for idx in range(4):
             pin_name = 'out<%d>' % idx
-            self.add_pin('data<%d>' % idx, data_inst.get_pin(pin_name), show=show_pins)
+            self.add_pin('data<%d>' % ((idx + 1) % 4), data_inst.get_pin(pin_name), show=show_pins)
             self.add_pin('dlev<%d>' % idx, dlev_inst.get_pin(pin_name), show=show_pins)
+            pin_name = 'in<%d>' % idx
+            self.add_pin('sa_data<%d>' % idx, data_inst.get_pin(pin_name), show=show_pins)
+            self.add_pin('sa_dlev<%d>' % idx, dlev_inst.get_pin(pin_name), show=show_pins)
+            en_name = 'en<%d>' % idx
+            self.add_pin(en_name, data_inst.get_all_port_pins('clk<%d>' % idx),
+                         label=en_name + ':', show=show_pins)
+            self.add_pin(en_name, dlev_inst.get_all_port_pins('clk<%d>' % idx),
+                         label=en_name + ':', show=show_pins)
 
         # connect supplies
         vdd_list, vss_list = [], []
         for inst in (data_inst, dlev_inst, buf_inst):
             vdd_list.extend(inst.port_pins_iter('VDD'))
             vss_list.extend(inst.port_pins_iter('VSS'))
-        self.add_pin('VDD', self.connect_wires(vdd_list), show=show_pins)
-        self.add_pin('VSS', self.connect_wires(vss_list), show=show_pins)
+        self.add_pin('VDD', self.connect_wires(vdd_list), label='VDD:', show=show_pins)
+        self.add_pin('VSS', self.connect_wires(vss_list), label='VSS:', show=show_pins)
 
         self._sch_params = data_master.sch_params.copy()
         del self._sch_params['delay_ck3']
