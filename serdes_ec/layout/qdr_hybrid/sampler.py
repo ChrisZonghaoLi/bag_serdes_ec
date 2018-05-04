@@ -157,7 +157,9 @@ class SenseAmpColumn(TemplateBase):
             out_idx = (in_idx - 2) % 4
             self.reexport(inst.get_port('out'), net_name='sa_%s<%d>' % (in_type, out_idx),
                           show=show_pins)
-            self.reexport(inst.get_port('clk'), net_name='en<%d>' % out_idx, show=show_pins)
+            en_name = 'en<%d>' % out_idx
+            self.reexport(inst.get_port('clk'), net_name=en_name, label=en_name + ':',
+                          show=show_pins)
 
         self.add_pin('VSS', vss_list, label='VSS:', show=show_pins)
         self.add_pin('VDD', vdd_list, label='VDD:', show=show_pins)
