@@ -433,7 +433,9 @@ class Retimer(StdDigitalTemplate):
         base_params['seg'] = seg_dict['latch']
         base_params['row_layout_info'] = ff_master.row_layout_info
         lat_master = self.new_template(params=base_params, temp_cls=LatchCK2)
+        lat_out_tidx = lat_master.get_port('out_hm').get_pins()[0].track_id.base_index
         base_params['seg_list'] = seg_dict['buf']
+        base_params['sig_locs'] = {'in': lat_out_tidx}
         buf_master = self.new_template(params=base_params, temp_cls=InvChain)
 
         tap_ncol = self.sub_columns
@@ -458,8 +460,6 @@ class Retimer(StdDigitalTemplate):
         cidx = tap_ncol + blk_sp
         if delay_ck3:
             inst3 = self.add_digital_block(ff_master, (cidx, 3))
-            self.reexport(inst3.get_port('clk'), net_name='clk<3>', show=show_pins)
-            self.reexport(inst3.get_port('clkb'), net_name='clk<1>', show=show_pins)
         else:
             inst3 = self.add_digital_block(buf_master, (cidx, 3))
 
@@ -467,28 +467,34 @@ class Retimer(StdDigitalTemplate):
         lat1 = self.add_digital_block(lat_master, (cidx, 1))
         buf1 = self.add_digital_block(buf_master, (cidx + lat_ncol + blk_sp, 1))
         lat0 = self.add_digital_block(lat_master, (cidx, 0))
-        out_insts = [lat0, buf1, ff2, inst3]
+        out_insts = [lat0, lat1, ff2, inst3]
         self.fill_space()
 
-        # export input/output
+        self.connect_wires([lat1.get_pin('out_hm'), buf1.get_pin('in')])
+
+        # export input/output/clk
         xm_layer = self.conn_layer + 3
         num_x_tracks = self.get_num_x_tracks(xm_layer, half_int=True)
         tr_idx = (num_x_tracks // 2) / 2
         for idx, inst in enumerate(out_insts):
             tid = self.make_x_track_id(xm_layer, idx, tr_idx)
-            warr = self.connect_to_tracks(inst.get_pin('out'), tid, min_len_mode=1)
+            out_inst = buf1 if idx == 1 else inst
+            warr = self.connect_to_tracks(out_inst.get_pin('out'), tid, min_len_mode=1)
             self.add_pin('out<%d>' % idx, warr, show=show_pins)
             self.reexport(inst.get_port('in'), net_name='in<%d>' % idx, show=show_pins)
-
-        self.reexport(lat1.get_port('out'), net_name='mid', show=show_pins)
-        self.reexport(buf1.get_port('in'), net_name='mid', show=show_pins)
-
-        self.reexport(ff2.get_port('clk'), net_name='clk<2>', show=show_pins)
-        self.reexport(ff2.get_port('clkb'), net_name='clk<0>', show=show_pins)
-        self.reexport(lat1.get_port('clk'), net_name='clk<3>', show=show_pins)
-        self.reexport(lat1.get_port('clkb'), net_name='clk<1>', show=show_pins)
-        self.reexport(lat0.get_port('clk'), net_name='clk<0>', show=show_pins)
-        self.reexport(lat0.get_port('clkb'), net_name='clk<2>', show=show_pins)
+            if inst.has_port('clk'):
+                clk_tid = self.make_x_track_id(xm_layer, idx, tr_idx + 1)
+                clkb_tid = self.make_x_track_id(xm_layer, idx, tr_idx - 1)
+                clk_warr = self.connect_to_tracks(inst.get_pin('clk'), clk_tid, min_len_mode=-1)
+                clkb_warr = self.connect_to_tracks(inst.get_pin('clkb'), clkb_tid, min_len_mode=-1)
+                if idx % 2 == 0:
+                    clk_name = 'clk<2>'
+                    clkb_name = 'clk<0>'
+                else:
+                    clk_name = 'clk<3>'
+                    clkb_name = 'clk<1>'
+                self.add_pin(clk_name, clk_warr, label=clk_name + ':', show=show_pins)
+                self.add_pin(clkb_name, clkb_warr, label=clkb_name + ':', show=show_pins)
 
         self.add_pin('VDD', vdd, show=show_pins)
         self.add_pin('VSS', vss, show=show_pins)
