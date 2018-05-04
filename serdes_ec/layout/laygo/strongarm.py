@@ -464,9 +464,8 @@ class SenseAmpStrongArm(LaygoBase):
         out_tid = self.grid.coord_to_nearest_track(ym_layer, buf_noutr.middle_unit,
                                                    half_track=True, mode=-1, unit_mode=True)
         self.connect_to_tracks([buf_noutl, buf_poutl], TrackID(ym_layer, outb_tid, width=ym_w_out))
-        out = self.connect_to_tracks([buf_noutr, buf_poutr],
-                                     TrackID(ym_layer, out_tid, width=ym_w_out))
-        self.add_pin('out', out, show=show_pins)
+        out_warr = self.connect_to_tracks([buf_noutr, buf_poutr],
+                                          TrackID(ym_layer, out_tid, width=ym_w_out))
 
         # connect nand ym wires
         nand_outl_id = self.grid.coord_to_nearest_track(ym_layer, nand_outnl.middle_unit,
@@ -520,15 +519,20 @@ class SenseAmpStrongArm(LaygoBase):
         om_idx = self.grid.coord_to_nearest_track(xm_layer, outp1.middle, half_track=True)
         _, loc_xm_out = tr_manager.place_wires(xm_layer, ['out', 'out'])
         out_mid_idx = (loc_xm_out[0] + loc_xm_out[1]) / 2
-        outp_idx = loc_xm_out[1] + om_idx - out_mid_idx
-        outn_idx = loc_xm_out[0] + om_idx - out_mid_idx
+        midp_idx = loc_xm_out[1] + om_idx - out_mid_idx
+        midn_idx = loc_xm_out[0] + om_idx - out_mid_idx
         tr_w_out_xm = tr_manager.get_width(xm_layer, 'out')
-        outp, outn = self.connect_differential_tracks([outp1, outp2], [outn1, outn2], xm_layer,
-                                                      outp_idx, outn_idx, width=tr_w_out_xm)
-        self.add_pin('midp', outp, show=export_probe)
-        self.add_pin('midn', outn, show=export_probe)
-        self.connect_differential_tracks(outn, outp, ym_layer, nand_inn_tid, nand_inp_tid,
+        midp, midn = self.connect_differential_tracks([outp1, outp2], [outn1, outn2], xm_layer,
+                                                      midp_idx, midn_idx, width=tr_w_out_xm)
+        self.add_pin('midp', midp, show=export_probe)
+        self.add_pin('midn', midn, show=export_probe)
+        self.connect_differential_tracks(midn, midp, ym_layer, nand_inn_tid, nand_inp_tid,
                                          width=ym_w_out)
+
+        out_xm_idx = self.grid.get_middle_track(midn_idx, midp_idx, round_up=True)
+        out_warr = self.connect_to_tracks(out_warr, TrackID(xm_layer, out_xm_idx,
+                                                            width=tr_w_out_xm))
+        self.add_pin('out', out_warr, show=show_pins)
 
         # set schematic parameters
         self._sch_params = dict(
