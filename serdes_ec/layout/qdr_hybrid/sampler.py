@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Dict, Any, Set
 from itertools import repeat, chain
 
 from bag.layout.util import BBox
-from bag.layout.routing.base import TrackManager
+from bag.layout.routing.base import TrackManager, TrackID
 from bag.layout.template import TemplateBase
 
 from abs_templates_ec.analog_core.base import AnalogBase, AnalogBaseEnd
@@ -737,12 +737,13 @@ class RetimerColumn(StdDigitalTemplate):
 
         ncol, nrow_retime = data_master.digital_size
         nrow_buf = buf_master.digital_size[1]
-        self.initialize(data_master.row_layout_info, nrow_retime * 2 + nrow_buf, ncol,
+        nrow_tot = nrow_retime * 2 + nrow_buf
+        self.initialize(data_master.row_layout_info, nrow_tot, ncol,
                         draw_boundaries=True, end_mode=15)
 
-        data_inst = self.add_digital_block(data_master, (0, 0))
+        data_inst = self.add_digital_block(data_master, (0, nrow_tot - 1))
         buf_inst = self.add_digital_block(buf_master, (0, nrow_retime))
-        dlev_inst = self.add_digital_block(dlev_master, (0, nrow_retime + nrow_buf))
+        dlev_inst = self.add_digital_block(dlev_master, (0, nrow_retime - 1))
         self.fill_space()
 
         # export clock buffer pins
@@ -910,15 +911,16 @@ class SamplerColumn(TemplateBase):
 
         tr0 = self.grid.coord_to_nearest_track(vm_layer, x0, half_track=True,
                                                mode=1, unit_mode=True)
-        wtype_list = list(chain(['sup'], repeat('sig', 8), ['sup', 'clk']))
-        ntr, locs = tr_manager.place_wires(vm_layer, wtype_list, start_idx=tr0)
-        xen3_targ = self.grid.track_to_coord(vm_layer, locs[-1], unit_mode=True)
+        wtype_list = list(chain(['sup'], repeat('out', 8), ['sup', 'clk']))
+        ntr, sig_locs = tr_manager.place_wires(vm_layer, wtype_list, start_idx=tr0)
+        xen3_targ = self.grid.track_to_coord(vm_layer, sig_locs[-1], unit_mode=True)
         re_x0 = xen3_targ - re_master.xen3
         div_h = div_box.height_unit
         re_h = re_master.bound_box.height_unit
         y0 = (div_h - re_h) // 2
         re_inst = self.add_instance(re_master, 'XRE', loc=(re_x0, y0), unit_mode=True)
 
+        # set size
         top_layer = sa_master.top_layer
         blk_w = self.grid.get_block_size(top_layer, unit_mode=True)[0]
         xr = -(-re_inst.bound_box.right_unit // blk_w) * blk_w
@@ -926,6 +928,11 @@ class SamplerColumn(TemplateBase):
         self.set_size_from_bound_box(top_layer, bnd_box)
         self.add_cell_boundary(bnd_box)
 
+        # connect senseamp outputs
+        tr_w = tr_manager.get_width(vm_layer, 'out')
+        self._connect_io(sa_inst, re_inst, sig_locs, tr_w, vm_layer)
+
+        # export retimer outputs
         for name in re_inst.port_names_iter():
             if name.startswith('data') or name.startswith('dlev') or name.startswith('des_clk'):
                 self.reexport(re_inst.get_port(name), show=show_pins)
@@ -935,3 +942,13 @@ class SamplerColumn(TemplateBase):
             div_params=div_master.sch_params,
             re_params=re_master.sch_params,
         )
+
+    def _connect_io(self, sa_inst, re_inst, sig_locs, tr_w, vm_layer):
+        tr_off = 1
+        for name in ('sa_dlev', 'sa_data'):
+            for idx in range(4):
+                pname = name + ('<%d>' % idx)
+                tr_idx = sig_locs[tr_off]
+                tr_off += 1
+                tid = TrackID(vm_layer, tr_idx, width=tr_w)
+                self.connect_to_tracks([sa_inst.get_pin(pname), re_inst.get_pin(pname)], tid)
