@@ -2,9 +2,9 @@
 
 """This module defines classes for Hybrid-QDR sampler/retimer."""
 
-from typing import TYPE_CHECKING, Dict, Any, Set
+from typing import TYPE_CHECKING, Dict, Any, Set, Tuple, Union
 
-from itertools import repeat, chain
+from itertools import chain
 
 from bag.layout.util import BBox
 from bag.layout.routing.base import TrackManager, TrackID
@@ -402,6 +402,7 @@ class Retimer(StdDigitalTemplate):
         StdDigitalTemplate.__init__(self, temp_db, lib_name, params, used_names, **kwargs)
         self._sch_params = None
         self._ncol = None
+        self._lr_vm_tidx = None
 
     @property
     def sch_params(self):
@@ -412,6 +413,11 @@ class Retimer(StdDigitalTemplate):
     def num_cols(self):
         # type: () -> int
         return self._ncol
+
+    @property
+    def lr_vm_tidx(self):
+        # type: () -> Tuple[Union[float, int], Union[float, int]]
+        return self._lr_vm_tidx
 
     @classmethod
     def get_params_info(cls):
@@ -536,6 +542,11 @@ class Retimer(StdDigitalTemplate):
             tid = self.make_x_track_id(xm_layer, idx, tr_idx)
             out_inst = buf1 if idx == 1 else inst
             warr = self.connect_to_tracks(out_inst.get_pin('out'), tid, min_len_mode=1)
+            cur_tidx = warr.track_id.base_index
+            if self._lr_vm_tidx is None:
+                self._lr_vm_tidx = [cur_tidx, cur_tidx]
+            else:
+                self._lr_vm_tidx[1] = max(self._lr_vm_tidx[1], cur_tidx)
             self.add_pin('out<%d>' % idx, warr, show=show_pins)
             self.reexport(inst.get_port('in'), net_name='in<%d>' % idx, show=show_pins)
             if inst.has_port('clk'):
@@ -546,13 +557,17 @@ class Retimer(StdDigitalTemplate):
                     clk_name = 'clk<3>'
                     clkb_name = 'clk<1>'
                 if idx < 2:
+                    clkb = inst.get_pin('clkb', layer=ym_layer)
+                    cur_tidx = clkb.track_id.base_index
+                    self._lr_vm_tidx[0] = min(cur_tidx, self._lr_vm_tidx[0])
                     self.add_pin(clk_name, inst.get_pin('nclk'), label=clk_name + ':',
                                  show=show_pins)
-                    self.add_pin(clkb_name, inst.get_pin('clkb', layer=ym_layer),
-                                 label=clkb_name + ':', show=show_pins)
+                    self.add_pin(clkb_name, clkb, label=clkb_name + ':', show=show_pins)
                 else:
-                    self.add_pin(clk_name, inst.get_pin('clk', layer=ym_layer),
-                                 label=clk_name + ':', show=show_pins)
+                    clk = inst.get_pin('clk', layer=ym_layer)
+                    cur_tidx = clk.track_id.base_index
+                    self._lr_vm_tidx[0] = min(cur_tidx, self._lr_vm_tidx[0])
+                    self.add_pin(clk_name, clk, label=clk_name + ':', show=show_pins)
                     self.add_pin(clkb_name, inst.get_pin('clkb_hm'), label=clkb_name + ':',
                                  show=show_pins)
 
@@ -591,6 +606,7 @@ class RetimerClkBuffer(StdDigitalTemplate):
         StdDigitalTemplate.__init__(self, temp_db, lib_name, params, used_names, **kwargs)
         self._sch_params = None
         self._ncol = None
+        self._r_vm_tidx = None
 
     @property
     def sch_params(self):
@@ -601,6 +617,10 @@ class RetimerClkBuffer(StdDigitalTemplate):
     def num_cols(self):
         # type: () -> int
         return self._ncol
+
+    @property
+    def r_vm_tidx(self):
+        return self._r_vm_tidx
 
     @classmethod
     def get_params_info(cls):
@@ -674,7 +694,9 @@ class RetimerClkBuffer(StdDigitalTemplate):
         for idx, inst, out_name, in_name in [(0, buf0, 'des_clkb', in0),
                                              (1, buf1, 'des_clk', in1)]:
             tid = self.make_x_track_id(xm_layer, idx, tr_idx)
-            warr = self.connect_to_tracks(inst.get_pin('out'), tid, min_len_mode=1)
+            out_warr = inst.get_pin('out')
+            self._r_vm_tidx = out_warr.track_id.base_index
+            warr = self.connect_to_tracks(out_warr, tid, min_len_mode=1)
             self.add_pin(out_name, warr, show=show_pins)
             self.add_pin(in_name, inst.get_pin('in'), show=show_pins)
 
@@ -706,7 +728,8 @@ class RetimerColumn(StdDigitalTemplate):
         # type: (TemplateDB, str, Dict[str, Any], Set[str], **Any) -> None
         StdDigitalTemplate.__init__(self, temp_db, lib_name, params, used_names, **kwargs)
         self._sch_params = None
-        self._xen3 = None
+        self._sig_locs = None
+        self._xsup = None
 
     @property
     def sch_params(self):
@@ -714,8 +737,13 @@ class RetimerColumn(StdDigitalTemplate):
         return self._sch_params
 
     @property
-    def xen3(self):
-        return self._xen3
+    def sig_locs(self):
+        return self._sig_locs
+
+    @property
+    def xsup(self):
+        # type: () -> int
+        return self._xsup
 
     @classmethod
     def get_params_info(cls):
@@ -741,6 +769,8 @@ class RetimerColumn(StdDigitalTemplate):
 
     def draw_layout(self):
         seg_dict = self.params['seg_dict']
+        tr_widths = self.params['tr_widths']
+        tr_spaces = self.params['tr_spaces']
         show_pins = self.params['show_pins']
 
         # make masters.  Make sure they have same number of columns
@@ -778,7 +808,7 @@ class RetimerColumn(StdDigitalTemplate):
 
         # export retimer pins, and connect/export clock wires
         hm_layer = self.conn_layer + 1
-        ym_layer = hm_layer + 1
+        vm_layer = hm_layer + 1
         for idx in range(4):
             suf = '<%d>' % idx
             pin_name = 'out' + suf
@@ -791,25 +821,52 @@ class RetimerColumn(StdDigitalTemplate):
             clk_name = 'clk' + suf
             en_name = 'en' + suf
             hm_en_warrs = []
-            ym_en_warrs = []
+            vm_en_warrs = []
             hm_en_warrs.extend(buf_inst.port_pins_iter(en_name))
             hm_en_warrs.extend(data_inst.port_pins_iter(clk_name, layer=hm_layer))
             hm_en_warrs.extend(dlev_inst.port_pins_iter(clk_name, layer=hm_layer))
-            ym_en_warrs.extend(data_inst.port_pins_iter(clk_name, layer=ym_layer))
-            ym_en_warrs.extend(dlev_inst.port_pins_iter(clk_name, layer=ym_layer))
-            en = self.connect_to_track_wires(hm_en_warrs, ym_en_warrs)[0]
+            vm_en_warrs.extend(data_inst.port_pins_iter(clk_name, layer=vm_layer))
+            vm_en_warrs.extend(dlev_inst.port_pins_iter(clk_name, layer=vm_layer))
+            en = self.connect_to_track_wires(hm_en_warrs, vm_en_warrs)[0]
             self.add_pin(en_name, en, show=show_pins)
-            if idx == 3:
-                self._xen3 = self.grid.track_to_coord(ym_layer, en.track_id.base_index,
-                                                      unit_mode=True)
+
+        # compute routing/supply tracks
+        l_vm_tidx = min(data_inst.translate_master_track(vm_layer, data_master.lr_vm_tidx[0]),
+                        dlev_inst.translate_master_track(vm_layer, dlev_master.lr_vm_tidx[0]))
+        r_vm_tidx = max(data_inst.translate_master_track(vm_layer, data_master.lr_vm_tidx[1]),
+                        dlev_inst.translate_master_track(vm_layer, dlev_master.lr_vm_tidx[1]),
+                        buf_inst.translate_master_track(vm_layer, buf_master.r_vm_tidx))
+
+        tr_manager = TrackManager(self.grid, tr_widths, tr_spaces, half_space=True)
+        sup_w = tr_manager.get_width(vm_layer, 'sup')
+        _, r_locs = tr_manager.place_wires(vm_layer, ['sig', 'sup', 'sup'])
+        deltar = r_vm_tidx - r_locs[0]
+        _, l_locs = tr_manager.place_wires(vm_layer, ['sup'] + ['sig'] * 8 + ['sup', 'clk'])
+        deltal = l_vm_tidx - l_locs[-1]
+        self._sig_locs = tuple((l_locs[idx] + deltal for idx in range(1, 9)))
+        vdd_tid = [TrackID(vm_layer, l_locs[-2] + deltal, width=sup_w),
+                   TrackID(vm_layer, r_locs[1] + deltar, width=sup_w)]
+        vssl_tidx = l_locs[0] + deltal
+        vss_tid = [TrackID(vm_layer, vssl_tidx, width=sup_w),
+                   TrackID(vm_layer, r_locs[-1] + deltar, width=sup_w)]
+
+        self._xsup = self.grid.track_to_coord(vm_layer, vssl_tidx, unit_mode=True)
 
         # connect supplies
         vdd_list, vss_list = [], []
         for inst in (data_inst, dlev_inst, buf_inst):
             vdd_list.extend(inst.port_pins_iter('VDD'))
             vss_list.extend(inst.port_pins_iter('VSS'))
-        self.add_pin('VDD', self.connect_wires(vdd_list), label='VDD:', show=show_pins)
-        self.add_pin('VSS', self.connect_wires(vss_list), label='VSS:', show=show_pins)
+
+        for idx in range(2):
+            vdd_warr = self.connect_to_tracks(vdd_list, vdd_tid[idx])
+            vss_warr = self.connect_to_tracks(vss_list, vss_tid[idx])
+            if idx == 1:
+                self.add_pin('VDDR', vdd_warr, label='VDD', show=show_pins)
+                self.add_pin('VSSR', vss_warr, label='VSS', show=show_pins)
+            else:
+                self.add_pin('VDDL', vdd_warr, label='VDD', show=show_pins)
+                self.add_pin('VSSL', vss_warr, label='VSS', show=show_pins)
 
         self._sch_params = data_master.sch_params.copy()
         del self._sch_params['delay_ck3']
@@ -892,8 +949,6 @@ class SamplerColumn(TemplateBase):
         options = self.params['options']
         show_pins = self.params['show_pins']
 
-        debug = True
-
         div_params = div_params.copy()
         div_params['config'] = config
         div_params['sum_row_info'] = sum_row_info
@@ -903,7 +958,7 @@ class SamplerColumn(TemplateBase):
         div_params['div_tr_info'] = div_tr_info
         div_params['sup_tids'] = sup_tids
         div_params['options'] = options
-        div_params['show_pins'] = debug
+        div_params['show_pins'] = False
         div_master = self.new_template(params=div_params, temp_cls=DividerColumn)
 
         # create masters
@@ -917,12 +972,12 @@ class SamplerColumn(TemplateBase):
         sa_params['dlev_tids'] = dlev_tids
         sa_params['clk_tidx'] = div_master.sa_clk_tidx
         sa_params['options'] = options
-        sa_params['show_pins'] = debug
+        sa_params['show_pins'] = False
         sa_master = self.new_template(params=sa_params, temp_cls=SenseAmpColumn)
 
         re_params = re_params.copy()
         re_params['config'] = config
-        re_params['show_pins'] = debug
+        re_params['show_pins'] = False
         re_master = self.new_template(params=re_params, temp_cls=RetimerColumn)
 
         # place sensamp and divider
@@ -932,16 +987,16 @@ class SamplerColumn(TemplateBase):
         div_box = div_inst.bound_box
         x0 = div_box.right_unit
 
-        # allocate tracks, and compute retimer placement
+        # compute retimer placement
         vm_layer = re_master.conn_layer + 2
         tr_manager = TrackManager(self.grid, tr_widths, tr_spaces, half_space=True)
 
         tr0 = self.grid.coord_to_nearest_track(vm_layer, x0, half_track=True,
                                                mode=1, unit_mode=True)
-        wtype_list = list(chain(['sup'], repeat('out', 8), ['sup', 'clk']))
-        ntr, sig_locs = tr_manager.place_wires(vm_layer, wtype_list, start_idx=tr0)
-        xen3_targ = self.grid.track_to_coord(vm_layer, sig_locs[-1], unit_mode=True)
-        re_x0 = xen3_targ - re_master.xen3
+        sup_loc = tr_manager.place_wires(vm_layer, ['sup'], start_idx=tr0)[1][0]
+
+        xsup_targ = self.grid.track_to_coord(vm_layer, sup_loc, unit_mode=True)
+        re_x0 = xsup_targ - re_master.xsup
         div_h = div_box.height_unit
         re_h = re_master.bound_box.height_unit
         y0 = (div_h - re_h) // 2
@@ -957,7 +1012,7 @@ class SamplerColumn(TemplateBase):
 
         # connect senseamp outputs
         tr_w = tr_manager.get_width(vm_layer, 'out')
-        self._connect_io(sa_inst, re_inst, sig_locs, tr_w, vm_layer)
+        self._connect_io(sa_inst, re_inst, re_master.sig_locs, tr_w, vm_layer, show_pins)
 
         # connect enable wires
         ym_layer = vm_layer + 2
@@ -968,11 +1023,43 @@ class SamplerColumn(TemplateBase):
             if name.startswith('data') or name.startswith('dlev') or name.startswith('des_clk'):
                 self.reexport(re_inst.get_port(name), show=show_pins)
 
+        # connect supplies
+        self._connect_supply(sa_inst, div_inst, re_inst, show_pins)
+
         self._sch_params = dict(
             sa_params=sa_master.sch_params,
             div_params=div_master.sch_params,
             re_params=re_master.sch_params,
         )
+
+    def _connect_supply(self, sa_inst, div_inst, re_inst, show_pins):
+        re_box = re_inst.bound_box
+        re_yb, re_yt = re_box.bottom_unit, re_box.top_unit
+        vdd_list = []
+        vss_list = []
+        vddo_list = []
+        vsso_list = []
+        for pin in chain(sa_inst.port_pins_iter('VDD'), div_inst.port_pins_iter('VDD')):
+            vdd_list.append(pin)
+            yc = self.grid.track_to_coord(pin.layer_id, pin.track_id.base_index, unit_mode=True)
+            if yc < re_yb or yc > re_yt:
+                vddo_list.append(pin)
+        for pin in chain(sa_inst.port_pins_iter('VSS'), div_inst.port_pins_iter('VSS')):
+            vss_list.append(pin)
+            yc = self.grid.track_to_coord(pin.layer_id, pin.track_id.base_index, unit_mode=True)
+            if yc < re_yb or yc > re_yt:
+                vsso_list.append(pin)
+
+        re_vdd = re_inst.get_all_port_pins('VDDL')
+        re_vss = re_inst.get_all_port_pins('VSSL')
+        vdd_warrs = self.connect_to_track_wires(re_vdd, vdd_list)
+        vss_warrs = self.connect_to_track_wires(re_vss, vss_list)
+        re_vdd = re_inst.get_all_port_pins('VDDR')
+        re_vss = re_inst.get_all_port_pins('VSSR')
+        self.connect_to_track_wires(re_vdd, vddo_list)
+        self.connect_to_track_wires(re_vss, vsso_list)
+        self.add_pin('VDD', vdd_warrs, show=show_pins)
+        self.add_pin('VSS', vss_warrs, show=show_pins)
 
     def _connect_clk(self, ym_layer, tr_manager, sa_inst, div_inst, re_inst):
         xc = div_inst.get_pin('en<0>').middle_unit
@@ -991,12 +1078,15 @@ class SamplerColumn(TemplateBase):
             en_re = re_inst.get_pin(en_name)
             self.connect_to_track_wires([ym_tr, en_re], sa_inst.get_pin('mid_en<%d>' % idx))
 
-    def _connect_io(self, sa_inst, re_inst, sig_locs, tr_w, vm_layer):
-        tr_off = 1
-        for name in ('sa_dlev', 'sa_data'):
-            for idx in range(4):
-                pname = name + ('<%d>' % idx)
-                tr_idx = sig_locs[tr_off]
+    def _connect_io(self, sa_inst, re_inst, sig_locs_m, tr_w, vm_layer, show_pins):
+        tr_off = 0
+        for idx in range(4):
+            suf = '<%d>' % idx
+            for name in ('sa_dlev', 'sa_data'):
+                pname = name + suf
+                tr_idx = re_inst.translate_master_track(vm_layer, sig_locs_m[tr_off])
                 tr_off += 1
                 tid = TrackID(vm_layer, tr_idx, width=tr_w)
                 self.connect_to_tracks([sa_inst.get_pin(pname), re_inst.get_pin(pname)], tid)
+            for name in ('inp_data', 'inn_data', 'inp_dlev', 'inn_dlev'):
+                self.reexport(sa_inst.get_port(name + suf), show=show_pins)

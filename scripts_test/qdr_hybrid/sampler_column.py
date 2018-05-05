@@ -39,7 +39,7 @@ def run_main(prj):
     samp_specs['params'].update(sampler_info)
 
     prj.generate_cell(samp_specs, SamplerColumn, debug=True)
-    # prj.generate_cell(samp_specs, SamplerColumn, gen_sch=True, run_lvs=False, debug=True)
+    # prj.generate_cell(samp_specs, SamplerColumn, gen_sch=True, run_lvs=True, debug=True)
 
 
 if __name__ == '__main__':
