@@ -1163,8 +1163,12 @@ class TapXSummer(TemplateBase):
         instl = self.add_instance(last_master, 'XLAST', loc=(xcur, 0), unit_mode=True)
         vdd_list.extend(instl.port_pins_iter('VDD'))
         vss_list.extend(instl.port_pins_iter('VSS'))
+        instl_box = instl.bound_box
 
-        # record routing track locations, and update placement information
+        # record routing track locations
+        # note, starts at last instance boundary to prevent output shorting with divided clocks
+        ltr = max(ltr, self.grid.coord_to_nearest_track(vm_layer, inst.bound_box.right_unit,
+                                                        half_track=True, mode=-1, unit_mode=True))
         _, route_locs = tr_manager.place_wires(vm_layer, [1, 'out', 'out', 1, 'out', 'out', 1,
                                                           'out', 'out', 1])
 
@@ -1177,9 +1181,8 @@ class TapXSummer(TemplateBase):
             _record_track(self._dfe_track_info, 'outn_d%d<2>' % cidx, route_locs[x + 1] + offset)
 
         # set size
-        self.set_size_from_bound_box(vm_layer, instl.bound_box.merge(inst.bound_box),
-                                     round_up=True)
-        self.array_box = self.bound_box
+        self.array_box = bnd_box = instl_box.merge(inst.bound_box)
+        self.set_size_from_bound_box(vm_layer, bnd_box, round_up=True)
 
         # export last summer tap pins
         inp_pin = instl.get_pin('inp')
