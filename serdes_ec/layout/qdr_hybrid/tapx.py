@@ -1167,7 +1167,7 @@ class TapXSummer(TemplateBase):
 
         # record routing track locations
         # note, starts at last instance boundary to prevent output shorting with divided clocks
-        ltr = max(ltr, self.grid.coord_to_nearest_track(vm_layer, inst.bound_box.right_unit,
+        ltr = max(ltr, self.grid.coord_to_nearest_track(vm_layer, instl_box.right_unit,
                                                         half_track=True, mode=-1, unit_mode=True))
         _, route_locs = tr_manager.place_wires(vm_layer, [1, 'out', 'out', 1, 'out', 'out', 1,
                                                           'out', 'out', 1])
