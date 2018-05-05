@@ -8,7 +8,7 @@ from serdes_ec.layout.qdr_hybrid.datapath import RXDatapath
 
 
 if __name__ == '__main__':
-    with open('specs_test/qdr_hybrid/datapath.yaml', 'r') as f:
+    with open('specs_test/serdes_ec/qdr_hybrid/datapath.yaml', 'r') as f:
         block_specs = yaml.load(f)
 
     local_dict = locals()

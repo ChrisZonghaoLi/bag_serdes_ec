@@ -83,9 +83,10 @@ class RXDatapath(TemplateBase):
         xcur += loff_master.bound_box.width_unit
         samp = self.add_instance(samp_master, 'XSAMP', loc=(xcur, 0), unit_mode=True)
 
-        bnd_box = tapx.bound_box.merge(samp.bound_box)
+        self.array_box = bnd_box = tapx.bound_box.merge(samp.bound_box)
         self.set_size_from_bound_box(tapx_master.top_layer, bnd_box)
-        self.array_box = bnd_box
+
+        self._connect_signals(tapx, tap1, offset, offlev, samp)
 
         for name in samp.port_names_iter():
             self.reexport(samp.get_port(name), show=show_pins)
@@ -97,6 +98,46 @@ class RXDatapath(TemplateBase):
             loff_params=loff_master.sch_params,
             samp_params=samp_master.sch_params,
         )
+
+    def _connect_signals(self, tapx, tap1, offset, offlev, samp):
+        # connect input/outputs that are track-aligned by construction
+        io_list2 = [[], [], []]
+        out_names = ['outp', 'outn']
+        in_names = ['inp', 'inn']
+        out_insts = [tapx, offset, tap1]
+        in_insts = [offset, tap1, offlev]
+        for idx in range(4):
+            suf = '<%d>' % idx
+            for name in out_names:
+                cur_name = name + suf
+                for io_list, inst in zip(io_list2, out_insts):
+                    io_list.extend(inst.port_pins_iter(cur_name))
+            for name in in_names:
+                cur_name = name + suf
+                for io_list, inst in zip(io_list2, in_insts):
+                    io_list.extend(inst.port_pins_iter(cur_name))
+
+        for io_list in io_list2:
+            self.connect_wires(io_list)
+
+        # connect data/dlev to sampler, also tap2 feedback
+        dlev_order = [1, 2, 0, 3]
+        for in_idx, out_idx in enumerate(dlev_order):
+            in_suf = '<%d>' % in_idx
+            out_suf = '<%d>' % out_idx
+            inp = offlev.get_pin('outp' + in_suf)
+            inn = offlev.get_pin('outn' + in_suf)
+            outp_lev = samp.get_pin('inp_dlev' + out_suf)
+            outn_lev = samp.get_pin('inn_dlev' + out_suf)
+            self.connect_differential_wires(inp, inn, outp_lev, outn_lev, unit_mode=True)
+            inp = offlev.get_pin('outp_d' + out_suf)
+            inn = offlev.get_pin('outn_d' + out_suf)
+            outp_lev = samp.get_pin('inp_data' + out_suf)
+            outn_lev = samp.get_pin('inn_data' + out_suf)
+            self.connect_differential_wires(inp, inn, outp_lev, outn_lev, unit_mode=True)
+            outp_d = tapx.get_pin('inp_d' + out_suf)
+            outn_d = tapx.get_pin('inn_d' + out_suf)
+            self.connect_differential_wires(inp, inn, outp_d, outn_d, unit_mode=True)
 
     def _create_masters(self):
         show_pins_debug = True
@@ -158,7 +199,6 @@ class RXDatapath(TemplateBase):
         tap1_master = self.new_template(params=tap1_params, temp_cls=Tap1Column)
         tap1_in_tr_info = tap1_master.in_tr_info
         tap1_out_tr_info = tap1_master.out_tr_info
-        tap1_data_tr_info = tap1_master.data_tr_info
 
         h_tot = row_heights[0] + row_heights[1]
         offset_params = hp_params.copy()
@@ -199,8 +239,6 @@ class RXDatapath(TemplateBase):
         samp_params['tr_spaces'] = tr_spaces
         samp_params['row_heights'] = row_heights
         samp_params['sup_tids'] = sup_tids
-        samp_params['data_tids'] = tap1_data_tr_info
-        samp_params['dlev_tids'] = tap1_out_tr_info
         samp_params['sum_row_info'] = tap1_master.sum_row_info
         samp_params['lat_row_info'] = tap1_master.lat_row_info
         samp_params['div_tr_info'] = tap1_master.div_tr_info

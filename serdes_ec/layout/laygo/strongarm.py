@@ -63,7 +63,6 @@ class SenseAmpStrongArm(LaygoBase):
             end_mode='Boundary end mode.',
             min_height='Minimum height.',
             sup_tids='supply track information.',
-            in_tids='input track information.',
             clk_tidx='If given, connect clock to this track index.',
             show_pins='True to draw pin geometries.',
             export_probe='True to export probe pins.',
@@ -77,7 +76,6 @@ class SenseAmpStrongArm(LaygoBase):
             end_mode=None,
             min_height=0,
             sup_tids=None,
-            in_tids=None,
             clk_tidx=None,
             show_pins=True,
             export_probe=False,
@@ -96,7 +94,6 @@ class SenseAmpStrongArm(LaygoBase):
         end_mode = self.params['end_mode']
         min_height = self.params['min_height']
         sup_tids = self.params['sup_tids']
-        in_tids = self.params['in_tids']
         clk_tidx = self.params['clk_tidx']
         show_pins = self.params['show_pins']
         export_probe = self.params['export_probe'] and show_pins
@@ -314,35 +311,19 @@ class SenseAmpStrongArm(LaygoBase):
         inp_warr, inn_warr = self.connect_differential_tracks(inp['g'], inn['g'],
                                                               hm_layer, inp_idx, inn_idx,
                                                               width=inp_tid.width)
-        if in_tids is not None:
-            ym_w_in = tr_manager.get_width(ym_layer, 'in')
-            shr_idx = sup_tid.base_index
-            inp_idx = tr_manager.get_next_track(ym_layer, shr_idx, 1, 'in', up=False)
-            inn_idx = tr_manager.get_next_track(ym_layer, inp_idx, 'in', 'in', up=False)
-            shl_idx = tr_manager.get_next_track(ym_layer, inn_idx, 'in', 1, up=False)
-            inp_ym, inn_ym = self.connect_differential_tracks(inp_warr, inn_warr,
-                                                              ym_layer, inp_idx, inn_idx,
-                                                              width=ym_w_in)
-            xm_w_in = in_tids[2]
-            vext = self.grid.get_via_extensions(ym_layer, ym_w_in, xm_w_in, unit_mode=True)[1]
-            xl = self.grid.get_wire_bounds(ym_layer, inn_idx, width=ym_w_in, unit_mode=True)[0]
-            xr = self.grid.get_wire_bounds(ym_layer, inp_idx, width=ym_w_in, unit_mode=True)[1]
-            inp_warr = self.add_wires(xm_layer, in_tids[0], xl - vext, xr + vext, width=xm_w_in,
-                                      unit_mode=True)
-            inn_warr = self.add_wires(xm_layer, in_tids[1], xl - vext, xr + vext, width=xm_w_in,
-                                      unit_mode=True)
-            inp_ym, inn_ym, self.connect_differential_tracks(inp_warr, inn_warr, ym_layer, inp_idx,
-                                                             inn_idx, width=ym_w_in,
-                                                             track_lower=inp_ym.lower_unit,
-                                                             track_upper=inp_ym.upper_unit,
-                                                             unit_mode=True)
-            shields = self.add_wires(ym_layer, shl_idx, inp_ym.lower_unit, inp_ym.upper_unit,
-                                     num=2, pitch=shr_idx - shl_idx, unit_mode=True)
-        else:
-            shields = None
+        ym_w_in = tr_manager.get_width(ym_layer, 'in')
+        shr_idx = sup_tid.base_index
+        inp_idx = tr_manager.get_next_track(ym_layer, shr_idx, 1, 'in', up=False)
+        inn_idx = tr_manager.get_next_track(ym_layer, inp_idx, 'in', 'in', up=False)
+        shl_idx = tr_manager.get_next_track(ym_layer, inn_idx, 'in', 1, up=False)
+        inp_ym, inn_ym = self.connect_differential_tracks(inp_warr, inn_warr,
+                                                          ym_layer, inp_idx, inn_idx,
+                                                          width=ym_w_in)
+        shields = self.add_wires(ym_layer, shl_idx, inp_ym.lower_unit, inp_ym.upper_unit,
+                                 num=2, pitch=shr_idx - shl_idx, unit_mode=True)
 
-        self.add_pin('inp', inp_warr, show=show_pins)
-        self.add_pin('inn', inn_warr, show=show_pins)
+        self.add_pin('inp', inp_ym, show=show_pins)
+        self.add_pin('inn', inn_ym, show=show_pins)
 
         # connect vss
         xm_w_sup = tr_manager.get_width(xm_layer, 'sup')

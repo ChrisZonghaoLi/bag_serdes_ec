@@ -69,8 +69,6 @@ class SenseAmpColumn(TemplateBase):
             tr_spaces='Track spacing dictionary.',
             row_heights='row heights for one summer.',
             sup_tids='supply tracks information.',
-            data_tids='data input tracks information.',
-            dlev_tids='dlev input tracks information.',
             clk_tidx='sense amplifier clock track index.',
             options='other AnalogBase options',
             show_pins='True to draw pin geometries.',
@@ -94,8 +92,6 @@ class SenseAmpColumn(TemplateBase):
         tr_spaces = self.params['tr_spaces']
         row_heights = self.params['row_heights']
         sup_tids = self.params['sup_tids']
-        data_tids = self.params['data_tids']
-        dlev_tids = self.params['dlev_tids']
         clk_tidx = self.params['clk_tidx']
         options = self.params['options']
         show_pins = self.params['show_pins']
@@ -105,13 +101,11 @@ class SenseAmpColumn(TemplateBase):
         bot_params = dict(config=config, w_dict=w_dict, th_dict=th_dict, seg_dict=seg_dict,
                           tr_widths=tr_widths, tr_spaces=tr_spaces, top_layer=top_layer,
                           draw_boundaries=True, end_mode=12, show_pins=False, export_probe=False,
-                          sup_tids=sup_tids[0], min_height=row_heights[0], in_tids=dlev_tids,
-                          clk_tidx=clk_tidx)
+                          sup_tids=sup_tids[0], min_height=row_heights[0], clk_tidx=clk_tidx)
 
         # create masters
         bot_master = self.new_template(params=bot_params, temp_cls=SenseAmpStrongArm)
-        top_master = bot_master.new_template_with(min_height=row_heights[1], sup_tids=sup_tids[1],
-                                                  in_tids=data_tids)
+        top_master = bot_master.new_template_with(min_height=row_heights[1], sup_tids=sup_tids[1])
 
         end_row_params = dict(
             lch=config['lch'],
@@ -915,8 +909,6 @@ class SamplerColumn(TemplateBase):
             tr_spaces='Track spacing dictionary.',
             row_heights='row heights for one summer.',
             sup_tids='supply tracks information.',
-            data_tids='data input tracks information.',
-            dlev_tids='dlev input tracks information.',
             sum_row_info='Summer row AnalogBase layout information dictionary.',
             lat_row_info='Latch row AnalogBase layout information dictionary.',
             div_tr_info='divider track information dictionary.',
@@ -941,8 +933,6 @@ class SamplerColumn(TemplateBase):
         tr_spaces = self.params['tr_spaces']
         row_heights = self.params['row_heights']
         sup_tids = self.params['sup_tids']
-        data_tids = self.params['data_tids']
-        dlev_tids = self.params['dlev_tids']
         sum_row_info = self.params['sum_row_info']
         lat_row_info = self.params['lat_row_info']
         div_tr_info = self.params['div_tr_info']
@@ -968,8 +958,6 @@ class SamplerColumn(TemplateBase):
         sa_params['tr_spaces'] = tr_spaces
         sa_params['row_heights'] = row_heights
         sa_params['sup_tids'] = sup_tids
-        sa_params['data_tids'] = data_tids
-        sa_params['dlev_tids'] = dlev_tids
         sa_params['clk_tidx'] = div_master.sa_clk_tidx
         sa_params['options'] = options
         sa_params['show_pins'] = False
