@@ -1014,17 +1014,17 @@ class SamplerColumn(TemplateBase):
         tr_w = tr_manager.get_width(vm_layer, 'out')
         self._connect_io(sa_inst, re_inst, re_master.sig_locs, tr_w, vm_layer, show_pins)
 
+        # connect supplies
+        vdd_list = self._connect_supply(sa_inst, div_inst, re_inst, show_pins)
+
         # connect enable wires
         ym_layer = vm_layer + 2
-        self._connect_clk(ym_layer, tr_manager, sa_inst, div_inst, re_inst)
+        self._connect_clk(ym_layer, tr_manager, vdd_list, sa_inst, div_inst, re_inst, show_pins)
 
         # export retimer outputs
         for name in re_inst.port_names_iter():
             if name.startswith('data') or name.startswith('dlev') or name.startswith('des_clk'):
                 self.reexport(re_inst.get_port(name), show=show_pins)
-
-        # connect supplies
-        self._connect_supply(sa_inst, div_inst, re_inst, show_pins)
 
         self._sch_params = dict(
             sa_params=sa_master.sch_params,
@@ -1060,23 +1060,52 @@ class SamplerColumn(TemplateBase):
         self.connect_to_track_wires(re_vss, vsso_list)
         self.add_pin('VDD', vdd_warrs, show=show_pins)
         self.add_pin('VSS', vss_warrs, show=show_pins)
+        return vdd_warrs
 
-    def _connect_clk(self, ym_layer, tr_manager, sa_inst, div_inst, re_inst):
+    def _connect_clk(self, ym_layer, tr_manager, vdd_list, sa_inst, div_inst, re_inst, show_pins):
         xc = div_inst.get_pin('en<0>').middle_unit
         tr0 = self.grid.coord_to_nearest_track(ym_layer, xc, half_track=True, mode=-1,
                                                unit_mode=True)
 
-        locs = tr_manager.place_wires(ym_layer, ['clk', 'clk', 'clk', 'clk'])[1]
-        dtr = tr0 - self.grid.get_middle_track(locs[1], locs[2], round_up=False)
+        wtype_list = [1, 'clk', 'clk', 1, 'clk', 'clk', 'clk', 'clk', 1, 'clk']
+        locs = tr_manager.place_wires(ym_layer, wtype_list)[1]
+        dtr = tr0 - self.grid.get_middle_track(locs[5], locs[6], round_up=False)
 
+        # connect enable signals
+        tr_lower = tr_upper = self.bound_box.yc_unit
         tr_w = tr_manager.get_width(ym_layer, 'clk')
         for idx in range(4):
             en_name = 'en<%d>' % idx
             en_list = sa_inst.get_all_port_pins(en_name)
             en_list.extend(div_inst.port_pins_iter(en_name))
-            ym_tr = self.connect_to_tracks(en_list, TrackID(ym_layer, locs[idx] + dtr, width=tr_w))
+            ym_tr = self.connect_to_tracks(en_list, TrackID(ym_layer, locs[idx + 4] + dtr,
+                                                            width=tr_w))
+            tr_lower = min(tr_lower, ym_tr.lower_unit)
+            tr_upper = max(tr_upper, ym_tr.upper_unit)
             en_re = re_inst.get_pin(en_name)
             self.connect_to_track_wires([ym_tr, en_re], sa_inst.get_pin('mid_en<%d>' % idx))
+
+        # connect scan/enable signals
+        scan_tid = TrackID(ym_layer, dtr + locs[-2], width=1)
+        en_tid = TrackID(ym_layer, dtr + locs[-1], width=tr_w)
+        for name, tid in (('scan_div<2>', scan_tid), ('scan_div<3>', scan_tid),
+                          ('en_div<2>', en_tid), ('en_div<3>', en_tid)):
+            warr = self.connect_to_tracks(div_inst.get_pin(name), tid, min_len_mode=0)
+            self.add_pin(name, warr, show=show_pins)
+
+        # connect shields
+        sh_tid = TrackID(ym_layer, dtr + locs[0], num=2, pitch=locs[3] - locs[0])
+        vdd_warrs = self.connect_to_tracks(vdd_list, sh_tid, track_lower=tr_lower,
+                                           track_upper=tr_upper, unit_mode=True)
+        self.add_pin('VDD', vdd_warrs, show=show_pins)
+
+        # connect clocks
+        clkp = div_inst.get_pin('clkp')
+        clkn = div_inst.get_pin('clkn')
+        clkp, clkn = self.connect_differential_tracks(clkp, clkn, ym_layer, dtr + locs[1],
+                                                      dtr + locs[2], width=tr_w)
+        self.add_pin('clkp', clkp, show=show_pins)
+        self.add_pin('clkn', clkn, show=show_pins)
 
     def _connect_io(self, sa_inst, re_inst, sig_locs_m, tr_w, vm_layer, show_pins):
         tr_off = 0
