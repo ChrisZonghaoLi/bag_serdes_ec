@@ -4,7 +4,6 @@
 
 from typing import TYPE_CHECKING, Dict, Any, Set, Tuple, Union
 
-
 from bag.layout.routing import TrackManager
 
 from .base import HybridQDRBaseInfo, HybridQDRBase
@@ -266,18 +265,46 @@ class IntegAmp(HybridQDRBase):
                     upper = max(upper, warr.upper_unit)
 
         # set schematic parameters and other properties
-        self._sch_params = dict(
-            lch=lch,
-            w_dict=w_dict,
-            th_dict=th_dict,
-            seg_dict=seg_dict,
-            flip_sign=flip_sign,
-            export_probe=export_probe,
-            dum_info=self.get_sch_dummy_info(),
-        )
+        self._sch_params = self._get_sch_params(lch, w_dict, th_dict, seg_dict,
+                                                flip_sign, export_probe)
         self._fg_tot = fg_tot
         self._hm_widths = (tr_manager.get_width(hm_layer, 'in'),
                            tr_manager.get_width(hm_layer, 'out'))
         self._hm_intvs = ((lower, upper),
                           (ports['inp'].lower_unit, ports['inp'].upper_unit),
                           (ports['outp'].lower_unit, ports['outp'].upper_unit))
+
+    def _get_sch_params(self, lch, w_dict, th_dict, seg_dict, flip_sign, export_probe):
+        ndum_info = []
+        pdum_info = []
+        for info in self.get_sch_dummy_info():
+            if info[0][0] == 'pch':
+                pdum_info.append(info)
+            else:
+                ndum_info.append(info)
+
+        nw_dict = {k: v for k, v in w_dict.items() if k != 'load' and k != 'pen'}
+        nth_dict = {k: v for k, v in th_dict.items() if k != 'load' and k != 'pen'}
+        nseg_dict = {k: v for k, v in seg_dict.items() if k != 'load' and k != 'pen'}
+        pw_dict = {'load': w_dict.get('load', 0), 'pen': w_dict.get('pen', 0)}
+        pth_dict = {'load': th_dict.get('load', 'standard'), 'pen': th_dict.get('pen', 'standard')}
+        pseg_dict = {'load': seg_dict.get('load', 0), 'pen': seg_dict.get('pen', 0)}
+
+        return dict(
+            load_params=dict(
+                lch=lch,
+                w_dict=pw_dict,
+                th_dict=pth_dict,
+                seg_dict=pseg_dict,
+                dum_info=pdum_info,
+            ),
+            gm_params=dict(
+                lch=lch,
+                w_dict=nw_dict,
+                th_dict=nth_dict,
+                seg_dict=nseg_dict,
+                dum_info=ndum_info,
+                export_probe=export_probe,
+            ),
+            flip_sign=flip_sign,
+        )
