@@ -6,6 +6,10 @@ instances:
     lib_name: bag_serdes_ec
     cell_name: qdr_frontend
     instpins:
+      v_way_3_dfe_2_m:
+        direction: input
+        net_name: "v_way_3_dfe_2_m"
+        num_bits: 1
       VSS:
         direction: inputOutput
         net_name: "VSS"
@@ -197,10 +201,6 @@ instances:
       v_way_3_dfe_1_m:
         direction: input
         net_name: "v_way_3_dfe_1_m"
-        num_bits: 1
-      v_way_3_dfe_3_m:
-        direction: input
-        net_name: "v_way_3_dfe_3_m"
         num_bits: 1
       v_way_3_dlev_n:
         direction: input
