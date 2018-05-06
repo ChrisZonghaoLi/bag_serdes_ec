@@ -61,6 +61,7 @@ class RXFrontend(TemplateBase):
             fill_margin='space between supply fill and others.',
             fill_config='Fill configuration dictionary.',
             ana_options='other AnalogBase options',
+            sch_hp_params='schematic high-pass parameters.',
             show_pins='True to create pin labels.',
         )
 
@@ -79,6 +80,7 @@ class RXFrontend(TemplateBase):
         ml, mt, mb = 30000, 20000, 20000
 
         fill_config = self.params['fill_config']
+        sch_hp_params = self.params['sch_hp_params']
         show_pins = self.params['show_pins']
 
         params = self.params.copy()
@@ -100,7 +102,8 @@ class RXFrontend(TemplateBase):
         for name in inst.port_names_iter():
             self.reexport(inst.get_port(name), show=show_pins)
 
-        self._sch_params = master.sch_params
+        self._sch_params = master.sch_params.copy()
+        self._sch_params['hp_params'] = sch_hp_params
 
 
 class RXTop(TemplateBase):

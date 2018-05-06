@@ -21,6 +21,21 @@ class bag_serdes_ec__qdr_tapx_column(Module):
 
     def __init__(self, bag_config, parent=None, prj=None, **kwargs):
         Module.__init__(self, bag_config, yaml_file, parent=parent, prj=prj, **kwargs)
+        self._num_ffe = None
+        self._num_dfe = None
+        self._has_set = None
+
+    @property
+    def num_ffe(self):
+        return self._num_ffe
+
+    @property
+    def num_dfe(self):
+        return self._num_dfe
+
+    @property
+    def has_set(self):
+        return self._has_set
 
     @classmethod
     def get_params_info(cls):
@@ -46,6 +61,8 @@ class bag_serdes_ec__qdr_tapx_column(Module):
 
         num_ffe = len(ffe_params_list)
         num_dfe = len(dfe_params_list) + 2
+        self._num_ffe = num_ffe - 1
+        self._num_dfe = num_dfe
 
         if not export_probe:
             self.remove_pin('en<3:0>')
@@ -75,10 +92,12 @@ class bag_serdes_ec__qdr_tapx_column(Module):
 
         # remove pins if not needed
         if 'pulse_in' not in self.instances['X0'].master.pin_list:
+            self._has_set = False
             self.remove_pin('setp')
             self.remove_pin('setn')
         else:
             # TODO: handle setp/setn logic
+            self._has_set = True
             pass
 
         # reconnect pins

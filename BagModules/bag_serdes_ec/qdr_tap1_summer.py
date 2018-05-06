@@ -21,6 +21,11 @@ class bag_serdes_ec__qdr_tap1_summer(Module):
 
     def __init__(self, bag_config, parent=None, prj=None, **kwargs):
         Module.__init__(self, bag_config, yaml_file, parent=parent, prj=prj, **kwargs)
+        self._has_hp = False
+
+    @property
+    def has_hp(self):
+        return self._has_hp
 
     @classmethod
     def get_params_info(cls):
@@ -33,6 +38,8 @@ class bag_serdes_ec__qdr_tap1_summer(Module):
     def design(self, sum_params, lat_params):
         self.instances['XSUM'].design(**sum_params)
         self.instances['XLAT'].design(**lat_params)
+
+        self._has_hp = self.instances['XSUM'].master.has_hp
 
         sum_pins = self.instances['XSUM'].master.pin_list
         lat_pins = self.instances['XLAT'].master.pin_list

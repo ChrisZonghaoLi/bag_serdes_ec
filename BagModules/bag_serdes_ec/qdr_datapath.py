@@ -21,6 +21,26 @@ class bag_serdes_ec__qdr_datapath(Module):
 
     def __init__(self, bag_config, parent=None, prj=None, **kwargs):
         Module.__init__(self, bag_config, yaml_file, parent=parent, prj=prj, **kwargs)
+        self._num_ffe = None
+        self._num_dfe = None
+        self._has_set = None
+        self._has_hp = None
+
+    @property
+    def num_ffe(self):
+        return self._num_ffe
+
+    @property
+    def num_dfe(self):
+        return self._num_dfe
+
+    @property
+    def has_set(self):
+        return self._has_set
+
+    @property
+    def has_hp(self):
+        return self._has_hp
 
     @classmethod
     def get_params_info(cls):
@@ -40,32 +60,36 @@ class bag_serdes_ec__qdr_datapath(Module):
         self.instances['XOFFL'].design(**loff_params)
         self.instances['XSAMP'].design(**samp_params)
 
-        has_set = False
-        has_ffe = False
-        tapx_pins = self.instances['XTAPX'].master.pin_list
-        for name in tapx_pins:
-            if name.startswith('casc'):
-                has_ffe = True
-                new_name = 'bias_ffe' + name[4:]
-                self.rename_pin('bias_ffe<7:4>', new_name)
-                self.reconnect_instance_terminal('XTAPX', name, new_name)
-            elif name.startswith('bias_s'):
-                suffix = name[6:]
-                max_idx = int(suffix[1:].split(':')[0])
-                sgnp_name = 'sgnp_dfe' + suffix
-                sgnn_name = 'sgnn_dfe' + suffix
-                self.rename_pin('sgnp_dfe<11:8>', sgnp_name)
-                self.rename_pin('sgnn_dfe<11:8>', sgnn_name)
-                self.rename_pin('clk_dfe<11:4>', 'clk_dfe<%d:4>' % max_idx)
-                self.reconnect_instance_terminal('XTAPX', 'sgnp' + suffix, sgnp_name)
-                self.reconnect_instance_terminal('XTAPX', 'sgnn' + suffix, sgnn_name)
-                self.reconnect_instance_terminal('XTAPX', name, 'clk_dfe<%d:8>' % max_idx)
-            elif name.startswith('setp'):
-                has_set = True
-                # TODO: figure out the rest
+        tapx_master = self.instances['XTAPX'].master
+        self._has_set = tapx_master.has_set
+        self._num_ffe = tapx_master.num_ffe
+        self._num_dfe = tapx_master.num_dfe
+        self._has_hp = self.instances['XTAP1'].master.has_hp
 
-        if not has_ffe:
-            self.remove_pin('bias_ffe<7:4>')
-        if not has_set:
+        if not self._has_set:
             self.remove_pin('setp')
             self.remove_pin('setn')
+
+        # handle FFE pins
+        if self._num_ffe == 0:
+            self.remove_pin('bias_ffe<7:4>')
+        else:
+            ffe_suf = '<%d:4>' % (4 * self._num_ffe + 3)
+            new_name = 'bias_ffe' + ffe_suf
+            self.rename_pin('bias_ffe<7:4>', new_name)
+            self.reconnect_instance_terminal('XTAPX', 'casc' + ffe_suf, new_name)
+
+        # handle DFE pins
+        if self._num_dfe < 2:
+            raise ValueError('Cannot handle < 2 DFE taps for now.')
+        else:
+            dfe_max_idx = 4 * self._num_dfe + 3
+            dfe_suf = '<%d:8>' % dfe_max_idx
+            sgnp_name = 'sgnp_dfe' + dfe_suf
+            sgnn_name = 'sgnn_dfe' + dfe_suf
+            self.rename_pin('sgnp_dfe<11:8>', sgnp_name)
+            self.rename_pin('sgnn_dfe<11:8>', sgnn_name)
+            self.rename_pin('clk_dfe<11:4>', 'clk_dfe<%d:4>' % dfe_max_idx)
+            self.reconnect_instance_terminal('XTAPX', 'sgnp' + dfe_suf, sgnp_name)
+            self.reconnect_instance_terminal('XTAPX', 'sgnn' + dfe_suf, sgnn_name)
+            self.reconnect_instance_terminal('XTAPX', 'bias_s' + dfe_suf, 'clk_dfe' + dfe_suf)

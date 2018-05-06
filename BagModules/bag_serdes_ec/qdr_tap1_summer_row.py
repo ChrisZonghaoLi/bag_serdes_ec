@@ -21,6 +21,11 @@ class bag_serdes_ec__qdr_tap1_summer_row(Module):
 
     def __init__(self, bag_config, parent=None, prj=None, **kwargs):
         Module.__init__(self, bag_config, yaml_file, parent=parent, prj=prj, **kwargs)
+        self._has_hp = False
+
+    @property
+    def has_hp(self):
+        return self._has_hp
 
     @classmethod
     def get_params_info(cls):
@@ -46,6 +51,8 @@ class bag_serdes_ec__qdr_tap1_summer_row(Module):
         )
 
     def design(self, lch, w_dict, th_dict, seg_main, seg_fb, hp_params, m_dum_info, f_dum_info):
+        self._has_hp = (hp_params is not None)
+
         nw = {k: v for k, v in w_dict.items() if k != 'load' and k != 'pen'}
         nth = {k: v for k, v in th_dict.items() if k != 'load' and k != 'pen'}
         nseg_m = {k: v for k, v in seg_main.items() if k != 'load' and k != 'pen'}
