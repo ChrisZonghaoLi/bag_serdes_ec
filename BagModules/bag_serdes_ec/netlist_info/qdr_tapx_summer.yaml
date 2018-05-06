@@ -354,7 +354,7 @@ instances:
         direction: input
         net_name: "setp"
         num_bits: 1
-  X0:
+  XLOAD:
     lib_name: bag_serdes_ec
     cell_name: integ_load_summer
     instpins:
