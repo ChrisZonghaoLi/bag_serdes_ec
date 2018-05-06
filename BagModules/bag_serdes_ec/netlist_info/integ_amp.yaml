@@ -130,7 +130,7 @@ instances:
     lib_name: basic
     cell_name: opin
     instpins: {}
-  X1:
+  XLOAD:
     lib_name: bag_serdes_ec
     cell_name: integ_load_summer
     instpins:
