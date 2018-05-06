@@ -44,6 +44,21 @@ class bag_serdes_ec__integ_gm(Module):
             is_model=False,
         )
 
+    def get_master_basename(self):
+        # type: () -> str
+        seg_dict = self.params['seg_dict']
+
+        if seg_dict.get('casc', 0) > 0:
+            name = self.orig_cell_name + '_cascode'
+        elif seg_dict.get('but', 0) > 0:
+            name = self.orig_cell_name + '_butterfly'
+        else:
+            name = self.orig_cell_name
+
+        if self.params['hp_params'] is not None:
+            name += '_model'
+        return name
+
     def design(self, lch, w_dict, th_dict, seg_dict, hp_params, dum_info, export_probe):
         seg_set = seg_dict.get('set', 0)
         seg_sen = seg_dict.get('sen', 0)
