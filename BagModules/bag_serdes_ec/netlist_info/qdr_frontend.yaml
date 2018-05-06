@@ -1,0 +1,412 @@
+lib_name: bag_serdes_ec
+cell_name: qdr_frontend
+pins: [ "bias_way_3_dfe_2_s<1:0>", "bias_way_2_dfe_2_s<1:0>", "bias_way_1_dfe_2_s<1:0>", "bias_way_0_dfe_2_s<1:0>", "v_way_2_main", "v_way_3_dfe_3_m", "v_way_2_dfe_2_m", "v_way_1_dfe_2_m", "v_way_0_dfe_2_m", "v_way_3_ffe_1", "v_way_2_ffe_1", "v_way_1_ffe_1", "v_way_0_ffe_1", "v_way_3_dfe_1_m", "v_way_2_dfe_1_m", "v_way_1_dfe_1_m", "setn", "setp", "scan_divider_clkn", "scan_divider_clkp", "enable_divider", "v_way_0_dfe_1_m", "v_way_3_off_n", "v_way_2_off_n", "v_way_1_off_n", "v_way_0_off_n", "v_way_3_off_p", "v_way_2_off_p", "v_way_1_off_p", "v_way_0_off_p", "v_way_3_dlev_n", "v_way_2_dlev_n", "v_way_1_dlev_n", "v_way_0_dlev_n", "v_way_3_dlev_p", "v_way_2_dlev_p", "v_way_1_dlev_p", "v_way_0_dlev_p", "v_way_3_main", "v_way_1_main", "v_way_0_main", "v_tap1_main", "v_digital", "v_vincm", "clkn", "des_clkb", "clkp", "des_clk", "inn", "dlev<3:0>", "inp", "data<3:0>", "VSS", "VDD", "v_analog" ]
+instances:
+  PIN6:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN7:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN8:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN9:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN10:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN15:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN16:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN17:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN18:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN19:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN20:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN21:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN38:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN39:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN40:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN41:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN42:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN43:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN44:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN45:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN46:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN47:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN48:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN49:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN50:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN51:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN52:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN53:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN11:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN13:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN14:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN54:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN55:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN22:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN23:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN24:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN25:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN34:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN35:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN36:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN37:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN26:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN28:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN29:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN30:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN27:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN31:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN32:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN33:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  XDP:
+    lib_name: bag_serdes_ec
+    cell_name: qdr_datapath
+    instpins:
+      VSS:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      VDD:
+        direction: inputOutput
+        net_name: "VDD"
+        num_bits: 1
+      data<3:0>:
+        direction: output
+        net_name: "data<3:0>"
+        num_bits: 4
+      des_clk:
+        direction: output
+        net_name: "des_clk"
+        num_bits: 1
+      des_clkb:
+        direction: output
+        net_name: "des_clkb"
+        num_bits: 1
+      dlev<3:0>:
+        direction: output
+        net_name: "dlev<3:0>"
+        num_bits: 4
+      bias_dlevn<3:0>:
+        direction: input
+        net_name: "v_way_3_dlev_n,v_way_2_dlev_n,v_way_1_dlev_n,v_way_0_dlev_n"
+        num_bits: 4
+      bias_dlevp<3:0>:
+        direction: input
+        net_name: "v_way_3_dlev_p,v_way_2_dlev_p,v_way_1_dlev_p,v_way_0_dlev_p"
+        num_bits: 4
+      bias_ffe<7:4>:
+        direction: input
+        net_name: "v_way_0_ffe_1,v_way_3_ffe_1,v_way_2_ffe_1,v_way_1_ffe_1"
+        num_bits: 4
+      bias_offn<3:0>:
+        direction: input
+        net_name: "v_way_3_off_n,v_way_2_off_n,v_way_1_off_n,v_way_0_off_n"
+        num_bits: 4
+      bias_offp<3:0>:
+        direction: input
+        net_name: "v_way_3_off_p,v_way_2_off_p,v_way_1_off_p,v_way_0_off_p"
+        num_bits: 4
+      clk_analog<1:0>:
+        direction: input
+        net_name: "clk_analog<1:0>"
+        num_bits: 2
+      clk_dfe<11:4>:
+        direction: input
+        net_name: "clk_dfe<11:4>"
+        num_bits: 8
+      clk_digital<1:0>:
+        direction: input
+        net_name: "clk_digital<1:0>"
+        num_bits: 2
+      clk_main<3:0>:
+        direction: input
+        net_name: "clk_main<3:0>"
+        num_bits: 4
+      clk_tap1<1:0>:
+        direction: input
+        net_name: "clk_tap1<1:0>"
+        num_bits: 2
+      clkn:
+        direction: input
+        net_name: "clkn"
+        num_bits: 1
+      clkp:
+        direction: input
+        net_name: "clkp"
+        num_bits: 1
+      en_div<3:2>:
+        direction: input
+        net_name: "<*2>enable_divider"
+        num_bits: 2
+      inn:
+        direction: input
+        net_name: "inn"
+        num_bits: 1
+      inp:
+        direction: input
+        net_name: "inp"
+        num_bits: 1
+      scan_div<3:2>:
+        direction: input
+        net_name: "scan_divider_clkn,scan_divider_clkp"
+        num_bits: 2
+      setn:
+        direction: input
+        net_name: "setn"
+        num_bits: 1
+      setp:
+        direction: input
+        net_name: "setp"
+        num_bits: 1
+      sgnn_dfe<11:8>:
+        direction: input
+        net_name: "sgnn_dfe<11:8>"
+        num_bits: 4
+      sgnp_dfe<11:8>:
+        direction: input
+        net_name: "sgnp_dfe<11:8>"
+        num_bits: 4
+  PIN2:
+    lib_name: basic
+    cell_name: opin
+    instpins: {}
+  PIN3:
+    lib_name: basic
+    cell_name: opin
+    instpins: {}
+  PIN4:
+    lib_name: basic
+    cell_name: opin
+    instpins: {}
+  PIN5:
+    lib_name: basic
+    cell_name: opin
+    instpins: {}
+  PIN0:
+    lib_name: basic
+    cell_name: iopin
+    instpins: {}
+  PIN1:
+    lib_name: basic
+    cell_name: iopin
+    instpins: {}
+  XHPD<3:0>:
+    lib_name: bag_analog_ec
+    cell_name: high_pass
+    instpins:
+      VSS:
+        direction: inputOutput
+        net_name: "<*4>VSS"
+        num_bits: 4
+      in:
+        direction: input
+        net_name: "clkp,clkn,clkp,clkn"
+        num_bits: 4
+      bias:
+        direction: input
+        net_name: "v_way_1_dfe_1_m,v_way_0_dfe_1_m,v_way_3_dfe_1_m,v_way_2_dfe_1_m"
+        num_bits: 4
+      out:
+        direction: output
+        net_name: "clk_dfe<7:4>"
+        num_bits: 4
+  XHPN<2:0>:
+    lib_name: bag_analog_ec
+    cell_name: high_pass
+    instpins:
+      VSS:
+        direction: inputOutput
+        net_name: "<*3>VSS"
+        num_bits: 3
+      in:
+        direction: input
+        net_name: "<*3>clkn"
+        num_bits: 3
+      bias:
+        direction: input
+        net_name: "v_analog,v_digital,v_tap1_main"
+        num_bits: 3
+      out:
+        direction: output
+        net_name: "clk_analog<1>,clk_digital<1>,clk_tap1<1>"
+        num_bits: 3
+  XHPM<3:0>:
+    lib_name: bag_analog_ec
+    cell_name: high_pass
+    instpins:
+      VSS:
+        direction: inputOutput
+        net_name: "<*4>VSS"
+        num_bits: 4
+      in:
+        direction: input
+        net_name: "clkp,clkn,clkp,clkn"
+        num_bits: 4
+      bias:
+        direction: input
+        net_name: "v_way_0_main,v_way_3_main,v_way_2_main,v_way_1_main"
+        num_bits: 4
+      out:
+        direction: output
+        net_name: "clk_main<3:0>"
+        num_bits: 4
+  XHPP<2:0>:
+    lib_name: bag_analog_ec
+    cell_name: high_pass
+    instpins:
+      VSS:
+        direction: inputOutput
+        net_name: "<*3>VSS"
+        num_bits: 3
+      in:
+        direction: input
+        net_name: "<*3>clkp"
+        num_bits: 3
+      bias:
+        direction: input
+        net_name: "v_analog,v_digital,v_tap1_main"
+        num_bits: 3
+      out:
+        direction: output
+        net_name: "clk_analog<0>,clk_digital<0>,clk_tap1<0>"
+        num_bits: 3

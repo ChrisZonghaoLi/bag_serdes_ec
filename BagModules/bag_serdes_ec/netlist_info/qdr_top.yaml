@@ -2,9 +2,9 @@ lib_name: bag_serdes_ec
 cell_name: qdr_top
 pins: [ "VDD", "VSS", "data<3:0>", "dlev<3:0>", "des_clk", "des_clkb", "inp", "inn", "clkp", "clkn", "bias_vincm<7:0>", "setn", "setp", "scan_divider_clkp", "scan_divider_clkn", "bias_analog<7:0>", "bias_digital<7:0>", "bias_tap1_main<7:0>", "bias_way_0_dlev_p<7:0>", "bias_way_1_dlev_p<7:0>", "bias_way_2_dlev_p<7:0>", "bias_way_3_dlev_p<7:0>", "bias_way_0_ffe_1<7:0>", "bias_way_2_ffe_1<7:0>", "bias_way_3_ffe_1<7:0>", "bias_way_1_main<7:0>", "bias_way_1_dfe_2_s<1:0>", "bias_way_1_ffe_1<7:0>", "bias_way_0_dfe_2_s<1:0>", "bias_way_2_dfe_2_s<1:0>", "bias_way_3_dfe_2_s<1:0>", "bias_way_2_main<7:0>", "bias_way_3_main<7:0>", "bias_way_0_dfe_2_m<7:0>", "bias_way_1_dfe_2_m<7:0>", "bias_way_2_dfe_2_m<7:0>", "bias_way_3_dfe_2_m<7:0>", "bias_way_0_dlev_n<7:0>", "bias_way_1_dlev_n<7:0>", "bias_way_2_dlev_n<7:0>", "bias_way_3_dlev_n<7:0>", "bias_way_0_off_p<7:0>", "bias_way_1_off_p<7:0>", "bias_way_2_off_p<7:0>", "bias_way_3_off_p<7:0>", "bias_way_0_off_n<7:0>", "bias_way_1_off_n<7:0>", "bias_way_2_off_n<7:0>", "bias_way_3_off_n<7:0>", "bias_way_0_dfe_1_m<7:0>", "bias_way_1_dfe_1_m<7:0>", "bias_way_2_dfe_1_m<7:0>", "bias_way_3_dfe_1_m<7:0>", "enable_divider", "bias_way_0_main<7:0>" ]
 instances:
-  XDP:
+  XFE:
     lib_name: bag_serdes_ec
-    cell_name: qdr_datapath
+    cell_name: qdr_frontend
     instpins:
       VSS:
         direction: inputOutput
@@ -30,45 +30,21 @@ instances:
         direction: output
         net_name: "dlev<3:0>"
         num_bits: 4
-      bias_dlevn<3:0>:
+      bias_way_0_dfe_2_s<1:0>:
         direction: input
-        net_name: "bias_dlevn<3:0>"
-        num_bits: 4
-      bias_dlevp<3:0>:
-        direction: input
-        net_name: "bias_dlevp<3:0>"
-        num_bits: 4
-      bias_ffe<7:4>:
-        direction: input
-        net_name: "bias_ffe<7:4>"
-        num_bits: 4
-      bias_offn<3:0>:
-        direction: input
-        net_name: "bias_offn<3:0>"
-        num_bits: 4
-      bias_offp<3:0>:
-        direction: input
-        net_name: "bias_offp<3:0>"
-        num_bits: 4
-      clk_analog<1:0>:
-        direction: input
-        net_name: "clk_analog<1:0>"
+        net_name: "bias_way_0_dfe_2_s<1:0>"
         num_bits: 2
-      clk_dfe<11:4>:
+      bias_way_1_dfe_2_s<1:0>:
         direction: input
-        net_name: "clk_dfe<11:4>"
-        num_bits: 8
-      clk_digital<1:0>:
-        direction: input
-        net_name: "clk_digital<1:0>"
+        net_name: "bias_way_1_dfe_2_s<1:0>"
         num_bits: 2
-      clk_main<3:0>:
+      bias_way_2_dfe_2_s<1:0>:
         direction: input
-        net_name: "clk_main<3:0>"
-        num_bits: 4
-      clk_tap1<1:0>:
+        net_name: "bias_way_2_dfe_2_s<1:0>"
+        num_bits: 2
+      bias_way_3_dfe_2_s<1:0>:
         direction: input
-        net_name: "clk_tap1<1:0>"
+        net_name: "bias_way_3_dfe_2_s<1:0>"
         num_bits: 2
       clkn:
         direction: input
@@ -78,10 +54,10 @@ instances:
         direction: input
         net_name: "clkp"
         num_bits: 1
-      en_div<3:2>:
+      enable_divider:
         direction: input
-        net_name: "<*2>enable_divider"
-        num_bits: 2
+        net_name: "enable_divider"
+        num_bits: 1
       inn:
         direction: input
         net_name: "inn"
@@ -90,10 +66,14 @@ instances:
         direction: input
         net_name: "inp"
         num_bits: 1
-      scan_div<3:2>:
+      scan_divider_clkn:
         direction: input
-        net_name: "scan_divider_clkn,scan_divider_clkp"
-        num_bits: 2
+        net_name: "scan_divider_clkn"
+        num_bits: 1
+      scan_divider_clkp:
+        direction: input
+        net_name: "scan_divider_clkp"
+        num_bits: 1
       setn:
         direction: input
         net_name: "setn"
@@ -102,14 +82,150 @@ instances:
         direction: input
         net_name: "setp"
         num_bits: 1
-      sgnn_dfe<11:8>:
+      v_analog:
         direction: input
-        net_name: "sgnn_dfe<11:8>"
-        num_bits: 4
-      sgnp_dfe<11:8>:
+        net_name: "v_analog"
+        num_bits: 1
+      v_digital:
         direction: input
-        net_name: "sgnp_dfe<11:8>"
-        num_bits: 4
+        net_name: "v_digital"
+        num_bits: 1
+      v_tap1_main:
+        direction: input
+        net_name: "v_tap1_main"
+        num_bits: 1
+      v_vincm:
+        direction: input
+        net_name: "v_vincm"
+        num_bits: 1
+      v_way_0_dfe_1_m:
+        direction: input
+        net_name: "v_way_0_dfe_1_m"
+        num_bits: 1
+      v_way_0_dfe_2_m:
+        direction: input
+        net_name: "v_way_0_dfe_2_m"
+        num_bits: 1
+      v_way_0_dlev_n:
+        direction: input
+        net_name: "v_way_0_dlev_n"
+        num_bits: 1
+      v_way_0_dlev_p:
+        direction: input
+        net_name: "v_way_0_dlev_p"
+        num_bits: 1
+      v_way_0_ffe_1:
+        direction: input
+        net_name: "v_way_0_ffe_1"
+        num_bits: 1
+      v_way_0_main:
+        direction: input
+        net_name: "v_way_0_main"
+        num_bits: 1
+      v_way_0_off_n:
+        direction: input
+        net_name: "v_way_0_off_n"
+        num_bits: 1
+      v_way_0_off_p:
+        direction: input
+        net_name: "v_way_0_off_p"
+        num_bits: 1
+      v_way_1_dfe_1_m:
+        direction: input
+        net_name: "v_way_1_dfe_1_m"
+        num_bits: 1
+      v_way_1_dfe_2_m:
+        direction: input
+        net_name: "v_way_1_dfe_2_m"
+        num_bits: 1
+      v_way_1_dlev_n:
+        direction: input
+        net_name: "v_way_1_dlev_n"
+        num_bits: 1
+      v_way_1_dlev_p:
+        direction: input
+        net_name: "v_way_1_dlev_p"
+        num_bits: 1
+      v_way_1_ffe_1:
+        direction: input
+        net_name: "v_way_1_ffe_1"
+        num_bits: 1
+      v_way_1_main:
+        direction: input
+        net_name: "v_way_1_main"
+        num_bits: 1
+      v_way_1_off_n:
+        direction: input
+        net_name: "v_way_1_off_n"
+        num_bits: 1
+      v_way_1_off_p:
+        direction: input
+        net_name: "v_way_1_off_p"
+        num_bits: 1
+      v_way_2_dfe_1_m:
+        direction: input
+        net_name: "v_way_2_dfe_1_m"
+        num_bits: 1
+      v_way_2_dfe_2_m:
+        direction: input
+        net_name: "v_way_2_dfe_2_m"
+        num_bits: 1
+      v_way_2_dlev_n:
+        direction: input
+        net_name: "v_way_2_dlev_n"
+        num_bits: 1
+      v_way_2_dlev_p:
+        direction: input
+        net_name: "v_way_2_dlev_p"
+        num_bits: 1
+      v_way_2_ffe_1:
+        direction: input
+        net_name: "v_way_2_ffe_1"
+        num_bits: 1
+      v_way_2_main:
+        direction: input
+        net_name: "v_way_2_main"
+        num_bits: 1
+      v_way_2_off_n:
+        direction: input
+        net_name: "v_way_2_off_n"
+        num_bits: 1
+      v_way_2_off_p:
+        direction: input
+        net_name: "v_way_2_off_p"
+        num_bits: 1
+      v_way_3_dfe_1_m:
+        direction: input
+        net_name: "v_way_3_dfe_1_m"
+        num_bits: 1
+      v_way_3_dfe_3_m:
+        direction: input
+        net_name: "v_way_3_dfe_3_m"
+        num_bits: 1
+      v_way_3_dlev_n:
+        direction: input
+        net_name: "v_way_3_dlev_n"
+        num_bits: 1
+      v_way_3_dlev_p:
+        direction: input
+        net_name: "v_way_3_dlev_p"
+        num_bits: 1
+      v_way_3_ffe_1:
+        direction: input
+        net_name: "v_way_3_ffe_1"
+        num_bits: 1
+      v_way_3_main:
+        direction: input
+        net_name: "v_way_3_main"
+        num_bits: 1
+      v_way_3_off_n:
+        direction: input
+        net_name: "v_way_3_off_n"
+        num_bits: 1
+      v_way_3_off_p:
+        direction: input
+        net_name: "v_way_3_off_p"
+        num_bits: 1
   PIN1:
     lib_name: basic
     cell_name: iopin
@@ -330,3 +446,23 @@ instances:
     lib_name: basic
     cell_name: ipin
     instpins: {}
+  XDAC:
+    lib_name: bag_analog_ec
+    cell_name: res_ladder_dac_array
+    instpins:
+      VSS:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      VDD:
+        direction: inputOutput
+        net_name: "VDD"
+        num_bits: 1
+      out:
+        direction: output
+        net_name: "v_vincm"
+        num_bits: 1
+      code:
+        direction: input
+        net_name: "bias_vincm<0>"
+        num_bits: 1
