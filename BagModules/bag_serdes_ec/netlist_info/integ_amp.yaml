@@ -4,12 +4,8 @@ pins: [ "VDD", "VSS", "clkp", "clkn", "inp", "inn", "casc<1:0>", "outp", "outn",
 instances:
   XGM:
     lib_name: bag_serdes_ec
-    cell_name: integ_amp_gm
+    cell_name: integ_gm
     instpins:
-      en<3>:
-        direction: input
-        net_name: "en<3>"
-        num_bits: 1
       pulse:
         direction: input
         net_name: "pulse"
@@ -25,6 +21,10 @@ instances:
       setp:
         direction: input
         net_name: "setp"
+        num_bits: 1
+      foot:
+        direction: output
+        net_name: "foot"
         num_bits: 1
       VSS:
         direction: inputOutput
@@ -42,13 +42,9 @@ instances:
         direction: output
         net_name: "iin"
         num_bits: 1
-      foot:
-        direction: output
-        net_name: "foot"
-        num_bits: 1
-      tail:
-        direction: output
-        net_name: "tail"
+      clkp:
+        direction: input
+        net_name: "clkp"
         num_bits: 1
       clkn:
         direction: input
@@ -61,6 +57,14 @@ instances:
       inn:
         direction: input
         net_name: "inn"
+        num_bits: 1
+      en<3>:
+        direction: input
+        net_name: "en<3>"
+        num_bits: 1
+      tail:
+        direction: output
+        net_name: "tail"
         num_bits: 1
       biasp:
         direction: input
