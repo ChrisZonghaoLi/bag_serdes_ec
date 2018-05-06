@@ -107,6 +107,7 @@ class IntegAmp(HybridQDRBase):
             min_height='Minimum height.',
             vss_tid='VSS track information.',
             vdd_tid='VDD track information.',
+            sch_hp_params='Schematic high-pass filter parameters.',
             show_pins='True to create pin labels.',
             export_probe='True to export probe ports.',
         )
@@ -123,6 +124,7 @@ class IntegAmp(HybridQDRBase):
             min_height=0,
             vss_tid=None,
             vdd_tid=None,
+            sch_hp_params=None,
             show_pins=True,
             export_probe=False,
         )
@@ -146,6 +148,7 @@ class IntegAmp(HybridQDRBase):
         min_height = self.params['min_height']
         vss_tid = self.params['vss_tid']
         vdd_tid = self.params['vdd_tid']
+        sch_hp_params = self.params['sch_hp_params']
         show_pins = self.params['show_pins']
         export_probe = self.params['export_probe']
 
@@ -265,7 +268,7 @@ class IntegAmp(HybridQDRBase):
                     upper = max(upper, warr.upper_unit)
 
         # set schematic parameters and other properties
-        self._sch_params = self._get_sch_params(lch, w_dict, th_dict, seg_dict,
+        self._sch_params = self._get_sch_params(lch, w_dict, th_dict, seg_dict, sch_hp_params,
                                                 flip_sign, export_probe)
         self._fg_tot = fg_tot
         self._hm_widths = (tr_manager.get_width(hm_layer, 'in'),
@@ -274,7 +277,8 @@ class IntegAmp(HybridQDRBase):
                           (ports['inp'].lower_unit, ports['inp'].upper_unit),
                           (ports['outp'].lower_unit, ports['outp'].upper_unit))
 
-    def _get_sch_params(self, lch, w_dict, th_dict, seg_dict, flip_sign, export_probe):
+    def _get_sch_params(self, lch, w_dict, th_dict, seg_dict, sch_hp_params,
+                        flip_sign, export_probe):
         ndum_info = []
         pdum_info = []
         for info in self.get_sch_dummy_info():
@@ -304,6 +308,7 @@ class IntegAmp(HybridQDRBase):
                 th_dict=nth_dict,
                 seg_dict=nseg_dict,
                 dum_info=ndum_info,
+                hp_params=sch_hp_params,
                 export_probe=export_probe,
             ),
             flip_sign=flip_sign,

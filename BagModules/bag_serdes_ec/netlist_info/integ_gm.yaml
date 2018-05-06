@@ -6,10 +6,6 @@ instances:
     lib_name: bag_analog_ec
     cell_name: high_pass
     instpins:
-      VDD:
-        direction: inputOutput
-        net_name: "VDD"
-        num_bits: 1
       VSS:
         direction: inputOutput
         net_name: "VSS"

@@ -79,6 +79,7 @@ class Tap1SummerRow(HybridQDRBase):
             options='other AnalogBase options',
             min_height='Minimum height.',
             sup_tids='supply track information.',
+            sch_hp_params='Schematic high-pass filter parameters.',
             show_pins='True to create pin labels.',
         )
 
@@ -90,6 +91,7 @@ class Tap1SummerRow(HybridQDRBase):
             options=None,
             min_height=0,
             sup_tids=None,
+            sch_hp_params=None,
             show_pins=True,
         )
 
@@ -108,6 +110,7 @@ class Tap1SummerRow(HybridQDRBase):
         options = self.params['options']
         min_height = self.params['min_height']
         sup_tids = self.params['sup_tids']
+        sch_hp_params = self.params['sch_hp_params']
         show_pins = self.params['show_pins']
 
         if options is None:
@@ -196,6 +199,7 @@ class Tap1SummerRow(HybridQDRBase):
             th_dict=th_dict,
             seg_main=seg_main,
             seg_fb=seg_fb,
+            hp_params=sch_hp_params,
             m_dum_info=self.get_sch_dummy_info(col_start=0, col_stop=col_mid),
             f_dum_info=self.get_sch_dummy_info(col_start=col_mid, col_stop=None),
         )
@@ -576,6 +580,7 @@ class Tap1Summer(TemplateBase):
             options='other AnalogBase options',
             row_heights='row heights.',
             sup_tids='supply tracks information for a summer.',
+            sch_hp_params='Schematic high-pass filter parameters.',
             show_pins='True to create pin labels.',
         )
 
@@ -588,6 +593,7 @@ class Tap1Summer(TemplateBase):
             options=None,
             row_heights=None,
             sup_tids=None,
+            sch_hp_params=None,
             show_pins=True,
         )
 
@@ -765,6 +771,7 @@ class Tap1Column(TemplateBase):
             options='other AnalogBase options',
             row_heights='row heights for one summer.',
             sup_tids='supply tracks information for a summer.',
+            sch_hp_params='Schematic high-pass filter parameters.',
             show_pins='True to create pin labels.',
         )
 
@@ -775,6 +782,7 @@ class Tap1Column(TemplateBase):
             options=None,
             row_heights=None,
             sup_tids=None,
+            sch_hp_params=None,
             show_pins=True,
         )
 

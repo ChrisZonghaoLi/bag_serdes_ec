@@ -132,6 +132,7 @@ class TapXSummerCell(TemplateBase):
             flip_sign='True to flip summer output sign.',
             end_mode='The AnalogBase end_mode flag.',
             options='other AnalogBase options',
+            sch_hp_params='Schematic high-pass filter parameters.',
             show_pins='True to create pin labels.',
         )
 
@@ -142,6 +143,7 @@ class TapXSummerCell(TemplateBase):
             flip_sign=False,
             end_mode=12,
             options=None,
+            sch_hp_params=None,
             show_pins=True,
         )
 
@@ -154,6 +156,7 @@ class TapXSummerCell(TemplateBase):
         show_pins = self.params['show_pins']
         tr_widths = self.params['tr_widths']
         tr_spaces = self.params['tr_spaces']
+        sch_hp_params = self.params['sch_hp_params']
 
         # get layout parameters
         sum_params = dict(
@@ -167,6 +170,7 @@ class TapXSummerCell(TemplateBase):
             but_sw=True,
             show_pins=False,
             end_mode=end_mode,
+            sch_hp_params=sch_hp_params,
         )
         lat_params = dict(
             w_dict=self.params['w_lat'],
@@ -179,6 +183,7 @@ class TapXSummerCell(TemplateBase):
             but_sw=False,
             show_pins=False,
             end_mode=end_mode & 0b1100,
+            sch_hp_params=None,
         )
         for key in ('lch', 'ptap_w', 'ntap_w', 'fg_duml', 'fg_dumr', 'options'):
             sum_params[key] = lat_params[key] = self.params[key]
@@ -362,6 +367,7 @@ class TapXSummerLast(TemplateBase):
             options='other AnalogBase options',
             left_edge_info='left edge information for digital.',
             right_edge_info='right edge information for digital.',
+            sch_hp_params='Schematic high-pass filter parameters.',
             show_pins='True to create pin labels.',
         )
 
@@ -376,6 +382,7 @@ class TapXSummerLast(TemplateBase):
             options=None,
             left_edge_info=None,
             right_edge_info=None,
+            sch_hp_params=None,
             show_pins=True,
         )
 
@@ -411,7 +418,7 @@ class TapXSummerLast(TemplateBase):
             end_mode=end_mode,
         )
         for key in ('lch', 'ptap_w', 'ntap_w', 'fg_duml', 'fg_dumr',
-                    'tr_widths', 'tr_spaces', 'options'):
+                    'tr_widths', 'tr_spaces', 'options', 'sch_hp_params'):
             sum_params[key] = self.params[key]
 
         s_master = self.new_template(params=sum_params, temp_cls=IntegAmp)
@@ -616,6 +623,7 @@ class TapXSummerNoLast(TemplateBase):
             tr_widths='Track width dictionary.',
             tr_spaces='Track spacing dictionary.',
             options='other AnalogBase options',
+            sch_hp_params='Schematic high-pass filter parameters.',
             show_pins='True to create pin labels.',
         )
 
@@ -624,6 +632,7 @@ class TapXSummerNoLast(TemplateBase):
         # type: () -> Dict[str, Any]
         return dict(
             options=None,
+            sch_hp_params=None,
             show_pins=True,
         )
 
@@ -644,6 +653,7 @@ class TapXSummerNoLast(TemplateBase):
         tr_widths = self.params['tr_widths']
         tr_spaces = self.params['tr_spaces']
         show_pins = self.params['show_pins']
+        sch_hp_params = self.params['sch_hp_params']
         options = self.params['options']
 
         num_sum = len(seg_sum_list)
@@ -669,7 +679,7 @@ class TapXSummerNoLast(TemplateBase):
         base_params = dict(lch=lch, ptap_w=ptap_w, ntap_w=ntap_w, w_sum=w_sum, w_lat=w_lat,
                            th_sum=th_sum, th_lat=th_lat, fg_duml=fg_dum, fg_dumr=fg_dum,
                            tr_widths=tr_widths, tr_spaces=tr_spaces, end_mode=0,
-                           show_pins=False, options=options, )
+                           sch_hp_params=sch_hp_params, show_pins=False, options=options, )
         place_info = None, None, None, 0, None
         ffe_sig_list = self._get_ffe_signals(num_ffe)
         self._fg_tot = 0
@@ -1062,6 +1072,7 @@ class TapXSummer(TemplateBase):
             div_pos_edge='True if the divider triggers off positive edge of the clock.',
             fg_min_last='Minimum number of core fingers for last cell.',
             options='other AnalogBase options',
+            sch_hp_params='Schematic high-pass filter parameters.',
             show_pins='True to create pin labels.',
         )
 
@@ -1072,6 +1083,7 @@ class TapXSummer(TemplateBase):
             div_pos_edge=True,
             fg_min_last=0,
             options=None,
+            sch_hp_params=None,
             show_pins=True,
         )
 
@@ -1095,6 +1107,7 @@ class TapXSummer(TemplateBase):
         fg_min_last = self.params['fg_min_last']
         show_pins = self.params['show_pins']
         options = self.params['options']
+        sch_hp_params = self.params['sch_hp_params']
 
         num_ffe = len(seg_ffe_list)
 
@@ -1139,8 +1152,8 @@ class TapXSummer(TemplateBase):
                            fg_duml=fg_dum, fg_dumr=fg_dum, tr_widths=tr_widths, tr_spaces=tr_spaces,
                            div_tr_info=main.div_tr_info, div_pos_edge=div_pos_edge,
                            flip_sign=flip_sign_list[num_ffe], fg_min=fg_min_last,
-                           end_mode=0b1000, show_pins=False, options=options,
-                           left_edge_info=main.lat_lr_edge_info[1],
+                           end_mode=0b1000, sch_hp_params=sch_hp_params, show_pins=False,
+                           options=options, left_edge_info=main.lat_lr_edge_info[1],
                            )
         last_master = self.new_template(params=last_params, temp_cls=TapXSummerLast)
 
@@ -1368,6 +1381,7 @@ class TapXColumn(TemplateBase):
             tr_widths='Track width dictionary.',
             tr_spaces='Track spacing dictionary.',
             options='other AnalogBase options',
+            sch_hp_params='Schematic high-pass filter parameters.',
             show_pins='True to create pin labels.',
             export_probe='True to export probe ports.',
         )
@@ -1377,6 +1391,7 @@ class TapXColumn(TemplateBase):
         # type: () -> Dict[str, Any]
         return dict(
             options=None,
+            sch_hp_params=None,
             show_pins=True,
             export_probe=False,
         )

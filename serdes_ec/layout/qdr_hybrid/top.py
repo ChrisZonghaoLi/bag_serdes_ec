@@ -56,6 +56,9 @@ class RXFrontend(TemplateBase):
             fg_dum='Number of single-sided edge dummy fingers.',
             tr_widths='Track width dictionary.',
             tr_spaces='Track spacing dictionary.',
+            fill_w='supply fill wire width.',
+            fill_sp='supply fill spacing.',
+            fill_margin='space between supply fill and others.',
             fill_config='Fill configuration dictionary.',
             ana_options='other AnalogBase options',
             show_pins='True to create pin labels.',
@@ -65,6 +68,9 @@ class RXFrontend(TemplateBase):
     def get_default_param_values(cls):
         # type: () -> Dict[str, Any]
         return dict(
+            fill_w=2,
+            fill_sp=1,
+            fill_margin=0,
             ana_options=None,
             show_pins=True,
         )
