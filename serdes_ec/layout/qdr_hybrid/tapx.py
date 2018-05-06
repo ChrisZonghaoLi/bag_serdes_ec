@@ -1452,9 +1452,11 @@ class TapXColumn(TemplateBase):
         tr0 = self.grid.coord_to_track(vm_layer, x0, unit_mode=True) + 0.5
         tmp = self._connect_signals(tr0, num_ffe, ffe_track_info, inst_list, vm_layer,
                                     vm_w_out, 'a', sig_off=0, is_ffe=True)
+        inp_warrs = []
+        inn_warrs = []
         for warrp, warrn in zip(*tmp):
-            self.add_pin('inp_a', warrp, label='inp_a:', show=show_pins)
-            self.add_pin('inn_a', warrn, label='inn_a:', show=show_pins)
+            inp_warrs.extend(warrp)
+            inn_warrs.extend(warrn)
 
         tmp = self._connect_signals(tr0, num_dfe, dfe_track_info, inst_list, vm_layer,
                                     vm_w_out, 'd', sig_off=2, is_ffe=False)
@@ -1510,7 +1512,8 @@ class TapXColumn(TemplateBase):
         right_vdd_tidx = self.grid.find_next_track(vm_layer, x0, half_track=True,
                                                    mode=-1, unit_mode=True)
         self._connect_div_column(tr_manager, vm_layer, div_inst, right_vdd_tidx, clkp_list,
-                                 clkn_list, en_list, vdd_list, sh_lower, sh_upper, show_pins)
+                                 clkn_list, en_list, vdd_list, vss_list, inp_warrs, inn_warrs,
+                                 sh_lower, sh_upper, show_pins)
 
         # set schematic parameters and various properties
         self._sch_params = dict(
@@ -1537,18 +1540,34 @@ class TapXColumn(TemplateBase):
         self._sup_tids = endb_master.sup_tids
 
     def _connect_div_column(self, tr_manager, vm_layer, inst, right_tidx, clkp_list, clkn_list,
-                            en_list, vdd_list, sh_lower, sh_upper, show_pins):
-        wtype_list = [1, 'clk', 1, 'clk', 'clk', 1, 'en', 'en', 'en', 'en', 1]
+                            en_list, vdd_list, vss_list, inp_warrs, inn_warrs, sh_lower, sh_upper,
+                            show_pins):
+        wtype_list = [1, 'in', 'in', 1, 1, 'clk', 1, 'clk', 'clk', 1, 'en', 'en', 'en', 'en', 1]
         _, locs = tr_manager.place_wires(vm_layer, wtype_list)
         tr0 = right_tidx - locs[-1]
 
+        # connect inputs
+        tr_w = tr_manager.get_width(vm_layer, 'in')
+        pidx = tr0 + locs[1]
+        nidx = tr0 + locs[2]
+        inp, inn = self.connect_differential_tracks(inp_warrs, inn_warrs, vm_layer, pidx, nidx,
+                                                    width=tr_w)
+        self.add_pin('inp_a', inp, show=show_pins)
+        self.add_pin('inn_a', inn, show=show_pins)
+
         # connect VDD shield
-        for tidx in (locs[2] + tr0, locs[5] + tr0, locs[10] + tr0):
+        for tidx in (locs[6] + tr0, locs[9] + tr0, locs[14] + tr0):
             warr = self.connect_to_tracks(vdd_list, TrackID(vm_layer, tidx), track_lower=sh_lower,
                                           track_upper=sh_upper, unit_mode=True)
             self.add_pin('VDD', warr, show=show_pins)
+        # connect VSS shield
+        for tidx in (locs[0] + tr0, locs[3] + tr0):
+            warr = self.connect_to_tracks(vss_list, TrackID(vm_layer, tidx), track_lower=sh_lower,
+                                          track_upper=sh_upper, unit_mode=True)
+            self.add_pin('VSS', warr, show=show_pins)
+
         # connect enables
-        en_off = 6
+        en_off = 10
         vm_w_en = tr_manager.get_width(vm_layer, 'en')
         for en_idx, en_warrs in enumerate(en_list):
             en_warrs.append(inst.get_pin('en<%d>' % en_idx))
@@ -1558,15 +1577,15 @@ class TapXColumn(TemplateBase):
         vm_w_clk = tr_manager.get_width(vm_layer, 'clk')
         clkp_list.append(inst.get_pin('clkp'))
         clkn_list.append(inst.get_pin('clkn'))
-        trp = locs[3] + tr0
-        trn = locs[4] + tr0
+        trp = locs[7] + tr0
+        trn = locs[8] + tr0
         clkp, clkn = self.connect_differential_tracks(clkp_list, clkn_list, vm_layer, trp, trn,
                                                       width=vm_w_clk, unit_mode=True)
-        self.add_pin('clkp', clkp)
-        self.add_pin('clkn', clkn)
+        self.add_pin('clkp', clkp, show=show_pins)
+        self.add_pin('clkn', clkn, show=show_pins)
         # connect enable and scan
-        scan_tid = TrackID(vm_layer, locs[0] + tr0)
-        en_tid = TrackID(vm_layer, locs[1] + tr0, width=vm_w_clk)
+        scan_tid = TrackID(vm_layer, locs[4] + tr0)
+        en_tid = TrackID(vm_layer, locs[5] + tr0, width=vm_w_clk)
         for idx in range(2, 4):
             sname = 'scan_div<%d>' % idx
             ename = 'en_div<%d>' % idx

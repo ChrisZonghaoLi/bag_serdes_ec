@@ -56,6 +56,9 @@ class RXDatapath(TemplateBase):
             fg_dum='Number of single-sided edge dummy fingers.',
             tr_widths='Track width dictionary.',
             tr_spaces='Track spacing dictionary.',
+            fill_w='supply fill wire width.',
+            fill_sp='supply fill spacing.',
+            fill_margin='space between supply fill and others.',
             ana_options='other AnalogBase options',
             show_pins='True to create pin labels.',
         )
@@ -64,12 +67,16 @@ class RXDatapath(TemplateBase):
     def get_default_param_values(cls):
         # type: () -> Dict[str, Any]
         return dict(
+            fill_w=2,
+            fill_sp=1,
+            fill_margin=0,
             ana_options=None,
             show_pins=True,
         )
 
     def draw_layout(self):
         show_pins = self.params['show_pins']
+
         tapx_master, tap1_master, offset_master, loff_master, samp_master = self._create_masters()
 
         xcur = 0
@@ -88,8 +95,9 @@ class RXDatapath(TemplateBase):
 
         self._connect_signals(tapx, tap1, offset, offlev, samp)
 
-        for name in samp.port_names_iter():
-            self.reexport(samp.get_port(name), show=show_pins)
+        self._export_pins(tapx, tap1, offset, offlev, samp, show_pins)
+
+        self._connect_supplies(tapx, tap1, offset, offlev, samp, show_pins)
 
         self._sch_params = dict(
             tapx_params=tapx_master.sch_params,
@@ -98,6 +106,100 @@ class RXDatapath(TemplateBase):
             loff_params=loff_master.sch_params,
             samp_params=samp_master.sch_params,
         )
+
+    def _connect_supplies(self, tapx, tap1, offset, offlev, samp, show_pins):
+        fill_w = self.params['fill_w']
+        fill_sp = self.params['fill_sp']
+        fill_margin = self.params['fill_margin']
+
+        vdd_hm_list = []
+        vss_hm_list = []
+        vdd_vm_list = []
+        vss_vm_list = []
+        vm_layer = self.top_layer
+        hm_layer = vm_layer - 1
+        for inst in (tapx, tap1, offset, offlev, samp):
+            vdd_hm_list.extend(inst.port_pins_iter('VDD', layer=hm_layer))
+            vss_hm_list.extend(inst.port_pins_iter('VSS', layer=hm_layer))
+            vdd_vm_list.extend(inst.port_pins_iter('VDD', layer=vm_layer))
+            vss_vm_list.extend(inst.port_pins_iter('VSS', layer=vm_layer))
+
+        vdd_hm = self.connect_wires(vdd_hm_list)
+        vss_hm = self.connect_wires(vss_hm_list)
+        bnd_box = self.bound_box
+        sp_le = bnd_box.height_unit
+        vdd, vss = self.do_power_fill(vm_layer, fill_margin, sp_le, vdd_warrs=vdd_hm,
+                                      vss_warrs=vss_hm, bound_box=bnd_box, fill_width=fill_w,
+                                      fill_space=fill_sp, unit_mode=True)
+        vdd_vm_list.extend(vdd)
+        vss_vm_list.extend(vss)
+        self.add_pin('VDD', vdd_vm_list, show=show_pins)
+        self.add_pin('VSS', vss_vm_list, show=show_pins)
+
+    def _export_pins(self, tapx, tap1, offset, offlev, samp, show_pins):
+
+        # reexport common ports
+        reexport_set = {'clkp', 'clkn', 'en_div<3>', 'en_div<2>', 'scan_div<3>', 'scan_div<2>'}
+        for name in reexport_set:
+            self.reexport(tap1.get_port(name), label=name + ':', show=show_pins)
+            self.reexport(tapx.get_port(name), label=name + ':', show=show_pins)
+            self.reexport(samp.get_port(name), label=name + ':', show=show_pins)
+
+        # reexport TapX ports.
+        self.reexport(tapx.get_port('inp_a'), net_name='inp', show=show_pins)
+        self.reexport(tapx.get_port('inn_a'), net_name='inn', show=show_pins)
+        self.reexport(tapx.get_port('biasp_a'), net_name='clk_analog<0>', show=show_pins)
+        self.reexport(tapx.get_port('biasn_a'), net_name='clk_analog<1>', show=show_pins)
+        self.reexport(tapx.get_port('biasp_d'), net_name='clk_digital<0>',
+                      label='clk_digital<0>:', show=show_pins)
+        self.reexport(tapx.get_port('biasn_d'), net_name='clk_digital<1>',
+                      label='clk_digital<1>:', show=show_pins)
+        for name in tapx.port_names_iter():
+            if name.startswith('casc'):
+                suf = name[4:]
+                self.reexport(tapx.get_port(name), net_name='bias_ffe' + suf, show=show_pins)
+            elif name.startswith('bias_m'):
+                suf = name[6:]
+                self.reexport(tapx.get_port(name), net_name='clk_main' + suf, show=show_pins)
+            elif name.startswith('bias_s'):
+                suf = name[6:]
+                self.reexport(tapx.get_port(name), net_name='clk_dfe' + suf, show=show_pins)
+            elif name.startswith('sgnp') or name.startswith('sgnn'):
+                suf = name[4:]
+                self.reexport(tapx.get_port(name), net_name=name[:4] + '_dfe' + suf, show=show_pins)
+
+        # reexport tap1 ports
+        self.reexport(tap1.get_port('biasp_m'), net_name='clk_tap1<0>', show=show_pins)
+        self.reexport(tap1.get_port('biasn_m'), net_name='clk_tap1<1>', show=show_pins)
+        self.reexport(tap1.get_port('biasp_d'), net_name='clk_digital<0>',
+                      label='clk_digital<0>:', show=show_pins)
+        self.reexport(tap1.get_port('biasn_d'), net_name='clk_digital<1>',
+                      label='clk_digital<1>:', show=show_pins)
+
+        # reexport sampler ports
+        self.reexport(samp.get_port('des_clk'), show=show_pins)
+        self.reexport(samp.get_port('des_clkb'), show=show_pins)
+
+        # reexport highpass column ports, and ports with index of 4
+        tap_order = [1, 2, 0, 3]
+        for idx, tap_idx in enumerate(tap_order):
+            off_suf = '<%d>' % idx
+            tap_suf = '<%d>' % tap_idx
+            self.reexport(offset.get_port('biasp' + off_suf), net_name='bias_offp' + tap_suf,
+                          show=show_pins)
+            self.reexport(offset.get_port('biasn' + off_suf), net_name='bias_offn' + tap_suf,
+                          show=show_pins)
+            self.reexport(offlev.get_port('biasp' + off_suf), net_name='bias_dlevp' + tap_suf,
+                          show=show_pins)
+            self.reexport(offlev.get_port('biasn' + off_suf), net_name='bias_dlevn' + tap_suf,
+                          show=show_pins)
+
+            # tap1
+            self.reexport(tap1.get_port('bias_f' + off_suf), net_name='clk_dfe<%d>' % (idx + 4),
+                          show=show_pins)
+            # sampler
+            self.reexport(samp.get_port('data' + off_suf), show=show_pins)
+            self.reexport(samp.get_port('dlev' + off_suf), show=show_pins)
 
     def _connect_signals(self, tapx, tap1, offset, offlev, samp):
         # connect input/outputs that are track-aligned by construction
@@ -140,8 +242,6 @@ class RXDatapath(TemplateBase):
             self.connect_differential_wires(inp, inn, outp_d, outn_d, unit_mode=True)
 
     def _create_masters(self):
-        show_pins_debug = True
-
         config = self.params['config']
         ptap_w = self.params['ptap_w']
         ntap_w = self.params['ntap_w']
@@ -171,7 +271,7 @@ class RXDatapath(TemplateBase):
         tapx_params['tr_widths'] = tr_widths
         tapx_params['tr_spaces'] = tr_spaces
         tapx_params['options'] = ana_options
-        tapx_params['show_pins'] = show_pins_debug
+        tapx_params['show_pins'] = False
         tapx_master = self.new_template(params=tapx_params, temp_cls=TapXColumn)
         row_heights = tapx_master.row_heights
         sup_tids = tapx_master.sup_tids
@@ -195,7 +295,7 @@ class RXDatapath(TemplateBase):
         tap1_params['options'] = ana_options
         tap1_params['row_heights'] = row_heights
         tap1_params['sup_tids'] = sup_tids
-        tap1_params['show_pins'] = show_pins_debug
+        tap1_params['show_pins'] = False
         tap1_master = self.new_template(params=tap1_params, temp_cls=Tap1Column)
         tap1_in_tr_info = tap1_master.in_tr_info
         tap1_out_tr_info = tap1_master.out_tr_info
@@ -214,7 +314,7 @@ class RXDatapath(TemplateBase):
         offset_params['tr_spaces'] = tr_spaces
         offset_params['ana_options'] = ana_options
         offset_params['sub_tids'] = vss_tids
-        offset_params['show_pins'] = show_pins_debug
+        offset_params['show_pins'] = False
         offset_master = self.new_template(params=offset_params, temp_cls=HighPassColumn)
 
         loff_params = hp_params.copy()
@@ -230,7 +330,7 @@ class RXDatapath(TemplateBase):
         loff_params['tr_spaces'] = tr_spaces
         loff_params['ana_options'] = ana_options
         loff_params['sub_tids'] = vss_tids
-        loff_params['show_pins'] = show_pins_debug
+        loff_params['show_pins'] = False
         loff_master = self.new_template(params=loff_params, temp_cls=HighPassColumn)
 
         samp_params = samp_params.copy()
@@ -243,7 +343,7 @@ class RXDatapath(TemplateBase):
         samp_params['lat_row_info'] = tap1_master.lat_row_info
         samp_params['div_tr_info'] = tap1_master.div_tr_info
         samp_params['options'] = ana_options
-        samp_params['show_pins'] = show_pins_debug
+        samp_params['show_pins'] = False
         samp_master = self.new_template(params=samp_params, temp_cls=SamplerColumn)
 
         return tapx_master, tap1_master, offset_master, loff_master, samp_master

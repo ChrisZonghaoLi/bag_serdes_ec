@@ -1023,27 +1023,31 @@ class SamplerColumn(TemplateBase):
     def _connect_supply(self, sa_inst, div_inst, re_inst, show_pins):
         re_box = re_inst.bound_box
         re_yb, re_yt = re_box.bottom_unit, re_box.top_unit
-        vdd_list = []
-        vss_list = []
+        vddi_list = []
+        vssi_list = []
         vddo_list = []
         vsso_list = []
         for pin in chain(sa_inst.port_pins_iter('VDD'), div_inst.port_pins_iter('VDD')):
-            vdd_list.append(pin)
             yc = self.grid.track_to_coord(pin.layer_id, pin.track_id.base_index, unit_mode=True)
             if yc < re_yb or yc > re_yt:
                 vddo_list.append(pin)
+            else:
+                vddi_list.append(pin)
         for pin in chain(sa_inst.port_pins_iter('VSS'), div_inst.port_pins_iter('VSS')):
-            vss_list.append(pin)
             yc = self.grid.track_to_coord(pin.layer_id, pin.track_id.base_index, unit_mode=True)
             if yc < re_yb or yc > re_yt:
                 vsso_list.append(pin)
+            else:
+                vssi_list.append(pin)
 
-        re_vdd = re_inst.get_all_port_pins('VDDL')
-        re_vss = re_inst.get_all_port_pins('VSSL')
-        vdd_warrs = self.connect_to_track_wires(re_vdd, vdd_list)
-        vss_warrs = self.connect_to_track_wires(re_vss, vss_list)
         re_vdd = re_inst.get_all_port_pins('VDDR')
         re_vss = re_inst.get_all_port_pins('VSSR')
+        vdd_warrs = self.connect_to_track_wires(re_vdd, vddo_list)
+        vss_warrs = self.connect_to_track_wires(re_vss, vsso_list)
+        re_vdd = re_inst.get_all_port_pins('VDDL')
+        re_vss = re_inst.get_all_port_pins('VSSL')
+        vdd_warrs.extend(self.connect_to_track_wires(re_vdd, vddi_list))
+        vss_warrs.extend(self.connect_to_track_wires(re_vss, vssi_list))
         self.connect_to_track_wires(re_vdd, vddo_list)
         self.connect_to_track_wires(re_vss, vsso_list)
         self.add_pin('VDD', vdd_warrs, show=show_pins)
