@@ -25,27 +25,24 @@ class bag_serdes_ec__qdr_top(Module):
     def get_params_info(cls):
         # type: () -> Dict[str, str]
         return dict(
-            dp_params='datapath parameters.',
+            fe_params='frontend parameters.',
+            dac_params='dac parameters.',
         )
 
-    def design(self, dp_params):
-        self.instances['XDP'].design(**dp_params)
-        pin_list = self.instances['XDP'].master.pin_list
+    def design(self, fe_params, dac_params):
+        self.instances['XFE'].design(**fe_params)
+        self.instances['XDAC'].design(**dac_params)
+        pin_list = self.instances['XDAC'].master.pin_list
 
-        has_set = False
-        num_ffe = num_dfe = 0
         for name in pin_list:
-            if name.startswith('setp'):
-                has_set = True
-                # TODO: figure out the rest
-            elif name.startswith('bias_ffe'):
-                suffix = name[8:]
-                max_idx = int(suffix[1:].split(':')[0])
-                num_ffe = (max_idx + 1) // 4 - 1
-            elif name.startswith('sgnp_dfe'):
-                suffix = name[8:]
-                max_idx = int(suffix[1:].split(':')[0])
-                num_dfe = (max_idx + 1) // 4 - 1
+            self.reconnect_instance_terminal('XDAC', name, name)
+            if name.startswith('v_'):
+                self.reconnect_instance_terminal('XDP', name, name)
+
+        fe_master = self.instances['XFE'].master
+        has_set = fe_master.has_set
+        num_ffe = fe_master.num_ffe
+        num_dfe = fe_master.num_dfe
 
         if num_ffe < 1:
             raise ValueError('Only support 1+ FFE.')

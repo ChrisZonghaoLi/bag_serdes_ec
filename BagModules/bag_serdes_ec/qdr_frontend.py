@@ -88,6 +88,19 @@ class bag_serdes_ec__qdr_frontend(Module):
                 self.add_pin('bias_way_%d_dfe_%d_s<1:0>' % (way_idx, dfe_idx), 'input')
                 self.add_pin('v_way_%d_dfe_%d_m' % (way_idx, dfe_idx), 'input')
         max_dfe_idx = 4 * self._num_dfe + 3
+        # connect sign bits
+        dfe_suf = '<%d:8>' % max_dfe_idx
+        sgnp_term = 'sgnp_dfe' + dfe_suf
+        sgnn_term = 'sgnn_dfe' + dfe_suf
+        sgnp_nets = []
+        sgnn_nets = []
+        for dfe_idx in range(self._num_dfe, 1, -1):
+            for way_idx in way_order:
+                sgnp_nets.append('bias_way_%d_dfe_%d_s<0>' % (way_idx, dfe_idx))
+                sgnn_nets.append('bias_way_%d_dfe_%d_s<1>' % (way_idx, dfe_idx))
+        self.reconnect_instance_terminal('XDP', sgnp_term, ','.join(sgnp_nets))
+        self.reconnect_instance_terminal('XDP', sgnn_term, ','.join(sgnn_nets))
+
         # handle high pass filters
         if has_hp:
             self.delete_instance('XHPM<3:0>')
@@ -108,20 +121,6 @@ class bag_serdes_ec__qdr_frontend(Module):
                 dfe_nets.append('v_way_%d_dfe_1_m' % way_idx)
             self.reconnect_instance_terminal('XDP', dfe_term, ','.join(dfe_nets))
         else:
-            # connect sign bits
-            max_dfe_idx = 4 * self._num_ffe + 3
-            dfe_suf = '<%d:8>' % max_dfe_idx
-            sgnp_term = 'sgnp_dfe' + dfe_suf
-            sgnn_term = 'sgnn_dfe' + dfe_suf
-            sgnp_nets = []
-            sgnn_nets = []
-            for dfe_idx in range(self._num_dfe, 1, -1):
-                for way_idx in way_order:
-                    sgnp_nets.append('bias_way_%d_dfe_%d_s<0>' % (way_idx, dfe_idx))
-                    sgnn_nets.append('bias_way_%d_dfe_%d_s<1>' % (way_idx, dfe_idx))
-            self.reconnect_instance_terminal('XDP', sgnp_term, ','.join(sgnp_nets))
-            self.reconnect_instance_terminal('XDP', sgnn_term, ','.join(sgnn_nets))
-
             # connect DFE clocks
             term_name = 'clk_dfe<%d:4>' % max_dfe_idx
             self.reconnect_instance_terminal('XDP', term_name, term_name)
