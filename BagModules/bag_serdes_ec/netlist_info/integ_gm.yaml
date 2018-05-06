@@ -1,0 +1,148 @@
+lib_name: bag_serdes_ec
+cell_name: integ_gm
+pins: [ "pulse", "en<3>", "setn", "setp", "inn", "inp", "casc<1:0>", "clkn", "outn", "outp", "clkp", "VSS", "VDD", "bias" ]
+instances:
+  XGM:
+    lib_name: bag_serdes_ec
+    cell_name: integ_amp_gm
+    instpins:
+      en<3>:
+        direction: input
+        net_name: "en<3>"
+        num_bits: 1
+      pulse:
+        direction: input
+        net_name: "pulse"
+        num_bits: 1
+      casc<1:0>:
+        direction: input
+        net_name: "casc<1:0>"
+        num_bits: 2
+      setn:
+        direction: input
+        net_name: "setn"
+        num_bits: 1
+      setp:
+        direction: input
+        net_name: "setp"
+        num_bits: 1
+      VSS:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      VDD:
+        direction: inputOutput
+        net_name: "VDD"
+        num_bits: 1
+      outp:
+        direction: output
+        net_name: "outp"
+        num_bits: 1
+      outn:
+        direction: output
+        net_name: "outn"
+        num_bits: 1
+      foot:
+        direction: output
+        net_name: "foot"
+        num_bits: 1
+      tail:
+        direction: output
+        net_name: "tail"
+        num_bits: 1
+      clkn:
+        direction: input
+        net_name: "clkn"
+        num_bits: 1
+      inp:
+        direction: input
+        net_name: "inp"
+        num_bits: 1
+      inn:
+        direction: input
+        net_name: "inn"
+        num_bits: 1
+      biasp:
+        direction: input
+        net_name: "biasp"
+        num_bits: 1
+  XHP:
+    lib_name: bag_analog_ec
+    cell_name: high_pass
+    instpins:
+      VDD:
+        direction: inputOutput
+        net_name: "VDD"
+        num_bits: 1
+      VSS:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      in:
+        direction: input
+        net_name: "clkp"
+        num_bits: 1
+      bias:
+        direction: input
+        net_name: "bias"
+        num_bits: 1
+      out:
+        direction: output
+        net_name: "biasp"
+        num_bits: 1
+  PIN25:
+    lib_name: basic
+    cell_name: opin
+    instpins: {}
+  PIN26:
+    lib_name: basic
+    cell_name: opin
+    instpins: {}
+  PIN2:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN3:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN4:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN9:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN5:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN6:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN10:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN21:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN7:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN22:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN0:
+    lib_name: basic
+    cell_name: iopin
+    instpins: {}
+  PIN1:
+    lib_name: basic
+    cell_name: iopin
+    instpins: {}

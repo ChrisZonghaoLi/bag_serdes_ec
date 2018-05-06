@@ -1,0 +1,88 @@
+lib_name: bag_serdes_ec
+cell_name: integ_load_summer
+pins: [ "VDD", "clkp", "clkn", "von", "iip", "iin", "vop", "en<3:2>" ]
+instances:
+  XTHP:
+    lib_name: basic
+    cell_name: cds_thru
+    instpins:
+      src:
+        direction: inputOutput
+        net_name: "iip"
+        num_bits: 1
+      dst:
+        direction: inputOutput
+        net_name: "vop"
+        num_bits: 1
+  XTHN:
+    lib_name: basic
+    cell_name: cds_thru
+    instpins:
+      src:
+        direction: inputOutput
+        net_name: "iin"
+        num_bits: 1
+      dst:
+        direction: inputOutput
+        net_name: "von"
+        num_bits: 1
+  XLOAD:
+    lib_name: bag_serdes_ec
+    cell_name: integ_load
+    instpins:
+      vop:
+        direction: output
+        net_name: "vop"
+        num_bits: 1
+      VDD:
+        direction: inputOutput
+        net_name: "VDD"
+        num_bits: 1
+      von:
+        direction: output
+        net_name: "von"
+        num_bits: 1
+      clkp:
+        direction: input
+        net_name: "clkp"
+        num_bits: 1
+      clkn:
+        direction: input
+        net_name: "clkn"
+        num_bits: 1
+      en<3:2>:
+        direction: input
+        net_name: "en<3:2>"
+        num_bits: 2
+  PIN0:
+    lib_name: basic
+    cell_name: iopin
+    instpins: {}
+  PIN27:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN24:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN7:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN3:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN2:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN26:
+    lib_name: basic
+    cell_name: opin
+    instpins: {}
+  PIN25:
+    lib_name: basic
+    cell_name: opin
+    instpins: {}

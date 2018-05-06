@@ -14,25 +14,9 @@ instances:
         direction: input
         net_name: "en<3:2>"
         num_bits: 2
-      nsn:
-        direction: output
-        net_name: "nsn_f"
-        num_bits: 1
-      nsp:
-        direction: output
-        net_name: "nsp_f"
-        num_bits: 1
       pulse:
         direction: input
         net_name: "pulse"
-        num_bits: 1
-      nmn:
-        direction: output
-        net_name: "nmn_f"
-        num_bits: 1
-      nmp:
-        direction: output
-        net_name: "nmp_f"
         num_bits: 1
       setn:
         direction: input
@@ -55,11 +39,11 @@ instances:
         net_name: "VDD"
         num_bits: 1
       outp:
-        direction: inputOutput
+        direction: output
         net_name: "outn"
         num_bits: 1
       outn:
-        direction: inputOutput
+        direction: output
         net_name: "outp"
         num_bits: 1
       foot:
@@ -69,22 +53,6 @@ instances:
       tail:
         direction: output
         net_name: "tail_f"
-        num_bits: 1
-      pm0p:
-        direction: output
-        net_name: "pm0p_f"
-        num_bits: 1
-      pm0n:
-        direction: output
-        net_name: "pm0n_f"
-        num_bits: 1
-      pm1p:
-        direction: output
-        net_name: "pm1p_f"
-        num_bits: 1
-      pm1n:
-        direction: output
-        net_name: "pm1n_f"
         num_bits: 1
       clkp:
         direction: input
@@ -114,25 +82,9 @@ instances:
         direction: input
         net_name: "en<3:2>"
         num_bits: 2
-      nsn:
-        direction: output
-        net_name: "nsn_m"
-        num_bits: 1
-      nsp:
-        direction: output
-        net_name: "nsp_m"
-        num_bits: 1
       pulse:
         direction: input
         net_name: "pulse"
-        num_bits: 1
-      nmn:
-        direction: output
-        net_name: "nmn_m"
-        num_bits: 1
-      nmp:
-        direction: output
-        net_name: "nmp_m"
         num_bits: 1
       setn:
         direction: input
@@ -155,11 +107,11 @@ instances:
         net_name: "VDD"
         num_bits: 1
       outp:
-        direction: inputOutput
+        direction: output
         net_name: "outp"
         num_bits: 1
       outn:
-        direction: inputOutput
+        direction: output
         net_name: "outn"
         num_bits: 1
       foot:
@@ -169,22 +121,6 @@ instances:
       tail:
         direction: output
         net_name: "tail_m"
-        num_bits: 1
-      pm0p:
-        direction: output
-        net_name: "pm0p_m"
-        num_bits: 1
-      pm0n:
-        direction: output
-        net_name: "pm0n_m"
-        num_bits: 1
-      pm1p:
-        direction: output
-        net_name: "pm1p_m"
-        num_bits: 1
-      pm1n:
-        direction: output
-        net_name: "pm1n_m"
         num_bits: 1
       clkp:
         direction: input
@@ -266,23 +202,3 @@ instances:
     lib_name: basic
     cell_name: opin
     instpins: {}
-  XDUM:
-    lib_name: BAG_prim
-    cell_name: nmos4_standard
-    instpins:
-      S:
-        direction: inputOutput
-        net_name: "VSS"
-        num_bits: 1
-      D:
-        direction: inputOutput
-        net_name: "VSS"
-        num_bits: 1
-      B:
-        direction: inputOutput
-        net_name: "VSS"
-        num_bits: 1
-      G:
-        direction: inputOutput
-        net_name: "VSS"
-        num_bits: 1

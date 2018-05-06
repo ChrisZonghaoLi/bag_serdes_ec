@@ -10,13 +10,13 @@ instances:
     lib_name: basic
     cell_name: iopin
     instpins: {}
-  PIN18:
+  PIN23:
     lib_name: basic
-    cell_name: iopin
+    cell_name: opin
     instpins: {}
-  PIN17:
+  PIN22:
     lib_name: basic
-    cell_name: iopin
+    cell_name: opin
     instpins: {}
   PIN20:
     lib_name: basic
@@ -98,25 +98,9 @@ instances:
         direction: input
         net_name: "en<2:1>"
         num_bits: 2
-      nsn:
-        direction: output
-        net_name: "nsn"
-        num_bits: 1
-      nsp:
-        direction: output
-        net_name: "nsp"
-        num_bits: 1
       pulse:
         direction: input
         net_name: "pulse_in"
-        num_bits: 1
-      nmn:
-        direction: output
-        net_name: "nmn"
-        num_bits: 1
-      nmp:
-        direction: output
-        net_name: "nmp"
         num_bits: 1
       setn:
         direction: input
@@ -135,11 +119,11 @@ instances:
         net_name: "VDD"
         num_bits: 1
       outp:
-        direction: inputOutput
+        direction: output
         net_name: "outp"
         num_bits: 1
       outn:
-        direction: inputOutput
+        direction: output
         net_name: "outn"
         num_bits: 1
       foot:
@@ -149,22 +133,6 @@ instances:
       tail:
         direction: output
         net_name: "tail"
-        num_bits: 1
-      pm0p:
-        direction: output
-        net_name: "pm0p"
-        num_bits: 1
-      pm0n:
-        direction: output
-        net_name: "pm0n"
-        num_bits: 1
-      pm1p:
-        direction: output
-        net_name: "pm1p"
-        num_bits: 1
-      pm1n:
-        direction: output
-        net_name: "pm1n"
         num_bits: 1
       clkp:
         direction: input

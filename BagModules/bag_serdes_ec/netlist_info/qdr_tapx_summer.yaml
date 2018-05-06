@@ -27,7 +27,7 @@ instances:
         net_name: "outn_d"
         num_bits: 1
       outn_s:
-        direction: inputOutput
+        direction: output
         net_name: "outn_s"
         num_bits: 1
       outp_l:
@@ -35,7 +35,7 @@ instances:
         net_name: "outp_d"
         num_bits: 1
       outp_s:
-        direction: inputOutput
+        direction: output
         net_name: "outp_s"
         num_bits: 1
       biasn_s:
@@ -99,7 +99,7 @@ instances:
         net_name: "outn_a"
         num_bits: 1
       outn_s:
-        direction: inputOutput
+        direction: output
         net_name: "outn_s"
         num_bits: 1
       outp_l:
@@ -107,7 +107,7 @@ instances:
         net_name: "outp_a"
         num_bits: 1
       outp_s:
-        direction: inputOutput
+        direction: output
         net_name: "outp_s"
         num_bits: 1
       biasn_s:
@@ -295,11 +295,11 @@ instances:
         net_name: "pulse_out"
         num_bits: 1
       outp:
-        direction: inputOutput
+        direction: output
         net_name: "outp_s"
         num_bits: 1
       outn:
-        direction: inputOutput
+        direction: output
         net_name: "outn_s"
         num_bits: 1
       biasn:
