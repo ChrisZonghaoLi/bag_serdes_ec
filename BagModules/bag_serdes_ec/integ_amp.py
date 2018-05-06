@@ -48,7 +48,7 @@ class bag_serdes_ec__integ_amp(Module):
         ndum_info = []
         pdum_info = []
         for info in dum_info:
-            if info[0] == 'pch':
+            if info[0][0] == 'pch':
                 pdum_info.append(info)
             else:
                 ndum_info.append(info)
@@ -77,3 +77,19 @@ class bag_serdes_ec__integ_amp(Module):
         if not export_probe:
             self.remove_pin('tail')
             self.remove_pin('foot')
+
+        pin_list = self.instances['XGM'].master.pin_list
+        has_set = has_casc = False
+        for pin in pin_list:
+            if pin == 'setp':
+                has_set = True
+            if pin.startswith('casc'):
+                has_casc = True
+                if pin == 'casc':
+                    self.rename_pin('casc<1:0>', 'casc')
+        if not has_casc:
+            self.remove_pin('casc<1:0>')
+        if not has_set:
+            self.remove_pin('setp')
+            self.remove_pin('setn')
+            self.remove_pin('pulse')

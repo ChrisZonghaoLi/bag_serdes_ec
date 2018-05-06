@@ -478,11 +478,22 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
                     # flip butterfly switch1 drain
                     dnetn, dnetp = dnetp, dnetn
 
+                if snet == 'VDD' or snet == 'VSS':
+                    snetpl = snetnl = ''
+                else:
+                    snetpl = snetp
+                    snetnl = snetn
+                if dnet == 'VDD' or dnet == 'VSS':
+                    dnetpl = dnetnl = ''
+                else:
+                    dnetpl = dnetp
+                    dnetnl = dnetn
+
                 # draw transistors
                 mp = self.draw_mos_conn(mos_type, row_idx, colp, seg, sdir, ddir,
-                                        s_net=s_pre + snetp + s_suf, d_net=d_pre + dnetp + d_suf)
+                                        s_net=s_pre + snetpl + s_suf, d_net=d_pre + dnetpl + d_suf)
                 mn = self.draw_mos_conn(mos_type, row_idx, coln, seg, sdir, ddir,
-                                        s_net=s_pre + snetn + s_suf, d_net=d_pre + dnetn + d_suf)
+                                        s_net=s_pre + snetnl + s_suf, d_net=d_pre + dnetnl + d_suf)
                 gnet = self.gate_dict[tran_name]
                 # save gate port
                 if tran_name == 'in':

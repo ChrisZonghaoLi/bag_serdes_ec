@@ -30,17 +30,17 @@ instances:
     lib_name: bag_serdes_ec
     cell_name: integ_load
     instpins:
-      vop:
+      outp:
         direction: output
         net_name: "vop"
+        num_bits: 1
+      outn:
+        direction: output
+        net_name: "von"
         num_bits: 1
       VDD:
         direction: inputOutput
         net_name: "VDD"
-        num_bits: 1
-      von:
-        direction: output
-        net_name: "von"
         num_bits: 1
       clkp:
         direction: input

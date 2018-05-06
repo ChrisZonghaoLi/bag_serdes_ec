@@ -1,6 +1,6 @@
 lib_name: bag_serdes_ec
 cell_name: integ_load
-pins: [ "VDD", "clkp", "clkn", "von", "vop", "en<3:2>" ]
+pins: [ "VDD", "clkp", "clkn", "outp", "outn", "en<3:2>" ]
 instances:
   XDUM:
     lib_name: BAG_prim
@@ -32,7 +32,7 @@ instances:
         num_bits: 1
       D:
         direction: inputOutput
-        net_name: "von"
+        net_name: "outn"
         num_bits: 1
       B:
         direction: inputOutput
@@ -52,7 +52,7 @@ instances:
         num_bits: 1
       D:
         direction: inputOutput
-        net_name: "von"
+        net_name: "outn"
         num_bits: 1
       B:
         direction: inputOutput
@@ -112,7 +112,7 @@ instances:
         num_bits: 1
       D:
         direction: inputOutput
-        net_name: "vop"
+        net_name: "outp"
         num_bits: 1
       B:
         direction: inputOutput
@@ -132,7 +132,7 @@ instances:
         num_bits: 1
       D:
         direction: inputOutput
-        net_name: "vop"
+        net_name: "outp"
         num_bits: 1
       B:
         direction: inputOutput
