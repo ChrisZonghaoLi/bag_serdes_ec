@@ -31,6 +31,7 @@ class bag_serdes_ec__integ_amp(Module):
             th_dict='NMOS/PMOS threshold flavor dictionary.',
             seg_dict='number of segments dictionary.',
             flip_sign='True to flip output sign.',
+            hp_params='high-pass parameters.  If None, delete it.',
             dum_info='Dummy information data structure.',
             export_probe='True to export probe ports.',
         )
@@ -40,11 +41,12 @@ class bag_serdes_ec__integ_amp(Module):
         # type: () -> Dict[str, Any]
         return dict(
             flip_sign=False,
+            hp_params=None,
             dum_info=None,
             export_probe=False,
         )
 
-    def design(self, lch, w_dict, th_dict, seg_dict, flip_sign, dum_info, export_probe):
+    def design(self, lch, w_dict, th_dict, seg_dict, flip_sign, hp_params, dum_info, export_probe):
         if dum_info is None:
             ndum_info = pdum_info = None
         else:
@@ -60,7 +62,8 @@ class bag_serdes_ec__integ_amp(Module):
         nth_dict = {k: v for k, v in th_dict.items() if k != 'load' and k != 'pen'}
         nseg_dict = {k: v for k, v in seg_dict.items() if k != 'load' and k != 'pen'}
         self.instances['XGM'].design(lch=lch, w_dict=nw_dict, th_dict=nth_dict, seg_dict=nseg_dict,
-                                     dum_info=ndum_info, export_probe=export_probe)
+                                     hp_params=hp_params, dum_info=ndum_info,
+                                     export_probe=export_probe)
         pw_dict = {'load': w_dict.get('load', 0), 'pen': w_dict.get('pen', 0)}
         pth_dict = {'load': th_dict.get('load', 'standard'), 'pen': th_dict.get('pen', 'standard')}
         pseg_dict = {'load': seg_dict.get('load', 0), 'pen': seg_dict.get('pen', 0)}
