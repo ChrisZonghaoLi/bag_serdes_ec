@@ -6,14 +6,14 @@ instances:
     lib_name: bag_serdes_ec
     cell_name: qdr_tapx_summer_cell
     instpins:
+      en<3:2>:
+        direction: input
+        net_name: "en<3:2>"
+        num_bits: 2
       casc<1:0>:
         direction: input
         net_name: "sgnn,sgnp"
         num_bits: 2
-      en<3:1>:
-        direction: input
-        net_name: "en<3:1>"
-        num_bits: 3
       VSS:
         direction: inputOutput
         net_name: "VSS"
@@ -28,7 +28,7 @@ instances:
         num_bits: 1
       outn_s:
         direction: output
-        net_name: "outn_s"
+        net_name: "iin<0>"
         num_bits: 1
       outp_l:
         direction: output
@@ -36,7 +36,7 @@ instances:
         num_bits: 1
       outp_s:
         direction: output
-        net_name: "outp_s"
+        net_name: "iip<0>"
         num_bits: 1
       biasn_s:
         direction: input
@@ -78,14 +78,14 @@ instances:
     lib_name: bag_serdes_ec
     cell_name: qdr_tapx_summer_cell
     instpins:
+      en<3:2>:
+        direction: input
+        net_name: "en<3:2>"
+        num_bits: 2
       casc<1:0>:
         direction: input
         net_name: "<*2>casc"
         num_bits: 2
-      en<3:1>:
-        direction: input
-        net_name: "en<3:1>"
-        num_bits: 3
       VSS:
         direction: inputOutput
         net_name: "VSS"
@@ -100,7 +100,7 @@ instances:
         num_bits: 1
       outn_s:
         direction: output
-        net_name: "outn_s"
+        net_name: "iin<0>"
         num_bits: 1
       outp_l:
         direction: output
@@ -108,7 +108,7 @@ instances:
         num_bits: 1
       outp_s:
         direction: output
-        net_name: "outp_s"
+        net_name: "iip<0>"
         num_bits: 1
       biasn_s:
         direction: input
@@ -270,6 +270,10 @@ instances:
     lib_name: bag_serdes_ec
     cell_name: qdr_tapx_summer_last
     instpins:
+      en<2>:
+        direction: input
+        net_name: "en<2>"
+        num_bits: 1
       casc<1:0>:
         direction: input
         net_name: "sgnn,sgnp"
@@ -296,11 +300,11 @@ instances:
         num_bits: 1
       outp:
         direction: output
-        net_name: "outp_s"
+        net_name: "iip<0>"
         num_bits: 1
       outn:
         direction: output
-        net_name: "outn_s"
+        net_name: "iin<0>"
         num_bits: 1
       biasn:
         direction: input
@@ -322,10 +326,6 @@ instances:
         direction: input
         net_name: "en<3>"
         num_bits: 1
-      en<2:1>:
-        direction: input
-        net_name: "en<2:1>"
-        num_bits: 2
       en_div:
         direction: input
         net_name: "en_div"
@@ -354,3 +354,39 @@ instances:
         direction: input
         net_name: "setp"
         num_bits: 1
+  X0:
+    lib_name: bag_serdes_ec
+    cell_name: integ_load_summer
+    instpins:
+      vop:
+        direction: output
+        net_name: "outp_s"
+        num_bits: 1
+      VDD:
+        direction: inputOutput
+        net_name: "VDD"
+        num_bits: 1
+      iip:
+        direction: input
+        net_name: "iip<0>"
+        num_bits: 1
+      iin:
+        direction: input
+        net_name: "iin<0>"
+        num_bits: 1
+      von:
+        direction: output
+        net_name: "outn_s"
+        num_bits: 1
+      clkp:
+        direction: input
+        net_name: "clkn"
+        num_bits: 1
+      clkn:
+        direction: input
+        net_name: "clkp"
+        num_bits: 1
+      en<3:2>:
+        direction: input
+        net_name: "en<2:1>"
+        num_bits: 2
