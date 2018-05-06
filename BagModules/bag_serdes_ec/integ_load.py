@@ -59,7 +59,7 @@ class bag_serdes_ec__integ_load(Module):
 
         seg_load = seg_dict.get('load', 0)
         if seg_load <= 0:
-            for name in ('clkp', 'clkn', 'en<3:2>', 'vop', 'von'):
+            for name in ('clkp', 'clkn', 'en<3:2>', 'outp', 'outn'):
                 self.remove_pin(name)
 
         self.design_dummy_transistors(dum_info, 'XDUM', 'VDD', 'VSS')

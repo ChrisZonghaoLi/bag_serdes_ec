@@ -153,9 +153,12 @@ class Tap1SummerRow(HybridQDRBase):
 
         # draw amplifier
         main_ports, _ = self.draw_integ_amp(fg_duml, seg_main, fg_dum=0,
-                                            fg_sep_hm=fg_sep_hm, net_suffix='_m')
-        fb_ports, _ = self.draw_integ_amp(fg_duml + fg_main + fg_sep_out, seg_fb, invert=True,
-                                          fg_dum=0, fg_sep_hm=fg_sep_hm, net_suffix='_f')
+                                            fg_sep_hm=fg_sep_hm)
+        col_main_end = fg_duml + fg_main
+        col_fb = col_main_end + fg_sep_out
+        col_mid = col_main_end + (fg_sep_out // 2)
+        fb_ports, _ = self.draw_integ_amp(col_fb, seg_fb, invert=True,
+                                          fg_dum=0, fg_sep_hm=fg_sep_hm)
 
         w_sup = tr_manager.get_width(hm_layer, 'sup')
         vss_warrs, vdd_warrs = self.fill_dummy(vdd_width=w_sup, vss_width=w_sup,
@@ -193,7 +196,8 @@ class Tap1SummerRow(HybridQDRBase):
             th_dict=th_dict,
             seg_main=seg_main,
             seg_fb=seg_fb,
-            dum_info=self.get_sch_dummy_info(),
+            m_dum_info=self.get_sch_dummy_info(col_start=0, col_stop=col_mid),
+            f_dum_info=self.get_sch_dummy_info(col_start=col_mid, col_stop=None),
         )
         self._fg_tot = fg_tot
 

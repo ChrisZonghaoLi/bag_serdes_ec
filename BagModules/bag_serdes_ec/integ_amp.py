@@ -45,13 +45,16 @@ class bag_serdes_ec__integ_amp(Module):
         )
 
     def design(self, lch, w_dict, th_dict, seg_dict, flip_sign, dum_info, export_probe):
-        ndum_info = []
-        pdum_info = []
-        for info in dum_info:
-            if info[0][0] == 'pch':
-                pdum_info.append(info)
-            else:
-                ndum_info.append(info)
+        if dum_info is None:
+            ndum_info = pdum_info = None
+        else:
+            ndum_info = []
+            pdum_info = []
+            for info in dum_info:
+                if info[0][0] == 'pch':
+                    pdum_info.append(info)
+                else:
+                    ndum_info.append(info)
 
         nw_dict = {k: v for k, v in w_dict.items() if k != 'load' and k != 'pen'}
         nth_dict = {k: v for k, v in th_dict.items() if k != 'load' and k != 'pen'}
