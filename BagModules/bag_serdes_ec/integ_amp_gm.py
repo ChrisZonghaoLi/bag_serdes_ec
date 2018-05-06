@@ -86,7 +86,7 @@ class bag_serdes_ec__integ_amp_gm(Module):
             self.reconnect_instance_terminal('XINN', 'D', 'outn')
 
         if seg_set <= 0:
-            for name in ('setp', 'setn', 'pulse', 'nsp', 'nsn'):
+            for name in ('setp', 'setn', 'pulse'):
                 self.remove_pin(name)
 
         if seg_tsw <= 0:
