@@ -56,7 +56,7 @@ class bag_serdes_ec__integ_gm(Module):
             name = self.orig_cell_name
 
         if self.params['hp_params'] is not None:
-            name += '_model'
+            name += '_hp'
         return name
 
     def design(self, lch, w_dict, th_dict, seg_dict, hp_params, dum_info, export_probe):

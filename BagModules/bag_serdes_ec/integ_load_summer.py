@@ -30,6 +30,10 @@ class bag_serdes_ec__integ_load_summer(Module):
             nin='number of inputs.',
         )
 
+    def get_master_basename(self):
+        # type: () -> str
+        return self.orig_cell_name + ('_nin%d' % self.params['nin'])
+
     def design(self, load_params_list, nin):
         num_load = len(load_params_list)
         if num_load > 1:

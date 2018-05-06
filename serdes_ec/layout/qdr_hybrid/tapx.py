@@ -159,6 +159,11 @@ class TapXSummerCell(TemplateBase):
         sch_hp_params = self.params['sch_hp_params']
 
         # get layout parameters
+        seg_sum = self.params['seg_sum']
+        if seg_sum.get('casc', 0) > 0:
+            sum_hp_params = None
+        else:
+            sum_hp_params = sch_hp_params
         sum_params = dict(
             w_dict=self.params['w_sum'],
             th_dict=self.params['th_sum'],
@@ -170,7 +175,7 @@ class TapXSummerCell(TemplateBase):
             but_sw=True,
             show_pins=False,
             end_mode=end_mode,
-            sch_hp_params=sch_hp_params,
+            sch_hp_params=sum_hp_params,
         )
         lat_params = dict(
             w_dict=self.params['w_lat'],
