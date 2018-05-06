@@ -8,7 +8,7 @@ from serdes_ec.layout.qdr_hybrid.offset import HighPassColumn
 
 
 if __name__ == '__main__':
-    with open('specs_test/qdr_hybrid/highpass_column.yaml', 'r') as f:
+    with open('specs_test/serdes_ec/qdr_hybrid/highpass_column.yaml', 'r') as f:
         block_specs = yaml.load(f)
 
     local_dict = locals()
@@ -20,5 +20,5 @@ if __name__ == '__main__':
         print('loading BAG project')
         bprj = local_dict['bprj']
 
-    # bprj.generate_cell(block_specs, HighPassColumn, debug=True)
-    bprj.generate_cell(block_specs, HighPassColumn, gen_sch=True, run_lvs=True, debug=True)
+    bprj.generate_cell(block_specs, HighPassColumn, debug=True)
+    # bprj.generate_cell(block_specs, HighPassColumn, gen_sch=True, run_lvs=True, debug=True)

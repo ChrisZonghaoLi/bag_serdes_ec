@@ -968,6 +968,8 @@ class TapXSummer(TemplateBase):
         self._lat_row_info = None
         self._row_heights = None
         self._sup_tids = None
+        self._vss_tids = None
+        self._vdd_tids = None
 
     @property
     def sch_params(self):
@@ -1018,6 +1020,16 @@ class TapXSummer(TemplateBase):
     def sup_tids(self):
         # type: () -> Tuple[Tuple[NumType, NumType], Tuple[NumType, NumType]]
         return self._sup_tids
+
+    @property
+    def vss_tids(self):
+        # type: () -> Tuple[Tuple[NumType, NumType], Tuple[NumType, NumType]]
+        return self._vss_tids
+
+    @property
+    def vdd_tids(self):
+        # type: () -> Tuple[Tuple[NumType, NumType], Tuple[NumType, NumType]]
+        return self._vdd_tids
 
     @classmethod
     def get_params_info(cls):
@@ -1205,6 +1217,16 @@ class TapXSummer(TemplateBase):
         # connect supplies
         vdd_list = self.connect_wires(vdd_list)
         vss_list = self.connect_wires(vss_list)
+        vss0_tid = vss_list[0].track_id
+        vss1_tid = vss_list[-1].track_id
+        vss1_tidx = vss1_tid.base_index + (vss1_tid.num - 1) * vss1_tid.pitch
+        vdd0_tid = vdd_list[0].track_id
+        vdd1_tid = vdd_list[-1].track_id
+        vdd1_tidx = vdd1_tid.base_index + (vdd1_tid.num - 1) * vdd1_tid.pitch
+        self._vss_tids = ((vss0_tid.base_index, vss0_tid.width),
+                          (vss1_tidx, vss1_tid.width))
+        self._vdd_tids = ((vdd0_tid.base_index, vdd0_tid.width),
+                          (vdd1_tidx, vdd1_tid.width))
         self.add_pin('VDD', vdd_list, label='VDD:', show=show_pins)
         self.add_pin('VSS', vss_list, label='VSS:', show=show_pins)
         # connect outputs
@@ -1526,12 +1548,8 @@ class TapXColumn(TemplateBase):
                               endt_master.sch_params['last_params']],
             export_probe=export_probe,
         )
-        vss_tid = endb_master.get_port('VSS').get_pins(vm_layer - 1)[0].track_id
-        self._vss_tids = ((vss_tid.base_index, vss_tid.width),
-                          (vss_tid.base_index + vss_tid.pitch, vss_tid.width))
-        vdd_tid = endb_master.get_port('VDD').get_pins(vm_layer - 1)[0].track_id
-        self._vdd_tids = ((vdd_tid.base_index, vdd_tid.width),
-                          (vdd_tid.base_index + vdd_tid.pitch, vdd_tid.width))
+        self._vss_tids = endb_master.vss_tids
+        self._vdd_tids = endb_master.vdd_tids
         outp_s = endb_master.get_port('outp_s').get_pins()[0]
         outn_s = endb_master.get_port('outn_s').get_pins()[0]
         self._out_tr_info = (outp_s.track_id.base_index, outn_s.track_id.base_index,
