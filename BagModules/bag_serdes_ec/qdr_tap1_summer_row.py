@@ -66,6 +66,8 @@ class bag_serdes_ec__qdr_tap1_summer_row(Module):
         self.instances['XFB'].design(lch=lch, w_dict=nw, th_dict=nth, seg_dict=nseg_f,
                                      hp_params=hp_params, dum_info=ndum_f)
         self.instances['XLOAD'].design(load_params_list=load_params_list, nin=2)
+        self.reconnect_instance_terminal('XLOAD', 'iip<1:0>', 'iip<1:0>')
+        self.reconnect_instance_terminal('XLOAD', 'iin<1:0>', 'iin<1:0>')
 
         if 'pulse' not in self.instances['XMAIN'].master.pin_list:
             for name in ('setp', 'setn', 'pulse'):

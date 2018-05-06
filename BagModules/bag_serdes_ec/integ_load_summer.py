@@ -33,9 +33,9 @@ class bag_serdes_ec__integ_load_summer(Module):
     def design(self, load_params_list, nin):
         num_load = len(load_params_list)
         if num_load > 1:
-            load_name_list = ['XLOAD' % idx for idx in range(num_load)]
+            load_name_list = ['XLOAD%d' % idx for idx in range(num_load)]
             self.array_instance('XLOAD', load_name_list)
-            for inst, params in zip(load_params_list, self.instances['XLOAD']):
+            for inst, params in zip(self.instances['XLOAD'], load_params_list):
                 inst.design(**params)
         else:
             self.instances['XLOAD'].design(**load_params_list[0])
