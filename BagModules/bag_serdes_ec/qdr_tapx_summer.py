@@ -148,8 +148,11 @@ class bag_serdes_ec__qdr_tapx_summer(Module):
         load_params_list.append(last_params['load_params'])
 
         # design load
-        self.instances['XLOAD'].design(load_params_list=load_params_list,
-                                       nin=len(load_params_list))
+        nin = len(load_params_list)
+        self.instances['XLOAD'].design(load_params_list=load_params_list, nin=nin)
+        suf = '<%d:0>' % (nin - 1)
+        self.reconnect_instance_terminal('XLOAD', 'iip' + suf, 'iip' + suf)
+        self.reconnect_instance_terminal('XLOAD', 'iin' + suf, 'iin' + suf)
 
         # remove pins if not needed
         if 'pulse' not in self.instances['XFFE'][0].master.pin_list:

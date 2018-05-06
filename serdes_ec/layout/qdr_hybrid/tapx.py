@@ -244,8 +244,12 @@ class TapXSummerCell(TemplateBase):
 
         # set schematic parameters
         self._sch_params = dict(
-            sum_params=s_master.sch_params,
-            lat_params=l_master.sch_params,
+            flip_sign=flip_sign,
+            sum_params=dict(
+                sum_params=s_master.sch_params['gm_params'],
+                lat_params=l_master.sch_params,
+            ),
+            load_params=s_master.sch_params['load_params'],
         )
         self._sum_row_layout_info = s_master.row_layout_info
         self._lat_row_layout_info = l_master.row_layout_info
@@ -517,10 +521,13 @@ class TapXSummerLast(TemplateBase):
 
         # set schematic parameters
         self._sch_params = dict(
-            div_pos_edge=div_pos_edge,
-            sum_params=s_master.sch_params,
-            div_params=div_sch_params,
-            pul_params=pul_sch_params,
+            sum_params=dict(div_pos_edge=div_pos_edge,
+                            sum_params=s_master.sch_params['gm_params'],
+                            div_params=div_sch_params,
+                            pul_params=pul_sch_params,
+                            ),
+            load_params=s_master.sch_params['load_params'],
+            flip_sign=flip_sign,
         )
         self._fg_tot = s_master.fg_tot
         self._fg_core = s_master.layout_info.fg_core

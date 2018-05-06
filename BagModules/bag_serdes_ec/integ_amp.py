@@ -28,7 +28,6 @@ class bag_serdes_ec__integ_amp(Module):
         return dict(
             gm_params='Gm parameters dictionary.',
             load_params='Load parameters dictionary.',
-            hp_params='High-pass filter parameters dictionary.',
             flip_sign='True to flip sign.',
         )
 
@@ -37,10 +36,9 @@ class bag_serdes_ec__integ_amp(Module):
         # type: () -> Dict[str, Any]
         return dict(
             flip_sign=False,
-            hp_params=None,
         )
 
-    def design(self, gm_params, load_params, hp_params, flip_sign):
+    def design(self, gm_params, load_params, flip_sign):
         self.instances['XGM'].design(**gm_params)
         self.instances['XLOAD'].design(load_params_list=[load_params], nin=1)
 
