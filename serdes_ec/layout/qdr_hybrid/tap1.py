@@ -345,8 +345,8 @@ class Tap1LatchRow(TemplateBase):
                 q=m_tr_info['inp'],
                 qb=m_tr_info['inn'],
                 en=m_tr_info['nen3'],
-                clkp=m_tr_info['clkp'],
-                clkn=m_tr_info['clkn'],
+                clkp=m_tr_info['clkn'],
+                clkn=m_tr_info['clkp'],
             )
             self._div_tr_info = tr_info
 
@@ -431,13 +431,13 @@ class Tap1LatchRow(TemplateBase):
             if seg_pul is None:
                 # perform connections for divider
                 if div_pos_edge:
-                    clkp.extend(d_inst.port_pins_iter('clk'))
-                    clkp = self.connect_wires(clkp)
-                    clkn = self.extend_wires(clkn, lower=clkp[0].lower_unit, unit_mode=True)
-                else:
                     clkn.extend(d_inst.port_pins_iter('clk'))
                     clkn = self.connect_wires(clkn)
                     clkp = self.extend_wires(clkp, lower=clkn[0].lower_unit, unit_mode=True)
+                else:
+                    clkp.extend(d_inst.port_pins_iter('clk'))
+                    clkp = self.connect_wires(clkp)
+                    clkn = self.extend_wires(clkn, lower=clkp[0].lower_unit, unit_mode=True)
 
                 # re-export divider pins
                 self.reexport(d_inst.get_port('q'), net_name='div', show=show_pins)

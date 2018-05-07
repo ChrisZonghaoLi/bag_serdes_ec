@@ -47,7 +47,7 @@ class bag_serdes_ec__qdr_tap1_latch_row(Module):
                 self.remove_pin(name)
         else:
             self.instances['XDIV'].design(**div_params)
-            if not div_pos_edge:
+            if div_pos_edge:
                 self.reconnect_instance_terminal('XDIV', 'clk', 'clkn')
 
         # design pulse generation
