@@ -1,6 +1,6 @@
 lib_name: bag_serdes_ec
 cell_name: qdr_tapx_column
-pins: [ "VDD", "VSS", "clkp", "clkn", "casc<3:0>", "inn_a", "inp_d<3:0>", "biasp_a", "biasn_a", "bias_s<3:0>", "bias_m<3:0>", "setp", "sgnp<3:0>", "biasp_d", "biasn_d", "inp_a", "inn_d<3:0>", "scan_div<3:2>", "en<3:0>", "outp<3:0>", "outn<3:0>", "setn", "sgnn<3:0>", "en_div<3:2>" ]
+pins: [ "VDD", "VSS", "clkp", "clkn", "casc<3:0>", "inn_a", "inp_d<3:0>", "bias_d<3:0>", "bias_s<3:0>", "bias_m<3:0>", "setp", "sgnp<3:0>", "inp_a", "inn_d<3:0>", "scan_div<3:2>", "en<3:0>", "outp<3:0>", "outn<3:0>", "setn", "sgnn<3:0>", "en_div<3:2>", "bias_a<3:0>" ]
 instances:
   X3:
     lib_name: bag_serdes_ec
@@ -72,11 +72,11 @@ instances:
         num_bits: 1
       biasp_a:
         direction: input
-        net_name: "biasp_a"
+        net_name: "bias_a<3>"
         num_bits: 1
       biasp_d:
         direction: input
-        net_name: "biasp_d"
+        net_name: "bias_d<3>"
         num_bits: 1
       casc:
         direction: input
@@ -196,11 +196,11 @@ instances:
         num_bits: 1
       biasp_a:
         direction: input
-        net_name: "biasn_a"
+        net_name: "bias_a<0>"
         num_bits: 1
       biasp_d:
         direction: input
-        net_name: "biasn_d"
+        net_name: "bias_d<0>"
         num_bits: 1
       casc:
         direction: input
@@ -320,11 +320,11 @@ instances:
         num_bits: 1
       biasp_a:
         direction: input
-        net_name: "biasn_a"
+        net_name: "bias_a<2>"
         num_bits: 1
       biasp_d:
         direction: input
-        net_name: "biasn_d"
+        net_name: "bias_d<2>"
         num_bits: 1
       casc:
         direction: input
@@ -444,11 +444,11 @@ instances:
         num_bits: 1
       biasp_a:
         direction: input
-        net_name: "biasp_a"
+        net_name: "bias_a<1>"
         num_bits: 1
       biasp_d:
         direction: input
-        net_name: "biasp_d"
+        net_name: "bias_d<1>"
         num_bits: 1
       casc:
         direction: input
@@ -534,10 +534,6 @@ instances:
     lib_name: basic
     cell_name: ipin
     instpins: {}
-  PIN13:
-    lib_name: basic
-    cell_name: ipin
-    instpins: {}
   PIN12:
     lib_name: basic
     cell_name: ipin
@@ -551,10 +547,6 @@ instances:
     cell_name: ipin
     instpins: {}
   PIN9:
-    lib_name: basic
-    cell_name: ipin
-    instpins: {}
-  PIN8:
     lib_name: basic
     cell_name: ipin
     instpins: {}

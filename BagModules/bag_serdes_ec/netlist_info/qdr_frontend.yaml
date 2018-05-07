@@ -202,6 +202,18 @@ instances:
     lib_name: bag_serdes_ec
     cell_name: qdr_datapath
     instpins:
+      clk_analog<3:0>:
+        direction: input
+        net_name: "clk_analog<3:0>"
+        num_bits: 4
+      clk_tap1<3:0>:
+        direction: input
+        net_name: "clk_tap1<3:0>"
+        num_bits: 4
+      clk_digital<3:0>:
+        direction: input
+        net_name: "clk_digital<3:0>"
+        num_bits: 4
       VSS:
         direction: inputOutput
         net_name: "VSS"
@@ -246,26 +258,14 @@ instances:
         direction: input
         net_name: "v_way_3_off_p,v_way_2_off_p,v_way_1_off_p,v_way_0_off_p"
         num_bits: 4
-      clk_analog<1:0>:
-        direction: input
-        net_name: "clk_analog<1:0>"
-        num_bits: 2
       clk_dfe<11:4>:
         direction: input
         net_name: "clk_dfe<11:4>"
         num_bits: 8
-      clk_digital<1:0>:
-        direction: input
-        net_name: "clk_digital<1:0>"
-        num_bits: 2
       clk_main<3:0>:
         direction: input
         net_name: "clk_main<3:0>"
         num_bits: 4
-      clk_tap1<1:0>:
-        direction: input
-        net_name: "clk_tap1<1:0>"
-        num_bits: 2
       clkn:
         direction: input
         net_name: "clkn"
@@ -330,6 +330,26 @@ instances:
     lib_name: basic
     cell_name: iopin
     instpins: {}
+  XHPA<3:0>:
+    lib_name: bag_analog_ec
+    cell_name: high_pass
+    instpins:
+      VSS:
+        direction: inputOutput
+        net_name: "<*4>VSS"
+        num_bits: 4
+      in:
+        direction: input
+        net_name: "clkp,clkn,clkp,clkn"
+        num_bits: 4
+      bias:
+        direction: input
+        net_name: "<*4>v_analog"
+        num_bits: 4
+      out:
+        direction: output
+        net_name: "clk_analog<3:0>"
+        num_bits: 4
   XHPD<3:0>:
     lib_name: bag_analog_ec
     cell_name: high_pass
@@ -350,26 +370,26 @@ instances:
         direction: output
         net_name: "clk_dfe<7:4>"
         num_bits: 4
-  XHPN<2:0>:
+  XHPTAP1<3:0>:
     lib_name: bag_analog_ec
     cell_name: high_pass
     instpins:
       VSS:
         direction: inputOutput
-        net_name: "<*3>VSS"
-        num_bits: 3
+        net_name: "<*4>VSS"
+        num_bits: 4
       in:
         direction: input
-        net_name: "<*3>clkn"
-        num_bits: 3
+        net_name: "clkp,clkn,clkp,clkn"
+        num_bits: 4
       bias:
         direction: input
-        net_name: "v_analog,v_digital,v_tap1_main"
-        num_bits: 3
+        net_name: "<*4>v_tap1_main"
+        num_bits: 4
       out:
         direction: output
-        net_name: "clk_analog<1>,clk_digital<1>,clk_tap1<1>"
-        num_bits: 3
+        net_name: "clk_tap1<3:0>"
+        num_bits: 4
   XHPM<3:0>:
     lib_name: bag_analog_ec
     cell_name: high_pass
@@ -390,23 +410,23 @@ instances:
         direction: output
         net_name: "clk_main<3:0>"
         num_bits: 4
-  XHPP<2:0>:
+  XHPDL<3:0>:
     lib_name: bag_analog_ec
     cell_name: high_pass
     instpins:
       VSS:
         direction: inputOutput
-        net_name: "<*3>VSS"
-        num_bits: 3
+        net_name: "<*4>VSS"
+        num_bits: 4
       in:
         direction: input
-        net_name: "<*3>clkp"
-        num_bits: 3
+        net_name: "clkp,clkn,clkp,clkn"
+        num_bits: 4
       bias:
         direction: input
-        net_name: "v_analog,v_digital,v_tap1_main"
-        num_bits: 3
+        net_name: "<*4>v_digital"
+        num_bits: 4
       out:
         direction: output
-        net_name: "clk_analog<0>,clk_digital<0>,clk_tap1<0>"
-        num_bits: 3
+        net_name: "clk_digital<3:0>"
+        num_bits: 4
