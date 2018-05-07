@@ -1648,7 +1648,8 @@ class TapXColumn(TemplateBase):
         clkn_list = []
         nclkp_list = []
         nclkn_list = []
-        bp_list, bn_list, m_list = [], [], []
+        m_list = []
+        a_list = []
         for cidx, inst in enumerate(inst_list):
             ncidx = (cidx - 1) % 4
             # gather clock signals
@@ -1656,12 +1657,11 @@ class TapXColumn(TemplateBase):
                 clkp_list.extend(inst.port_pins_iter('clkp'))
                 clkn_list.extend(inst.port_pins_iter('clkn'))
                 nclkn_list.append(inst.get_pin('nclkn'))
-                bp_list.append(inst.get_pin('biasp_a'))
             else:
                 clkp_list.extend(inst.port_pins_iter('clkn'))
                 clkn_list.extend(inst.port_pins_iter('clkp'))
                 nclkp_list.append(inst.get_pin('nclkn'))
-                bn_list.append(inst.get_pin('biasp_a'))
+            a_list.append(inst.get_pin('biasp_a'))
             m_list.append(inst_list[(cidx + 1) % 4].get_pin('biasn_m'))
             # connect cascode biases
             for sig_idx in range(num_sig - 1, 0, -1):
@@ -1678,21 +1678,25 @@ class TapXColumn(TemplateBase):
         # connect latch bias
         trp = track_info['biasp_a'][0] + tr0
         trn = track_info['biasn_a'][0] + tr0
-        wp, wn = self.connect_differential_tracks(bp_list, bn_list, vm_layer, trp, trn,
+        wp, wn = self.connect_differential_tracks(a_list[3], a_list[0], vm_layer, trp, trn,
                                                   width=vm_w_clk)
-        self.add_pin('biasp_a', wp, show=show_pins)
-        self.add_pin('biasn_a', wn, show=show_pins)
+        self.add_pin('bias_a<3>', wp, show=show_pins, edge_mode=-1)
+        self.add_pin('bias_a<0>', wn, show=show_pins, edge_mode=-1)
+        wp, wn = self.connect_differential_tracks(a_list[1], a_list[2], vm_layer, trp, trn,
+                                                  width=vm_w_clk)
+        self.add_pin('bias_a<1>', wp, show=show_pins, edge_mode=1)
+        self.add_pin('bias_a<2>', wn, show=show_pins, edge_mode=1)
         # connect main tap biases
         trp = track_info['biasp_m'][0] + tr0
         trn = track_info['biasn_m'][0] + tr0
         wp, wn = self.connect_differential_tracks(m_list[1], m_list[0], vm_layer, trp, trn,
                                                   width=vm_w_clk)
-        self.add_pin('bias_m<1>', wp, show=show_pins)
-        self.add_pin('bias_m<0>', wn, show=show_pins)
+        self.add_pin('bias_m<1>', wp, show=show_pins, edge_mode=1)
+        self.add_pin('bias_m<0>', wn, show=show_pins, edge_mode=1)
         wp, wn = self.connect_differential_tracks(m_list[3], m_list[2], vm_layer, trp, trn,
                                                   width=vm_w_clk)
-        self.add_pin('bias_m<3>', wp, show=show_pins)
-        self.add_pin('bias_m<2>', wn, show=show_pins)
+        self.add_pin('bias_m<3>', wp, show=show_pins, edge_mode=-1)
+        self.add_pin('bias_m<2>', wn, show=show_pins, edge_mode=-1)
 
         return clkp_list, clkn_list, nclkp_list, nclkn_list
 
@@ -1701,13 +1705,7 @@ class TapXColumn(TemplateBase):
         vm_w_clk = tr_manager.get_width(vm_layer, 'clk')
 
         # gather clock signals
-        bp_list, bn_list = [], []
-        for cidx, inst in enumerate(inst_list):
-            # gather clock signals
-            if cidx % 2 == 1:
-                bp_list.append(inst.get_pin('biasp_d'))
-            else:
-                bn_list.append(inst.get_pin('biasp_d'))
+        d_list = [inst.get_pin('biasp_d') for inst in inst_list]
         # connect summer biases and sign signals
         for sig_idx in range(num_sig + 1, 1, -1):
             suf = '<%d>' % sig_idx
@@ -1747,10 +1745,14 @@ class TapXColumn(TemplateBase):
         # connect latch bias
         trp = track_info['biasp_d'][0] + tr0
         trn = track_info['biasn_d'][0] + tr0
-        wp, wn = self.connect_differential_tracks(bp_list, bn_list, vm_layer, trp, trn,
+        wp, wn = self.connect_differential_tracks(d_list[3], d_list[0], vm_layer, trp, trn,
                                                   width=vm_w_clk)
-        self.add_pin('biasp_d', wp, show=show_pins)
-        self.add_pin('biasn_d', wn, show=show_pins)
+        self.add_pin('bias_d<3>', wp, show=show_pins, edge_mode=-1)
+        self.add_pin('bias_d<0>', wn, show=show_pins, edge_mode=-1)
+        wp, wn = self.connect_differential_tracks(d_list[1], d_list[2], vm_layer, trp, trn,
+                                                  width=vm_w_clk)
+        self.add_pin('bias_d<1>', wp, show=show_pins, edge_mode=1)
+        self.add_pin('bias_d<2>', wn, show=show_pins, edge_mode=1)
 
     def _connect_div(self, tr0, tr_manager, vm_layer, track_info, inst_list,
                      show_pins, export_probe):
