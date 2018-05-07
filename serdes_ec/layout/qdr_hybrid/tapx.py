@@ -1334,6 +1334,7 @@ class TapXColumn(TemplateBase):
         self._vdd_tids = None
         self._out_tr_info = None
         self._num_dfe = None
+        self._num_ffe = None
 
     @property
     def sch_params(self):
@@ -1369,6 +1370,11 @@ class TapXColumn(TemplateBase):
     def num_dfe(self):
         # type: () -> int
         return self._num_dfe
+
+    @property
+    def num_ffe(self):
+        # type: () -> int
+        return self._num_ffe
 
     @classmethod
     def get_params_info(cls):
@@ -1590,6 +1596,7 @@ class TapXColumn(TemplateBase):
         self._row_heights = endb_master.row_heights
         self._sup_tids = endb_master.sup_tids
         self._num_dfe = num_dfe
+        self._num_ffe = num_ffe - 1
 
     def _connect_div_column(self, tr_manager, vm_layer, inst, right_tidx, clkp_list, clkn_list,
                             en_list, vdd_list, vss_list, inp_warrs, inn_warrs, sh_lower, sh_upper,

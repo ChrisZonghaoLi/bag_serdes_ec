@@ -4,8 +4,13 @@
 
 from typing import TYPE_CHECKING, Dict, Any, Set
 
+from itertools import repeat
+
 from bag.layout.util import BBox
+from bag.layout.routing.base import TrackID, TrackManager
 from bag.layout.template import TemplateBase
+
+from abs_templates_ec.routing.bias import BiasShield
 
 from analog_ec.layout.dac.rladder.top import RDACArray
 from analog_ec.layout.passives.filter.highpass import HighPassArrayClk
@@ -53,6 +58,7 @@ class RXFrontend(TemplateBase):
             tr_widths='Track width dictionary.',
             tr_spaces='Track spacing dictionary.',
             fill_config='Fill configuration dictionary.',
+            bias_config='The bias configuration dictionary.',
             show_pins='True to create pin labels.',
         )
 
@@ -65,22 +71,32 @@ class RXFrontend(TemplateBase):
 
     def draw_layout(self):
         ml = 30000
+
+        tr_widths = self.params['tr_widths']
+        tr_spaces = self.params['tr_spaces']
         fill_config = self.params['fill_config']
+        bias_config = self.params['bias_config']
         show_pins = self.params['show_pins']
 
-        dp_master, hpx_master, hp1_master = self._make_masters()
+        dp_master, hpx_master, hp1_master = self._make_masters(tr_widths, tr_spaces)
 
         # place masters
-        hp_h = hpx_master.bound_box.height_unit
+        hp_h = hpx_master.array_box.top_unit
         hpx_w = hpx_master.bound_box.width_unit
         hp1_w = hp1_master.bound_box.width_unit
 
         top_layer = dp_master.top_layer
+        tr_manager = TrackManager(self.grid, tr_widths, tr_spaces, half_space=True)
+        tmp = self._compute_route_height(top_layer, tr_manager, dp_master.num_ffe,
+                                         dp_master.num_dfe, bias_config)
+        clk_locs, clk_h, vss_h, vdd_h = tmp
+
+        bot_h = hp_h + clk_h + vss_h + vdd_h
         bnd_box = dp_master.bound_box
         blk_w, blk_h = self.grid.get_fill_size(top_layer, fill_config, unit_mode=True)
         dp_h = bnd_box.height_unit
         tot_w = -(-(bnd_box.width_unit + ml) // blk_w) * blk_w
-        tot_h = -(-(dp_h + 2 * hp_h) // blk_h) * blk_h
+        tot_h = -(-(dp_h + 2 * bot_h) // blk_h) * blk_h
         x0 = tot_w - bnd_box.width_unit
         y0 = (tot_h - dp_h) // (2 * blk_h) * blk_h
         dp_inst = self.add_instance(dp_master, 'XDP', loc=(x0, y0), unit_mode=True)
@@ -94,16 +110,150 @@ class RXFrontend(TemplateBase):
         self.array_box = bnd_box
         self.add_cell_boundary(bnd_box)
 
-        for name in dp_inst.port_names_iter():
-            self.reexport(dp_inst.get_port(name), show=show_pins)
+        # connect clocks and VSS-referenced wires
+        num_dfe = dp_master.num_dfe
+        hm_layer = top_layer - 1
+        clk_tr_w = tr_manager.get_width(hm_layer, 'clk')
+        tmp = self._connect_clk_vss_bias(hm_layer, dp_inst, hpx_inst, hp1_inst, num_dfe, hp_h,
+                                         clk_locs, clk_tr_w, is_bot=True)
+
+        vss_tid, vss_names_list, vss_warrs_list = tmp
+
+        self.connect_to_tracks(dp_inst.get_all_port_pins('VSS'), vss_tid)
+        bias_info = BiasShield.draw_bias_shields(self, hm_layer, bias_config, vss_warrs_list,
+                                                 hp_h + clk_h, lu_end_mode=1)
 
         self._sch_params = dp_master.sch_params.copy()
 
-    def _make_masters(self):
+    def _connect_clk_vss_bias(self, hm_layer, dp_inst, hpx_inst, hp1_inst, num_dfe, y0, clk_locs,
+                              clk_tr_w, is_bot=True):
+        ntr_tot = len(clk_locs)
+        num_pair = (ntr_tot - 2) // 2
+        vss_idx_lookup = {}
+        vss_warrs_list = []
+        vss_names_list = []
+
+        vss_idx = 0
+        pwarr = None
+        tr0 = self.grid.find_next_track(hm_layer, y0, half_track=True, mode=1, unit_mode=True)
+        hpx_iter = self._hpx_ports_iter(num_dfe, is_bot=is_bot)
+        hp1_iter = self._hp1_ports_iter(is_bot=is_bot)
+        for inst, port_iter in ((hpx_inst, hpx_iter), (hp1_inst, hp1_iter)):
+            for idx, (out_name, bias_name) in enumerate(port_iter):
+                suf = '<%d>' % idx
+                if idx % 2 == 0:
+                    pwarr = [inst.get_pin('out' + suf), dp_inst.get_pin(out_name)]
+                else:
+                    nwarr = [inst.get_pin('out' + suf), dp_inst.get_pin(out_name)]
+
+                    cur_tr_id = (idx // 2) % num_pair
+                    pidx = clk_locs[1 + cur_tr_id] + tr0
+                    nidx = clk_locs[ntr_tot - 2 - cur_tr_id] + tr0
+                    self.connect_differential_tracks(pwarr, nwarr, hm_layer, pidx, nidx,
+                                                     width=clk_tr_w, unit_mode=True)
+
+                bias_pin = inst.get_pin('bias' + suf)
+                if bias_name not in vss_idx_lookup:
+                    vss_names_list.append(bias_name)
+                    vss_idx_lookup[bias_name] = vss_idx
+                    vss_warrs_list.append([bias_pin])
+                    vss_idx += 1
+                else:
+                    vss_warrs_list[vss_idx_lookup[bias_name]].append(bias_pin)
+
+        if is_bot:
+            scan_name = 'scan_divider_clkp'
+            scan_pins = dp_inst.get_all_port_pins('scan_div<3>')
+        else:
+            scan_name = 'scan_divider_clkn'
+            scan_pins = dp_inst.get_all_port_pins('scan_div<2>')
+        vss_names_list.append(scan_name)
+        vss_warrs_list.append(scan_pins)
+
+        vss_tid = TrackID(hm_layer, tr0 + clk_locs[0], width=1, num=2,
+                          pitch=clk_locs[-1] - clk_locs[0])
+
+        return vss_tid, vss_names_list, vss_warrs_list
+
+    @classmethod
+    def _hpx_ports_iter(cls, num_dfe, is_bot=True):
+        if is_bot:
+            nway = psuf = 3
+            pway = nsufl = 0
+            nsufa = 2
+        else:
+            nway = psuf = 1
+            pway = nsufl = 2
+            nsufa = 0
+
+        yield ('clk_analog<%d>' % psuf, 'v_analog')
+        yield ('clk_analog<%d>' % nsufl, 'v_analog')
+        yield ('clk_main<%d>' % nsufa, 'v_way_%d_main' % nway)
+        yield ('clk_main<%d>' % psuf, 'v_way_%d_main' % pway)
+
+        idx = 0
+        for dfe_idx in range(num_dfe, 1, -1):
+            if dfe_idx == 3:
+                # insert digital bias
+                if idx % 2 == 0:
+                    yield ('clk_digital_tapx<%d>' % psuf, 'v_digital')
+                    yield ('clk_digital_tapx<%d>' % nsufl, 'v_digital')
+                else:
+                    yield ('clk_digital_tapx<%d>' % nsufl, 'v_digital')
+                    yield ('clk_digital_tapx<%d>' % psuf, 'v_digital')
+                idx += 1
+            if idx % 2 == 0:
+                yield ('clk_dfe<%d>' % (4 * dfe_idx + psuf), 'v_way_%d_dfe_%d_m' % (pway, dfe_idx))
+                yield ('clk_dfe<%d>' % (4 * dfe_idx + nsufa), 'v_way_%d_dfe_%d_m' % (nway, dfe_idx))
+            else:
+                yield ('clk_dfe<%d>' % (4 * dfe_idx + nsufa), 'v_way_%d_dfe_%d_m' % (nway, dfe_idx))
+                yield ('clk_dfe<%d>' % (4 * dfe_idx + psuf), 'v_way_%d_dfe_%d_m' % (pway, dfe_idx))
+            idx += 1
+
+    @classmethod
+    def _hp1_ports_iter(cls, is_bot=True):
+        if is_bot:
+            psuf = 1
+            nway = nsufl = 0
+            nsufa = 2
+            pway = 3
+        else:
+            psuf = 3
+            nway = nsufl = 2
+            nsufa = 0
+            pway = 1
+
+        yield ('clk_digital_tap1<%d>' % psuf, 'v_digital')
+        yield ('clk_digital_tap1<%d>' % nsufl, 'v_digital')
+        yield ('clk_tap1<%d>' % nsufa, 'v_tap1_main')
+        yield ('clk_tap1<%d>' % psuf, 'v_tap1_main')
+        yield ('clk_dfe<%d>' % (4 + psuf), 'v_way_%d_dfe_1_m' % pway)
+        yield ('clk_dfe<%d>' % (4 + nsufa), 'v_way_%d_dfe_1_m' % nway)
+
+    def _compute_route_height(self, top_layer, tr_manager, num_ffe, num_dfe, bias_config):
+        num_clk_tr = 2
+
+        # scan_div, ana, dig, tap1_main, int_main * 2, 2 * each DFE
+        num_vss = 6 + 2 * num_dfe
+        # dlev, offset, 2 * each FFE, 4 * each DFE 2+ (sign bits)
+        num_vdd = 8 + 2 * num_ffe + 4 * (num_dfe - 1)
+
+        hm_layer = top_layer - 1
+        blk_h = self.grid.get_block_size(top_layer, unit_mode=True)[1]
+        wtype_list = ['sh']
+        wtype_list.extend(repeat('clk', 2 * num_clk_tr))
+        wtype_list.append('sh')
+        ntr, locs = tr_manager.place_wires(hm_layer, wtype_list)
+        tr_pitch = self.grid.get_track_pitch(hm_layer, unit_mode=True)
+        clk_h = -(-(int(round(tr_pitch * ntr))) // blk_h) * blk_h
+        vdd_h = BiasShield.get_block_size(self.grid, hm_layer, bias_config, num_vdd)[1]
+        vss_h = BiasShield.get_block_size(self.grid, hm_layer, bias_config, num_vss)[1]
+
+        return locs, clk_h, vss_h, vdd_h
+
+    def _make_masters(self, tr_widths, tr_spaces):
         dp_params = self.params['dp_params']
         hp_params = self.params['hp_params']
-        tr_widths = self.params['tr_widths']
-        tr_spaces = self.params['tr_spaces']
 
         dp_params = dp_params.copy()
         dp_params['tr_widths'] = tr_widths

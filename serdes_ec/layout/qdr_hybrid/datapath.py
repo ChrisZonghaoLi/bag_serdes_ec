@@ -40,6 +40,7 @@ class RXDatapath(TemplateBase):
         self._x_tapx = None
         self._x_tap1 = None
         self._num_dfe = None
+        self._num_ffe = None
 
     @property
     def sch_params(self):
@@ -60,6 +61,11 @@ class RXDatapath(TemplateBase):
     def num_dfe(self):
         # type: () -> int
         return self._num_dfe
+
+    @property
+    def num_ffe(self):
+        # type: () -> int
+        return self._num_ffe
 
     @property
     def num_hp_tapx(self):
@@ -140,6 +146,7 @@ class RXDatapath(TemplateBase):
             loff_params=loff_master.sch_params,
             samp_params=samp_master.sch_params,
         )
+        self._num_ffe = tapx_master.num_ffe
         self._num_dfe = tapx_master.num_dfe
 
     def _connect_supplies(self, tapx, tap1, offset, offlev, samp, show_pins):
@@ -201,8 +208,7 @@ class RXDatapath(TemplateBase):
                 self.reexport(tapx.get_port(name), net_name='clk_analog' + suf, show=show_pins)
             elif name.startswith('bias_d'):
                 suf = name[6:]
-                net_name = 'clk_digital' + suf
-                self.reexport(tapx.get_port(name), net_name=net_name, label=net_name + ':',
+                self.reexport(tapx.get_port(name), net_name='clk_digital_tapx' + suf,
                               show=show_pins)
             elif name.startswith('sgnp') or name.startswith('sgnn'):
                 suf = name[4:]
@@ -231,9 +237,8 @@ class RXDatapath(TemplateBase):
                           show=show_pins)
             self.reexport(tap1.get_port('bias_m' + off_suf), net_name='clk_tap1' + off_suf,
                           show=show_pins)
-            net_name = 'clk_digital' + off_suf
-            self.reexport(tap1.get_port('bias_d' + off_suf), net_name=net_name,
-                          label=net_name + ':', show=show_pins)
+            self.reexport(tap1.get_port('bias_d' + off_suf), net_name='clk_digital_tap1' + off_suf,
+                          show=show_pins)
             # sampler
             self.reexport(samp.get_port('data' + off_suf), show=show_pins)
             self.reexport(samp.get_port('dlev' + off_suf), show=show_pins)
