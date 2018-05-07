@@ -863,8 +863,8 @@ class Tap1Column(TemplateBase):
         en_warrs = [[], [], [], []]
         biasf_warrs = []
         clk_warrs = [[], []]
-        biasd_warrs = [[], []]
-        biasm_warrs = [[], []]
+        biasd_warrs = []
+        biasm_warrs = []
         for idx, inst in enumerate(inst_list):
             pidx = (idx + 1) % 4
             nidx = (idx - 1) % 4
@@ -873,6 +873,8 @@ class Tap1Column(TemplateBase):
             outp_warrs[pidx].extend(inst.port_pins_iter('fbp'))
             outn_warrs[pidx].extend(inst.port_pins_iter('fbn'))
             biasf_warrs.extend(inst.port_pins_iter('biasp_f'))
+            biasm_warrs.extend(inst.port_pins_iter('biasp_m'))
+            biasd_warrs.extend(inst_list[pidx].port_pins_iter('biasn_d'))
             for off in range(4):
                 en_pin = 'en<%d>' % off
                 en_idx = (off + idx + 1) % 4
@@ -893,13 +895,9 @@ class Tap1Column(TemplateBase):
             self.reexport(inst.get_port('outp_d'), net_name='outp_d<%d>' % nidx, show=show_pins)
             self.reexport(inst.get_port('outn_d'), net_name='outn_d<%d>' % nidx, show=show_pins)
             if idx % 2 == 1:
-                biasm_warrs[0].extend(inst.port_pins_iter('biasp_m'))
-                biasd_warrs[1].extend(inst.port_pins_iter('biasn_d'))
                 clk_warrs[0].extend(inst.port_pins_iter('clkp'))
                 clk_warrs[1].extend(inst.port_pins_iter('clkn'))
             else:
-                biasm_warrs[1].extend(inst.port_pins_iter('biasp_m'))
-                biasd_warrs[0].extend(inst.port_pins_iter('biasn_d'))
                 clk_warrs[1].extend(inst.port_pins_iter('clkp'))
                 clk_warrs[0].extend(inst.port_pins_iter('clkn'))
 
@@ -931,10 +929,10 @@ class Tap1Column(TemplateBase):
                                                     clk_locs[3], clk_locs[4], width=vm_w_clk)
         self.add_pin('clkp', clkp, show=show_pins)
         self.add_pin('clkn', clkn, show=show_pins)
-        self.add_pin('bias_f<0>', bf0, show=show_pins)
-        self.add_pin('bias_f<1>', bf1, show=show_pins)
-        self.add_pin('bias_f<2>', bf2, show=show_pins)
-        self.add_pin('bias_f<3>', bf3, show=show_pins)
+        self.add_pin('bias_f<0>', bf0, show=show_pins, edge_mode=1)
+        self.add_pin('bias_f<1>', bf1, show=show_pins, edge_mode=-1)
+        self.add_pin('bias_f<2>', bf2, show=show_pins, edge_mode=-1)
+        self.add_pin('bias_f<3>', bf3, show=show_pins, edge_mode=1)
 
         # draw bias_m/bias_d wires
         shield_tidr = tr_manager.get_next_track(vm_layer, en_locs[0], 'en', 1, up=False)
@@ -952,14 +950,22 @@ class Tap1Column(TemplateBase):
                                track_lower=tr_lower, track_upper=tr_upper, unit_mode=True)
         self.connect_to_tracks(vdd_list, TrackID(vm_layer, clk_locs[1]),
                                track_lower=tr_lower, track_upper=tr_upper, unit_mode=True)
-        bmn, bmp = self.connect_differential_tracks(biasm_warrs[1], biasm_warrs[0], vm_layer,
+        bm0, bm3 = self.connect_differential_tracks(biasm_warrs[0], biasm_warrs[3], vm_layer,
                                                     bias_locs[0], bias_locs[3], width=vm_w_clk)
-        bdn, bdp = self.connect_differential_tracks(biasd_warrs[1], biasd_warrs[0], vm_layer,
+        bm2, bm1 = self.connect_differential_tracks(biasm_warrs[2], biasm_warrs[1], vm_layer,
+                                                    bias_locs[0], bias_locs[3], width=vm_w_clk)
+        bd2, bd3 = self.connect_differential_tracks(biasd_warrs[2], biasd_warrs[3], vm_layer,
                                                     bias_locs[1], bias_locs[2], width=vm_w_clk)
-        self.add_pin('biasp_m', bmp, show=show_pins)
-        self.add_pin('biasn_m', bmn, show=show_pins)
-        self.add_pin('biasp_d', bdp, show=show_pins)
-        self.add_pin('biasn_d', bdn, show=show_pins)
+        bd0, bd1 = self.connect_differential_tracks(biasd_warrs[0], biasd_warrs[1], vm_layer,
+                                                    bias_locs[1], bias_locs[2], width=vm_w_clk)
+        self.add_pin('bias_m<0>', bm0, show=show_pins, edge_mode=1)
+        self.add_pin('bias_m<1>', bm1, show=show_pins, edge_mode=-1)
+        self.add_pin('bias_m<2>', bm2, show=show_pins, edge_mode=-1)
+        self.add_pin('bias_m<3>', bm3, show=show_pins, edge_mode=1)
+        self.add_pin('bias_d<0>', bd0, show=show_pins, edge_mode=-1)
+        self.add_pin('bias_d<1>', bd1, show=show_pins, edge_mode=-1)
+        self.add_pin('bias_d<2>', bd2, show=show_pins, edge_mode=1)
+        self.add_pin('bias_d<3>', bd3, show=show_pins, edge_mode=1)
 
         # set size
         bnd_box = bot_row.bound_box.merge(top_row.bound_box)
