@@ -153,12 +153,6 @@ class RXDatapath(TemplateBase):
         # reexport TapX ports.
         self.reexport(tapx.get_port('inp_a'), net_name='inp', show=show_pins)
         self.reexport(tapx.get_port('inn_a'), net_name='inn', show=show_pins)
-        self.reexport(tapx.get_port('biasp_a'), net_name='clk_analog<0>', show=show_pins)
-        self.reexport(tapx.get_port('biasn_a'), net_name='clk_analog<1>', show=show_pins)
-        self.reexport(tapx.get_port('biasp_d'), net_name='clk_digital<0>',
-                      label='clk_digital<0>:', show=show_pins)
-        self.reexport(tapx.get_port('biasn_d'), net_name='clk_digital<1>',
-                      label='clk_digital<1>:', show=show_pins)
         for name in tapx.port_names_iter():
             if name.startswith('casc'):
                 suf = name[4:]
@@ -169,17 +163,17 @@ class RXDatapath(TemplateBase):
             elif name.startswith('bias_s'):
                 suf = name[6:]
                 self.reexport(tapx.get_port(name), net_name='clk_dfe' + suf, show=show_pins)
+            elif name.startswith('bias_a'):
+                suf = name[6:]
+                self.reexport(tapx.get_port(name), net_name='clk_analog' + suf, show=show_pins)
+            elif name.startswith('bias_d'):
+                suf = name[6:]
+                net_name = 'clk_digital' + suf
+                self.reexport(tapx.get_port(name), net_name=net_name, label=net_name + ':',
+                              show=show_pins)
             elif name.startswith('sgnp') or name.startswith('sgnn'):
                 suf = name[4:]
                 self.reexport(tapx.get_port(name), net_name=name[:4] + '_dfe' + suf, show=show_pins)
-
-        # reexport tap1 ports
-        self.reexport(tap1.get_port('biasp_m'), net_name='clk_tap1<0>', show=show_pins)
-        self.reexport(tap1.get_port('biasn_m'), net_name='clk_tap1<1>', show=show_pins)
-        self.reexport(tap1.get_port('biasp_d'), net_name='clk_digital<0>',
-                      label='clk_digital<0>:', show=show_pins)
-        self.reexport(tap1.get_port('biasn_d'), net_name='clk_digital<1>',
-                      label='clk_digital<1>:', show=show_pins)
 
         # reexport sampler ports
         self.reexport(samp.get_port('des_clk'), show=show_pins)
@@ -202,6 +196,11 @@ class RXDatapath(TemplateBase):
             # tap1
             self.reexport(tap1.get_port('bias_f' + off_suf), net_name='clk_dfe<%d>' % (idx + 4),
                           show=show_pins)
+            self.reexport(tap1.get_port('bias_m' + off_suf), net_name='clk_tap1' + off_suf,
+                          show=show_pins)
+            net_name = 'clk_digital' + off_suf
+            self.reexport(tap1.get_port('bias_d' + off_suf), net_name=net_name,
+                          label=net_name + ':', show=show_pins)
             # sampler
             self.reexport(samp.get_port('data' + off_suf), show=show_pins)
             self.reexport(samp.get_port('dlev' + off_suf), show=show_pins)
