@@ -59,6 +59,7 @@ class RXDatapath(TemplateBase):
             fill_w='supply fill wire width.',
             fill_sp='supply fill spacing.',
             fill_margin='space between supply fill and others.',
+            x_margin='space between fill wires and left/right edge.',
             ana_options='other AnalogBase options',
             show_pins='True to create pin labels.',
         )
@@ -70,6 +71,7 @@ class RXDatapath(TemplateBase):
             fill_w=2,
             fill_sp=1,
             fill_margin=0,
+            x_margin=100,
             ana_options=None,
             show_pins=True,
         )
@@ -111,6 +113,7 @@ class RXDatapath(TemplateBase):
         fill_w = self.params['fill_w']
         fill_sp = self.params['fill_sp']
         fill_margin = self.params['fill_margin']
+        x_margin = self.params['x_margin']
 
         vdd_hm_list = []
         vss_hm_list = []
@@ -124,13 +127,15 @@ class RXDatapath(TemplateBase):
             vdd_vm_list.extend(inst.port_pins_iter('VDD', layer=vm_layer))
             vss_vm_list.extend(inst.port_pins_iter('VSS', layer=vm_layer))
 
-        vdd_hm = self.connect_wires(vdd_hm_list)
-        vss_hm = self.connect_wires(vss_hm_list)
         bnd_box = self.bound_box
+        xr = bnd_box.right_unit - x_margin
+        xl = x_margin
+        vdd_hm = self.connect_wires(vdd_hm_list, lower=xl, upper=xr, unit_mode=True)
+        vss_hm = self.connect_wires(vss_hm_list, lower=xl, upper=xr, unit_mode=True)
         sp_le = bnd_box.height_unit
         vdd, vss = self.do_power_fill(vm_layer, fill_margin, sp_le, vdd_warrs=vdd_hm,
                                       vss_warrs=vss_hm, bound_box=bnd_box, fill_width=fill_w,
-                                      fill_space=fill_sp, unit_mode=True)
+                                      fill_space=fill_sp, x_margin=x_margin, unit_mode=True)
         vdd_vm_list.extend(vdd)
         vss_vm_list.extend(vss)
         self.add_pin('VDD', vdd_vm_list, show=show_pins)
