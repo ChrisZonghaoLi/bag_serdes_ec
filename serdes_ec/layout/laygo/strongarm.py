@@ -108,6 +108,9 @@ class SenseAmpStrongArm(LaygoBase):
         n_buf = seg_dict['buf']
         blk_sp = seg_dict.get('sp', 2)
 
+        if n_tail > n_in or n_in > n_ninv:
+            raise ValueError('This generator only works for seg_tail <= seg_in <= seg_ninv')
+
         # error checking
         for name, val in seg_dict.items():
             if name != 'sp' and (val % 2 != 0 or val <= 0):

@@ -116,19 +116,19 @@ instances:
         num_bits: 2
       inn_data<3:0>:
         direction: input
-        net_name: "outn_data<1:0>,outn_data<3:2>"
+        net_name: "outn_data<3:0>"
         num_bits: 4
       inn_dlev<3:0>:
         direction: input
-        net_name: "outn_dlev<1:0>,outn_dlev<3:2>"
+        net_name: "outn_dlev<3:0>"
         num_bits: 4
       inp_data<3:0>:
         direction: input
-        net_name: "outp_data<1:0>,outp_data<3:2>"
+        net_name: "outp_data<3:0>"
         num_bits: 4
       inp_dlev<3:0>:
         direction: input
-        net_name: "outp_dlev<1:0>,outp_dlev<3:2>"
+        net_name: "outp_dlev<3:0>"
         num_bits: 4
       scan_div<3:2>:
         direction: input
