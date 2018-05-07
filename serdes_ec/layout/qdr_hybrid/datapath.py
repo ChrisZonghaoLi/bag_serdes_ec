@@ -2,7 +2,7 @@
 
 """This module defines classes needed to build the Hybrid-QDR FFE/DFE summer."""
 
-from typing import TYPE_CHECKING, Dict, Any, Set
+from typing import TYPE_CHECKING, Dict, Any, Set, Tuple
 
 from bag.layout.template import TemplateBase
 
@@ -37,11 +37,39 @@ class RXDatapath(TemplateBase):
         # type: (TemplateDB, str, Dict[str, Any], Set[str], **kwargs) -> None
         TemplateBase.__init__(self, temp_db, lib_name, params, used_names, **kwargs)
         self._sch_params = None
+        self._x_tapx = None
+        self._x_tap1 = None
+        self._num_dfe = None
 
     @property
     def sch_params(self):
         # type: () -> Dict[str, Any]
         return self._sch_params
+
+    @property
+    def x_tapx(self):
+        # type: () -> Tuple[int, int]
+        return self._x_tapx
+
+    @property
+    def x_tap1(self):
+        # type: () -> Tuple[int, int]
+        return self._x_tap1
+
+    @property
+    def num_dfe(self):
+        # type: () -> int
+        return self._num_dfe
+
+    @property
+    def num_hp_tapx(self):
+        # type: () -> int
+        return self._num_dfe * 2 + 4
+
+    @property
+    def num_hp_tap1(self):
+        # type: () -> int
+        return 6
 
     @classmethod
     def get_params_info(cls):
@@ -83,11 +111,15 @@ class RXDatapath(TemplateBase):
 
         xcur = 0
         tapx = self.add_instance(tapx_master, 'XTAPX', loc=(xcur, 0), unit_mode=True)
-        xcur += tapx_master.bound_box.width_unit
+        xr = xcur + tapx_master.bound_box.width_unit
+        self._x_tapx = (xcur, xr)
+        xcur = xr
         offset = self.add_instance(offset_master, 'XOFF', loc=(xcur, 0), unit_mode=True)
         xcur += offset_master.bound_box.width_unit
         tap1 = self.add_instance(tap1_master, 'XTAP1', loc=(xcur, 0), unit_mode=True)
-        xcur += tap1_master.bound_box.width_unit
+        xr = xcur + tap1_master.bound_box.width_unit
+        self._x_tap1 = (xcur, xr)
+        xcur = xr
         offlev = self.add_instance(loff_master, 'XOFFL', loc=(xcur, 0), unit_mode=True)
         xcur += loff_master.bound_box.width_unit
         samp = self.add_instance(samp_master, 'XSAMP', loc=(xcur, 0), unit_mode=True)
@@ -108,6 +140,7 @@ class RXDatapath(TemplateBase):
             loff_params=loff_master.sch_params,
             samp_params=samp_master.sch_params,
         )
+        self._num_dfe = tapx_master.num_dfe
 
     def _connect_supplies(self, tapx, tap1, offset, offlev, samp, show_pins):
         fill_w = self.params['fill_w']
