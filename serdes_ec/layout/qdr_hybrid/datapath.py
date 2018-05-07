@@ -186,17 +186,17 @@ class RXDatapath(TemplateBase):
         self.reexport(samp.get_port('des_clkb'), show=show_pins)
 
         # reexport highpass column ports, and ports with index of 4
-        tap_order = [1, 2, 0, 3]
-        for idx, tap_idx in enumerate(tap_order):
+        way_order = [3, 0, 2, 1]
+        for idx, way_idx in enumerate(way_order):
             off_suf = '<%d>' % idx
-            tap_suf = '<%d>' % tap_idx
-            self.reexport(offset.get_port('biasp' + off_suf), net_name='bias_offp' + tap_suf,
+            way_suf = '<%d>' % way_idx
+            self.reexport(offset.get_port('biasp' + off_suf), net_name='bias_offp' + way_suf,
                           show=show_pins)
-            self.reexport(offset.get_port('biasn' + off_suf), net_name='bias_offn' + tap_suf,
+            self.reexport(offset.get_port('biasn' + off_suf), net_name='bias_offn' + way_suf,
                           show=show_pins)
-            self.reexport(offlev.get_port('biasp' + off_suf), net_name='bias_dlevp' + tap_suf,
+            self.reexport(offlev.get_port('biasp' + off_suf), net_name='bias_dlevp' + way_suf,
                           show=show_pins)
-            self.reexport(offlev.get_port('biasn' + off_suf), net_name='bias_dlevn' + tap_suf,
+            self.reexport(offlev.get_port('biasn' + off_suf), net_name='bias_dlevn' + way_suf,
                           show=show_pins)
 
             # tap1
