@@ -1202,9 +1202,9 @@ class TapXSummer(TemplateBase):
         for name, loc in zip(sig_names, sig_locs):
             _record_track(self._dfe_track_info, name, loc + sig_offset)
         # record blockage interval
-        xl = self.grid.get_wire_bounds(vm_layer, sig_locs[clk_sh_idx0 + sig_offset],
+        xl = self.grid.get_wire_bounds(vm_layer, sig_locs[clk_sh_idx0] + sig_offset,
                                        unit_mode=True)[0]
-        xr = self.grid.get_wire_bounds(vm_layer, sig_locs[clk_sh_idx1 + sig_offset],
+        xr = self.grid.get_wire_bounds(vm_layer, sig_locs[clk_sh_idx1] + sig_offset,
                                        unit_mode=True)[1]
         self._blockage_intvs = [(xl, xr)]
 
@@ -1620,7 +1620,7 @@ class TapXColumn(TemplateBase):
                              outp_s.track_id.width)
         self._row_heights = endb_master.row_heights
         self._sup_tids = endb_master.sup_tids
-        self._num_dfe = num_dfe
+        self._num_dfe = num_dfe + 1
         self._num_ffe = num_ffe - 1
 
     def _connect_div_column(self, tr_manager, vm_layer, inst, right_tidx, clkp_list, clkn_list,
