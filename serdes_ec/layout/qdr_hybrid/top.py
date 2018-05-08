@@ -201,8 +201,8 @@ class RXFrontend(TemplateBase):
         clkn = dp_inst.get_all_port_pins('clkn')
         clkp, clkn = self.connect_differential_tracks(clkp, clkn, xm_layer, pidx, nidx,
                                                       width=tr_w_clk)
-        self.add_pin('clkp', clkp, show=show_pins)
-        self.add_pin('clkn', clkn, show=show_pins)
+        self.add_pin('clkp', clkp, label='clkp:', show=show_pins)
+        self.add_pin('clkn', clkn, label='clkn:', show=show_pins)
 
         nidx = self.grid.coord_to_nearest_track(xm_layer, enb_y, half_track=True, mode=-1,
                                                 unit_mode=True)
@@ -235,7 +235,8 @@ class RXFrontend(TemplateBase):
             w_list.reverse()
             name_list.reverse()
         bias_info = BiasShield.draw_bias_shields(self, hm_layer, bias_config, w_list, y0,
-                                                 tr_lower=x0, lu_end_mode=0, sup_warrs=vdd_wires)
+                                                 tr_lower=x0, lu_end_mode=1, sup_warrs=vdd_wires,
+                                                 add_end=False)
 
         for name, tr in zip(name_list, bias_info.tracks):
             self.add_pin(name, tr, show=show_pins, edge_mode=-1)
@@ -309,11 +310,53 @@ class RXFrontend(TemplateBase):
             offset = tot_h - hp_h - clk_h - vss_h
 
         bias_info = BiasShield.draw_bias_shields(self, hm_layer, bias_config, vss_warrs_list,
-                                                 offset, tr_lower=x0, lu_end_mode=0)
+                                                 offset, tr_lower=x0, lu_end_mode=1, add_end=False)
         self.connect_to_track_wires(vss_wires, bias_info.shields)
 
         for name, tr in zip(vss_name_list, bias_info.tracks):
             self.add_pin(name, tr, show=show_pins, edge_mode=-1)
+
+        # export clks
+        clkp = self.connect_wires([hpx_inst.get_pin('clkp'), hp1_inst.get_pin('clkp')])
+        clkn = self.connect_wires([hpx_inst.get_pin('clkn'), hp1_inst.get_pin('clkn')])
+        self.add_pin('clkp', clkp, label='clkp:', show=show_pins)
+        self.add_pin('clkn', clkn, label='clkn:', show=show_pins)
+
+        # connect high-pass filter substrates
+        vssl_list = []
+        vssm_list = []
+        vssr_list = []
+        hpx_box = hpx_inst.bound_box
+        hp1_box = hp1_inst.bound_box
+        for warr in vss_wires:
+            for w in warr.to_warr_list():
+                box = w.get_bbox_array(self.grid).base
+                if box.right_unit < hpx_box.left_unit:
+                    vssl_list.append(w)
+                elif box.left_unit > hp1_box.right_unit:
+                    vssr_list.append(w)
+                elif box.left_unit > hpx_box.right_unit and box.right_unit < hp1_box.left_unit:
+                    vssm_list.append(w)
+
+        vssl = hpx_inst.get_pin('VSSL')
+        vssm = self.connect_wires([hpx_inst.get_pin('VSSR'), hp1_inst.get_pin('VSSL')])[0]
+        vssr = hp1_inst.get_pin('VSSR')
+        self.connect_to_track_wires(vssl_list, vssl)
+        self.connect_to_track_wires(vssm_list, vssm)
+        self.connect_to_track_wires(vssr_list, vssr)
+        if hpx_inst.has_port('VSS'):
+            vss = self.connect_wires([hpx_inst.get_pin('VSS'), hp1_inst.get_pin('VSS')])[0]
+            self.connect_to_track_wires(vssl_list, vss)
+            self.connect_to_track_wires(vssr_list, vss)
+            if not vssm_list:
+                vm_layer = hm_layer + 1
+                tid = self.grid.coord_to_nearest_track(vm_layer, vssm.middle_unit, half_track=True,
+                                                       unit_mode=True)
+                self.connect_to_tracks([vss, vssm], TrackID(vm_layer, tid))
+            else:
+                self.connect_to_track_wires(vssm_list, vss)
+        elif not vssm_list:
+            raise ValueError('Cannot connect middle VSS of high-pass filters.')
 
     @classmethod
     def _vdd_ports_iter(cls, num_dfe, num_ffe, is_bot=True):
