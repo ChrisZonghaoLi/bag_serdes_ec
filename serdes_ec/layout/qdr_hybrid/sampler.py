@@ -359,16 +359,16 @@ class DividerColumn(TemplateBase):
         # export pins
         self.add_pin('VDD', vdd_list, label='VDD:', show=show_pins)
         self.add_pin('VSS', vss_list, label='VSS:', show=show_pins)
-        self.reexport(topn.get_port('clk'), net_name='clkn', show=show_pins)
-        self.reexport(topn.get_port('en'), net_name='en_div<3>', show=show_pins)
-        self.reexport(topn.get_port('scan_s'), net_name='scan_div<3>', show=show_pins)
-        self.reexport(topn.get_port('q'), net_name='en<3>', show=show_pins)
-        self.reexport(topn.get_port('qb'), net_name='en<1>', show=show_pins)
-        self.reexport(botp.get_port('clk'), net_name='clkp', show=show_pins)
-        self.reexport(botp.get_port('en'), net_name='en_div<2>', show=show_pins)
-        self.reexport(botp.get_port('scan_s'), net_name='scan_div<2>', show=show_pins)
-        self.reexport(botp.get_port('q'), net_name='en<2>', show=show_pins)
-        self.reexport(botp.get_port('qb'), net_name='en<0>', show=show_pins)
+        self.reexport(topn.get_port('clk'), net_name='clkp', show=show_pins)
+        self.reexport(topn.get_port('en'), net_name='en_div<2>', show=show_pins)
+        self.reexport(topn.get_port('scan_s'), net_name='scan_div<2>', show=show_pins)
+        self.reexport(topn.get_port('q'), net_name='en<2>', show=show_pins)
+        self.reexport(topn.get_port('qb'), net_name='en<0>', show=show_pins)
+        self.reexport(botp.get_port('clk'), net_name='clkn', show=show_pins)
+        self.reexport(botp.get_port('en'), net_name='en_div<3>', show=show_pins)
+        self.reexport(botp.get_port('scan_s'), net_name='scan_div<3>', show=show_pins)
+        self.reexport(botp.get_port('q'), net_name='en<3>', show=show_pins)
+        self.reexport(botp.get_port('qb'), net_name='en<1>', show=show_pins)
 
         self._sch_params = divn_master.sch_params
 

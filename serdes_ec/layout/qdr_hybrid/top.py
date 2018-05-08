@@ -314,7 +314,11 @@ class RXFrontend(TemplateBase):
         self.connect_to_track_wires(vss_wires, bias_info.shields)
 
         for name, tr in zip(vss_name_list, bias_info.tracks):
-            self.add_pin(name, tr, show=show_pins, edge_mode=-1)
+            if name == 'v_analog' or name == 'v_digital' or name == 'v_tap1_main':
+                lbl = name + ':'
+            else:
+                lbl = name
+            self.add_pin(name, tr, label=lbl, show=show_pins, edge_mode=-1)
 
         # export clks
         clkp = self.connect_wires([hpx_inst.get_pin('clkp'), hp1_inst.get_pin('clkp')])

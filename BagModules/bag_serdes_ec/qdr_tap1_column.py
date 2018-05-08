@@ -52,13 +52,13 @@ class bag_serdes_ec__qdr_tap1_column(Module):
             div_params=None,
             pul_params=pul_params,
         )
-        divp_lat_params = dict(
+        div2_lat_params = dict(
             div_pos_edge=True,
             lat_params=lat_div_params,
             div_params=div_params,
             pul_params=None,
         )
-        divn_lat_params = dict(
+        div3_lat_params = dict(
             div_pos_edge=False,
             lat_params=lat_div_params,
             div_params=div_params,
@@ -71,8 +71,8 @@ class bag_serdes_ec__qdr_tap1_column(Module):
             self.remove_pin('setn<1:0>')
 
         self.instances['X3'].design(sum_params=sum_params, lat_params=endt_lat_params)
-        self.instances['X0'].design(sum_params=sum_params, lat_params=divp_lat_params)
-        self.instances['X2'].design(sum_params=sum_params, lat_params=divn_lat_params)
+        self.instances['X0'].design(sum_params=sum_params, lat_params=div2_lat_params)
+        self.instances['X2'].design(sum_params=sum_params, lat_params=div3_lat_params)
         self.instances['X1'].design(sum_params=sum_params, lat_params=endb_lat_params)
 
         self._has_hp = self.instances['X0'].master.has_hp

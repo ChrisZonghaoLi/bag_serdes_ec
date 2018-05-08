@@ -345,8 +345,8 @@ class Tap1LatchRow(TemplateBase):
                 q=m_tr_info['inp'],
                 qb=m_tr_info['inn'],
                 en=m_tr_info['nen3'],
-                clkp=m_tr_info['clkn'],
-                clkn=m_tr_info['clkp'],
+                clkp=m_tr_info['clkp'],
+                clkn=m_tr_info['clkn'],
             )
             self._div_tr_info = tr_info
 
@@ -431,13 +431,13 @@ class Tap1LatchRow(TemplateBase):
             if seg_pul is None:
                 # perform connections for divider
                 if div_pos_edge:
-                    clkn.extend(d_inst.port_pins_iter('clk'))
-                    clkn = self.connect_wires(clkn)
-                    clkp = self.extend_wires(clkp, lower=clkn[0].lower_unit, unit_mode=True)
-                else:
                     clkp.extend(d_inst.port_pins_iter('clk'))
-                    clkp = self.connect_wires(clkp)
-                    clkn = self.extend_wires(clkn, lower=clkp[0].lower_unit, unit_mode=True)
+                    clkp = self.connect_wires(clkn)[0]
+                    clkn = self.extend_wires(clkn, lower=clkp.lower_unit, unit_mode=True)
+                else:
+                    clkn.extend(d_inst.port_pins_iter('clk'))
+                    clkn = self.connect_wires(clkn)[0]
+                    clkp = self.extend_wires(clkp, lower=clkn.lower_unit, unit_mode=True)
 
                 # re-export divider pins
                 self.reexport(d_inst.get_port('q'), net_name='div', show=show_pins)
@@ -800,11 +800,11 @@ class Tap1Column(TemplateBase):
         # make masters
         div_params = self.params.copy()
         div_params['seg_pul'] = None
-        div_params['div_pos_edge'] = True
+        div_params['div_pos_edge'] = False
         div_params['show_pins'] = False
 
-        divn_master = self.new_template(params=div_params, temp_cls=Tap1Summer)
-        fg_min = divn_master.fg_core
+        div3_master = self.new_template(params=div_params, temp_cls=Tap1Summer)
+        fg_min = div3_master.fg_core
 
         end_params = self.params.copy()
         end_params['seg_div'] = None
@@ -814,9 +814,13 @@ class Tap1Column(TemplateBase):
         endt_master = self.new_template(params=end_params, temp_cls=Tap1Summer)
         if endt_master.fg_core > fg_min:
             fg_min = endt_master.fg_core
-            divn_master = divn_master.new_template_with(fg_min=fg_min)
-        divp_master = divn_master.new_template_with(div_pos_edge=False)
-        endb_master = endt_master.new_template_with(seg_pul=None)
+            div_params['fg_min'] = fg_min
+            div3_master = self.new_template(params=div_params, temp_cls=Tap1Summer)
+
+        div_params['div_pos_edge'] = True
+        div2_master = self.new_template(params=div_params, temp_cls=Tap1Summer)
+        end_params['seg_pul'] = None
+        endb_master = self.new_template(params=end_params, temp_cls=Tap1Summer)
 
         end_row_params = dict(
             lch=self.params['lch'],
@@ -836,13 +840,12 @@ class Tap1Column(TemplateBase):
         bot_row = self.add_instance(end_row_master, 'XROWB', loc=(0, 0), unit_mode=True)
         ycur = end_row_box.top_unit
         inst1 = self.add_instance(endb_master, 'X1', loc=(0, ycur), unit_mode=True)
-        ycur = inst1.array_box.top_unit + divn_master.array_box.top_unit
-        inst2 = self.add_instance(divp_master, 'X2', loc=(0, ycur), orient='MX', unit_mode=True)
-        ycur = inst2.array_box.top_unit
-        inst0 = self.add_instance(divn_master, 'X0', loc=(0, ycur), unit_mode=True)
-        ycur = inst0.array_box.top_unit + endt_master.array_box.top_unit
+        ycur += endb_master.array_box.top_unit + div3_master.array_box.top_unit
+        inst2 = self.add_instance(div3_master, 'X2', loc=(0, ycur), orient='MX', unit_mode=True)
+        inst0 = self.add_instance(div2_master, 'X0', loc=(0, ycur), unit_mode=True)
+        ycur += div2_master.array_box.top_unit + endt_master.array_box.top_unit
         inst3 = self.add_instance(endt_master, 'X3', loc=(0, ycur), orient='MX', unit_mode=True)
-        ycur = inst3.array_box.top_unit + end_row_box.top_unit
+        ycur += endt_master.array_box.top_unit + end_row_box.top_unit
         top_row = self.add_instance(end_row_master, 'XROWT', loc=(0, ycur), orient='MX',
                                     unit_mode=True)
         inst_list = [inst0, inst1, inst2, inst3]
@@ -886,7 +889,7 @@ class Tap1Column(TemplateBase):
                 if inst.has_port(en_pin):
                     en_warrs[en_idx].extend(inst.port_pins_iter(en_pin))
             if inst.has_port('div'):
-                if idx == 0:
+                if idx == 2:
                     idxp, idxn = 3, 1
                 else:
                     idxp, idxn = 2, 0
@@ -914,7 +917,7 @@ class Tap1Column(TemplateBase):
                                              out_locs[idx + 1], width=vm_w_out)
 
         # draw enable wires
-        en_locs = divp_master.en_locs
+        en_locs = div3_master.en_locs
         vm_w_en = tr_manager.get_width(vm_layer, 'en')
         for tr_idx, en_warr in zip(en_locs, en_warrs):
             self.connect_to_tracks(en_warr, TrackID(vm_layer, tr_idx, width=vm_w_en))
@@ -1006,13 +1009,13 @@ class Tap1Column(TemplateBase):
         tr_endiv = tr_scan - sp_clk_shield
         scan_tid = TrackID(vm_layer, tr_scan)
         endiv_tid = TrackID(vm_layer, tr_endiv, width=vm_w_clk)
-        scan3 = self.connect_to_tracks(inst0.get_pin('scan_div'),
+        scan3 = self.connect_to_tracks(inst2.get_pin('scan_div'),
                                        scan_tid, min_len_mode=1)
-        scan2 = self.connect_to_tracks(inst2.get_pin('scan_div'),
+        scan2 = self.connect_to_tracks(inst0.get_pin('scan_div'),
                                        scan_tid, min_len_mode=-1)
-        endiv3 = self.connect_to_tracks(inst0.get_pin('en_div'),
+        endiv3 = self.connect_to_tracks(inst2.get_pin('en_div'),
                                         endiv_tid, min_len_mode=1)
-        endiv2 = self.connect_to_tracks(inst2.get_pin('en_div'),
+        endiv2 = self.connect_to_tracks(inst0.get_pin('en_div'),
                                         endiv_tid, min_len_mode=-1)
         self.add_pin('scan_div<3>', scan3, show=show_pins)
         self.add_pin('scan_div<2>', scan2, show=show_pins)
@@ -1023,9 +1026,9 @@ class Tap1Column(TemplateBase):
         self._sch_params = dict(
             sum_params=endb_master.sch_params['sum_params'],
             lat_params=endb_master.sch_params['lat_params']['lat_params'],
-            lat_div_params=divp_master.sch_params['lat_params']['lat_params'],
+            lat_div_params=div3_master.sch_params['lat_params']['lat_params'],
             lat_pul_params=endt_master.sch_params['lat_params']['lat_params'],
-            div_params=divp_master.sch_params['lat_params']['div_params'],
+            div_params=div3_master.sch_params['lat_params']['div_params'],
             pul_params=endt_master.sch_params['lat_params']['pul_params'],
         )
         inp = endb_master.get_port('inp').get_pins()[0].track_id
@@ -1035,6 +1038,6 @@ class Tap1Column(TemplateBase):
         self._in_tr_info = (inp.base_index, inn.base_index, inp.width)
         self._out_tr_info = (outp_m.base_index, outn_m.base_index, outp_m.width)
         self._data_tr_info = endb_master.data_tr_info
-        self._div_tr_info = divp_master.div_tr_info
+        self._div_tr_info = div3_master.div_tr_info
         self._sum_row_info = endb_master.sum_row_info
         self._lat_row_info = endb_master.lat_row_info
