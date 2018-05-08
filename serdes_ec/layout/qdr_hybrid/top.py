@@ -2,7 +2,7 @@
 
 """This module defines classes needed to build the Hybrid-QDR FFE/DFE summer."""
 
-from typing import TYPE_CHECKING, Dict, Any, Set
+from typing import TYPE_CHECKING, Dict, Any, Set, List, Tuple
 
 from itertools import repeat, chain
 
@@ -43,11 +43,35 @@ class RXFrontend(TemplateBase):
         # type: (TemplateDB, str, Dict[str, Any], Set[str], **kwargs) -> None
         TemplateBase.__init__(self, temp_db, lib_name, params, used_names, **kwargs)
         self._sch_params = None
+        self._bias_p0_list = None
+        self._num_bias_vss = 0
+        self._num_bias_vdd = 0
 
     @property
     def sch_params(self):
         # type: () -> Dict[str, Any]
         return self._sch_params
+
+    @property
+    def bias_p0_list(self):
+        # type: () -> List[Tuple[int, int]]
+        return self._bias_p0_list
+
+    @property
+    def num_bias_vss(self):
+        # type: () -> int
+        return self._num_bias_vss
+
+    @property
+    def num_bias_vdd(self):
+        # type: () -> int
+        return self._num_bias_vdd
+
+    @classmethod
+    def get_cache_properties(cls):
+        # type: () -> List[str]
+        """Returns a list of properties to cache."""
+        return ['bias_p0_list', 'num_bias_vss', 'num_bias_vdd', 'sch_params']
 
     @classmethod
     def get_params_info(cls):
@@ -136,24 +160,30 @@ class RXFrontend(TemplateBase):
         hm_layer = ym_layer - 1
         clk_tr_w = tr_manager.get_width(hm_layer, 'clk')
         ytop = tot_h - yoff
-        self._connect_clk_vss_bias(hm_layer, vss_wires, x0, yoff, ytop, dp_inst, hpxb_inst,
-                                   hp1b_inst, num_dfe, hp_h, clk_locs, clk_tr_w, clk_h, vss_h,
-                                   bias_config, show_pins, is_bot=True)
 
-        self._connect_clk_vss_bias(hm_layer, vss_wires, x0, yoff, ytop, dp_inst, hpxt_inst,
-                                   hp1t_inst, num_dfe, hp_h, clk_locs, clk_tr_w, clk_h, vss_h,
-                                   bias_config, show_pins, is_bot=False)
+        self._bias_p0_list = []
+        p0 = self._connect_clk_vss_bias(hm_layer, vss_wires, x0, yoff, ytop, dp_inst, hpxb_inst,
+                                        hp1b_inst, num_dfe, hp_h, clk_locs, clk_tr_w, clk_h, vss_h,
+                                        bias_config, show_pins, is_bot=True)
+        self._bias_p0_list.append(p0)
 
         # gather VDD-referenced wires
         num_ffe = dp_master.num_ffe
         vdd_wires.extend(dp_inst.port_pins_iter('VDD', layer=ym_layer - 2))
         y0 = yoff + hp_h + clk_h + vss_h
-        self._connect_vdd_bias(hm_layer, x0, num_dfe, num_ffe, vdd_wires, dp_inst,
-                               y0, bias_config, show_pins, is_bot=True)
+        p0 = self._connect_vdd_bias(hm_layer, x0, num_dfe, num_ffe, vdd_wires, dp_inst,
+                                    y0, bias_config, show_pins, is_bot=True)
+        self._bias_p0_list.append(p0)
 
         y0 = ytop - (hp_h + clk_h + vss_h + vdd_h)
-        self._connect_vdd_bias(hm_layer, x0, num_dfe, num_ffe, vdd_wires, dp_inst,
-                               y0, bias_config, show_pins, is_bot=False)
+        p0 = self._connect_vdd_bias(hm_layer, x0, num_dfe, num_ffe, vdd_wires, dp_inst,
+                                    y0, bias_config, show_pins, is_bot=False)
+        self._bias_p0_list.append(p0)
+
+        p0 = self._connect_clk_vss_bias(hm_layer, vss_wires, x0, yoff, ytop, dp_inst, hpxt_inst,
+                                        hp1t_inst, num_dfe, hp_h, clk_locs, clk_tr_w, clk_h, vss_h,
+                                        bias_config, show_pins, is_bot=False)
+        self._bias_p0_list.append(p0)
 
         self._sch_params = dp_master.sch_params.copy()
         self._sch_params['hp_params'] = hpx_master.sch_params['hp_params']
@@ -241,6 +271,8 @@ class RXFrontend(TemplateBase):
 
         for name, tr in zip(name_list, bias_info.tracks):
             self.add_pin(name, tr, show=show_pins, edge_mode=-1)
+
+        return bias_info.p0
 
     def _connect_clk_vss_bias(self, hm_layer, vss_wires, x0, ybot, ytop, dp_inst, hpx_inst,
                               hp1_inst, num_dfe, hp_h, clk_locs, clk_tr_w, clk_h, vss_h,
@@ -364,6 +396,8 @@ class RXFrontend(TemplateBase):
         elif not vssm_list:
             raise ValueError('Cannot connect middle VSS of high-pass filters.')
 
+        return bias_info.p0
+
     @classmethod
     def _vdd_ports_iter(cls, num_dfe, num_ffe, is_bot=True):
         if is_bot:
@@ -449,9 +483,9 @@ class RXFrontend(TemplateBase):
         num_clk_tr = 2
 
         # scan_div, ana, dig, tap1_main, int_main * 2, 2 * each DFE
-        num_vss = 6 + 2 * num_dfe
+        self._num_bias_vss = 6 + 2 * num_dfe
         # dlev, offset, 2 * each FFE, 4 * each DFE 2+ (sign bits)
-        num_vdd = 8 + 2 * num_ffe + 4 * (num_dfe - 1)
+        self._num_bias_vdd = 8 + 2 * num_ffe + 4 * (num_dfe - 1)
 
         hm_layer = top_layer - 1
         blk_h = self.grid.get_block_size(top_layer, unit_mode=True)[1]
@@ -461,8 +495,8 @@ class RXFrontend(TemplateBase):
         ntr, locs = tr_manager.place_wires(hm_layer, wtype_list)
         tr_pitch = self.grid.get_track_pitch(hm_layer, unit_mode=True)
         clk_h = -(-(int(round(tr_pitch * ntr))) // blk_h) * blk_h
-        vdd_h = BiasShield.get_block_size(self.grid, hm_layer, bias_config, num_vdd)[1]
-        vss_h = BiasShield.get_block_size(self.grid, hm_layer, bias_config, num_vss)[1]
+        vdd_h = BiasShield.get_block_size(self.grid, hm_layer, bias_config, self._num_bias_vdd)[1]
+        vss_h = BiasShield.get_block_size(self.grid, hm_layer, bias_config, self._num_bias_vss)[1]
 
         return locs, clk_h, vss_h, vdd_h
 
@@ -554,6 +588,9 @@ class RXTop(TemplateBase):
         master_dac = self.new_template(params=dac_params, temp_cls=RDACArray)
         box_fe = master_fe.bound_box
         box_dac = master_dac.bound_box
+
+        print(master_fe.num_bias_vdd, master_fe.num_bias_vss)
+        print(master_fe.bias_p0_list)
 
         top_layer = master_dac.top_layer
         w_fe = box_fe.width_unit
