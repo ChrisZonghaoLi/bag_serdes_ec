@@ -147,6 +147,7 @@ class RXDatapath(TemplateBase):
 
         self.array_box = bnd_box = tapx.bound_box.merge(samp.bound_box).extend(x=0, unit_mode=True)
         self.set_size_from_bound_box(tapx_master.top_layer, bnd_box)
+        self.add_cell_boundary(bnd_box)
 
         self._connect_signals(tapx, tap1, offset, offlev, samp)
 

@@ -102,8 +102,12 @@ class RXFrontend(TemplateBase):
         dp_inst = self.add_instance(dp_master, 'XDP', loc=(x0, y0), unit_mode=True)
         x_hpx = x0 + dp_master.x_tapx[1] - hpx_w
         x_hp1 = max(x_hpx + hpx_w, x0 + dp_master.x_tap1[1] - hp1_w)
-        hpx_inst = self.add_instance(hpx_master, 'XHPXB', loc=(x_hpx, 0), unit_mode=True)
-        hp1_inst = self.add_instance(hp1_master, 'XHP1B', loc=(x_hp1, 0), unit_mode=True)
+        hpxb_inst = self.add_instance(hpx_master, 'XHPXB', loc=(x_hpx, 0), unit_mode=True)
+        hp1b_inst = self.add_instance(hp1_master, 'XHP1B', loc=(x_hp1, 0), unit_mode=True)
+        hpxt_inst = self.add_instance(hpx_master, 'XHPXB', loc=(x_hpx, tot_h),
+                                      orient='MX', unit_mode=True)
+        hp1t_inst = self.add_instance(hp1_master, 'XHP1B', loc=(x_hp1, tot_h),
+                                      orient='MX', unit_mode=True)
 
         ym_layer = dp_master.top_layer
         bnd_box = BBox(0, 0, tot_w, tot_h, self.grid.resolution, unit_mode=True)
@@ -122,8 +126,13 @@ class RXFrontend(TemplateBase):
         num_dfe = dp_master.num_dfe
         hm_layer = top_layer - 1
         clk_tr_w = tr_manager.get_width(hm_layer, 'clk')
-        self._connect_clk_vss_bias(hm_layer, x0, dp_inst, hpx_inst, hp1_inst, num_dfe, hp_h,
-                                   clk_locs, clk_tr_w, clk_h, bias_config, show_pins, is_bot=True)
+        self._connect_clk_vss_bias(hm_layer, x0, tot_h, dp_inst, hpxb_inst, hp1b_inst, num_dfe,
+                                   hp_h, clk_locs, clk_tr_w, clk_h, vss_h, bias_config,
+                                   show_pins, is_bot=True)
+
+        self._connect_clk_vss_bias(hm_layer, x0, tot_h, dp_inst, hpxt_inst, hp1t_inst, num_dfe,
+                                   hp_h, clk_locs, clk_tr_w, clk_h, vss_h, bias_config,
+                                   show_pins, is_bot=False)
 
         # gather VDD-referenced wires
         num_ffe = dp_master.num_ffe
@@ -148,8 +157,9 @@ class RXFrontend(TemplateBase):
         for name, tr in zip(name_list, bias_info.tracks):
             self.add_pin(name, tr, show=show_pins, edge_mode=-1)
 
-    def _connect_clk_vss_bias(self, hm_layer, x0, dp_inst, hpx_inst, hp1_inst, num_dfe, y0,
-                              clk_locs, clk_tr_w, clk_h, bias_config, show_pins, is_bot=True):
+    def _connect_clk_vss_bias(self, hm_layer, x0, tot_h, dp_inst, hpx_inst, hp1_inst, num_dfe,
+                              hp_h, clk_locs, clk_tr_w, clk_h, vss_h, bias_config, show_pins,
+                              is_bot=True):
         ntr_tot = len(clk_locs)
         num_pair = (ntr_tot - 2) // 2
         vss_idx_lookup = {}
@@ -158,7 +168,14 @@ class RXFrontend(TemplateBase):
 
         vss_idx = 0
         pwarr = None
-        tr0 = self.grid.find_next_track(hm_layer, y0, half_track=True, mode=1, unit_mode=True)
+        if is_bot:
+            tr0 = self.grid.find_next_track(hm_layer, hp_h, half_track=True, mode=1, unit_mode=True)
+            sgn = 1
+        else:
+            tr0 = self.grid.find_next_track(hm_layer, tot_h - hp_h, half_track=True, mode=-1,
+                                            unit_mode=True)
+            sgn = -1
+
         hpx_iter = self._hpx_ports_iter(num_dfe, is_bot=is_bot)
         hp1_iter = self._hp1_ports_iter(is_bot=is_bot)
         for inst, port_iter in ((hpx_inst, hpx_iter), (hp1_inst, hp1_iter)):
@@ -170,8 +187,8 @@ class RXFrontend(TemplateBase):
                     nwarr = [inst.get_pin('out' + suf), dp_inst.get_pin(out_name)]
 
                     cur_tr_id = (idx // 2) % num_pair
-                    pidx = clk_locs[1 + cur_tr_id] + tr0
-                    nidx = clk_locs[ntr_tot - 2 - cur_tr_id] + tr0
+                    pidx = tr0 + sgn * clk_locs[1 + cur_tr_id]
+                    nidx = tr0 + sgn * clk_locs[ntr_tot - 2 - cur_tr_id]
                     self.connect_differential_tracks(pwarr, nwarr, hm_layer, pidx, nidx,
                                                      width=clk_tr_w, unit_mode=True)
 
@@ -187,21 +204,30 @@ class RXFrontend(TemplateBase):
         if is_bot:
             scan_name = 'scan_divider_clkp'
             scan_pins = dp_inst.get_all_port_pins('scan_div<3>')
+            bot_tr = tr0 + clk_locs[0]
         else:
             scan_name = 'scan_divider_clkn'
             scan_pins = dp_inst.get_all_port_pins('scan_div<2>')
+            bot_tr = tr0 - clk_locs[-1]
         vss_name_list.append(scan_name)
         vss_warrs_list.append(scan_pins)
-
-        vss_tid = TrackID(hm_layer, tr0 + clk_locs[0], width=1, num=2,
-                          pitch=clk_locs[-1] - clk_locs[0])
+        vss_tid = TrackID(hm_layer, bot_tr, width=1, num=2, pitch=abs(clk_locs[-1] - clk_locs[0]))
 
         vss_wires = dp_inst.get_all_port_pins('VSS')
         _, vss_wires = self.connect_to_tracks(vss_wires, vss_tid, return_wires=True)
-        vss_lower = vss_wires[0].lower_unit
-        self.extend_wires(dp_inst.get_all_port_pins('VDD_ext'), lower=vss_lower, unit_mode=True)
+        if is_bot:
+            vss_coord = vss_wires[0].lower_unit
+            self.extend_wires(dp_inst.get_all_port_pins('VDD_ext'), lower=vss_coord, unit_mode=True)
+            offset = hp_h + clk_h
+        else:
+            vss_name_list.reverse()
+            vss_warrs_list.reverse()
+            vss_coord = vss_wires[0].upper_unit
+            self.extend_wires(dp_inst.get_all_port_pins('VDD_ext'), upper=vss_coord, unit_mode=True)
+            offset = tot_h - hp_h - clk_h - vss_h
+
         bias_info = BiasShield.draw_bias_shields(self, hm_layer, bias_config, vss_warrs_list,
-                                                 y0 + clk_h, tr_lower=x0, lu_end_mode=1)
+                                                 offset, tr_lower=x0, lu_end_mode=1)
         self.draw_vias_on_intersections(bias_info.shields, vss_wires)
 
         for name, tr in zip(vss_name_list, bias_info.tracks):
