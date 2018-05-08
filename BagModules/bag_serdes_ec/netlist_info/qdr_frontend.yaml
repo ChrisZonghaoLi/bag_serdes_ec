@@ -202,6 +202,10 @@ instances:
     lib_name: bag_serdes_ec
     cell_name: qdr_datapath
     instpins:
+      v_vincm:
+        direction: input
+        net_name: "v_vincm"
+        num_bits: 1
       clk_digital_tap1<3:0>:
         direction: input
         net_name: "clk_digital_tap1<3:0>"

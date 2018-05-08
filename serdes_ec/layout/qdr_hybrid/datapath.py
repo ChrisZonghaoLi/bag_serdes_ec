@@ -149,6 +149,12 @@ class RXDatapath(TemplateBase):
         self.set_size_from_bound_box(tapx_master.top_layer, bnd_box)
         self.add_cell_boundary(bnd_box)
 
+        # add vincm for LVS purposes
+        hm_layer = tapx_master.top_layer - 1
+        tr_incm = self.grid.coord_to_nearest_track(hm_layer, bnd_box.yc_unit, unit_mode=True)
+        warr = self.add_wires(hm_layer, tr_incm, 0, 200, unit_mode=True)
+        self.add_pin('v_vincm', warr, show=show_pins)
+
         self._connect_signals(tapx, tap1, offset, offlev, samp)
 
         self._export_pins(tapx, tap1, offset, offlev, samp, show_pins)
