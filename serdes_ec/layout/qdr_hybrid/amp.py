@@ -163,8 +163,7 @@ class IntegAmp(HybridQDRBase):
         # get track manager and wire names
         tr_manager = TrackManager(self.grid, tr_widths, tr_spaces, half_space=True)
         wire_names = {
-            # TODO: hack tail gate for now, should fix itself later when we specify min height.
-            'tail': dict(g=[1, 'clk'], ds=[1]),
+            'tail': dict(g=['clk'], ds=[1]),
             'nen': dict(g=['clk', 'en'], ds=['ntail']),
             # add a track in input row drain/source for VDD of tail switch
             'in': dict(g2=['in', 'in']),

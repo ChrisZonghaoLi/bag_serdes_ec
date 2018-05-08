@@ -122,21 +122,29 @@ class RXFrontend(TemplateBase):
         for xl, xu in dp_master.blockage_intvs:
             self.mark_bbox_used(ym_layer, BBox(xl + x0, yb, xu + x0, yt, res, unit_mode=True))
 
+        # export pins
+        self._reexport_dp_pins(dp_inst, show_pins)
+
+        # connect supplies
+        vdd_wires = dp_inst.get_all_port_pins('VDD', layer=top_layer)
+        vss_wires = dp_inst.get_all_port_pins('VSS', layer=top_layer)
+        self._connect_supplies(tr_manager, ym_layer + 1, dp_inst, dp_master.sup_y_list,
+                               vdd_wires, vss_wires, show_pins)
+
         # connect clocks and VSS-referenced wires
         num_dfe = dp_master.num_dfe
         hm_layer = top_layer - 1
         clk_tr_w = tr_manager.get_width(hm_layer, 'clk')
-        self._connect_clk_vss_bias(hm_layer, x0, tot_h, dp_inst, hpxb_inst, hp1b_inst, num_dfe,
-                                   hp_h, clk_locs, clk_tr_w, clk_h, vss_h, bias_config,
+        self._connect_clk_vss_bias(hm_layer, vss_wires, x0, tot_h, dp_inst, hpxb_inst, hp1b_inst,
+                                   num_dfe, hp_h, clk_locs, clk_tr_w, clk_h, vss_h, bias_config,
                                    show_pins, is_bot=True)
 
-        self._connect_clk_vss_bias(hm_layer, x0, tot_h, dp_inst, hpxt_inst, hp1t_inst, num_dfe,
-                                   hp_h, clk_locs, clk_tr_w, clk_h, vss_h, bias_config,
+        self._connect_clk_vss_bias(hm_layer, vss_wires, x0, tot_h, dp_inst, hpxt_inst, hp1t_inst,
+                                   num_dfe, hp_h, clk_locs, clk_tr_w, clk_h, vss_h, bias_config,
                                    show_pins, is_bot=False)
 
         # gather VDD-referenced wires
         num_ffe = dp_master.num_ffe
-        vdd_wires = dp_inst.get_all_port_pins('VDD', layer=top_layer)
         vdd_wires.extend(dp_inst.port_pins_iter('VDD', layer=top_layer - 2))
         y0 = hp_h + clk_h + vss_h
         self._connect_vdd_bias(hm_layer, x0, num_dfe, num_ffe, vdd_wires, dp_inst,
@@ -149,6 +157,43 @@ class RXFrontend(TemplateBase):
         self._sch_params = dp_master.sch_params.copy()
         self._sch_params['hp_params'] = hpx_master.sch_params['hp_params']
         self._sch_params['ndum_res'] = hpx_master.sch_params['ndum'] * 4
+
+    def _connect_supplies(self, tr_manager, xm_layer, dp_inst, sup_yc_list, vdd_wires, vss_wires,
+                          show_pins):
+        tr_w = tr_manager.get_width(xm_layer, 'sup')
+        dp_box = dp_inst.bound_box
+        y0 = dp_box.bottom_unit
+        xl = dp_box.left_unit
+        xr = dp_box.right_unit
+        yc = dp_box.yc_unit
+
+        for idx, ysup_mid in enumerate(sup_yc_list):
+            ycur = ysup_mid + y0
+            if ycur < yc:
+                tidx = self.grid.coord_to_nearest_track(xm_layer, ycur, half_track=True, mode=-1,
+                                                        unit_mode=True)
+            else:
+                tidx = self.grid.coord_to_nearest_track(xm_layer, ycur, half_track=True, mode=1,
+                                                        unit_mode=True)
+
+            tid = TrackID(xm_layer, tidx, width=tr_w)
+            if idx % 2 == 0:
+                warr = self.connect_to_tracks(vss_wires, tid, track_lower=xl, track_upper=xr,
+                                              unit_mode=True)
+                self.add_pin('VSS', warr, show=show_pins)
+            else:
+                warr = self.connect_to_tracks(vdd_wires, tid, track_lower=xl, track_upper=xr,
+                                              unit_mode=True)
+                self.add_pin('VDD', warr, show=show_pins)
+
+    def _reexport_dp_pins(self, dp_inst, show_pins):
+        for name in ['inp', 'inn', 'v_vincm', 'des_clk', 'des_clkb']:
+            self.reexport(dp_inst.get_port(name), show=show_pins)
+
+        for idx in range(4):
+            suf = '<%d>' % idx
+            self.reexport(dp_inst.get_port('data' + suf), show=show_pins)
+            self.reexport(dp_inst.get_port('dlev' + suf), show=show_pins)
 
     def _connect_vdd_bias(self, hm_layer, x0, num_dfe, num_ffe, vdd_wires, dp_inst, y0,
                           bias_config, show_pins, is_bot=True):
@@ -167,9 +212,9 @@ class RXFrontend(TemplateBase):
         for name, tr in zip(name_list, bias_info.tracks):
             self.add_pin(name, tr, show=show_pins, edge_mode=-1)
 
-    def _connect_clk_vss_bias(self, hm_layer, x0, tot_h, dp_inst, hpx_inst, hp1_inst, num_dfe,
-                              hp_h, clk_locs, clk_tr_w, clk_h, vss_h, bias_config, show_pins,
-                              is_bot=True):
+    def _connect_clk_vss_bias(self, hm_layer, vss_wires, x0, tot_h, dp_inst, hpx_inst, hp1_inst,
+                              num_dfe, hp_h, clk_locs, clk_tr_w, clk_h, vss_h, bias_config,
+                              show_pins, is_bot=True):
         ntr_tot = len(clk_locs)
         num_pair = (ntr_tot - 2) // 2
         vss_idx_lookup = {}
@@ -223,7 +268,6 @@ class RXFrontend(TemplateBase):
         vss_warrs_list.append(scan_pins)
         vss_tid = TrackID(hm_layer, bot_tr, width=1, num=2, pitch=abs(clk_locs[-1] - clk_locs[0]))
 
-        vss_wires = dp_inst.get_all_port_pins('VSS')
         _, vss_wires = self.connect_to_tracks(vss_wires, vss_tid, return_wires=True)
         if is_bot:
             vss_coord = vss_wires[0].lower_unit

@@ -2,7 +2,7 @@
 
 """This module defines classes needed to build the Hybrid-QDR FFE/DFE summer."""
 
-from typing import TYPE_CHECKING, Dict, Any, Set, Tuple
+from typing import TYPE_CHECKING, Dict, Any, Set, Tuple, List
 
 from bag.layout.template import TemplateBase
 
@@ -42,6 +42,7 @@ class RXDatapath(TemplateBase):
         self._num_dfe = None
         self._num_ffe = None
         self._blockage_intvs = None
+        self._sup_y_list = None
 
     @property
     def sch_params(self):
@@ -80,7 +81,13 @@ class RXDatapath(TemplateBase):
 
     @property
     def blockage_intvs(self):
+        # type: () -> List[Tuple[int, int]]
         return self._blockage_intvs
+
+    @property
+    def sup_y_list(self):
+        # type: () -> List[int]
+        return self._sup_y_list
 
     @classmethod
     def get_params_info(cls):
@@ -170,6 +177,7 @@ class RXDatapath(TemplateBase):
         )
         self._num_ffe = tapx_master.num_ffe
         self._num_dfe = tapx_master.num_dfe
+        self._sup_y_list = tapx_master.sup_y_list
 
     def _connect_supplies(self, tapx, tap1, offset, offlev, samp, show_pins):
         fill_w = self.params['fill_w']
@@ -190,10 +198,9 @@ class RXDatapath(TemplateBase):
             vss_vm_list.extend(inst.port_pins_iter('VSS', layer=vm_layer))
 
         bnd_box = self.bound_box
-        xr = bnd_box.right_unit - x_margin
-        xl = x_margin
-        vdd_hm = self.connect_wires(vdd_hm_list, lower=xl, upper=xr, unit_mode=True)
-        vss_hm = self.connect_wires(vss_hm_list, lower=xl, upper=xr, unit_mode=True)
+        xl = tapx.location_unit[0] + x_margin
+        vdd_hm = self.connect_wires(vdd_hm_list, lower=xl, unit_mode=True)
+        vss_hm = self.connect_wires(vss_hm_list, lower=xl, unit_mode=True)
         sp_le = bnd_box.height_unit
         vdd, vss = self.do_power_fill(vm_layer, fill_margin, sp_le, vdd_warrs=vdd_hm,
                                       vss_warrs=vss_hm, bound_box=bnd_box, fill_width=fill_w,

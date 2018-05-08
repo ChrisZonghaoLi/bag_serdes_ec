@@ -21,4 +21,4 @@ if __name__ == '__main__':
         bprj = local_dict['bprj']
 
     bprj.generate_cell(block_specs, RXFrontend, debug=True)
-    # bprj.generate_cell(block_specs, RXFrontend, gen_lay=False, gen_sch=True)
+    # bprj.generate_cell(block_specs, RXFrontend, gen_sch=True, run_lvs=False, debug=True)

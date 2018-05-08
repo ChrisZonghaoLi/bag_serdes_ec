@@ -311,6 +311,7 @@ class TapXSummerLast(TemplateBase):
         self._sd_pitch = None
         self._row_heights = None
         self._sup_tids = None
+        self._sup_y_mid = None
 
     @property
     def sch_params(self):
@@ -345,6 +346,11 @@ class TapXSummerLast(TemplateBase):
     def sup_tids(self):
         # type: () -> Tuple[Tuple[NumType, NumType], Tuple[NumType, NumType]]
         return self._sup_tids
+
+    @property
+    def sup_y_mid(self):
+        # type: () -> int
+        return self._sup_y_mid
 
     @classmethod
     def get_params_info(cls):
@@ -481,8 +487,10 @@ class TapXSummerLast(TemplateBase):
 
         # place instances
         s_inst = self.add_instance(s_master, 'XSUM', loc=(0, 0), unit_mode=True)
-        y0 = s_inst.array_box.top_unit + d_master.array_box.top_unit
+        ytop = s_master.array_box.top_unit
+        y0 = ytop + d_master.array_box.top_unit
         d_inst = self.add_instance(d_master, 'XDIG', loc=(0, y0), orient='MX', unit_mode=True)
+        self._sup_y_mid = ytop
 
         # set size
         self.array_box = s_inst.array_box.merge(d_inst.array_box)
@@ -993,6 +1001,7 @@ class TapXSummer(TemplateBase):
         self._vss_tids = None
         self._vdd_tids = None
         self._blockage_intvs = None
+        self._sup_y_mid = None
 
     @property
     def sch_params(self):
@@ -1058,6 +1067,11 @@ class TapXSummer(TemplateBase):
     def blockage_intvs(self):
         # type: () -> List[Tuple[int, int]]
         return self._blockage_intvs
+
+    @property
+    def sup_y_mid(self):
+        # type: () -> int
+        return self._sup_y_mid
 
     @classmethod
     def get_params_info(cls):
@@ -1318,6 +1332,7 @@ class TapXSummer(TemplateBase):
         )
         self._row_heights = last_master.row_heights
         self._sup_tids = last_master.sup_tids
+        self._sup_y_mid = last_master.sup_y_mid
 
 
 class TapXColumn(TemplateBase):
@@ -1350,6 +1365,7 @@ class TapXColumn(TemplateBase):
         self._num_dfe = None
         self._num_ffe = None
         self._blockage_intvs = None
+        self._sup_y_list = None
 
     @property
     def sch_params(self):
@@ -1393,7 +1409,13 @@ class TapXColumn(TemplateBase):
 
     @property
     def blockage_intvs(self):
+        # type: () -> List[Tuple[int, int]]
         return self._blockage_intvs
+
+    @property
+    def sup_y_list(self):
+        # type: () -> List[int]
+        return self._sup_y_list
 
     @classmethod
     def get_params_info(cls):
@@ -1494,19 +1516,23 @@ class TapXColumn(TemplateBase):
         xdiv = x0 - div_col_master.array_box.right_unit
         # place instances
         bot_row = self.add_instance(end_row_master, 'XROWB', loc=(xdiv, 0), unit_mode=True)
-        ycur = end_row_box.top_unit
-        div_inst = self.add_instance(div_col_master, 'XDIV', loc=(xdiv, ycur), unit_mode=True)
-        inst3 = self.add_instance(endb_master, 'X3', loc=(x0, ycur), unit_mode=True)
-        ycur = inst3.array_box.top_unit + divn_master.array_box.top_unit
-        inst0 = self.add_instance(divp_master, 'X0', loc=(x0, ycur), orient='MX', unit_mode=True)
-        ycur = inst0.array_box.top_unit
-        inst2 = self.add_instance(divn_master, 'X2', loc=(x0, ycur), unit_mode=True)
-        ycur = inst2.array_box.top_unit + endt_master.array_box.top_unit
-        inst1 = self.add_instance(endt_master, 'X1', loc=(x0, ycur), orient='MX', unit_mode=True)
-        ycur = inst1.array_box.top_unit + end_row_box.top_unit
-        top_row = self.add_instance(end_row_master, 'XROWT', loc=(xdiv, ycur), orient='MX',
+        y0 = end_row_box.top_unit
+        div_inst = self.add_instance(div_col_master, 'XDIV', loc=(xdiv, y0), unit_mode=True)
+        inst3 = self.add_instance(endb_master, 'X3', loc=(x0, y0), unit_mode=True)
+        y1 = y0 + endb_master.array_box.top_unit
+        y2 = y1 + divp_master.array_box.top_unit
+        inst0 = self.add_instance(divp_master, 'X0', loc=(x0, y2), orient='MX', unit_mode=True)
+        inst2 = self.add_instance(divn_master, 'X2', loc=(x0, y2), unit_mode=True)
+        y3 = y2 + divn_master.array_box.top_unit
+        y4 = y3 + endt_master.array_box.top_unit
+        inst1 = self.add_instance(endt_master, 'X1', loc=(x0, y4), orient='MX', unit_mode=True)
+        y5 = y4 + end_row_box.top_unit
+        top_row = self.add_instance(end_row_master, 'XROWT', loc=(xdiv, y5), orient='MX',
                                     unit_mode=True)
         inst_list = [inst0, inst1, inst2, inst3]
+        self._sup_y_list = [y0, endb_master.sup_y_mid + y0, y1, y2 - divp_master.sup_y_mid,
+                            y2, y2 + divn_master.sup_y_mid, y3, y4 - endt_master.sup_y_mid,
+                            y4]
 
         # re-export supply pins
         vdd_list = list(chain(*(inst.port_pins_iter('VDD') for inst in inst_list)))
