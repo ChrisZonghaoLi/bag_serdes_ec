@@ -454,3 +454,11 @@ instances:
         direction: output
         net_name: "clk_digital_tapx<3:0>"
         num_bits: 4
+  XRDUM:
+    lib_name: bag_analog_ec
+    cell_name: res_dummy
+    instpins:
+      VSS:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
