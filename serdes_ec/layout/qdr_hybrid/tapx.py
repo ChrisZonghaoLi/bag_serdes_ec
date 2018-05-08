@@ -2,7 +2,7 @@
 
 """This module defines classes needed to build the Hybrid-QDR FFE/DFE summer."""
 
-from typing import TYPE_CHECKING, Dict, Any, Set, Tuple, Union
+from typing import TYPE_CHECKING, Dict, Any, Set, Tuple, Union, List
 
 from itertools import chain
 
@@ -992,6 +992,7 @@ class TapXSummer(TemplateBase):
         self._sup_tids = None
         self._vss_tids = None
         self._vdd_tids = None
+        self._blockage_intvs = None
 
     @property
     def sch_params(self):
@@ -1052,6 +1053,11 @@ class TapXSummer(TemplateBase):
     def vdd_tids(self):
         # type: () -> Tuple[Tuple[NumType, NumType], Tuple[NumType, NumType]]
         return self._vdd_tids
+
+    @property
+    def blockage_intvs(self):
+        # type: () -> List[Tuple[int, int]]
+        return self._blockage_intvs
 
     @classmethod
     def get_params_info(cls):
@@ -1144,6 +1150,8 @@ class TapXSummer(TemplateBase):
         sig_names = ['VSS', 'en3', 'en2', 'en1', 'en0',
                      'VSS', 'clkp', 'biasp_s<2>', 'biasn_s<2>', 'clkn', 'VSS',
                      'sgnpp<2>', 'sgnnp<2>', 'sgnpn<2>', 'sgnnn<2>', 'en_div', 'scan_div']
+        clk_sh_idx0 = 5
+        clk_sh_idx1 = 10
 
         # create and place last summer cell
         main = sub_master.analog_master
@@ -1193,6 +1201,12 @@ class TapXSummer(TemplateBase):
         sig_offset = ltr - right_delta - sig_locs[-1]
         for name, loc in zip(sig_names, sig_locs):
             _record_track(self._dfe_track_info, name, loc + sig_offset)
+        # record blockage interval
+        xl = self.grid.get_wire_bounds(vm_layer, sig_locs[clk_sh_idx0 + sig_offset],
+                                       unit_mode=True)[0]
+        xr = self.grid.get_wire_bounds(vm_layer, sig_locs[clk_sh_idx1 + sig_offset],
+                                       unit_mode=True)[1]
+        self._blockage_intvs = [(xl, xr)]
 
         # add instance
         self._fg_core_last = last_master.fg_core
@@ -1335,6 +1349,7 @@ class TapXColumn(TemplateBase):
         self._out_tr_info = None
         self._num_dfe = None
         self._num_ffe = None
+        self._blockage_intvs = None
 
     @property
     def sch_params(self):
@@ -1375,6 +1390,10 @@ class TapXColumn(TemplateBase):
     def num_ffe(self):
         # type: () -> int
         return self._num_ffe
+
+    @property
+    def blockage_intvs(self):
+        return self._blockage_intvs
 
     @classmethod
     def get_params_info(cls):
@@ -1566,6 +1585,12 @@ class TapXColumn(TemplateBase):
         self.set_size_from_bound_box(vm_layer, bnd_box)
         self.array_box = bnd_box
         self.add_cell_boundary(bnd_box)
+        # add/record blockage
+        self._blockage_intvs = []
+        for xbl, xbr in endb_master.blockage_intvs:
+            blk_box = bnd_box.with_interval('x', xbl + x0, xbr + x0, unit_mode=True)
+            self._blockage_intvs.append((xbl + x0, xbr + x0))
+            self.mark_bbox_used(vm_layer, blk_box)
 
         # connect divider column
         clkp_list.extend(nclkp_list)

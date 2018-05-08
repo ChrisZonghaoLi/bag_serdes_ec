@@ -125,6 +125,8 @@ class RXDatapath(TemplateBase):
         tapx = self.add_instance(tapx_master, 'XTAPX', loc=(xcur, 0), unit_mode=True)
         xr = xcur + tapx_master.bound_box.width_unit
         self._x_tapx = (xcur, xr)
+        for xl, xu in tapx_master.blockage_intvs:
+            self._blockage_intvs.append((xl + xcur, xu + xcur))
         xcur = xr
         offset = self.add_instance(offset_master, 'XOFF', loc=(xcur, 0), unit_mode=True)
         xcur += offset_master.bound_box.width_unit
