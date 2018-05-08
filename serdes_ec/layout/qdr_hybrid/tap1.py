@@ -432,7 +432,7 @@ class Tap1LatchRow(TemplateBase):
                 # perform connections for divider
                 if div_pos_edge:
                     clkp.extend(d_inst.port_pins_iter('clk'))
-                    clkp = self.connect_wires(clkn)[0]
+                    clkp = self.connect_wires(clkp)[0]
                     clkn = self.extend_wires(clkn, lower=clkp.lower_unit, unit_mode=True)
                 else:
                     clkn.extend(d_inst.port_pins_iter('clk'))

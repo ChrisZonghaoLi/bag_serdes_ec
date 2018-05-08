@@ -237,7 +237,6 @@ class DividerColumn(TemplateBase):
             sup_tids='supply tracks information.',
             options='other AnalogBase options.',
             right_edge_info='If not None, abut on right edge.',
-            invert_clk='True to invert clock track.',
             show_pins='True to draw pin geometries.',
         )
 
@@ -247,7 +246,6 @@ class DividerColumn(TemplateBase):
         return dict(
             options=None,
             right_edge_info=None,
-            invert_clk=False,
             show_pins=True,
         )
 
@@ -262,7 +260,6 @@ class DividerColumn(TemplateBase):
         sup_tids = self.params['sup_tids']
         options = self.params['options']
         right_edge_info = self.params['right_edge_info']
-        invert_clk = self.params['invert_clk']
         show_pins = self.params['show_pins']
 
         # create masters
@@ -277,14 +274,14 @@ class DividerColumn(TemplateBase):
 
         div_params = dict(config=config, row_layout_info=lat_row_info, seg_dict=seg_dict,
                           tr_widths=tr_widths, tr_spaces=tr_spaces, tr_info=div_tr_info, fg_min=0,
-                          end_mode=end_mode, abut_mode=abut_mode, div_pos_edge=not invert_clk,
+                          end_mode=end_mode, abut_mode=abut_mode, div_pos_edge=False,
                           laygo_edger=right_edge_info, show_pins=False)
 
-        divp_master = self.new_template(params=div_params, temp_cls=SinClkDivider)
-        div_params['div_pos_edge'] = invert_clk
-        divn_master = self.new_template(params=div_params, temp_cls=SinClkDivider)
-        self._fg_tot = divp_master.fg_tot
-        self._sa_clk_tidx = divp_master.sa_clk_tidx
+        div3_master = self.new_template(params=div_params, temp_cls=SinClkDivider)
+        div_params['div_pos_edge'] = True
+        div2_master = self.new_template(params=div_params, temp_cls=SinClkDivider)
+        self._fg_tot = div3_master.fg_tot
+        self._sa_clk_tidx = div3_master.sa_clk_tidx
 
         dums_params = dict(config=config, row_layout_info=sum_row_info, num_col=self._fg_tot,
                            tr_widths=tr_widths, tr_spaces=tr_spaces, sup_tids=sup_tids[0],
@@ -294,7 +291,7 @@ class DividerColumn(TemplateBase):
         duml_master = dums_master.new_template_with(row_layout_info=lat_row_info,
                                                     sup_tids=sup_tids[1])
 
-        top_layer = divp_master.top_layer
+        top_layer = div3_master.top_layer
         if draw_end_row:
             end_row_params = dict(
                 lch=config['lch'],
@@ -326,19 +323,19 @@ class DividerColumn(TemplateBase):
             if is_even:
                 m0, m1 = dums_master, duml_master
                 if idx == 2:
-                    m1 = divn_master
+                    m1 = div2_master
             else:
                 m0, m1 = duml_master, dums_master
                 if idx == 1:
-                    m0 = divp_master
+                    m0 = div3_master
             binst = self.add_instance(m0, 'X%d' % (idx * 2), loc=(0, ycur),
                                       orient='R0', unit_mode=True)
-            if m0 is divp_master:
+            if m0 is div3_master:
                 botp = binst
             ycur += bayt + tayt
             tinst = self.add_instance(m1, 'X%d' % (idx * 2 + 1), loc=(0, ycur),
                                       orient='MX', unit_mode=True)
-            if m1 is divn_master:
+            if m1 is div2_master:
                 topn = tinst
 
             bnd_box = bnd_box.merge(tinst.bound_box)
@@ -370,7 +367,7 @@ class DividerColumn(TemplateBase):
         self.reexport(botp.get_port('q'), net_name='en<3>', show=show_pins)
         self.reexport(botp.get_port('qb'), net_name='en<1>', show=show_pins)
 
-        self._sch_params = divn_master.sch_params
+        self._sch_params = div3_master.sch_params
 
 
 class Retimer(StdDigitalTemplate):

@@ -470,7 +470,7 @@ class TapXSummerLast(TemplateBase):
             dig_params['seg_dict'] = seg_div
             dig_params['tr_info'] = div_tr_info
             dig_params['fg_min'] = fg_min
-            dig_params['div_pos_edge'] = div_pos_edge
+            dig_params['div_pos_edge'] = not div_pos_edge
             d_master = self.new_template(params=dig_params, temp_cls=SinClkDivider)
             div_sch_params = d_master.sch_params
             pul_sch_params = None
@@ -504,11 +504,11 @@ class TapXSummerLast(TemplateBase):
         if seg_div is not None:
             # perform connections for divider
             if div_pos_edge:
-                clk_name = 'clkp'
-                vconn_clkp = True
-            else:
                 clk_name = 'clkn'
                 vconn_clkn = True
+            else:
+                clk_name = 'clkp'
+                vconn_clkp = True
 
             # re-export divider pins
             self.reexport(d_inst.get_port('clk'), net_name=clk_name, label=clk_name + ':',
@@ -1473,8 +1473,8 @@ class TapXColumn(TemplateBase):
         div_row_params['div_pos_edge'] = False
         div_row_params['show_pins'] = False
 
-        divn_master = self.new_template(params=div_row_params, temp_cls=TapXSummer)
-        fg_min_last = divn_master.fg_core_last
+        div3_master = self.new_template(params=div_row_params, temp_cls=TapXSummer)
+        fg_min_last = div3_master.fg_core_last
 
         end_params = self.params.copy()
         end_params['seg_div'] = None
@@ -1484,17 +1484,17 @@ class TapXColumn(TemplateBase):
         endb_master = self.new_template(params=end_params, temp_cls=TapXSummer)
         if endb_master.fg_core_last > fg_min_last:
             fg_min_last = endb_master.fg_core_last
-            divn_master = divn_master.new_template_with(fg_min_last=fg_min_last)
+            div3_master = div3_master.new_template_with(fg_min_last=fg_min_last)
 
-        divp_master = divn_master.new_template_with(div_pos_edge=True)
+        div2_master = div3_master.new_template_with(div_pos_edge=True)
         endt_master = endb_master.new_template_with(seg_pul=None)
 
-        div_col_params = dict(config=config, sum_row_info=divn_master.sum_row_info,
-                              lat_row_info=divn_master.lat_row_info, seg_dict=seg_div,
+        div_col_params = dict(config=config, sum_row_info=div3_master.sum_row_info,
+                              lat_row_info=div3_master.lat_row_info, seg_dict=seg_div,
                               tr_widths=tr_widths, tr_spaces=tr_spaces,
-                              div_tr_info=divn_master.div_tr_info, sup_tids=divn_master.sup_tids,
-                              options=options, right_edge_info=divn_master.left_edge_info,
-                              invert_clk=False, show_pins=False)
+                              div_tr_info=div3_master.div_tr_info, sup_tids=div3_master.sup_tids,
+                              options=options, right_edge_info=div3_master.left_edge_info,
+                              show_pins=False)
         div_col_master = self.new_template(params=div_col_params, temp_cls=DividerColumn)
 
         vm_layer = endt_master.top_layer
@@ -1520,18 +1520,18 @@ class TapXColumn(TemplateBase):
         div_inst = self.add_instance(div_col_master, 'XDIV', loc=(xdiv, y0), unit_mode=True)
         inst3 = self.add_instance(endb_master, 'X3', loc=(x0, y0), unit_mode=True)
         y1 = y0 + endb_master.array_box.top_unit
-        y2 = y1 + divp_master.array_box.top_unit
-        inst0 = self.add_instance(divp_master, 'X0', loc=(x0, y2), orient='MX', unit_mode=True)
-        inst2 = self.add_instance(divn_master, 'X2', loc=(x0, y2), unit_mode=True)
-        y3 = y2 + divn_master.array_box.top_unit
+        y2 = y1 + div3_master.array_box.top_unit
+        inst0 = self.add_instance(div3_master, 'X0', loc=(x0, y2), orient='MX', unit_mode=True)
+        inst2 = self.add_instance(div2_master, 'X2', loc=(x0, y2), unit_mode=True)
+        y3 = y2 + div2_master.array_box.top_unit
         y4 = y3 + endt_master.array_box.top_unit
         inst1 = self.add_instance(endt_master, 'X1', loc=(x0, y4), orient='MX', unit_mode=True)
         y5 = y4 + end_row_box.top_unit
         top_row = self.add_instance(end_row_master, 'XROWT', loc=(xdiv, y5), orient='MX',
                                     unit_mode=True)
         inst_list = [inst0, inst1, inst2, inst3]
-        self._sup_y_list = [y0, endb_master.sup_y_mid + y0, y1, y2 - divp_master.sup_y_mid,
-                            y2, y2 + divn_master.sup_y_mid, y3, y4 - endt_master.sup_y_mid,
+        self._sup_y_list = [y0, endb_master.sup_y_mid + y0, y1, y2 - div3_master.sup_y_mid,
+                            y2, y2 + div2_master.sup_y_mid, y3, y4 - endt_master.sup_y_mid,
                             y4]
 
         # re-export supply pins
@@ -1630,11 +1630,11 @@ class TapXColumn(TemplateBase):
         # set schematic parameters and various properties
         self._sch_params = dict(
             div_params=div_col_master.sch_params,
-            ffe_params_list=divp_master.sch_params['ffe_params_list'],
-            dfe_params_list=divp_master.sch_params['dfe_params_list'],
+            ffe_params_list=div3_master.sch_params['ffe_params_list'],
+            dfe_params_list=div3_master.sch_params['dfe_params_list'],
             last_params_list=[endb_master.sch_params['last_params'],
-                              divp_master.sch_params['last_params'],
-                              divn_master.sch_params['last_params'],
+                              div3_master.sch_params['last_params'],
+                              div2_master.sch_params['last_params'],
                               endt_master.sch_params['last_params']],
             export_probe=export_probe,
         )
