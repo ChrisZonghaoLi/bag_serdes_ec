@@ -202,6 +202,14 @@ instances:
     lib_name: bag_serdes_ec
     cell_name: qdr_datapath
     instpins:
+      clk_digital_tap1<3:0>:
+        direction: input
+        net_name: "clk_digital_tap1<3:0>"
+        num_bits: 4
+      clk_digital_tapx<3:0>:
+        direction: input
+        net_name: "clk_digital_tapx<3:0>"
+        num_bits: 4
       clk_analog<3:0>:
         direction: input
         net_name: "clk_analog<3:0>"
@@ -209,10 +217,6 @@ instances:
       clk_tap1<3:0>:
         direction: input
         net_name: "clk_tap1<3:0>"
-        num_bits: 4
-      clk_digital<3:0>:
-        direction: input
-        net_name: "clk_digital<3:0>"
         num_bits: 4
       VSS:
         direction: inputOutput
@@ -330,6 +334,26 @@ instances:
     lib_name: basic
     cell_name: iopin
     instpins: {}
+  XHPDL1<3:0>:
+    lib_name: bag_analog_ec
+    cell_name: high_pass
+    instpins:
+      VSS:
+        direction: inputOutput
+        net_name: "<*4>VSS"
+        num_bits: 4
+      in:
+        direction: input
+        net_name: "clkp,clkn,clkp,clkn"
+        num_bits: 4
+      bias:
+        direction: input
+        net_name: "<*4>v_digital"
+        num_bits: 4
+      out:
+        direction: output
+        net_name: "clk_digital_tap1<3:0>"
+        num_bits: 4
   XHPA<3:0>:
     lib_name: bag_analog_ec
     cell_name: high_pass
@@ -410,7 +434,7 @@ instances:
         direction: output
         net_name: "clk_main<3:0>"
         num_bits: 4
-  XHPDL<3:0>:
+  XHPDLX<3:0>:
     lib_name: bag_analog_ec
     cell_name: high_pass
     instpins:
@@ -428,5 +452,5 @@ instances:
         num_bits: 4
       out:
         direction: output
-        net_name: "clk_digital<3:0>"
+        net_name: "clk_digital_tapx<3:0>"
         num_bits: 4
