@@ -105,10 +105,18 @@ class RXFrontend(TemplateBase):
         hpx_inst = self.add_instance(hpx_master, 'XHPXB', loc=(x_hpx, 0), unit_mode=True)
         hp1_inst = self.add_instance(hp1_master, 'XHP1B', loc=(x_hp1, 0), unit_mode=True)
 
+        ym_layer = dp_master.top_layer
         bnd_box = BBox(0, 0, tot_w, tot_h, self.grid.resolution, unit_mode=True)
-        self.set_size_from_bound_box(dp_master.top_layer, bnd_box)
+        self.set_size_from_bound_box(ym_layer, bnd_box)
         self.array_box = bnd_box
         self.add_cell_boundary(bnd_box)
+
+        # mark blockages
+        yb = hp_h
+        yt = tot_h - hp_h
+        res = self.grid.resolution
+        for xl, xu in dp_master.blockage_intvs:
+            self.mark_bbox_used(ym_layer, BBox(xl + x0, yb, xu + x0, yt, res, unit_mode=True))
 
         # connect clocks and VSS-referenced wires
         num_dfe = dp_master.num_dfe
@@ -176,19 +184,13 @@ class RXFrontend(TemplateBase):
                           pitch=clk_locs[-1] - clk_locs[0])
 
         vss_wires = dp_inst.get_all_port_pins('VSS')
-        self.connect_to_tracks(vss_wires, vss_tid)
+        _, vss_wires = self.connect_to_tracks(vss_wires, vss_tid, return_wires=True)
+        vss_lower = vss_wires[0].lower_unit
+        self.extend_wires(dp_inst.get_all_port_pins('VDD_ext'), lower=vss_lower, unit_mode=True)
         bias_info = BiasShield.draw_bias_shields(self, hm_layer, bias_config, vss_warrs_list,
                                                  y0 + clk_h, lu_end_mode=1)
-        sh_warr = bias_info.shields
-        shl = sh_warr.lower_unit
-        shu = sh_warr.upper_unit
-        ym_layer = hm_layer + 1
-        conn_list = []
-        for warr in vss_wires:
-            xc = self.grid.track_to_coord(ym_layer, warr.track_id.base_index, unit_mode=True)
-            if shl < xc < shu:
-                conn_list.append(warr)
-        self.connect_to_tracks(conn_list, sh_warr.track_id)
+        self.draw_vias_on_intersections(bias_info.shields, vss_wires)
+
         for name, tr in zip(vss_names_list, bias_info.tracks):
             self.add_pin(name, tr, show=show_pins, edge_mode=-1)
 

@@ -714,6 +714,7 @@ class Tap1Column(TemplateBase):
         self._div_tr_info = None
         self._sum_row_info = None
         self._lat_row_info = None
+        self._blockage_intvs = None
 
     @property
     def sch_params(self):
@@ -749,6 +750,10 @@ class Tap1Column(TemplateBase):
     def lat_row_info(self):
         # type: () -> Dict[str, Any]
         return self._lat_row_info
+
+    @property
+    def blockage_intvs(self):
+        return self._blockage_intvs
 
     @classmethod
     def get_params_info(cls):
@@ -934,7 +939,7 @@ class Tap1Column(TemplateBase):
         self.add_pin('bias_f<2>', bf2, show=show_pins, edge_mode=-1)
         self.add_pin('bias_f<3>', bf3, show=show_pins, edge_mode=1)
 
-        # draw bias_m/bias_d wires
+        # compute bias_m/bias_d wires locations
         shield_tidr = tr_manager.get_next_track(vm_layer, en_locs[0], 'en', 1, up=False)
         sp_clk = clk_locs[3] - clk_locs[2]
         sp_clk_shield = clk_locs[2] - clk_locs[1]
@@ -942,14 +947,28 @@ class Tap1Column(TemplateBase):
         bias_locs = [right_tidx + idx * sp_clk for idx in range(-3, 1, 1)]
         shield_tidl = bias_locs[0] - sp_clk_shield
         # draw shields
+        self._blockage_intvs = []
         sh_tid = TrackID(vm_layer, shield_tidl, num=2, pitch=shield_tidr - shield_tidl)
         sh_warrs = self.connect_to_tracks(vss_list, sh_tid, unit_mode=True)
         tr_lower, tr_upper = sh_warrs.lower_unit, sh_warrs.upper_unit
-        shield_pitch = out_locs[3] - out_locs[0]
-        self.connect_to_tracks(vdd_list, TrackID(vm_layer, out_locs[0], num=3, pitch=shield_pitch),
-                               track_lower=tr_lower, track_upper=tr_upper, unit_mode=True)
-        self.connect_to_tracks(vdd_list, TrackID(vm_layer, clk_locs[1]),
-                               track_lower=tr_lower, track_upper=tr_upper, unit_mode=True)
+        sh_box = sh_warrs.get_bbox_array(self.grid).get_overall_bbox()
+        self._blockage_intvs.append(sh_box.get_interval('x', unit_mode=True))
+        self.add_pin('VSS', sh_warrs, show=show_pins)
+
+        sh_pitch = out_locs[3] - out_locs[0]
+        out_sh_tid = TrackID(vm_layer, out_locs[0] + sh_pitch, num=2, pitch=sh_pitch)
+        sh_warrs = self.connect_to_tracks(vdd_list, out_sh_tid, track_lower=tr_lower,
+                                          track_upper=tr_upper, unit_mode=True)
+        self.add_pin('VDD', sh_warrs, show=show_pins)
+
+        clk_sh_tid = TrackID(vm_layer, clk_locs[1], num=2, pitch=out_locs[0] - clk_locs[1])
+        sh_warrs = self.connect_to_tracks(vdd_list, clk_sh_tid, track_lower=tr_lower,
+                                          track_upper=tr_upper, unit_mode=True)
+        sh_box = sh_warrs.get_bbox_array(self.grid).get_overall_bbox()
+        self._blockage_intvs.append(sh_box.get_interval('x', unit_mode=True))
+        self.add_pin('VDD', sh_warrs, show=show_pins)
+        self.add_pin('VDD_ext', sh_warrs, show=False)
+
         bm0, bm3 = self.connect_differential_tracks(biasm_warrs[0], biasm_warrs[3], vm_layer,
                                                     bias_locs[0], bias_locs[3], width=vm_w_clk)
         bm2, bm1 = self.connect_differential_tracks(biasm_warrs[2], biasm_warrs[1], vm_layer,
@@ -969,12 +988,18 @@ class Tap1Column(TemplateBase):
 
         # set size
         bnd_box = bot_row.bound_box.merge(top_row.bound_box)
-        bnd_xr = self.grid.track_to_coord(vm_layer, out_locs[0] + 2 * shield_pitch + 0.5,
+        bnd_xr = self.grid.track_to_coord(vm_layer, out_locs[0] + 2 * sh_pitch + 0.5,
                                           unit_mode=True)
         bnd_box = bnd_box.extend(x=bnd_xr, unit_mode=True)
         self.set_size_from_bound_box(top_layer, bnd_box)
         self.array_box = bnd_box
         self.add_cell_boundary(bnd_box)
+
+        # mark blockages
+        res = self.grid.resolution
+        for xl, xu in self._blockage_intvs:
+            self.mark_bbox_used(vm_layer, BBox(xl, bnd_box.bottom_unit, xu, bnd_box.top_unit,
+                                               res, unit_mode=True))
 
         # draw en_div/scan wires
         tr_scan = shield_tidl - 1

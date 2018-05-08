@@ -41,6 +41,7 @@ class RXDatapath(TemplateBase):
         self._x_tap1 = None
         self._num_dfe = None
         self._num_ffe = None
+        self._blockage_intvs = None
 
     @property
     def sch_params(self):
@@ -76,6 +77,10 @@ class RXDatapath(TemplateBase):
     def num_hp_tap1(self):
         # type: () -> int
         return 6
+
+    @property
+    def blockage_intvs(self):
+        return self._blockage_intvs
 
     @classmethod
     def get_params_info(cls):
@@ -115,6 +120,7 @@ class RXDatapath(TemplateBase):
 
         tapx_master, tap1_master, offset_master, loff_master, samp_master = self._create_masters()
 
+        self._blockage_intvs = []
         xcur = 0
         tapx = self.add_instance(tapx_master, 'XTAPX', loc=(xcur, 0), unit_mode=True)
         xr = xcur + tapx_master.bound_box.width_unit
@@ -125,6 +131,9 @@ class RXDatapath(TemplateBase):
         tap1 = self.add_instance(tap1_master, 'XTAP1', loc=(xcur, 0), unit_mode=True)
         xr = xcur + tap1_master.bound_box.width_unit
         self._x_tap1 = (xcur, xr)
+        for xl, xu in tap1_master.blockage_intvs:
+            self._blockage_intvs.append((xl + xcur, xu + xcur))
+
         xcur = xr
         offlev = self.add_instance(loff_master, 'XOFFL', loc=(xcur, 0), unit_mode=True)
         xcur += loff_master.bound_box.width_unit
@@ -214,6 +223,8 @@ class RXDatapath(TemplateBase):
                 suf = name[4:]
                 self.reexport(tapx.get_port(name), net_name=name[:4] + '_dfe' + suf, show=show_pins)
 
+        # rexport tap1 ports
+        self.reexport(tap1.get_port('VDD_ext'), show=False)
         # reexport sampler ports
         self.reexport(samp.get_port('des_clk'), show=show_pins)
         self.reexport(samp.get_port('des_clkb'), show=show_pins)
