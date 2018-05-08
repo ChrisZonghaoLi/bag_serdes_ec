@@ -116,12 +116,16 @@ class RXDatapath(TemplateBase):
         )
 
     def draw_layout(self):
+        ctle_margin = 22000
         show_pins = self.params['show_pins']
 
         tapx_master, tap1_master, offset_master, loff_master, samp_master = self._create_masters()
 
+        blk_w = self.grid.get_block_size(tapx_master.top_layer, unit_mode=True)[0]
+        ctle_margin = -(-ctle_margin // blk_w) * blk_w
+
         self._blockage_intvs = []
-        xcur = 0
+        xcur = ctle_margin
         tapx = self.add_instance(tapx_master, 'XTAPX', loc=(xcur, 0), unit_mode=True)
         xr = xcur + tapx_master.bound_box.width_unit
         self._x_tapx = (xcur, xr)
@@ -141,7 +145,7 @@ class RXDatapath(TemplateBase):
         xcur += loff_master.bound_box.width_unit
         samp = self.add_instance(samp_master, 'XSAMP', loc=(xcur, 0), unit_mode=True)
 
-        self.array_box = bnd_box = tapx.bound_box.merge(samp.bound_box)
+        self.array_box = bnd_box = tapx.bound_box.merge(samp.bound_box).extend(x=0, unit_mode=True)
         self.set_size_from_bound_box(tapx_master.top_layer, bnd_box)
 
         self._connect_signals(tapx, tap1, offset, offlev, samp)
