@@ -138,19 +138,27 @@ class RXFrontend(TemplateBase):
         num_ffe = dp_master.num_ffe
         vdd_wires = dp_inst.get_all_port_pins('VDD', layer=top_layer)
         vdd_wires.extend(dp_inst.port_pins_iter('VDD', layer=top_layer - 2))
+        y0 = hp_h + clk_h + vss_h
         self._connect_vdd_bias(hm_layer, x0, num_dfe, num_ffe, vdd_wires, dp_inst,
-                               hp_h + clk_h + vss_h, bias_config, show_pins, is_bot=True)
+                               y0, bias_config, show_pins, is_bot=True)
+
+        y0 = tot_h - (hp_h + clk_h + vss_h + vdd_h)
+        self._connect_vdd_bias(hm_layer, x0, num_dfe, num_ffe, vdd_wires, dp_inst,
+                               y0, bias_config, show_pins, is_bot=False)
 
         self._sch_params = dp_master.sch_params.copy()
 
-    def _connect_vdd_bias(self, hm_layer, x0, num_dfe, num_ffe, vdd_wires, dp_inst, y0, bias_config,
-                          show_pins, is_bot=True):
+    def _connect_vdd_bias(self, hm_layer, x0, num_dfe, num_ffe, vdd_wires, dp_inst, y0,
+                          bias_config, show_pins, is_bot=True):
         w_list = []
         name_list = []
         for port_name, out_name in self._vdd_ports_iter(num_dfe, num_ffe, is_bot=is_bot):
             w_list.append(dp_inst.get_pin(port_name))
             name_list.append(out_name)
 
+        if not is_bot:
+            w_list.reverse()
+            name_list.reverse()
         bias_info = BiasShield.draw_bias_shields(self, hm_layer, bias_config, w_list, y0,
                                                  tr_lower=x0, lu_end_mode=1, sup_warrs=vdd_wires)
 
@@ -228,7 +236,7 @@ class RXFrontend(TemplateBase):
 
         bias_info = BiasShield.draw_bias_shields(self, hm_layer, bias_config, vss_warrs_list,
                                                  offset, tr_lower=x0, lu_end_mode=1)
-        self.draw_vias_on_intersections(bias_info.shields, vss_wires)
+        self.connect_to_track_wires(vss_wires, bias_info.shields)
 
         for name, tr in zip(vss_name_list, bias_info.tracks):
             self.add_pin(name, tr, show=show_pins, edge_mode=-1)
