@@ -286,11 +286,11 @@ class RXFrontend(TemplateBase):
                     vss_warrs_list[vss_idx_lookup[bias_name]].append(bias_pin)
 
         if is_bot:
-            scan_name = 'scan_divider_clkp'
+            scan_name = 'scan_divider_clkn'
             scan_pins = dp_inst.get_all_port_pins('scan_div<3>')
             bot_tr = tr0 + clk_locs[0]
         else:
-            scan_name = 'scan_divider_clkn'
+            scan_name = 'scan_divider_clkp'
             scan_pins = dp_inst.get_all_port_pins('scan_div<2>')
             bot_tr = tr0 - clk_locs[-1]
         vss_name_list.append(scan_name)
