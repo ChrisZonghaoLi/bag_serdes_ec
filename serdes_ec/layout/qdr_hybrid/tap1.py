@@ -845,7 +845,7 @@ class Tap1Column(TemplateBase):
         inst0 = self.add_instance(div2_master, 'X0', loc=(0, ycur), unit_mode=True)
         ycur += div2_master.array_box.top_unit + endt_master.array_box.top_unit
         inst3 = self.add_instance(endt_master, 'X3', loc=(0, ycur), orient='MX', unit_mode=True)
-        ycur += endt_master.array_box.top_unit + end_row_box.top_unit
+        ycur += end_row_box.top_unit
         top_row = self.add_instance(end_row_master, 'XROWT', loc=(0, ycur), orient='MX',
                                     unit_mode=True)
         inst_list = [inst0, inst1, inst2, inst3]
