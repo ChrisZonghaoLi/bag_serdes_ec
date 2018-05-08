@@ -57,7 +57,6 @@ class RXFrontend(TemplateBase):
             hp_params='high-pass filter array parameters.',
             tr_widths='Track width dictionary.',
             tr_spaces='Track spacing dictionary.',
-            fill_config='Fill configuration dictionary.',
             bias_config='The bias configuration dictionary.',
             show_pins='True to create pin labels.',
         )
@@ -74,7 +73,6 @@ class RXFrontend(TemplateBase):
 
         tr_widths = self.params['tr_widths']
         tr_spaces = self.params['tr_spaces']
-        fill_config = self.params['fill_config']
         bias_config = self.params['bias_config']
         show_pins = self.params['show_pins']
 
@@ -85,39 +83,41 @@ class RXFrontend(TemplateBase):
         hpx_w = hpx_master.bound_box.width_unit
         hp1_w = hp1_master.bound_box.width_unit
 
-        top_layer = dp_master.top_layer
+        ym_layer = dp_master.top_layer
+        xm_layer = ym_layer + 1
         tr_manager = TrackManager(self.grid, tr_widths, tr_spaces, half_space=True)
-        tmp = self._compute_route_height(top_layer, tr_manager, dp_master.num_ffe,
+        tmp = self._compute_route_height(ym_layer, tr_manager, dp_master.num_ffe,
                                          dp_master.num_dfe, bias_config)
         clk_locs, clk_h, vss_h, vdd_h = tmp
 
         bot_h = hp_h + clk_h + vss_h + vdd_h
         bnd_box = dp_master.bound_box
-        blk_w, blk_h = self.grid.get_fill_size(top_layer, fill_config, unit_mode=True)
+        blk_w, blk_h = self.grid.get_block_size(xm_layer, unit_mode=True, half_blk_y=False)
         dp_h = bnd_box.height_unit
+        inner_h = dp_h + 2 * bot_h
         tot_w = -(-(bnd_box.width_unit + bus_margin) // blk_w) * blk_w
-        tot_h = -(-(dp_h + 2 * bot_h) // blk_h) * blk_h
+        tot_h = -(-inner_h // blk_h) * blk_h
+        yoff = (inner_h - dp_h) // 2
         x0 = tot_w - bnd_box.width_unit
-        y0 = (tot_h - dp_h) // (2 * blk_h) * blk_h
+        y0 = yoff + bot_h
         dp_inst = self.add_instance(dp_master, 'XDP', loc=(x0, y0), unit_mode=True)
         x_hpx = x0 + dp_master.x_tapx[1] - hpx_w
         x_hp1 = max(x_hpx + hpx_w, x0 + dp_master.x_tap1[1] - hp1_w)
-        hpxb_inst = self.add_instance(hpx_master, 'XHPXB', loc=(x_hpx, 0), unit_mode=True)
-        hp1b_inst = self.add_instance(hp1_master, 'XHP1B', loc=(x_hp1, 0), unit_mode=True)
-        hpxt_inst = self.add_instance(hpx_master, 'XHPXB', loc=(x_hpx, tot_h),
+        hpxb_inst = self.add_instance(hpx_master, 'XHPXB', loc=(x_hpx, yoff), unit_mode=True)
+        hp1b_inst = self.add_instance(hp1_master, 'XHP1B', loc=(x_hp1, yoff), unit_mode=True)
+        hpxt_inst = self.add_instance(hpx_master, 'XHPXB', loc=(x_hpx, tot_h - yoff),
                                       orient='MX', unit_mode=True)
-        hp1t_inst = self.add_instance(hp1_master, 'XHP1B', loc=(x_hp1, tot_h),
+        hp1t_inst = self.add_instance(hp1_master, 'XHP1B', loc=(x_hp1, tot_h - yoff),
                                       orient='MX', unit_mode=True)
 
-        ym_layer = dp_master.top_layer
         bnd_box = BBox(0, 0, tot_w, tot_h, self.grid.resolution, unit_mode=True)
         self.set_size_from_bound_box(ym_layer, bnd_box)
         self.array_box = bnd_box
         self.add_cell_boundary(bnd_box)
 
         # mark blockages
-        yb = hp_h
-        yt = tot_h - hp_h
+        yb = yoff + hp_h
+        yt = tot_h - yoff - hp_h
         res = self.grid.resolution
         for xl, xu in dp_master.blockage_intvs:
             self.mark_bbox_used(ym_layer, BBox(xl + x0, yb, xu + x0, yt, res, unit_mode=True))
@@ -126,31 +126,32 @@ class RXFrontend(TemplateBase):
         self._reexport_dp_pins(dp_inst, show_pins)
 
         # connect supplies
-        vdd_wires = dp_inst.get_all_port_pins('VDD', layer=top_layer)
-        vss_wires = dp_inst.get_all_port_pins('VSS', layer=top_layer)
+        vdd_wires = dp_inst.get_all_port_pins('VDD', layer=ym_layer)
+        vss_wires = dp_inst.get_all_port_pins('VSS', layer=ym_layer)
         self._connect_supply_clk(tr_manager, ym_layer + 1, dp_inst, dp_master.sup_y_list,
                                  vdd_wires, vss_wires, show_pins)
 
         # connect clocks and VSS-referenced wires
         num_dfe = dp_master.num_dfe
-        hm_layer = top_layer - 1
+        hm_layer = ym_layer - 1
         clk_tr_w = tr_manager.get_width(hm_layer, 'clk')
-        self._connect_clk_vss_bias(hm_layer, vss_wires, x0, tot_h, dp_inst, hpxb_inst, hp1b_inst,
-                                   num_dfe, hp_h, clk_locs, clk_tr_w, clk_h, vss_h, bias_config,
-                                   show_pins, is_bot=True)
+        ytop = tot_h - yoff
+        self._connect_clk_vss_bias(hm_layer, vss_wires, x0, yoff, ytop, dp_inst, hpxb_inst,
+                                   hp1b_inst, num_dfe, hp_h, clk_locs, clk_tr_w, clk_h, vss_h,
+                                   bias_config, show_pins, is_bot=True)
 
-        self._connect_clk_vss_bias(hm_layer, vss_wires, x0, tot_h, dp_inst, hpxt_inst, hp1t_inst,
-                                   num_dfe, hp_h, clk_locs, clk_tr_w, clk_h, vss_h, bias_config,
-                                   show_pins, is_bot=False)
+        self._connect_clk_vss_bias(hm_layer, vss_wires, x0, yoff, ytop, dp_inst, hpxt_inst,
+                                   hp1t_inst, num_dfe, hp_h, clk_locs, clk_tr_w, clk_h, vss_h,
+                                   bias_config, show_pins, is_bot=False)
 
         # gather VDD-referenced wires
         num_ffe = dp_master.num_ffe
-        vdd_wires.extend(dp_inst.port_pins_iter('VDD', layer=top_layer - 2))
-        y0 = hp_h + clk_h + vss_h
+        vdd_wires.extend(dp_inst.port_pins_iter('VDD', layer=ym_layer - 2))
+        y0 = yoff + hp_h + clk_h + vss_h
         self._connect_vdd_bias(hm_layer, x0, num_dfe, num_ffe, vdd_wires, dp_inst,
                                y0, bias_config, show_pins, is_bot=True)
 
-        y0 = tot_h - (hp_h + clk_h + vss_h + vdd_h)
+        y0 = ytop - (hp_h + clk_h + vss_h + vdd_h)
         self._connect_vdd_bias(hm_layer, x0, num_dfe, num_ffe, vdd_wires, dp_inst,
                                y0, bias_config, show_pins, is_bot=False)
 
@@ -241,9 +242,9 @@ class RXFrontend(TemplateBase):
         for name, tr in zip(name_list, bias_info.tracks):
             self.add_pin(name, tr, show=show_pins, edge_mode=-1)
 
-    def _connect_clk_vss_bias(self, hm_layer, vss_wires, x0, tot_h, dp_inst, hpx_inst, hp1_inst,
-                              num_dfe, hp_h, clk_locs, clk_tr_w, clk_h, vss_h, bias_config,
-                              show_pins, is_bot=True):
+    def _connect_clk_vss_bias(self, hm_layer, vss_wires, x0, ybot, ytop, dp_inst, hpx_inst,
+                              hp1_inst, num_dfe, hp_h, clk_locs, clk_tr_w, clk_h, vss_h,
+                              bias_config, show_pins, is_bot=True):
         ntr_tot = len(clk_locs)
         num_pair = (ntr_tot - 2) // 2
         vss_idx_lookup = {}
@@ -253,10 +254,11 @@ class RXFrontend(TemplateBase):
         vss_idx = 0
         pwarr = None
         if is_bot:
-            tr0 = self.grid.find_next_track(hm_layer, hp_h, half_track=True, mode=1, unit_mode=True)
+            tr0 = self.grid.find_next_track(hm_layer, ybot + hp_h, half_track=True, mode=1,
+                                            unit_mode=True)
             sgn = 1
         else:
-            tr0 = self.grid.find_next_track(hm_layer, tot_h - hp_h, half_track=True, mode=-1,
+            tr0 = self.grid.find_next_track(hm_layer, ytop - hp_h, half_track=True, mode=-1,
                                             unit_mode=True)
             sgn = -1
 
@@ -301,13 +303,13 @@ class RXFrontend(TemplateBase):
         if is_bot:
             vss_coord = vss_wires[0].lower_unit
             self.extend_wires(dp_inst.get_all_port_pins('VDD_ext'), lower=vss_coord, unit_mode=True)
-            offset = hp_h + clk_h
+            offset = ybot + hp_h + clk_h
         else:
             vss_name_list.reverse()
             vss_warrs_list.reverse()
             vss_coord = vss_wires[0].upper_unit
             self.extend_wires(dp_inst.get_all_port_pins('VDD_ext'), upper=vss_coord, unit_mode=True)
-            offset = tot_h - hp_h - clk_h - vss_h
+            offset = ytop - hp_h - clk_h - vss_h
 
         bias_info = BiasShield.draw_bias_shields(self, hm_layer, bias_config, vss_warrs_list,
                                                  offset, tr_lower=x0, lu_end_mode=1, add_end=False)
