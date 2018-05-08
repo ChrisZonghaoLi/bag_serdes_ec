@@ -1494,7 +1494,7 @@ class TapXColumn(TemplateBase):
                               tr_widths=tr_widths, tr_spaces=tr_spaces,
                               div_tr_info=div3_master.div_tr_info, sup_tids=div3_master.sup_tids,
                               options=options, right_edge_info=div3_master.left_edge_info,
-                              show_pins=False)
+                              clk_inverted=True, show_pins=False)
         div_col_master = self.new_template(params=div_col_params, temp_cls=DividerColumn)
 
         vm_layer = endt_master.top_layer
