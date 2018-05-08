@@ -4,7 +4,7 @@
 
 from typing import TYPE_CHECKING, Dict, Any, Set
 
-from itertools import repeat
+from itertools import repeat, chain
 
 from bag.layout.util import BBox
 from bag.layout.routing.base import TrackID, TrackManager
@@ -128,8 +128,8 @@ class RXFrontend(TemplateBase):
         # connect supplies
         vdd_wires = dp_inst.get_all_port_pins('VDD', layer=top_layer)
         vss_wires = dp_inst.get_all_port_pins('VSS', layer=top_layer)
-        self._connect_supplies(tr_manager, ym_layer + 1, dp_inst, dp_master.sup_y_list,
-                               vdd_wires, vss_wires, show_pins)
+        self._connect_supply_clk(tr_manager, ym_layer + 1, dp_inst, dp_master.sup_y_list,
+                                 vdd_wires, vss_wires, show_pins)
 
         # connect clocks and VSS-referenced wires
         num_dfe = dp_master.num_dfe
@@ -158,9 +158,11 @@ class RXFrontend(TemplateBase):
         self._sch_params['hp_params'] = hpx_master.sch_params['hp_params']
         self._sch_params['ndum_res'] = hpx_master.sch_params['ndum'] * 4
 
-    def _connect_supplies(self, tr_manager, xm_layer, dp_inst, sup_yc_list, vdd_wires, vss_wires,
-                          show_pins):
-        tr_w = tr_manager.get_width(xm_layer, 'sup')
+    def _connect_supply_clk(self, tr_manager, xm_layer, dp_inst, sup_yc_list, vdd_wires, vss_wires,
+                            show_pins):
+        tr_w_sup = tr_manager.get_width(xm_layer, 'sup')
+        tr_w_clk = tr_manager.get_width(xm_layer, 'clk')
+        tr_w_div = tr_manager.get_width(xm_layer, 'en_div')
         dp_box = dp_inst.bound_box
         y0 = dp_box.bottom_unit
         xl = dp_box.left_unit
@@ -176,7 +178,7 @@ class RXFrontend(TemplateBase):
                 tidx = self.grid.coord_to_nearest_track(xm_layer, ycur, half_track=True, mode=1,
                                                         unit_mode=True)
 
-            tid = TrackID(xm_layer, tidx, width=tr_w)
+            tid = TrackID(xm_layer, tidx, width=tr_w_sup)
             if idx % 2 == 0:
                 warr = self.connect_to_tracks(vss_wires, tid, track_lower=xl, track_upper=xr,
                                               unit_mode=True)
@@ -185,6 +187,32 @@ class RXFrontend(TemplateBase):
                 warr = self.connect_to_tracks(vdd_wires, tid, track_lower=xl, track_upper=xr,
                                               unit_mode=True)
                 self.add_pin('VDD', warr, show=show_pins)
+
+        enb_y = y0 + (sup_yc_list[2] + sup_yc_list[3]) // 2
+        clkn_y = y0 + (sup_yc_list[3] + sup_yc_list[4]) // 2
+        clkp_y = y0 + (sup_yc_list[4] + sup_yc_list[5]) // 2
+        ent_y = y0 + (sup_yc_list[5] + sup_yc_list[6]) // 2
+
+        nidx = self.grid.coord_to_nearest_track(xm_layer, clkn_y, half_track=True, mode=-1,
+                                                unit_mode=True)
+        pidx = self.grid.coord_to_nearest_track(xm_layer, clkp_y, half_track=True, mode=1,
+                                                unit_mode=True)
+        clkp = dp_inst.get_all_port_pins('clkp')
+        clkn = dp_inst.get_all_port_pins('clkn')
+        clkp, clkn = self.connect_differential_tracks(clkp, clkn, xm_layer, pidx, nidx,
+                                                      width=tr_w_clk)
+        self.add_pin('clkp', clkp, show=show_pins)
+        self.add_pin('clkn', clkn, show=show_pins)
+
+        nidx = self.grid.coord_to_nearest_track(xm_layer, enb_y, half_track=True, mode=-1,
+                                                unit_mode=True)
+        pidx = self.grid.coord_to_nearest_track(xm_layer, ent_y, half_track=True, mode=1,
+                                                unit_mode=True)
+        en = self.connect_wires(list(chain(dp_inst.port_pins_iter('en_div<3>'),
+                                           dp_inst.port_pins_iter('en_div<2>'))))
+        tid = TrackID(xm_layer, nidx, width=tr_w_div, num=2, pitch=pidx - nidx)
+        en = self.connect_to_tracks(en, tid)
+        self.add_pin('enable_divider', en, show=show_pins)
 
     def _reexport_dp_pins(self, dp_inst, show_pins):
         for name in ['inp', 'inn', 'v_vincm', 'des_clk', 'des_clkb']:
@@ -207,7 +235,7 @@ class RXFrontend(TemplateBase):
             w_list.reverse()
             name_list.reverse()
         bias_info = BiasShield.draw_bias_shields(self, hm_layer, bias_config, w_list, y0,
-                                                 tr_lower=x0, lu_end_mode=1, sup_warrs=vdd_wires)
+                                                 tr_lower=x0, lu_end_mode=0, sup_warrs=vdd_wires)
 
         for name, tr in zip(name_list, bias_info.tracks):
             self.add_pin(name, tr, show=show_pins, edge_mode=-1)
@@ -281,7 +309,7 @@ class RXFrontend(TemplateBase):
             offset = tot_h - hp_h - clk_h - vss_h
 
         bias_info = BiasShield.draw_bias_shields(self, hm_layer, bias_config, vss_warrs_list,
-                                                 offset, tr_lower=x0, lu_end_mode=1)
+                                                 offset, tr_lower=x0, lu_end_mode=0)
         self.connect_to_track_wires(vss_wires, bias_info.shields)
 
         for name, tr in zip(vss_name_list, bias_info.tracks):
