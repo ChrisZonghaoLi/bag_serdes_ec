@@ -252,6 +252,9 @@ class TapXSummerCell(TemplateBase):
                 label = name + ':' if vconn else name
                 self.reexport(port, net_name=name, label=label, show=show_pins)
 
+        self.add_pin('clkp_d', d_inst.get_pin('clkp'), label='clkp:', show=False)
+        self.add_pin('clkn_d', d_inst.get_pin('clkn'), label='clkn:', show=False)
+
         # set schematic parameters
         self._sch_params = dict(
             flip_sign=flip_sign,
@@ -723,7 +726,12 @@ class TapXSummerNoLast(TemplateBase):
         self.add_pin('VSS', vss_list, label='VSS:', show=show_pins)
 
         # export/collect FFE pins
-        biasm_list, biasa_list, clkp_list, clkn_list = [], [], [], []
+        biasm_list = []
+        biasa_list = []
+        clkp_list = []
+        clkn_list = []
+        clkp_d_list = []
+        clkn_d_list = []
         outs_warrs = [[], []]
         en_warrs = [[], [], [], []]
         for fidx, inst in enumerate(ffe_insts):
@@ -737,6 +745,8 @@ class TapXSummerNoLast(TemplateBase):
             biasa_list.append(inst.get_pin('biasp_l'))
             clkp_list.extend(inst.port_pins_iter('clkp'))
             clkn_list.extend(inst.port_pins_iter('clkn'))
+            clkp_d_list.extend(inst.port_pins_iter('clkp_d'))
+            clkn_d_list.extend(inst.port_pins_iter('clkn_d'))
             en_warrs[3].extend(inst.port_pins_iter('en<3>'))
             en_warrs[2].extend(inst.port_pins_iter('en<2>'))
             if inst.has_port('en<1>'):
@@ -760,6 +770,8 @@ class TapXSummerNoLast(TemplateBase):
             biasd_list.append(inst.get_pin('biasp_l'))
             clkp_list.extend(inst.port_pins_iter('clkp'))
             clkn_list.extend(inst.port_pins_iter('clkn'))
+            clkp_d_list.extend(inst.port_pins_iter('clkp_d'))
+            clkn_d_list.extend(inst.port_pins_iter('clkn_d'))
             en_warrs[3].extend(inst.port_pins_iter('en<3>'))
             en_warrs[2].extend(inst.port_pins_iter('en<2>'))
             if inst.has_port('en<1>'):
@@ -791,11 +803,15 @@ class TapXSummerNoLast(TemplateBase):
                 upper = max(upper, warr.upper_unit)
         clkp = self.connect_wires(clkp_list, lower=lower, upper=upper, unit_mode=True)
         clkn = self.connect_wires(clkn_list, lower=lower, upper=upper, unit_mode=True)
+        clkp_d = self.connect_wires(clkp_d_list, lower=lower, upper=upper, unit_mode=True)
+        clkn_d = self.connect_wires(clkn_d_list, lower=lower, upper=upper, unit_mode=True)
         self.add_pin('biasn_m', biasm, show=show_pins)
         self.add_pin('biasp_a', biasa, show=show_pins)
         self.add_pin('biasp_d', biasd, show=show_pins)
         self.add_pin('clkp', clkp, label='clkp:', show=show_pins)
         self.add_pin('clkn', clkn, label='clkn:', show=show_pins)
+        self.add_pin('clkp_d', clkp_d, label='clkp:', show=False)
+        self.add_pin('clkn_d', clkn_d, label='clkn:', show=False)
         self.add_pin('outp_s', outsp, show=show_pins)
         self.add_pin('outn_s', outsn, show=show_pins)
 
@@ -1304,6 +1320,8 @@ class TapXSummer(TemplateBase):
         clkn = self.connect_wires(clkn_list, lower=lower, upper=upper, unit_mode=True)
         self.add_pin('clkp', clkp, label='clkp:', show=show_pins)
         self.add_pin('clkn', clkn, label='clkn:', show=show_pins)
+        self.reexport(inst.get_port('clkp_d'), label='clkp:', show=False)
+        self.reexport(inst.get_port('clkn_d'), label='clkn:', show=False)
         # connect enables
         en_warrs[2].extend(instl.port_pins_iter('en<2>'))
         if instl.has_port('en<1>'):
@@ -1625,7 +1643,7 @@ class TapXColumn(TemplateBase):
                                                    mode=-1, unit_mode=True)
         self._connect_div_column(tr_manager, vm_layer, div_inst, right_vdd_tidx, clkp_list,
                                  clkn_list, en_list, vdd_list, vss_list, inp_warrs, inn_warrs,
-                                 sh_lower, sh_upper, show_pins)
+                                 sh_lower, sh_upper, inst0, inst2, show_pins)
 
         # set schematic parameters and various properties
         self._sch_params = dict(
@@ -1649,9 +1667,9 @@ class TapXColumn(TemplateBase):
         self._num_dfe = num_dfe + 1
         self._num_ffe = num_ffe - 1
 
-    def _connect_div_column(self, tr_manager, vm_layer, inst, right_tidx, clkp_list, clkn_list,
+    def _connect_div_column(self, tr_manager, vm_layer, div_inst, right_tidx, clkp_list, clkn_list,
                             en_list, vdd_list, vss_list, inp_warrs, inn_warrs, sh_lower, sh_upper,
-                            show_pins):
+                            inst0, inst2, show_pins):
         wtype_list = [1, 'in', 'in', 1, 1, 'clk', 1, 'clk', 'clk', 1, 'en', 'en', 'en', 'en', 1]
         _, locs = tr_manager.place_wires(vm_layer, wtype_list)
         tr0 = right_tidx - locs[-1]
@@ -1680,17 +1698,27 @@ class TapXColumn(TemplateBase):
         en_off = 10
         vm_w_en = tr_manager.get_width(vm_layer, 'en')
         for en_idx, en_warrs in enumerate(en_list):
-            en_warrs.append(inst.get_pin('en<%d>' % en_idx))
+            en_warrs.append(div_inst.get_pin('en<%d>' % en_idx))
             tid = TrackID(vm_layer, locs[en_off + en_idx] + tr0, width=vm_w_en)
             self.connect_to_tracks(en_warrs, tid)
         # connect clocks
         vm_w_clk = tr_manager.get_width(vm_layer, 'clk')
-        clkp_list.append(inst.get_pin('clkp'))
-        clkn_list.append(inst.get_pin('clkn'))
+        clkp_list.append(div_inst.get_pin('clkp'))
+        clkn_list.append(div_inst.get_pin('clkn'))
         trp = locs[7] + tr0
         trn = locs[8] + tr0
         clkp, clkn = self.connect_differential_tracks(clkp_list, clkn_list, vm_layer, trp, trn,
                                                       width=vm_w_clk, unit_mode=True)
+        # extend clkp/clkn in digital latch row so that we have matching wires
+        ckl = clkp_list[0].lower_unit
+        cku = clkp_list[0].upper_unit
+        for warr in chain(clkp_list, clkn_list):
+            ckl = min(ckl, warr.lower_unit)
+            cku = max(cku, warr.upper_unit)
+        for warr in chain(inst0.port_pins_iter('clkp_d'), inst2.port_pins_iter('clkp_d'),
+                          inst0.port_pins_iter('clkn_d'), inst2.port_pins_iter('clkn_d')):
+            self.extend_wires(warr, lower=ckl, upper=cku, unit_mode=True)
+
         self.add_pin('clkp', clkp, show=show_pins)
         self.add_pin('clkn', clkn, show=show_pins)
         # connect enable and scan
@@ -1699,9 +1727,9 @@ class TapXColumn(TemplateBase):
         for idx in range(2, 4):
             sname = 'scan_div<%d>' % idx
             ename = 'en_div<%d>' % idx
-            warr = self.connect_to_tracks(inst.get_pin(sname), scan_tid, min_len_mode=0)
+            warr = self.connect_to_tracks(div_inst.get_pin(sname), scan_tid, min_len_mode=0)
             self.add_pin(sname, warr, label=sname + ':', show=show_pins)
-            warr = self.connect_to_tracks(inst.get_pin(ename), en_tid, min_len_mode=0)
+            warr = self.connect_to_tracks(div_inst.get_pin(ename), en_tid, min_len_mode=0)
             self.add_pin(ename, warr, label=ename + ':', show=show_pins)
 
     def _connect_ffe(self, tr0, tr_manager, vm_layer, num_sig, track_info, inst_list, show_pins):
