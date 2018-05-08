@@ -47,18 +47,26 @@ class bag_serdes_ec__qdr_frontend(Module):
             loff_params='dlev offset parameters.',
             samp_params='sampler parameters.',
             hp_params='high-pass filter parameters.',
+            ndum_res='number of dummy resistors total.',
         )
 
-    def design(self, tapx_params, off_params, tap1_params, loff_params, samp_params, hp_params):
+    def design(self, tapx_params, off_params, tap1_params, loff_params, samp_params,
+               hp_params, ndum_res):
         # design instances
         self.instances['XDP'].design(tapx_params=tapx_params, off_params=off_params,
                                      tap1_params=tap1_params, loff_params=loff_params,
                                      samp_params=samp_params)
 
-        self.instances['XHPP<2:0>'].design(**hp_params)
-        self.instances['XHPN<2:0>'].design(**hp_params)
-        self.instances['XHPM<3:0>'].design(**hp_params)
-        self.instances['XHPD<3:0>'].design(**hp_params)
+        # design resistor dummies
+        l = hp_params['l']
+        w = hp_params['w']
+        intent = hp_params['intent']
+        sub_name = hp_params['sub_name']
+        self.instances['XRDUM'].design(l=l, w=w, intent=intent, ndum=ndum_res, sub_name=sub_name)
+
+        # design high-pass filters that are always there
+        for name in ('XHPA<3:0>', 'XHPDLX<3:0>', 'XHPDL1<3:0>', 'XHPTAP1<3:0>'):
+            self.instances[name].design(**hp_params)
 
         # modify pins and update connections
         dp_master = self.instances['XDP'].master
@@ -121,6 +129,10 @@ class bag_serdes_ec__qdr_frontend(Module):
                 dfe_nets.append('v_way_%d_dfe_1_m' % way_idx)
             self.reconnect_instance_terminal('XDP', dfe_term, ','.join(dfe_nets))
         else:
+            # design high-pass filters
+            for name in ('XHPM<3:0>', 'XHPD<3:0>'):
+                self.instances[name].design(**hp_params)
+
             # connect DFE clocks
             term_name = 'clk_dfe<%d:4>' % max_dfe_idx
             self.reconnect_instance_terminal('XDP', term_name, term_name)

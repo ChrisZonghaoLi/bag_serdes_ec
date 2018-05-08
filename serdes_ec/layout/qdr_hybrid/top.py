@@ -147,6 +147,8 @@ class RXFrontend(TemplateBase):
                                y0, bias_config, show_pins, is_bot=False)
 
         self._sch_params = dp_master.sch_params.copy()
+        self._sch_params['hp_params'] = hpx_master.sch_params['hp_params']
+        self._sch_params['ndum_res'] = hpx_master.sch_params['ndum'] * 4
 
     def _connect_vdd_bias(self, hm_layer, x0, num_dfe, num_ffe, vdd_wires, dp_inst, y0,
                           bias_config, show_pins, is_bot=True):
