@@ -126,14 +126,27 @@ class RXFrontend(TemplateBase):
                                    clk_tr_w, clk_h, bias_config, show_pins, is_bot=True)
 
         # gather VDD-referenced wires
+        num_ffe = dp_master.num_ffe
         vdd_wires = dp_inst.get_all_port_pins('VDD', layer=top_layer)
         vdd_wires.extend(dp_inst.port_pins_iter('VDD', layer=top_layer - 2))
-        self._connect_vdd_bias(vdd_wires, dp_inst)
+        self._connect_vdd_bias(hm_layer, num_dfe, num_ffe, vdd_wires, dp_inst,
+                               hp_h + clk_h + vss_h, bias_config, show_pins, is_bot=True)
 
         self._sch_params = dp_master.sch_params.copy()
 
-    def _connect_vdd_bias(self, vdd_wires, dp_inst):
-        pass
+    def _connect_vdd_bias(self, hm_layer, num_dfe, num_ffe, vdd_wires, dp_inst, y0, bias_config,
+                          show_pins, is_bot=True):
+        w_list = []
+        name_list = []
+        for port_name, out_name in self._vdd_ports_iter(num_dfe, num_ffe, is_bot=is_bot):
+            w_list.append(dp_inst.get_pin(port_name))
+            name_list.append(out_name)
+
+        bias_info = BiasShield.draw_bias_shields(self, hm_layer, bias_config, w_list,
+                                                 y0, lu_end_mode=1, sup_warrs=vdd_wires)
+
+        for name, tr in zip(name_list, bias_info.tracks):
+            self.add_pin(name, tr, show=show_pins, edge_mode=-1)
 
     def _connect_clk_vss_bias(self, hm_layer, dp_inst, hpx_inst, hp1_inst, num_dfe, y0, clk_locs,
                               clk_tr_w, clk_h, bias_config, show_pins, is_bot=True):
@@ -141,7 +154,7 @@ class RXFrontend(TemplateBase):
         num_pair = (ntr_tot - 2) // 2
         vss_idx_lookup = {}
         vss_warrs_list = []
-        vss_names_list = []
+        vss_name_list = []
 
         vss_idx = 0
         pwarr = None
@@ -164,7 +177,7 @@ class RXFrontend(TemplateBase):
 
                 bias_pin = inst.get_pin('bias' + suf)
                 if bias_name not in vss_idx_lookup:
-                    vss_names_list.append(bias_name)
+                    vss_name_list.append(bias_name)
                     vss_idx_lookup[bias_name] = vss_idx
                     vss_warrs_list.append([bias_pin])
                     vss_idx += 1
@@ -177,7 +190,7 @@ class RXFrontend(TemplateBase):
         else:
             scan_name = 'scan_divider_clkn'
             scan_pins = dp_inst.get_all_port_pins('scan_div<2>')
-        vss_names_list.append(scan_name)
+        vss_name_list.append(scan_name)
         vss_warrs_list.append(scan_pins)
 
         vss_tid = TrackID(hm_layer, tr0 + clk_locs[0], width=1, num=2,
@@ -191,19 +204,34 @@ class RXFrontend(TemplateBase):
                                                  y0 + clk_h, lu_end_mode=1)
         self.draw_vias_on_intersections(bias_info.shields, vss_wires)
 
-        for name, tr in zip(vss_names_list, bias_info.tracks):
+        for name, tr in zip(vss_name_list, bias_info.tracks):
             self.add_pin(name, tr, show=show_pins, edge_mode=-1)
 
     @classmethod
-    def _vdd_ports_iter(cls, num_dfe, is_bot=True):
+    def _vdd_ports_iter(cls, num_dfe, num_ffe, is_bot=True):
         if is_bot:
             nway = psuf = 3
-            pway = nsufl = 0
+            pway = 0
             nsufa = 2
         else:
             nway = psuf = 1
-            pway = nsufl = 2
+            pway = 2
             nsufa = 0
+
+        for name in ('dlev', 'off'):
+            for way in (pway, nway):
+                yield ('bias_%sp<%d>' % (name, way), 'v_way_%d_%s_p' % (way, name))
+                yield ('bias_%sn<%d>' % (name, way), 'v_way_%d_%s_n' % (way, name))
+
+        for idx in range(num_ffe, 0, -1):
+            yield ('bias_ffe<%d>' % (4 * idx + psuf), 'v_way_%d_ffe_%d' % (pway, idx))
+            yield ('bias_ffe<%d>' % (4 * idx + nsufa), 'v_way_%d_ffe_%d' % (nway, idx))
+
+        for idx in range(num_dfe, 1, -1):
+            yield ('sgnp_dfe<%d>' % (4 * idx + psuf), 'bias_way_%d_dfe_%d_s<0>' % (pway, idx))
+            yield ('sgnn_dfe<%d>' % (4 * idx + psuf), 'bias_way_%d_dfe_%d_s<1>' % (pway, idx))
+            yield ('sgnp_dfe<%d>' % (4 * idx + nsufa), 'bias_way_%d_dfe_%d_s<0>' % (nway, idx))
+            yield ('sgnn_dfe<%d>' % (4 * idx + nsufa), 'bias_way_%d_dfe_%d_s<1>' % (nway, idx))
 
     @classmethod
     def _hpx_ports_iter(cls, num_dfe, is_bot=True):
