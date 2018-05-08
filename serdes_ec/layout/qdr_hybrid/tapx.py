@@ -998,7 +998,7 @@ class TapXSummer(TemplateBase):
     """
 
     _exclude_ports = {'clkp', 'clkn', 'VDD', 'VSS', 'outp_s', 'outn_s', 'en<0>', 'en<1>',
-                      'en<2>', 'en<3>'}
+                      'en<2>', 'en<3>', 'clkp_d', 'clkn_d'}
 
     def __init__(self, temp_db, lib_name, params, used_names, **kwargs):
         # type: (TemplateDB, str, Dict[str, Any], Set[str], **kwargs) -> None
