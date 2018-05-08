@@ -97,7 +97,7 @@ class RXFrontend(TemplateBase):
         inner_h = dp_h + 2 * bot_h
         tot_w = -(-(bnd_box.width_unit + bus_margin) // blk_w) * blk_w
         tot_h = -(-inner_h // blk_h) * blk_h
-        yoff = (inner_h - dp_h) // 2
+        yoff = (tot_h - inner_h) // 2
         x0 = tot_w - bnd_box.width_unit
         y0 = yoff + bot_h
         dp_inst = self.add_instance(dp_master, 'XDP', loc=(x0, y0), unit_mode=True)
@@ -545,9 +545,8 @@ class RXTop(TemplateBase):
         fill_orient_mode = self.params['fill_orient_mode']
         show_pins = self.params['show_pins']
 
-        fe_params['fill_config'] = dac_params['fill_config'] = fill_config
+        dac_params['fill_config'] = fill_config
         fe_params['bias_config'] = dac_params['bias_config'] = bias_config
-        fe_params['fill_orient_mode'] = fill_orient_mode
         dac_params['fill_orient_mode'] = fill_orient_mode ^ 2
         fe_params['show_pins'] = dac_params['show_pins'] = False
 
