@@ -220,6 +220,8 @@ class RXDatapath(TemplateBase):
 
         # reexport highpass column ports, and ports with index of 4
         way_order = [3, 0, 2, 1]
+        self.reexport(offset.get_port('VDD_vm'), net_name='VDD', label='VDD', show=show_pins)
+        self.reexport(offlev.get_port('VDD_vm'), net_name='VDD', label='VDD', show=show_pins)
         for idx, way_idx in enumerate(way_order):
             off_suf = '<%d>' % idx
             way_suf = '<%d>' % way_idx

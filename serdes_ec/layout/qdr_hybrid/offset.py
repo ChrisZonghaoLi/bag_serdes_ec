@@ -112,12 +112,14 @@ class HighPassColumn(TemplateBase):
 
         rc_params = dict(w=w, h_unit=h_unit, sub_w=ptap_w, sub_lch=lch, sub_type='ptap',
                          threshold=threshold, top_layer=top_layer, nser=nser, ndum=ndum,
-                         in_tr_info=in_tr_info, out_tr_info=out_tr_info, vdd_tr_info=vdd_tr_info,
-                         res_type=res_type, res_options=res_options, cap_spx=cap_spx,
-                         cap_spy=cap_spy, cap_margin=cap_margin, end_mode=12, sub_tr_w=sub_tr_w,
-                         sub_tids=sub_tids, show_pins=False)
-        master = self.new_template(params=rc_params, temp_cls=HighPassDiff)
-        fg_sub = master.fg_sub
+                         in_tr_info=in_tr_info, out_tr_info=out_tr_info, bias_idx=0,
+                         vdd_tr_info=vdd_tr_info, res_type=res_type, res_options=res_options,
+                         cap_spx=cap_spx, cap_spy=cap_spy, cap_margin=cap_margin, end_mode=12,
+                         sub_tr_w=sub_tr_w, sub_tids=sub_tids, show_pins=False)
+        master0 = self.new_template(params=rc_params, temp_cls=HighPassDiff)
+        rc_params['bias_idx'] = 1
+        master1 = self.new_template(params=rc_params, temp_cls=HighPassDiff)
+        fg_sub = master0.fg_sub
 
         # place instances
         if fg_sub > 0:
@@ -129,16 +131,18 @@ class HighPassColumn(TemplateBase):
 
             bot_inst = self.add_instance(end_master, 'XROWB', loc=(0, 0), unit_mode=True)
             ycur = end_row_box.top_unit
-            ycur, inst_list = self._place_instances(ycur, master)
+            ycur, inst_list = self._place_instances(ycur, master0, master1)
             ycur += end_row_box.top_unit
             top_inst = self.add_instance(end_master, 'XROWT', loc=(0, ycur), orient='MX',
                                          unit_mode=True)
             bound_box = bot_inst.bound_box.merge(top_inst.bound_box)
         else:
-            _, inst_list = self._place_instances(0, master)
+            _, inst_list = self._place_instances(0, master0, master1)
             bound_box = inst_list[0].bound_box.merge(inst_list[-1].bound_box)
 
-        vdd_list, vss_list = [], []
+        vdd_list = []
+        vss_list = []
+        vdd_vm_list = []
         for idx, inst in enumerate(inst_list):
             suffix = '<%d>' % idx
             for name in inst.port_names_iter():
@@ -146,25 +150,31 @@ class HighPassColumn(TemplateBase):
                     vdd_list.extend(inst.port_pins_iter('VDD'))
                 elif name == 'VSS':
                     vss_list.extend(inst.port_pins_iter('VSS'))
+                elif name == 'VDD_vm':
+                    vdd_vm_list.extend(inst.port_pins_iter('VDD_vm'))
                 else:
                     self.reexport(inst.get_port(name), net_name=name + suffix, show=show_pins)
 
-        self.add_pin('VDD', vdd_list, label='VDD:', show=show_pins)
+        vdd_vm_list = self.connect_wires(vdd_vm_list)
+        self.add_pin('VDD', vdd_list, label='VDD', show=show_pins)
         self.add_pin('VSS', vss_list, label='VSS:', show=show_pins)
+        self.add_pin('VDD_vm', vdd_vm_list, label='VDD', show=show_pins)
 
         # set size
         self.set_size_from_bound_box(top_layer, bound_box)
         self.array_box = bound_box
 
         # set schematic parameters
-        self._sch_params = master.sch_params.copy()
+        self._sch_params = master0.sch_params.copy()
 
-    def _place_instances(self, ycur, master):
+    def _place_instances(self, ycur, master0, master1):
         inst_list = []
         for idx in range(4):
             if idx % 2 == 0:
+                master = master0
                 orient = 'R0'
             else:
+                master = master1
                 orient = 'MX'
                 ycur += master.array_box.top_unit
             inst = self.add_instance(master, 'X%d' % idx, loc=(0, ycur), orient=orient,
