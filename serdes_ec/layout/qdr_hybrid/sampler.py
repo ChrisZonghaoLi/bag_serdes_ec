@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Dict, Any, Set, Tuple, Union
 from itertools import chain
 
 from bag.layout.util import BBox
-from bag.layout.routing.base import TrackManager, TrackID
+from bag.layout.routing.base import TrackManager, TrackID, WireArray
 from bag.layout.template import TemplateBase
 
 from abs_templates_ec.analog_core.base import AnalogBase, AnalogBaseEnd
@@ -895,6 +895,7 @@ class SamplerColumn(TemplateBase):
         TemplateBase.__init__(self, temp_db, lib_name, params, used_names, **kwargs)
         self._sch_params = None
         self._buf_locs = None
+        self._retime_ncol = None
 
     @property
     def sch_params(self):
@@ -905,6 +906,11 @@ class SamplerColumn(TemplateBase):
     def buf_locs(self):
         # type: () -> Tuple[Tuple[int, int], Tuple[int, int]]
         return self._buf_locs
+
+    @property
+    def retime_ncol(self):
+        # type: () -> int
+        return self._retime_ncol
 
     @classmethod
     def get_params_info(cls):
@@ -1031,8 +1037,8 @@ class SamplerColumn(TemplateBase):
         self.add_pin('VSS', vss_warrs, show=show_pins)
         re_vddr.extend(re_vddl)
         re_vssr.extend(re_vssl)
-        self.add_pin('VDD_re', re_vddr, label='VDD', show=False)
-        self.add_pin('VSS_re', re_vssr, label='VSS', show=False)
+        self.add_pin('VDD_re', WireArray.list_to_warr(re_vddr), label='VDD', show=False)
+        self.add_pin('VSS_re', WireArray.list_to_warr(re_vssr), label='VSS', show=False)
         return vdd_warrs
 
     def _connect_clk(self, ym_layer, tr_manager, vdd_list, sa_inst, div_inst, re_inst, show_pins):
@@ -1162,4 +1168,5 @@ class SamplerColumn(TemplateBase):
             buf_params['ncol_min'] = re_master.num_cols
             buf_master = self.new_template(params=buf_params, temp_cls=BufferArray)
 
+        self._retime_ncol = re_master.num_cols
         return div_master, sa_master, re_master, buf_master

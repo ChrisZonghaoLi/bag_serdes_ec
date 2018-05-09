@@ -16,6 +16,7 @@ from analog_ec.layout.dac.rladder.top import RDACArray
 from analog_ec.layout.passives.filter.highpass import HighPassArrayClk
 
 from .datapath import RXDatapath
+from ..digital.buffer import BufferArray
 
 if TYPE_CHECKING:
     from bag.layout.template import TemplateDB
@@ -46,6 +47,7 @@ class RXFrontend(TemplateBase):
         self._num_bias_vss = 0
         self._num_bias_vdd = 0
         self._buf_locs = None
+        self._retime_ncol = None
 
     @property
     def sch_params(self):
@@ -67,11 +69,16 @@ class RXFrontend(TemplateBase):
         # type: () -> Tuple[Tuple[int, int], Tuple[int, int]]
         return self._buf_locs
 
+    @property
+    def retime_ncol(self):
+        # type: () -> int
+        return self._retime_ncol
+
     @classmethod
     def get_cache_properties(cls):
         # type: () -> List[str]
         """Returns a list of properties to cache."""
-        return ['num_bias_vss', 'num_bias_vdd', 'buf_locs', 'sch_params']
+        return ['num_bias_vss', 'num_bias_vdd', 'buf_locs', 'retime_ncol', 'sch_params']
 
     @classmethod
     def get_params_info(cls):
@@ -245,6 +252,10 @@ class RXFrontend(TemplateBase):
         tid = TrackID(xm_layer, nidx, width=tr_w_div, num=2, pitch=pidx - nidx)
         en = self.connect_to_tracks(en, tid)
         self.add_pin('enable_divider', en, show=show_pins)
+
+        # re-export retimer VDD/VSS
+        self.add_pin('VDD_re', dp_inst.get_all_port_pins('VDD_re'), label='VDD', show=False)
+        self.add_pin('VSS_re', dp_inst.get_all_port_pins('VSS_re'), label='VSS', show=False)
 
     def _reexport_dp_pins(self, dp_inst, show_pins):
         for name in ['inp', 'inn', 'v_vincm', 'des_clk', 'des_clkb']:
@@ -532,6 +543,7 @@ class RXFrontend(TemplateBase):
         dp_params['tr_spaces_dig'] = tr_spaces_dig
         dp_params['show_pins'] = False
         dp_master = self.new_template(params=dp_params, temp_cls=RXDatapath)
+        self._retime_ncol = dp_master.retime_ncol
 
         hp_params = hp_params.copy()
         hp_params['narr'] = dp_master.num_hp_tapx
@@ -595,20 +607,9 @@ class RXTop(TemplateBase):
         )
 
     def draw_layout(self):
-        fe_params = self.params['fe_params'].copy()
-        dac_params = self.params['dac_params'].copy()
-        fill_config = self.params['fill_config']
-        bias_config = self.params['bias_config']
-        fill_orient_mode = self.params['fill_orient_mode']
         show_pins = self.params['show_pins']
 
-        dac_params['fill_config'] = fill_config
-        fe_params['bias_config'] = dac_params['bias_config'] = bias_config
-        dac_params['fill_orient_mode'] = fill_orient_mode ^ 2
-        fe_params['show_pins'] = dac_params['show_pins'] = False
-
-        master_fe = self.new_template(params=fe_params, temp_cls=RXFrontend)
-        master_dac = self.new_template(params=dac_params, temp_cls=RDACArray)
+        master_fe, master_dac, master_buf = self._make_masters()
         box_fe = master_fe.bound_box
         box_dac = master_dac.bound_box
 
@@ -623,11 +624,17 @@ class RXTop(TemplateBase):
         inst_fe = self.add_instance(master_fe, 'XFE', loc=(x_fe, 0), unit_mode=True)
         inst_dac = self.add_instance(master_dac, 'XDAC', loc=(x_dac, h_tot), orient='MX',
                                      unit_mode=True)
+        buf_loc = (master_fe.buf_locs[0][0] + x_fe, master_fe.buf_locs[0][1])
+        inst_bufb = self.add_instance(master_buf, 'XBUFB', loc=buf_loc, orient='MX', unit_mode=True)
+        buf_loc = (master_fe.buf_locs[1][0] + x_fe, master_fe.buf_locs[1][1])
+        inst_buft = self.add_instance(master_buf, 'XBUFT', loc=buf_loc, unit_mode=True)
 
         bnd_box = inst_dac.bound_box.extend(x=0, y=0, unit_mode=True)
         self.set_size_from_bound_box(top_layer, bnd_box)
         self.array_box = bnd_box
         self.add_cell_boundary(bnd_box)
+
+        self._connect_buffers(inst_fe, inst_bufb, inst_buft)
 
         for name in inst_dac.port_names_iter():
             if name.startswith('bias_'):
@@ -639,3 +646,37 @@ class RXTop(TemplateBase):
             fe_params=master_fe.sch_params,
             dac_params=master_dac.sch_params,
         )
+
+    def _connect_buffers(self, inst_fe, inst_bufb, inst_buft):
+        vdd = inst_fe.get_pin('VDD_re')
+        vss = inst_fe.get_pin('VSS_re')
+
+        vdd_list = list(chain(inst_bufb.port_pins_iter('VDD'), inst_buft.port_pins_iter('VDD')))
+        vss_list = list(chain(inst_bufb.port_pins_iter('VSS'), inst_buft.port_pins_iter('VSS')))
+        self.connect_to_track_wires(vdd_list, vdd)
+        self.connect_to_track_wires(vss_list, vss)
+
+    def _make_masters(self):
+        fe_params = self.params['fe_params'].copy()
+        dac_params = self.params['dac_params'].copy()
+        fill_config = self.params['fill_config']
+        bias_config = self.params['bias_config']
+        fill_orient_mode = self.params['fill_orient_mode']
+
+        dac_params['fill_config'] = fill_config
+        fe_params['bias_config'] = dac_params['bias_config'] = bias_config
+        dac_params['fill_orient_mode'] = fill_orient_mode ^ 2
+        fe_params['show_pins'] = dac_params['show_pins'] = False
+
+        master_fe = self.new_template(params=fe_params, temp_cls=RXFrontend)
+        master_dac = self.new_template(params=dac_params, temp_cls=RDACArray)
+
+        buf_params = fe_params['scan_buf_params'].copy()
+        buf_params['config'] = fe_params['dp_params']['config']
+        buf_params['tr_widths'] = fe_params['tr_widths_dig']
+        buf_params['tr_spaces'] = fe_params['tr_spaces_dig']
+        buf_params['ncol_min'] = master_fe.retime_ncol
+        buf_params['show_pins'] = False
+        master_buf = self.new_template(params=buf_params, temp_cls=BufferArray)
+
+        return master_fe, master_dac, master_buf

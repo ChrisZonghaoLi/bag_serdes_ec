@@ -44,6 +44,7 @@ class RXDatapath(TemplateBase):
         self._blockage_intvs = None
         self._sup_y_list = None
         self._buf_locs = None
+        self._retime_ncol = None
 
     @property
     def sch_params(self):
@@ -94,6 +95,11 @@ class RXDatapath(TemplateBase):
     def buf_locs(self):
         # type: () -> Tuple[Tuple[int, int], Tuple[int, int]]
         return self._buf_locs
+
+    @property
+    def retime_ncol(self):
+        # type: () -> int
+        return self._retime_ncol
 
     @classmethod
     def get_params_info(cls):
@@ -221,8 +227,8 @@ class RXDatapath(TemplateBase):
         vss_vm_list.extend(vss)
         self.add_pin('VDD', vdd_vm_list, show=show_pins)
         self.add_pin('VSS', vss_vm_list, show=show_pins)
-        self.add_pin('VDD_re', samp.get_pin('VDD_re'), label='VDD', show=False)
-        self.add_pin('VSS_re', samp.get_pin('VSS_re'), label='VSS', show=False)
+        self.add_pin('VDD_re', samp.get_all_port_pins('VDD_re'), label='VDD', show=False)
+        self.add_pin('VSS_re', samp.get_all_port_pins('VSS_re'), label='VSS', show=False)
 
     def _export_pins(self, tapx, tap1, offset, offlev, samp, show_pins):
 
@@ -440,5 +446,6 @@ class RXDatapath(TemplateBase):
         samp_params['options'] = ana_options
         samp_params['show_pins'] = False
         samp_master = self.new_template(params=samp_params, temp_cls=SamplerColumn)
+        self._retime_ncol = samp_master.retime_ncol
 
         return tapx_master, tap1_master, offset_master, loff_master, samp_master
