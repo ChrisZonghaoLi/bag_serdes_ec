@@ -48,6 +48,8 @@ class RXFrontend(TemplateBase):
         self._num_bias_vdd = 0
         self._buf_locs = None
         self._retime_ncol = None
+        self._bot_scan_names = None
+        self._top_scan_names = None
 
     @property
     def sch_params(self):
@@ -74,11 +76,22 @@ class RXFrontend(TemplateBase):
         # type: () -> int
         return self._retime_ncol
 
+    @property
+    def bot_scan_names(self):
+        # type: () -> List[str]
+        return self._bot_scan_names
+
+    @property
+    def top_scan_names(self):
+        # type: () -> List[str]
+        return self._top_scan_names
+
     @classmethod
     def get_cache_properties(cls):
         # type: () -> List[str]
         """Returns a list of properties to cache."""
-        return ['num_bias_vss', 'num_bias_vdd', 'buf_locs', 'retime_ncol', 'sch_params']
+        return ['sch_params', 'num_bias_vss', 'num_bias_vdd', 'buf_locs', 'retime_ncol',
+                'bot_scan_names', 'top_scan_names']
 
     @classmethod
     def get_params_info(cls):
@@ -274,7 +287,10 @@ class RXFrontend(TemplateBase):
             w_list.append(dp_inst.get_pin(port_name))
             name_list.append(out_name)
 
-        if not is_bot:
+        if is_bot:
+            self._bot_scan_names = scan_names = ['scan_divider_clkn']
+        else:
+            self._top_scan_names = scan_names = ['scan_divider_clkp']
             w_list.reverse()
             name_list.reverse()
         x1 = self._buf_locs[0][0]
@@ -285,6 +301,7 @@ class RXFrontend(TemplateBase):
 
         for name, tr in zip(name_list, bias_info.tracks):
             if name.startswith('bias'):
+                scan_names.append(name)
                 tr = self.extend_wires(tr, upper=x1, unit_mode=True)
                 edge_mode = 1
             else:
@@ -634,27 +651,44 @@ class RXTop(TemplateBase):
         self.array_box = bnd_box
         self.add_cell_boundary(bnd_box)
 
-        self._connect_buffers(inst_fe, inst_bufb, inst_buft)
+        self._reexport_fe_pins(inst_fe, show_pins)
+
+        self._connect_buffers(inst_fe, inst_bufb, inst_buft, master_fe.bot_scan_names,
+                              master_fe.top_scan_names, show_pins)
 
         for name in inst_dac.port_names_iter():
             if name.startswith('bias_'):
                 self.reexport(inst_dac.get_port(name), show=show_pins)
-        for name in inst_fe.port_names_iter():
-            self.reexport(inst_fe.get_port(name), show=show_pins)
 
         self._sch_params = dict(
             fe_params=master_fe.sch_params,
             dac_params=master_dac.sch_params,
         )
 
-    def _connect_buffers(self, inst_fe, inst_bufb, inst_buft):
+    def _reexport_fe_pins(self, inst_fe, show_pins):
+        for name in ['inp', 'inn', 'des_clk', 'des_clkb']:
+            self.reexport(inst_fe.get_port(name), show=show_pins)
+
+        for idx in range(4):
+            suf = '<%d>' % idx
+            self.reexport(inst_fe.get_port('data' + suf), show=show_pins)
+            self.reexport(inst_fe.get_port('dlev' + suf), show=show_pins)
+
+    def _connect_buffers(self, inst_fe, inst_bufb, inst_buft, bot_names, top_names, show_pins):
+        # connect supplies
         vdd = inst_fe.get_pin('VDD_re')
         vss = inst_fe.get_pin('VSS_re')
-
         vdd_list = list(chain(inst_bufb.port_pins_iter('VDD'), inst_buft.port_pins_iter('VDD')))
         vss_list = list(chain(inst_bufb.port_pins_iter('VSS'), inst_buft.port_pins_iter('VSS')))
         self.connect_to_track_wires(vdd_list, vdd)
         self.connect_to_track_wires(vss_list, vss)
+
+        # connect signals
+        for inst, names in ((inst_bufb, bot_names), (inst_buft, top_names)):
+            for idx, name in enumerate(names):
+                pin = inst_fe.get_pin(name)
+                self.connect_to_track_wires(inst.get_pin('out<%d>' % idx), pin)
+                self.add_pin(name, inst.get_pin('in<%d>' % idx), show=show_pins)
 
     def _make_masters(self):
         fe_params = self.params['fe_params'].copy()
