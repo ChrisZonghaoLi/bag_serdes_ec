@@ -43,6 +43,7 @@ class RXDatapath(TemplateBase):
         self._num_ffe = None
         self._blockage_intvs = None
         self._sup_y_list = None
+        self._buf_locs = None
 
     @property
     def sch_params(self):
@@ -89,6 +90,11 @@ class RXDatapath(TemplateBase):
         # type: () -> List[int]
         return self._sup_y_list
 
+    @property
+    def buf_locs(self):
+        # type: () -> Tuple[Tuple[int, int], Tuple[int, int]]
+        return self._buf_locs
+
     @classmethod
     def get_params_info(cls):
         # type: () -> Dict[str, str]
@@ -99,9 +105,12 @@ class RXDatapath(TemplateBase):
             sum_params='summer parameters dictionary.',
             hp_params='highpass filter parameters dictionary.',
             samp_params='sampler parameters dictionary.',
+            scan_buf_params='scan buffer parameters.',
             fg_dum='Number of single-sided edge dummy fingers.',
             tr_widths='Track width dictionary.',
             tr_spaces='Track spacing dictionary.',
+            tr_widths_dig='Track width dictionary for digital.',
+            tr_spaces_dig='Track spacing dictionary for digital.',
             fill_w='supply fill wire width.',
             fill_sp='supply fill spacing.',
             fill_margin='space between supply fill and others.',
@@ -151,6 +160,9 @@ class RXDatapath(TemplateBase):
         offlev = self.add_instance(loff_master, 'XOFFL', loc=(xcur, 0), unit_mode=True)
         xcur += loff_master.bound_box.width_unit
         samp = self.add_instance(samp_master, 'XSAMP', loc=(xcur, 0), unit_mode=True)
+        sbuf_locs = samp_master.buf_locs
+        self._buf_locs = ((sbuf_locs[0][0] + xcur, sbuf_locs[0][1]),
+                          (sbuf_locs[1][0] + xcur, sbuf_locs[1][1]))
 
         self.array_box = bnd_box = tapx.bound_box.merge(samp.bound_box).extend(x=0, unit_mode=True)
         self.set_size_from_bound_box(tapx_master.top_layer, bnd_box)
@@ -209,6 +221,8 @@ class RXDatapath(TemplateBase):
         vss_vm_list.extend(vss)
         self.add_pin('VDD', vdd_vm_list, show=show_pins)
         self.add_pin('VSS', vss_vm_list, show=show_pins)
+        self.add_pin('VDD_re', samp.get_pin('VDD_re'), label='VDD', show=False)
+        self.add_pin('VSS_re', samp.get_pin('VSS_re'), label='VSS', show=False)
 
     def _export_pins(self, tapx, tap1, offset, offlev, samp, show_pins):
 
@@ -323,9 +337,12 @@ class RXDatapath(TemplateBase):
         sum_params = self.params['sum_params']
         hp_params = self.params['hp_params']
         samp_params = self.params['samp_params']
+        scan_buf_params = self.params['scan_buf_params']
         fg_dum = self.params['fg_dum']
         tr_widths = self.params['tr_widths']
         tr_spaces = self.params['tr_spaces']
+        tr_widths_dig = self.params['tr_widths_dig']
+        tr_spaces_dig = self.params['tr_spaces_dig']
         ana_options = self.params['ana_options']
 
         lch = config['lch']
@@ -410,8 +427,11 @@ class RXDatapath(TemplateBase):
 
         samp_params = samp_params.copy()
         samp_params['config'] = config
+        samp_params['buf_params'] = scan_buf_params
         samp_params['tr_widths'] = tr_widths
         samp_params['tr_spaces'] = tr_spaces
+        samp_params['tr_widths_dig'] = tr_widths_dig
+        samp_params['tr_spaces_dig'] = tr_spaces_dig
         samp_params['row_heights'] = row_heights
         samp_params['sup_tids'] = sup_tids
         samp_params['sum_row_info'] = tap1_master.sum_row_info
