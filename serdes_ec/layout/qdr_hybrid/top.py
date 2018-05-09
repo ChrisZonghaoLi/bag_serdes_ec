@@ -294,10 +294,10 @@ class RXFrontend(TemplateBase):
             w_list.reverse()
             name_list.reverse()
         x1 = self._buf_locs[0][0]
-        bias_info = BiasShield.draw_bias_shields(self, hm_layer, bias_config, w_list, y0,
-                                                 tr_lower=x0, tr_upper=x1, lu_end_mode=1,
-                                                 sup_warrs=vdd_wires, add_end=False,
-                                                 extend_tracks=False)
+        bias_info = BiasShield.connect_bias_shields(self, hm_layer, bias_config, w_list, y0,
+                                                    tr_lower=x0, tr_upper=x1, lu_end_mode=1,
+                                                    sup_warrs=vdd_wires, add_end=False,
+                                                    extend_tracks=False)
 
         for name, tr in zip(name_list, bias_info.tracks):
             if name.startswith('bias'):
@@ -381,9 +381,9 @@ class RXFrontend(TemplateBase):
             offset = ytop - hp_h - clk_h - vss_h
 
         x1 = self._buf_locs[0][0]
-        bias_info = BiasShield.draw_bias_shields(self, hm_layer, bias_config, vss_warrs_list,
-                                                 offset, tr_lower=x0, tr_upper=x1, lu_end_mode=1,
-                                                 add_end=False, extend_tracks=False)
+        bias_info = BiasShield.connect_bias_shields(self, hm_layer, bias_config, vss_warrs_list,
+                                                    offset, tr_lower=x0, tr_upper=x1, lu_end_mode=1,
+                                                    add_end=False, extend_tracks=False)
         self.connect_to_track_wires(vss_wires, bias_info.shields)
 
         for name, tr in zip(vss_name_list, bias_info.tracks):
