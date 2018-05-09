@@ -4,7 +4,7 @@ import yaml
 
 from bag.core import BagProject
 
-from digital_ec.layout.stdcells.core import StdCellWrapper
+from serdes_ec.layout.digital.buffer import BufferArray
 
 
 if __name__ == '__main__':
@@ -20,5 +20,5 @@ if __name__ == '__main__':
         print('loading BAG project')
         bprj = local_dict['bprj']
 
-    StdCellWrapper.generate_cells(bprj, block_specs, debug=True)
+    bprj.generate_cell(block_specs, BufferArray, debug=True)
     # StdCellWrapper.generate_cells(bprj, block_specs, gen_sch=True, run_lvs=True)

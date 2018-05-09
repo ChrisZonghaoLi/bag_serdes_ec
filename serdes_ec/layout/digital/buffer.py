@@ -58,6 +58,7 @@ class BufferRow(StdDigitalTemplate):
             seg_list='number of segments for each inverter in the buffer.',
             tr_widths='Track width dictionary.',
             tr_spaces='Track spacing dictionary.',
+            out_delta='output track spacing from middle wire.',
             ncol_min='Minimum number of columns.',
             wp_list='list of PMOS widths.',
             wn_list='list of NMOS widths.',
@@ -69,6 +70,8 @@ class BufferRow(StdDigitalTemplate):
     def get_default_param_values(cls):
         # type: () -> Dict[str, Any]
         return dict(
+            out_delta=1,
+            ncol_min=0,
             wp_list=None,
             wn_list=None,
             row_layout_info=None,
@@ -78,6 +81,7 @@ class BufferRow(StdDigitalTemplate):
     def draw_layout(self):
         nbuf = self.params['nbuf']
         seg_list = self.params['seg_list']
+        out_delta = self.params['out_delta']
         ncol_min = self.params['ncol_min']
         show_pins = self.params['show_pins']
 
@@ -85,6 +89,8 @@ class BufferRow(StdDigitalTemplate):
         base_params['show_pins'] = False
         master = self.new_template(params=base_params, temp_cls=InvChain)
         mid_tidx = master.mid_tidx
+        base_params['sig_locs'] = dict(out=mid_tidx + out_delta)
+        master = self.new_template(params=base_params, temp_cls=InvChain)
         vm_layer = master.get_port('out').get_pins()[0].layer_id
 
         tap_ncol = self.sub_columns
@@ -106,12 +112,17 @@ class BufferRow(StdDigitalTemplate):
         vss = self.connect_wires(vss_list)
 
         # draw instances, and export ports
+        hm_layer = vm_layer + 1
+        num_h_tr2 = self.get_num_x_tracks(hm_layer, half_int=True)
+        in_idx0 = ((num_h_tr2 - 2 * nbuf) // 2) / 2
         for idx in range(nbuf):
             cidx = tap_ncol + self._blk_sp + idx * buf_ncol
             cur_inst = self.add_digital_block(master, (cidx, 0))
             cur_mid = cur_inst.translate_master_track(vm_layer, mid_tidx)
             cur_in = self.connect_to_tracks(cur_inst.get_pin('in'), TrackID(vm_layer, cur_mid - 1),
-                                            min_len_mode=True)
+                                            min_len_mode=0)
+            cur_in = self.connect_to_tracks(cur_in, TrackID(hm_layer, in_idx0 + idx),
+                                            min_len_mode=0)
             self.add_pin('in<%d>' % idx, cur_in, show=show_pins)
             self.add_pin('out<%d>' % idx, cur_inst.get_pin('out'), show=show_pins)
         self.fill_space()
@@ -217,14 +228,22 @@ class BufferArray(StdDigitalTemplate):
         vdd_list = []
         vss_list = []
         buf_params = None
+        idx0 = 0
         for ridx, nbuf in enumerate(nbuf_list):
             params['nbuf'] = nbuf
+            params['out_delta'] = ridx + 1
             master = self.new_template(params=params, temp_cls=BufferRow)
             if row_layout_info is None:
                 buf_params = master.sch_params['buf_params']
                 params['row_layout_info'] = row_layout_info = master.row_layout_info
-                self.initialize(row_layout_info, nrow, ncol)
+                self.initialize(row_layout_info, nrow, ncol, draw_boundaries=True, end_mode=15)
             inst = self.add_digital_block(master, (0, ridx))
+            for idx in range(nbuf):
+                self.reexport(inst.get_port('in<%d>' % idx), net_name='in<%d>' % (idx + idx0),
+                              show=show_pins)
+                self.reexport(inst.get_port('out<%d>' % idx), net_name='out<%d>' % (idx + idx0),
+                              show=show_pins)
+            idx0 += nbuf
             vdd_list.append(inst.get_pin('VDD'))
             vss_list.append(inst.get_pin('VSS'))
             inst_list.append(inst)
