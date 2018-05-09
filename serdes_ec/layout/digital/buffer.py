@@ -4,7 +4,7 @@
 
 from typing import TYPE_CHECKING, Dict, Any, Set, List
 
-from bag.layout.routing.base import TrackID
+from bag.layout.routing.base import TrackID, WireArray
 
 from digital_ec.layout.stdcells.core import StdDigitalTemplate
 from digital_ec.layout.stdcells.inv import InvChain
@@ -129,3 +129,113 @@ class BufferRow(StdDigitalTemplate):
         tap_ncol = cls.get_sub_columns(tech_info, lch_unit)
         buf_ncol = InvChain.compute_num_cols(seg_list)
         return 2 * tap_ncol + nbuf * buf_ncol + 2 * cls._blk_sp
+
+
+class BufferArray(StdDigitalTemplate):
+    """An array of buffers
+
+    Parameters
+    ----------
+    temp_db : TemplateDB
+        the template database.
+    lib_name : str
+        the layout library name.
+    params : Dict[str, Any]
+        the parameter values.
+    used_names : Set[str]
+        a set of already used cell names.
+    **kwargs
+        dictionary of optional parameters.  See documentation of
+        :class:`bag.layout.template.TemplateBase` for details.
+    """
+
+    _blk_sp = 2
+
+    def __init__(self, temp_db, lib_name, params, used_names, **kwargs):
+        # type: (TemplateDB, str, Dict[str, Any], Set[str], **kwargs) -> None
+        StdDigitalTemplate.__init__(self, temp_db, lib_name, params, used_names, **kwargs)
+        self._sch_params = None
+
+    @property
+    def sch_params(self):
+        # type: () -> Dict[str, Any]
+        return self._sch_params
+
+    @classmethod
+    def get_cache_properties(cls):
+        # type: () -> List[str]
+        """Returns a list of properties to cache."""
+        return ['sch_params']
+
+    @classmethod
+    def get_params_info(cls):
+        # type: () -> Dict[str, str]
+        return dict(
+            config='laygo configuration dictionary.',
+            nbuf_list='list of number of buffers per row.',
+            seg_list='number of segments for each inverter in the buffer.',
+            tr_widths='Track width dictionary.',
+            tr_spaces='Track spacing dictionary.',
+            ncol_min='Minimum number of columns.',
+            wp_list='list of PMOS widths.',
+            wn_list='list of NMOS widths.',
+            row_layout_info='Row layout information dictionary.',
+            show_pins='True to draw pin geometries.',
+        )
+
+    @classmethod
+    def get_default_param_values(cls):
+        # type: () -> Dict[str, Any]
+        return dict(
+            wp_list=None,
+            wn_list=None,
+            row_layout_info=None,
+            show_pins=True,
+        )
+
+    def draw_layout(self):
+        nbuf_list = self.params['nbuf_list']
+        seg_list = self.params['seg_list']
+        ncol_min = self.params['ncol_min']
+        row_layout_info = self.params['row_layout_info']
+        show_pins = self.params['show_pins']
+
+        # compute number of rows and columns
+        nrow = len(nbuf_list)
+        tech_info = self.grid.tech_info
+        lch_unit = self.lch_unit
+        ncol = 0
+        for nbuf in nbuf_list:
+            ncol = max(ncol, BufferRow.compute_num_cols(tech_info, lch_unit, nbuf, seg_list))
+        ncol = max(ncol, ncol_min)
+
+        # setup floorplan and add instances
+        params = self.params.copy()
+        params['ncol_min'] = ncol
+        params['show_pins'] = False
+        inst_list = []
+        vdd_list = []
+        vss_list = []
+        buf_params = None
+        for ridx, nbuf in enumerate(nbuf_list):
+            params['nbuf'] = nbuf
+            master = self.new_template(params=params, temp_cls=BufferRow)
+            if row_layout_info is None:
+                buf_params = master.sch_params['buf_params']
+                params['row_layout_info'] = row_layout_info = master.row_layout_info
+                self.initialize(row_layout_info, nrow, ncol)
+            inst = self.add_digital_block(master, (0, ridx))
+            vdd_list.append(inst.get_pin('VDD'))
+            vss_list.append(inst.get_pin('VSS'))
+            inst_list.append(inst)
+
+        # fill remaining space
+        self.fill_space()
+
+        self.add_pin('VDD', WireArray.list_to_warr(vdd_list), show=show_pins)
+        self.add_pin('VSS', WireArray.list_to_warr(vss_list), show=show_pins)
+
+        self._sch_params = dict(
+            nbuf_list=nbuf_list,
+            buf_params=buf_params,
+        )
