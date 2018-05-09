@@ -19,6 +19,7 @@ from digital_ec.layout.stdcells.latch import DFlipFlopCK2, LatchCK2
 from ..laygo.misc import LaygoDummy
 from ..laygo.strongarm import SenseAmpStrongArm
 from ..laygo.divider import SinClkDivider
+from ..digital.buffer import BufferArray
 
 if TYPE_CHECKING:
     from bag.layout.template import TemplateDB
@@ -505,7 +506,7 @@ class Retimer(StdDigitalTemplate):
 
         # draw taps and get supplies
         vdd_list, vss_list = [], []
-        for cidx in (0, tap_ncol + inst_ncol + 2 * blk_sp):
+        for cidx in (0, ncol - tap_ncol):
             for ridx in range(4):
                 tap = self.add_substrate_tap((cidx, ridx))
                 vdd_list.extend(tap.port_pins_iter('VDD'))
@@ -749,6 +750,7 @@ class RetimerColumn(StdDigitalTemplate):
             tr_spaces='Track spacing dictionary.',
             wp='pmos widths.',
             wn='nmos widths.',
+            ncol_min='Minimum number of columns.',
             show_pins='True to draw pin geometries.',
         )
 
@@ -758,6 +760,7 @@ class RetimerColumn(StdDigitalTemplate):
         return dict(
             wp=None,
             wn=None,
+            ncol_min=0,
             show_pins=True,
         )
 
@@ -905,8 +908,11 @@ class SamplerColumn(TemplateBase):
             sa_params='sense amplifier parameters.',
             div_params='divider parameters.',
             re_params='retimer parameters.',
+            buf_params='scan buffer parameters.',
             tr_widths='Track width dictionary.',
             tr_spaces='Track spacing dictionary.',
+            tr_widths_dig='Track width dictionary for digital.',
+            tr_spaces_dig='Track spacing dictionary for digital.',
             row_heights='row heights for one summer.',
             sup_tids='supply tracks information.',
             sum_row_info='Summer row AnalogBase layout information dictionary.',
@@ -925,48 +931,11 @@ class SamplerColumn(TemplateBase):
         )
 
     def draw_layout(self):
-        config = self.params['config']
-        sa_params = self.params['sa_params']
-        div_params = self.params['div_params']
-        re_params = self.params['re_params']
         tr_widths = self.params['tr_widths']
         tr_spaces = self.params['tr_spaces']
-        row_heights = self.params['row_heights']
-        sup_tids = self.params['sup_tids']
-        sum_row_info = self.params['sum_row_info']
-        lat_row_info = self.params['lat_row_info']
-        div_tr_info = self.params['div_tr_info']
-        options = self.params['options']
         show_pins = self.params['show_pins']
 
-        div_params = div_params.copy()
-        div_params['config'] = config
-        div_params['sum_row_info'] = sum_row_info
-        div_params['lat_row_info'] = lat_row_info
-        div_params['tr_widths'] = tr_widths
-        div_params['tr_spaces'] = tr_spaces
-        div_params['div_tr_info'] = div_tr_info
-        div_params['sup_tids'] = sup_tids
-        div_params['options'] = options
-        div_params['show_pins'] = False
-        div_master = self.new_template(params=div_params, temp_cls=DividerColumn)
-
-        # create masters
-        sa_params = sa_params.copy()
-        sa_params['config'] = config
-        sa_params['tr_widths'] = tr_widths
-        sa_params['tr_spaces'] = tr_spaces
-        sa_params['row_heights'] = row_heights
-        sa_params['sup_tids'] = sup_tids
-        sa_params['clk_tidx'] = div_master.sa_clk_tidx
-        sa_params['options'] = options
-        sa_params['show_pins'] = False
-        sa_master = self.new_template(params=sa_params, temp_cls=SenseAmpColumn)
-
-        re_params = re_params.copy()
-        re_params['config'] = config
-        re_params['show_pins'] = False
-        re_master = self.new_template(params=re_params, temp_cls=RetimerColumn)
+        div_master, sa_master, re_master, buf_master = self._make_masters()
 
         # place sensamp and divider
         sa_inst = self.add_instance(sa_master, 'XSA', unit_mode=True)
@@ -989,6 +958,11 @@ class SamplerColumn(TemplateBase):
         re_h = re_master.bound_box.height_unit
         y0 = (div_h - re_h) // 2
         re_inst = self.add_instance(re_master, 'XRE', loc=(re_x0, y0), unit_mode=True)
+
+        # place buffers
+        buf_bot = self.add_instance(buf_master, 'XBUFB', loc=(re_x0, y0), orient='MX',
+                                    unit_mode=True)
+        buf_top = self.add_instance(buf_master, 'XBUFT', loc=(re_x0, y0 + re_h), unit_mode=True)
 
         # set size
         top_layer = sa_master.top_layer
@@ -1111,3 +1085,65 @@ class SamplerColumn(TemplateBase):
                 self.connect_to_tracks([sa_inst.get_pin(pname), re_inst.get_pin(pname)], tid)
             for name in ('inp_data', 'inn_data', 'inp_dlev', 'inn_dlev'):
                 self.reexport(sa_inst.get_port(name + suf), show=show_pins)
+
+    def _make_masters(self):
+        config = self.params['config']
+        sa_params = self.params['sa_params']
+        div_params = self.params['div_params']
+        re_params = self.params['re_params']
+        buf_params = self.params['buf_params']
+        tr_widths = self.params['tr_widths']
+        tr_spaces = self.params['tr_spaces']
+        tr_widths_dig = self.params['tr_widths_dig']
+        tr_spaces_dig = self.params['tr_spaces_dig']
+        row_heights = self.params['row_heights']
+        sup_tids = self.params['sup_tids']
+        sum_row_info = self.params['sum_row_info']
+        lat_row_info = self.params['lat_row_info']
+        div_tr_info = self.params['div_tr_info']
+        options = self.params['options']
+
+        div_params = div_params.copy()
+        div_params['config'] = config
+        div_params['sum_row_info'] = sum_row_info
+        div_params['lat_row_info'] = lat_row_info
+        div_params['tr_widths'] = tr_widths
+        div_params['tr_spaces'] = tr_spaces
+        div_params['div_tr_info'] = div_tr_info
+        div_params['sup_tids'] = sup_tids
+        div_params['options'] = options
+        div_params['show_pins'] = False
+        div_master = self.new_template(params=div_params, temp_cls=DividerColumn)
+
+        sa_params = sa_params.copy()
+        sa_params['config'] = config
+        sa_params['tr_widths'] = tr_widths
+        sa_params['tr_spaces'] = tr_spaces
+        sa_params['row_heights'] = row_heights
+        sa_params['sup_tids'] = sup_tids
+        sa_params['clk_tidx'] = div_master.sa_clk_tidx
+        sa_params['options'] = options
+        sa_params['show_pins'] = False
+        sa_master = self.new_template(params=sa_params, temp_cls=SenseAmpColumn)
+
+        buf_params = buf_params.copy()
+        buf_params['config'] = config
+        buf_params['tr_widths'] = tr_widths_dig
+        buf_params['tr_spaces'] = tr_spaces_dig
+        buf_params['show_pins'] = False
+        buf_master = self.new_template(params=buf_params, temp_cls=BufferArray)
+        ncol_min = buf_master.num_cols
+
+        re_params = re_params.copy()
+        re_params['config'] = config
+        re_params['tr_widths'] = tr_widths_dig
+        re_params['tr_spaces'] = tr_spaces_dig
+        re_params['ncol_min'] = ncol_min
+        re_params['show_pins'] = False
+        re_master = self.new_template(params=re_params, temp_cls=RetimerColumn)
+
+        if re_master.num_cols > ncol_min:
+            buf_params['ncol_min'] = re_master.num_cols
+            buf_master = self.new_template(params=buf_params, temp_cls=BufferArray)
+
+        return div_master, sa_master, re_master, buf_master

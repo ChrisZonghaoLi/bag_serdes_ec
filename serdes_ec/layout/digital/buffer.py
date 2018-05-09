@@ -198,6 +198,7 @@ class BufferArray(StdDigitalTemplate):
     def get_default_param_values(cls):
         # type: () -> Dict[str, Any]
         return dict(
+            ncol_min=0,
             wp_list=None,
             wn_list=None,
             row_layout_info=None,
