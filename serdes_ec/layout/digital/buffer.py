@@ -4,8 +4,7 @@
 
 from typing import TYPE_CHECKING, Dict, Any, Set, List
 
-from bag.layout.template import TemplateBase
-
+from bag.layout.routing.base import TrackID
 
 from digital_ec.layout.stdcells.core import StdDigitalTemplate
 from digital_ec.layout.stdcells.inv import InvChain
@@ -78,14 +77,14 @@ class BufferRow(StdDigitalTemplate):
         blk_sp = 2
 
         nbuf = self.params['nbuf']
-        tr_widths = self.params['tr_widths']
-        tr_spaces = self.params['tr_spaces']
         ncol_min = self.params['ncol_min']
         show_pins = self.params['show_pins']
 
         base_params = self.params.copy()
         base_params['show_pins'] = False
         master = self.new_template(params=base_params, temp_cls=InvChain)
+        mid_tidx = master.mid_tidx
+        vm_layer = master.get_port('out').get_pins()[0].layer_id
 
         tap_ncol = self.sub_columns
         buf_ncol = master.num_cols
@@ -104,11 +103,21 @@ class BufferRow(StdDigitalTemplate):
         vdd = self.connect_wires(vdd_list)
         vss = self.connect_wires(vss_list)
 
-        # draw instances
-        inst_list = []
+        # draw instances, and export ports
         for idx in range(nbuf):
             cidx = tap_ncol + blk_sp + idx * buf_ncol
-            inst_list.append(self.add_digital_block(master, (cidx, 0)))
+            cur_inst = self.add_digital_block(master, (cidx, 0))
+            cur_mid = cur_inst.translate_master_track(vm_layer, mid_tidx)
+            cur_in = self.connect_to_tracks(cur_inst.get_pin('in'), TrackID(vm_layer, cur_mid - 1),
+                                            min_len_mode=True)
+            self.add_pin('in<%d>' % idx, cur_in, show=show_pins)
+            self.add_pin('out<%d>' % idx, cur_inst.get_pin('out'), show=show_pins)
         self.fill_space()
 
-        self._sch_params = dict()
+        self.add_pin('VDD', vdd, show=show_pins)
+        self.add_pin('VSS', vss, show=show_pins)
+
+        self._sch_params = dict(
+            nbuf=nbuf,
+            buf_params=master.sch_params
+        )
