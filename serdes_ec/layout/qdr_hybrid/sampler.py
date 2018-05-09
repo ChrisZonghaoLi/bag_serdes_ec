@@ -894,11 +894,17 @@ class SamplerColumn(TemplateBase):
         # type: (TemplateDB, str, Dict[str, Any], Set[str], **Any) -> None
         TemplateBase.__init__(self, temp_db, lib_name, params, used_names, **kwargs)
         self._sch_params = None
+        self._buf_locs = None
 
     @property
     def sch_params(self):
         # type: () -> Dict[str, Any]
         return self._sch_params
+
+    @property
+    def buf_locs(self):
+        # type: () -> Tuple[Tuple[int, int], Tuple[int, int]]
+        return self._buf_locs
 
     @classmethod
     def get_params_info(cls):
@@ -956,13 +962,10 @@ class SamplerColumn(TemplateBase):
         re_x0 = xsup_targ - re_master.xsup
         div_h = div_box.height_unit
         re_h = re_master.bound_box.height_unit
+        buf_h = buf_master.bound_box.height_unit
         y0 = (div_h - re_h) // 2
         re_inst = self.add_instance(re_master, 'XRE', loc=(re_x0, y0), unit_mode=True)
-
-        # place buffers
-        buf_bot = self.add_instance(buf_master, 'XBUFB', loc=(re_x0, y0), orient='MX',
-                                    unit_mode=True)
-        buf_top = self.add_instance(buf_master, 'XBUFT', loc=(re_x0, y0 + re_h), unit_mode=True)
+        self._buf_locs = ((re_x0, y0), (re_x0, y0 + re_h))
 
         # set size
         top_layer = sa_master.top_layer
@@ -977,7 +980,7 @@ class SamplerColumn(TemplateBase):
         self._connect_io(sa_inst, re_inst, re_master.sig_locs, tr_w, vm_layer, show_pins)
 
         # connect supplies
-        vdd_list = self._connect_supply(sa_inst, div_inst, re_inst, show_pins)
+        vdd_list = self._connect_supply(sa_inst, div_inst, re_inst, buf_h, show_pins)
 
         # connect enable wires
         ym_layer = vm_layer + 2
@@ -994,38 +997,42 @@ class SamplerColumn(TemplateBase):
             re_params=re_master.sch_params,
         )
 
-    def _connect_supply(self, sa_inst, div_inst, re_inst, show_pins):
+    def _connect_supply(self, sa_inst, div_inst, re_inst, buf_h, show_pins):
         re_box = re_inst.bound_box
-        re_yb, re_yt = re_box.bottom_unit, re_box.top_unit
+        sup_yb, sup_yt = re_box.bottom_unit - buf_h, re_box.top_unit + buf_h
         vddi_list = []
         vssi_list = []
         vddo_list = []
         vsso_list = []
         for pin in chain(sa_inst.port_pins_iter('VDD'), div_inst.port_pins_iter('VDD')):
             yc = self.grid.track_to_coord(pin.layer_id, pin.track_id.base_index, unit_mode=True)
-            if yc < re_yb or yc > re_yt:
+            if yc < sup_yb or yc > sup_yt:
                 vddo_list.append(pin)
             else:
                 vddi_list.append(pin)
         for pin in chain(sa_inst.port_pins_iter('VSS'), div_inst.port_pins_iter('VSS')):
             yc = self.grid.track_to_coord(pin.layer_id, pin.track_id.base_index, unit_mode=True)
-            if yc < re_yb or yc > re_yt:
+            if yc < sup_yb or yc > sup_yt:
                 vsso_list.append(pin)
             else:
                 vssi_list.append(pin)
 
-        re_vdd = re_inst.get_all_port_pins('VDDR')
-        re_vss = re_inst.get_all_port_pins('VSSR')
-        vdd_warrs = self.connect_to_track_wires(re_vdd, vddo_list)
-        vss_warrs = self.connect_to_track_wires(re_vss, vsso_list)
-        re_vdd = re_inst.get_all_port_pins('VDDL')
-        re_vss = re_inst.get_all_port_pins('VSSL')
-        vdd_warrs.extend(self.connect_to_track_wires(re_vdd, vddi_list))
-        vss_warrs.extend(self.connect_to_track_wires(re_vss, vssi_list))
-        self.connect_to_track_wires(re_vdd, vddo_list)
-        self.connect_to_track_wires(re_vss, vsso_list)
+        re_vddr = re_inst.get_all_port_pins('VDDR')
+        re_vssr = re_inst.get_all_port_pins('VSSR')
+        vdd_warrs = self.connect_to_track_wires(re_vddr, vddo_list)
+        vss_warrs = self.connect_to_track_wires(re_vssr, vsso_list)
+        re_vddl = re_inst.get_all_port_pins('VDDL')
+        re_vssl = re_inst.get_all_port_pins('VSSL')
+        vdd_warrs.extend(self.connect_to_track_wires(re_vddl, vddi_list))
+        vss_warrs.extend(self.connect_to_track_wires(re_vssl, vssi_list))
+        self.connect_to_track_wires(re_vddl, vddo_list)
+        self.connect_to_track_wires(re_vssl, vsso_list)
         self.add_pin('VDD', vdd_warrs, show=show_pins)
         self.add_pin('VSS', vss_warrs, show=show_pins)
+        re_vddr.extend(re_vddl)
+        re_vssr.extend(re_vssl)
+        self.add_pin('VDD_re', re_vddr, label='VDD', show=False)
+        self.add_pin('VSS_re', re_vssr, label='VSS', show=False)
         return vdd_warrs
 
     def _connect_clk(self, ym_layer, tr_manager, vdd_list, sa_inst, div_inst, re_inst, show_pins):
@@ -1038,9 +1045,18 @@ class SamplerColumn(TemplateBase):
         dtr = tr0 - self.grid.get_middle_track(locs[5], locs[6], round_up=False)
 
         # connect enable signals
+        hm_layer = ym_layer - 1
         tr_lower = tr_upper = self.bound_box.yc_unit
         tr_w = tr_manager.get_width(ym_layer, 'clk')
-        for idx in range(4):
+        mid_en0_tid = sa_inst.get_pin('mid_en<0>').track_id
+        mid_en2_tid = sa_inst.get_pin('mid_en<2>').track_id
+        mid_en1_tidx = tr_manager.get_next_track(hm_layer, mid_en2_tid.base_index,
+                                                 'clk', 'clk', up=True)
+        mid_en3_tidx = tr_manager.get_next_track(hm_layer, mid_en0_tid.base_index,
+                                                 'clk', 'clk', up=False)
+        sa_en_warrs = [mid_en0_tid, TrackID(hm_layer, mid_en1_tidx), mid_en2_tid,
+                       TrackID(hm_layer, mid_en3_tidx)]
+        for idx, sa_en in enumerate(sa_en_warrs):
             en_name = 'en<%d>' % idx
             en_list = sa_inst.get_all_port_pins(en_name)
             en_list.extend(div_inst.port_pins_iter(en_name))
@@ -1049,7 +1065,7 @@ class SamplerColumn(TemplateBase):
             tr_lower = min(tr_lower, ym_tr.lower_unit)
             tr_upper = max(tr_upper, ym_tr.upper_unit)
             en_re = re_inst.get_pin(en_name)
-            self.connect_to_track_wires([ym_tr, en_re], sa_inst.get_pin('mid_en<%d>' % idx))
+            self.connect_to_tracks([ym_tr, en_re], sa_en)
 
         # connect scan/enable signals
         scan_tid = TrackID(ym_layer, dtr + locs[-2], width=1)
