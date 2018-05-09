@@ -46,6 +46,7 @@ class RXFrontend(TemplateBase):
         self._bias_p0_list = None
         self._num_bias_vss = 0
         self._num_bias_vdd = 0
+        self._buf_locs = None
 
     @property
     def sch_params(self):
@@ -67,6 +68,11 @@ class RXFrontend(TemplateBase):
         # type: () -> int
         return self._num_bias_vdd
 
+    @property
+    def buf_locs(self):
+        # type: () -> Tuple[Tuple[int, int], Tuple[int, int]]
+        return self._buf_locs
+
     @classmethod
     def get_cache_properties(cls):
         # type: () -> List[str]
@@ -79,8 +85,11 @@ class RXFrontend(TemplateBase):
         return dict(
             dp_params='datapath parameters.',
             hp_params='high-pass filter array parameters.',
+            scan_buf_params='scan buffer parameters.',
             tr_widths='Track width dictionary.',
             tr_spaces='Track spacing dictionary.',
+            tr_widths_dig='Track width dictionary for digital.',
+            tr_spaces_dig='Track spacing dictionary for digital.',
             bias_config='The bias configuration dictionary.',
             show_pins='True to create pin labels.',
         )
@@ -125,6 +134,9 @@ class RXFrontend(TemplateBase):
         x0 = tot_w - bnd_box.width_unit
         y0 = yoff + bot_h
         dp_inst = self.add_instance(dp_master, 'XDP', loc=(x0, y0), unit_mode=True)
+        dbuf_locs = dp_master.buf_locs
+        self._buf_locs = ((dbuf_locs[0][0] + x0, dbuf_locs[0][1] + y0),
+                          (dbuf_locs[1][0] + x0, dbuf_locs[1][1] + y0))
         x_hpx = x0 + dp_master.x_tapx[1] - hpx_w
         x_hp1 = max(x_hpx + hpx_w, x0 + dp_master.x_tap1[1] - hp1_w)
         hpxb_inst = self.add_instance(hpx_master, 'XHPXB', loc=(x_hpx, yoff), unit_mode=True)
@@ -265,12 +277,20 @@ class RXFrontend(TemplateBase):
         if not is_bot:
             w_list.reverse()
             name_list.reverse()
+        x1 = self._buf_locs[0][0]
         bias_info = BiasShield.draw_bias_shields(self, hm_layer, bias_config, w_list, y0,
-                                                 tr_lower=x0, lu_end_mode=1, sup_warrs=vdd_wires,
-                                                 add_end=False)
+                                                 tr_lower=x0, tr_upper=x1, lu_end_mode=1,
+                                                 sup_warrs=vdd_wires, add_end=False,
+                                                 extend_tracks=False)
 
         for name, tr in zip(name_list, bias_info.tracks):
-            self.add_pin(name, tr, show=show_pins, edge_mode=-1)
+            if name.startswith('bias'):
+                tr = self.extend_wires(tr, upper=x1, unit_mode=True)
+                edge_mode = 1
+            else:
+                tr = self.extend_wires(tr, lower=x0, unit_mode=True)
+                edge_mode = -1
+            self.add_pin(name, tr, show=show_pins, edge_mode=edge_mode)
 
         return bias_info.p0
 
@@ -343,16 +363,24 @@ class RXFrontend(TemplateBase):
             self.extend_wires(dp_inst.get_all_port_pins('VDD_ext'), upper=vss_coord, unit_mode=True)
             offset = ytop - hp_h - clk_h - vss_h
 
+        x1 = self._buf_locs[0][0]
         bias_info = BiasShield.draw_bias_shields(self, hm_layer, bias_config, vss_warrs_list,
-                                                 offset, tr_lower=x0, lu_end_mode=1, add_end=False)
+                                                 offset, tr_lower=x0, tr_upper=x1, lu_end_mode=1,
+                                                 add_end=False, extend_tracks=False)
         self.connect_to_track_wires(vss_wires, bias_info.shields)
 
         for name, tr in zip(vss_name_list, bias_info.tracks):
+            if name.startswith('scan'):
+                tr = self.extend_wires(tr, upper=x1, unit_mode=True)
+                edge_mode = 1
+            else:
+                tr = self.extend_wires(tr, lower=x0, unit_mode=True)
+                edge_mode = -1
             if name == 'v_analog' or name == 'v_digital' or name == 'v_tap1_main':
                 lbl = name + ':'
             else:
                 lbl = name
-            self.add_pin(name, tr, label=lbl, show=show_pins, edge_mode=-1)
+            self.add_pin(name, tr, label=lbl, show=show_pins, edge_mode=edge_mode)
 
         # export clks
         clkp = self.connect_wires([hpx_inst.get_pin('clkp'), hp1_inst.get_pin('clkp')])
@@ -503,10 +531,16 @@ class RXFrontend(TemplateBase):
     def _make_masters(self, tr_widths, tr_spaces):
         dp_params = self.params['dp_params']
         hp_params = self.params['hp_params']
+        buf_params = self.params['scan_buf_params']
+        tr_widths_dig = self.params['tr_widths_dig']
+        tr_spaces_dig = self.params['tr_spaces_dig']
 
         dp_params = dp_params.copy()
+        dp_params['scan_buf_params'] = buf_params
         dp_params['tr_widths'] = tr_widths
         dp_params['tr_spaces'] = tr_spaces
+        dp_params['tr_widths_dig'] = tr_widths_dig
+        dp_params['tr_spaces_dig'] = tr_spaces_dig
         dp_params['show_pins'] = False
         dp_master = self.new_template(params=dp_params, temp_cls=RXDatapath)
 
