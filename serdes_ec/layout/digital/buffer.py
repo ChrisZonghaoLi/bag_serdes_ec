@@ -31,6 +31,8 @@ class BufferRow(StdDigitalTemplate):
         :class:`bag.layout.template.TemplateBase` for details.
     """
 
+    _blk_sp = 2
+
     def __init__(self, temp_db, lib_name, params, used_names, **kwargs):
         # type: (TemplateDB, str, Dict[str, Any], Set[str], **kwargs) -> None
         StdDigitalTemplate.__init__(self, temp_db, lib_name, params, used_names, **kwargs)
@@ -74,9 +76,8 @@ class BufferRow(StdDigitalTemplate):
         )
 
     def draw_layout(self):
-        blk_sp = 2
-
         nbuf = self.params['nbuf']
+        seg_list = self.params['seg_list']
         ncol_min = self.params['ncol_min']
         show_pins = self.params['show_pins']
 
@@ -88,7 +89,8 @@ class BufferRow(StdDigitalTemplate):
 
         tap_ncol = self.sub_columns
         buf_ncol = master.num_cols
-        ncol = max(ncol_min, 2 * tap_ncol + nbuf * buf_ncol + 2 * blk_sp)
+        ncol = max(ncol_min, self.compute_num_cols(self.grid.tech_info, self.lch_unit,
+                                                   nbuf, seg_list))
 
         # setup floorplan
         row_layout_info = master.row_layout_info
@@ -105,7 +107,7 @@ class BufferRow(StdDigitalTemplate):
 
         # draw instances, and export ports
         for idx in range(nbuf):
-            cidx = tap_ncol + blk_sp + idx * buf_ncol
+            cidx = tap_ncol + self._blk_sp + idx * buf_ncol
             cur_inst = self.add_digital_block(master, (cidx, 0))
             cur_mid = cur_inst.translate_master_track(vm_layer, mid_tidx)
             cur_in = self.connect_to_tracks(cur_inst.get_pin('in'), TrackID(vm_layer, cur_mid - 1),
@@ -121,3 +123,9 @@ class BufferRow(StdDigitalTemplate):
             nbuf=nbuf,
             buf_params=master.sch_params
         )
+
+    @classmethod
+    def compute_num_cols(cls, tech_info, lch_unit, nbuf, seg_list):
+        tap_ncol = cls.get_sub_columns(tech_info, lch_unit)
+        buf_ncol = InvChain.compute_num_cols(seg_list)
+        return 2 * tap_ncol + nbuf * buf_ncol + 2 * cls._blk_sp
