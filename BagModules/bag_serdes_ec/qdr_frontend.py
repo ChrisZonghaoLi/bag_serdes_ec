@@ -41,6 +41,7 @@ class bag_serdes_ec__qdr_frontend(Module):
     def get_params_info(cls):
         # type: () -> Dict[str, str]
         return dict(
+            ctle_params='CTLE parameters.',
             tapx_params='TapX summer parmeters.',
             off_params='Offset cancel parameters.',
             tap1_params='Tap1 summer parameters.',
@@ -50,9 +51,10 @@ class bag_serdes_ec__qdr_frontend(Module):
             ndum_res='number of dummy resistors total.',
         )
 
-    def design(self, tapx_params, off_params, tap1_params, loff_params, samp_params,
+    def design(self, ctle_params, tapx_params, off_params, tap1_params, loff_params, samp_params,
                hp_params, ndum_res):
         # design instances
+        self.instances['XCTLE'].design(**ctle_params)
         self.instances['XDP'].design(tapx_params=tapx_params, off_params=off_params,
                                      tap1_params=tap1_params, loff_params=loff_params,
                                      samp_params=samp_params)

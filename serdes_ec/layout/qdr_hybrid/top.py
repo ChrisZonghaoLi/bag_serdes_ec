@@ -219,6 +219,7 @@ class RXFrontend(TemplateBase):
                                y_dp, bias_config, show_pins, is_bot=False)
 
         self._sch_params = master_dp.sch_params.copy()
+        self._sch_params['ctle_params'] = master_ctle.sch_params
         self._sch_params['hp_params'] = master_hpx.sch_params['hp_params']
         self._sch_params['ndum_res'] = master_hpx.sch_params['ndum'] * 4
 
