@@ -666,7 +666,8 @@ class RXTop(TemplateBase):
         )
 
     def _reexport_fe_pins(self, inst_fe, show_pins):
-        for name in ['inp', 'inn', 'des_clk', 'des_clkb', 'clkp', 'clkn', 'VDD', 'VSS']:
+        for name in ['inp', 'inn', 'des_clk', 'des_clkb', 'clkp', 'clkn', 'VDD', 'VSS',
+                     'enable_divider']:
             self.reexport(inst_fe.get_port(name), show=show_pins)
 
         for idx in range(4):
