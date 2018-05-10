@@ -324,9 +324,8 @@ class RXFrontend(TemplateBase):
         return clkp, clkn
 
     def _reexport_dp_pins(self, dp_inst, show_pins):
-        for name in ['inp', 'inn', 'des_clk', 'des_clkb']:
-            self.reexport(dp_inst.get_port(name), show=show_pins)
-
+        self.reexport(dp_inst.get_port('des_clk'), show=show_pins)
+        self.reexport(dp_inst.get_port('des_clkb'), show=show_pins)
         for idx in range(4):
             suf = '<%d>' % idx
             self.reexport(dp_inst.get_port('data' + suf), show=show_pins)
