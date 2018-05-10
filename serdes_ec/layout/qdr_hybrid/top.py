@@ -10,7 +10,7 @@ from bag.layout.util import BBox
 from bag.layout.routing.base import TrackID, TrackManager
 from bag.layout.template import TemplateBase
 
-from abs_templates_ec.routing.bias import BiasShield
+from abs_templates_ec.routing.bias import BiasShield, compute_vroute_width, join_bias_vroutes
 
 from analog_ec.layout.dac.rladder.top import RDACArray
 from analog_ec.layout.passives.filter.highpass import HighPassArrayClk
@@ -45,8 +45,6 @@ class RXFrontend(TemplateBase):
         # type: (TemplateDB, str, Dict[str, Any], Set[str], **kwargs) -> None
         TemplateBase.__init__(self, temp_db, lib_name, params, used_names, **kwargs)
         self._sch_params = None
-        self._num_bias_vss = 0
-        self._num_bias_vdd = 0
         self._buf_locs = None
         self._retime_ncol = None
         self._bot_scan_names = None
@@ -56,16 +54,6 @@ class RXFrontend(TemplateBase):
     def sch_params(self):
         # type: () -> Dict[str, Any]
         return self._sch_params
-
-    @property
-    def num_bias_vss(self):
-        # type: () -> int
-        return self._num_bias_vss
-
-    @property
-    def num_bias_vdd(self):
-        # type: () -> int
-        return self._num_bias_vdd
 
     @property
     def buf_locs(self):
@@ -91,8 +79,7 @@ class RXFrontend(TemplateBase):
     def get_cache_properties(cls):
         # type: () -> List[str]
         """Returns a list of properties to cache."""
-        return ['sch_params', 'num_bias_vss', 'num_bias_vdd', 'buf_locs', 'retime_ncol',
-                'bot_scan_names', 'top_scan_names']
+        return ['sch_params', 'buf_locs', 'retime_ncol', 'bot_scan_names', 'top_scan_names']
 
     @classmethod
     def get_params_info(cls):
@@ -106,6 +93,7 @@ class RXFrontend(TemplateBase):
             tr_spaces='Track spacing dictionary.',
             tr_widths_dig='Track width dictionary for digital.',
             tr_spaces_dig='Track spacing dictionary for digital.',
+            fill_config='fill configuration dictionary.',
             bias_config='The bias configuration dictionary.',
             show_pins='True to create pin labels.',
         )
@@ -118,16 +106,15 @@ class RXFrontend(TemplateBase):
         )
 
     def draw_layout(self):
-        bus_margin = 8000
-
         tr_widths = self.params['tr_widths']
         tr_spaces = self.params['tr_spaces']
+        fill_config = self.params['fill_config']
         bias_config = self.params['bias_config']
         show_pins = self.params['show_pins']
 
         master_ctle, master_dp, master_hpx, master_hp1 = self._make_masters(tr_widths, tr_spaces)
 
-        # place masters
+        # compute instance placements
         ctle_box = master_ctle.bound_box
         dp_box = master_dp.bound_box
         ctle_w = ctle_box.width_unit
@@ -136,25 +123,32 @@ class RXFrontend(TemplateBase):
         hpx_w = master_hpx.bound_box.width_unit
         hp1_w = master_hp1.bound_box.width_unit
 
+        # compute vertical placement
         ym_layer = master_dp.top_layer
-        xm_layer = ym_layer + 1
-        blk_w, blk_h = self.grid.get_block_size(xm_layer, unit_mode=True, half_blk_y=False)
+        top_layer = ym_layer + 1
+        vm_layer = ym_layer - 2
+        blk_h = self.grid.get_block_size(top_layer, unit_mode=True, half_blk_y=False)[1]
+        fill_w, fill_h = self.grid.get_fill_size(top_layer, fill_config, unit_mode=True)
         tr_manager = TrackManager(self.grid, tr_widths, tr_spaces, half_space=True)
-
-        tmp = self._compute_route_height(ym_layer, tr_manager, master_dp.num_ffe,
+        tmp = self._compute_route_height(ym_layer - 1, blk_h, tr_manager, master_dp.num_ffe,
                                          master_dp.num_dfe, bias_config)
-        clk_locs, clk_h, vss_h, vdd_h = tmp
+        clk_locs, clk_h, vss_h, vdd_h, num_vm_vss, num_vm_vdd = tmp
 
         bot_h = hp_h + clk_h + vss_h + vdd_h
         dp_h = dp_box.height_unit
         inner_h = dp_h + 2 * bot_h
-        tot_w = -(-(bus_margin + ctle_w + dp_box.width_unit) // blk_w) * blk_w
-        tot_h = -(-inner_h // blk_h) * blk_h
+        tot_h = -(-inner_h // fill_h) * fill_h
         yoff = (tot_h - inner_h) // 2
+        y_ctle = (tot_h - ctle_h) // 2
+        y_dp = yoff + bot_h
+
+        # compute horizontal placement
+        tmp = compute_vroute_width(self, vm_layer, fill_w, num_vm_vdd, num_vm_vss, bias_config)
+        route_w, vdd_x, vss_x = tmp
+        tot_w = -(-(route_w + ctle_w + dp_box.width_unit) // fill_w) * fill_w
         x_dp = tot_w - dp_box.width_unit
         x_ctle = x_dp - ctle_w
-        y_dp = yoff + bot_h
-        y_ctle = (tot_h - ctle_h) // 2
+        x_route = x_ctle - route_w
         ctle_inst = self.add_instance(master_ctle, 'XCTLE', loc=(x_ctle, y_ctle), unit_mode=True)
         dp_inst = self.add_instance(master_dp, 'XDP', loc=(x_dp, y_dp), unit_mode=True)
         dbuf_locs = master_dp.buf_locs
@@ -200,14 +194,16 @@ class RXFrontend(TemplateBase):
         ytop = tot_h - yoff
 
         hm_bias_info_list = [None, None, None, None]
+        vdd_pins = []
+        vss_pins = []
         bi = self._connect_clk_vss_bias(hm_layer, vss_wires, x_ctle, yoff, ytop, dp_inst, hpxb_inst,
                                         hp1b_inst, num_dfe, hp_h, clk_locs, clk_tr_w, clk_h, vss_h,
-                                        bias_config, show_pins, is_bot=True)
+                                        bias_config, show_pins, vss_pins, is_bot=True)
         hm_bias_info_list[0] = bi
 
         bi = self._connect_clk_vss_bias(hm_layer, vss_wires, x_ctle, yoff, ytop, dp_inst, hpxt_inst,
                                         hp1t_inst, num_dfe, hp_h, clk_locs, clk_tr_w, clk_h, vss_h,
-                                        bias_config, show_pins, is_bot=False)
+                                        bias_config, show_pins, vss_pins, is_bot=False)
         hm_bias_info_list[3] = bi
 
         # gather VDD-referenced wires
@@ -215,13 +211,17 @@ class RXFrontend(TemplateBase):
         vdd_wires.extend(dp_inst.port_pins_iter('VDD', layer=ym_layer - 2))
         y_dp = yoff + hp_h + clk_h + vss_h
         bi = self._connect_vdd_bias(hm_layer, x_ctle, num_dfe, num_ffe, vdd_wires, dp_inst,
-                                    y_dp, bias_config, show_pins, is_bot=True)
+                                    y_dp, bias_config, show_pins, vdd_pins, is_bot=True)
         hm_bias_info_list[1] = bi
 
         y_dp = ytop - (hp_h + clk_h + vss_h + vdd_h)
         bi = self._connect_vdd_bias(hm_layer, x_ctle, num_dfe, num_ffe, vdd_wires, dp_inst,
-                                    y_dp, bias_config, show_pins, is_bot=False)
+                                    y_dp, bias_config, show_pins, vdd_pins, is_bot=False)
         hm_bias_info_list[2] = bi
+
+        join_bias_vroutes(self, vm_layer, vdd_x, vss_x, x_ctle, num_vm_vdd, num_vm_vss,
+                          hm_bias_info_list, bias_config, vdd_pins, vss_pins, show_pins,
+                          xl=x_route)
 
         self._sch_params = master_dp.sch_params.copy()
         self._sch_params['ctle_params'] = master_ctle.sch_params
@@ -325,7 +325,7 @@ class RXFrontend(TemplateBase):
             self.reexport(dp_inst.get_port('dlev' + suf), show=show_pins)
 
     def _connect_vdd_bias(self, hm_layer, x0, num_dfe, num_ffe, vdd_wires, dp_inst, y0,
-                          bias_config, show_pins, is_bot=True):
+                          bias_config, show_pins, pin_list, is_bot=True):
         wire_list = []
         name_list = []
         for port_name, out_name in self._vdd_ports_iter(num_dfe, num_ffe, is_bot=is_bot):
@@ -348,17 +348,16 @@ class RXFrontend(TemplateBase):
             if name.startswith('bias'):
                 scan_names.append(name)
                 tr = self.extend_wires(tr, upper=x1, unit_mode=True)
-                edge_mode = 1
+                self.add_pin(name, tr, show=show_pins, edge_mode=1)
+
             else:
-                tr = self.extend_wires(tr, lower=x0, unit_mode=True)
-                edge_mode = -1
-            self.add_pin(name, tr, show=show_pins, edge_mode=edge_mode)
+                pin_list.append((name, tr))
 
         return 1, len(wire_list), bias_info.p0[1]
 
     def _connect_clk_vss_bias(self, hm_layer, vss_wires, x0, ybot, ytop, dp_inst, hpx_inst,
                               hp1_inst, num_dfe, hp_h, clk_locs, clk_tr_w, clk_h, vss_h,
-                              bias_config, show_pins, is_bot=True):
+                              bias_config, show_pins, pin_list, is_bot=True):
         ntr_tot = len(clk_locs)
         num_pair = (ntr_tot - 2) // 2
         vss_idx_lookup = {}
@@ -434,15 +433,9 @@ class RXFrontend(TemplateBase):
         for name, tr in zip(vss_name_list, bias_info.tracks):
             if name.startswith('scan'):
                 tr = self.extend_wires(tr, upper=x1, unit_mode=True)
-                edge_mode = 1
+                self.add_pin(name, tr, show=show_pins, edge_mode=1)
             else:
-                tr = self.extend_wires(tr, lower=x0, unit_mode=True)
-                edge_mode = -1
-            if name == 'v_analog' or name == 'v_digital' or name == 'v_tap1_main':
-                lbl = name + ':'
-            else:
-                lbl = name
-            self.add_pin(name, tr, label=lbl, show=show_pins, edge_mode=edge_mode)
+                pin_list.append((name, tr))
 
         # export clks
         clkp = self.connect_wires([hpx_inst.get_pin('clkp'), hp1_inst.get_pin('clkp')])
@@ -477,10 +470,10 @@ class RXFrontend(TemplateBase):
             self.connect_to_track_wires(vssl_list, vss)
             self.connect_to_track_wires(vssr_list, vss)
             if not vssm_list:
-                vm_layer = hm_layer + 1
-                tid = self.grid.coord_to_nearest_track(vm_layer, vssm.middle_unit, half_track=True,
+                ym_layer = hm_layer + 1
+                tid = self.grid.coord_to_nearest_track(ym_layer, vssm.middle_unit, half_track=True,
                                                        unit_mode=True)
-                self.connect_to_tracks([vss, vssm], TrackID(vm_layer, tid))
+                self.connect_to_tracks([vss, vssm], TrackID(ym_layer, tid))
             else:
                 self.connect_to_track_wires(vssm_list, vss)
         elif not vssm_list:
@@ -569,26 +562,28 @@ class RXFrontend(TemplateBase):
         yield ('clk_dfe<%d>' % (4 + psuf), 'v_way_%d_dfe_1_m' % pway)
         yield ('clk_dfe<%d>' % (4 + nsufa), 'v_way_%d_dfe_1_m' % nway)
 
-    def _compute_route_height(self, top_layer, tr_manager, num_ffe, num_dfe, bias_config):
+    def _compute_route_height(self, hm_layer, blk_h, tr_manager, num_ffe, num_dfe, bias_config):
         num_clk_tr = 2
 
         # scan_div, ana, dig, tap1_main, int_main * 2, 2 * each DFE
-        self._num_bias_vss = 6 + 2 * num_dfe
+        num_hm_vss = 6 + 2 * num_dfe
         # dlev, offset, 2 * each FFE, 4 * each DFE 2+ (sign bits)
-        self._num_bias_vdd = 8 + 2 * num_ffe + 4 * (num_dfe - 1)
+        num_hm_vdd = 8 + 2 * num_ffe + 4 * (num_dfe - 1)
+        # vincm, ana, dig, tap1_main, int_main * 4, 4 * each DFE
+        num_vm_vss = 8 + 4 * num_dfe
+        # dlev, offset, 4 * each FFE
+        num_vm_vdd = 16 + 4 * num_ffe
 
-        hm_layer = top_layer - 1
-        blk_h = self.grid.get_block_size(top_layer, unit_mode=True)[1]
         wtype_list = ['sh']
         wtype_list.extend(repeat('clk', 2 * num_clk_tr))
         wtype_list.append('sh')
         ntr, locs = tr_manager.place_wires(hm_layer, wtype_list)
         tr_pitch = self.grid.get_track_pitch(hm_layer, unit_mode=True)
         clk_h = -(-(int(round(tr_pitch * ntr))) // blk_h) * blk_h
-        vdd_h = BiasShield.get_block_size(self.grid, hm_layer, bias_config, self._num_bias_vdd)[1]
-        vss_h = BiasShield.get_block_size(self.grid, hm_layer, bias_config, self._num_bias_vss)[1]
+        vdd_h = BiasShield.get_block_size(self.grid, hm_layer, bias_config, num_hm_vdd)[1]
+        vss_h = BiasShield.get_block_size(self.grid, hm_layer, bias_config, num_hm_vss)[1]
 
-        return locs, clk_h, vss_h, vdd_h
+        return locs, clk_h, vss_h, vdd_h, num_vm_vss, num_vm_vdd
 
     def _make_masters(self, tr_widths, tr_spaces):
         ctle_params = self.params['ctle_params']
