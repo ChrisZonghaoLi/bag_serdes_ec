@@ -258,9 +258,12 @@ class RXFrontend(TemplateBase):
         nidx = self.grid.find_next_track(xm_layer, nyt, tr_width=tr_w, half_track=True,
                                          mode=1, unit_mode=True)
 
-        plist = [ctle_inst.get_pin('outp'), dp_inst.get_pin('inp')]
-        nlist = [ctle_inst.get_pin('outn'), dp_inst.get_pin('inn')]
-        self.connect_differential_tracks(plist, nlist, xm_layer, pidx, nidx, width=tr_w)
+        outp = self.connect_to_tracks(ctle_inst.get_pin('outp'),
+                                      TrackID(xm_layer, pidx, width=tr_w))
+        outn = self.connect_to_tracks(ctle_inst.get_pin('outn'),
+                                      TrackID(xm_layer, nidx, width=tr_w))
+        self.connect_differential_wires(outp, outn, dp_inst.get_pin('inp'),
+                                        dp_inst.get_pin('inn'), unit_mode=True)
 
         inp = self.connect_to_tracks(ctle_inst.get_pin('inp'), TrackID(xm_layer, pidx, width=tr_w),
                                      min_len_mode=-1)
