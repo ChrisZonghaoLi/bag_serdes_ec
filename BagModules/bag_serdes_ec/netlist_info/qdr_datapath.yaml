@@ -1,6 +1,6 @@
 lib_name: bag_serdes_ec
 cell_name: qdr_datapath
-pins: [ "VDD", "VSS", "bias_ffe<7:4>", "clk_dfe<11:4>", "inp", "inn", "sgnn_dfe<11:8>", "v_vincm", "clk_digital_tap1<3:0>", "setp", "setn", "clk_main<3:0>", "clk_tap1<3:0>", "clk_digital_tapx<3:0>", "clkp", "clkn", "en_div<3:2>", "scan_div<3:2>", "bias_offp<3:0>", "bias_offn<3:0>", "bias_dlevp<3:0>", "bias_dlevn<3:0>", "des_clk", "des_clkb", "clk_analog<3:0>", "dlev<3:0>", "data<3:0>", "sgnp_dfe<11:8>" ]
+pins: [ "VDD", "VSS", "bias_ffe<7:4>", "clk_dfe<11:4>", "inp", "inn", "sgnn_dfe<11:8>", "clk_digital_tap1<3:0>", "setp", "setn", "clk_main<3:0>", "clk_tap1<3:0>", "clk_digital_tapx<3:0>", "clkp", "clkn", "en_div<3:2>", "scan_div<3:2>", "bias_offp<3:0>", "bias_offn<3:0>", "bias_dlevp<3:0>", "bias_dlevn<3:0>", "des_clk", "des_clkb", "clk_analog<3:0>", "dlev<3:0>", "data<3:0>", "sgnp_dfe<11:8>" ]
 instances:
   XOFF:
     lib_name: bag_serdes_ec
@@ -141,10 +141,6 @@ instances:
   PIN0:
     lib_name: basic
     cell_name: iopin
-    instpins: {}
-  PIN27:
-    lib_name: basic
-    cell_name: ipin
     instpins: {}
   PIN25:
     lib_name: basic
@@ -312,7 +308,7 @@ instances:
         num_bits: 2
       inn_a:
         direction: input
-        net_name: "outn_ctle"
+        net_name: "inn"
         num_bits: 1
       inn_d<3:0>:
         direction: input
@@ -320,7 +316,7 @@ instances:
         num_bits: 4
       inp_a:
         direction: input
-        net_name: "outp_ctle"
+        net_name: "inp"
         num_bits: 1
       inp_d<3:0>:
         direction: input
@@ -410,31 +406,3 @@ instances:
         direction: input
         net_name: "en_div<3:2>"
         num_bits: 2
-  XCTLE:
-    lib_name: bag_serdes_ec
-    cell_name: ctle_passive
-    instpins:
-      outcm:
-        direction: input
-        net_name: "v_vincm"
-        num_bits: 1
-      VSS:
-        direction: inputOutput
-        net_name: "VSS"
-        num_bits: 1
-      outp:
-        direction: output
-        net_name: "outp_ctle"
-        num_bits: 1
-      outn:
-        direction: output
-        net_name: "outn_ctle"
-        num_bits: 1
-      inp:
-        direction: input
-        net_name: "inp"
-        num_bits: 1
-      inn:
-        direction: input
-        net_name: "inn"
-        num_bits: 1

@@ -202,10 +202,6 @@ instances:
     lib_name: bag_serdes_ec
     cell_name: qdr_datapath
     instpins:
-      v_vincm:
-        direction: input
-        net_name: "v_vincm"
-        num_bits: 1
       clk_digital_tap1<3:0>:
         direction: input
         net_name: "clk_digital_tap1<3:0>"
@@ -288,11 +284,11 @@ instances:
         num_bits: 2
       inn:
         direction: input
-        net_name: "inn"
+        net_name: "outn_ctle"
         num_bits: 1
       inp:
         direction: input
-        net_name: "inp"
+        net_name: "outp_ctle"
         num_bits: 1
       scan_div<3:2>:
         direction: input
@@ -465,4 +461,32 @@ instances:
       VSS:
         direction: inputOutput
         net_name: "VSS"
+        num_bits: 1
+  XCTLE:
+    lib_name: bag_serdes_ec
+    cell_name: ctle_passive
+    instpins:
+      outcm:
+        direction: input
+        net_name: "v_vincm"
+        num_bits: 1
+      VSS:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      outp:
+        direction: output
+        net_name: "outp_ctle"
+        num_bits: 1
+      outn:
+        direction: output
+        net_name: "outn_ctle"
+        num_bits: 1
+      inp:
+        direction: input
+        net_name: "inp"
+        num_bits: 1
+      inn:
+        direction: input
+        net_name: "inn"
         num_bits: 1

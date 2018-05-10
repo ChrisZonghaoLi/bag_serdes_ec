@@ -15,8 +15,9 @@ from abs_templates_ec.routing.bias import BiasShield
 from analog_ec.layout.dac.rladder.top import RDACArray
 from analog_ec.layout.passives.filter.highpass import HighPassArrayClk
 
-from .datapath import RXDatapath
+from ..analog.passives import PassiveCTLE
 from ..digital.buffer import BufferArray
+from .datapath import RXDatapath
 
 if TYPE_CHECKING:
     from bag.layout.template import TemplateDB
@@ -97,6 +98,7 @@ class RXFrontend(TemplateBase):
     def get_params_info(cls):
         # type: () -> Dict[str, str]
         return dict(
+            ctle_params='CTLE parameters.',
             dp_params='datapath parameters.',
             hp_params='high-pass filter array parameters.',
             scan_buf_params='scan buffer parameters.',
@@ -123,54 +125,61 @@ class RXFrontend(TemplateBase):
         bias_config = self.params['bias_config']
         show_pins = self.params['show_pins']
 
-        dp_master, hpx_master, hp1_master = self._make_masters(tr_widths, tr_spaces)
+        master_ctle, master_dp, master_hpx, master_hp1 = self._make_masters(tr_widths, tr_spaces)
 
         # place masters
-        hp_h = hpx_master.array_box.top_unit
-        hpx_w = hpx_master.bound_box.width_unit
-        hp1_w = hp1_master.bound_box.width_unit
+        ctle_box = master_ctle.bound_box
+        dp_box = master_dp.bound_box
+        ctle_w = ctle_box.width_unit
+        ctle_h = ctle_box.height_unit
+        hp_h = master_hpx.array_box.top_unit
+        hpx_w = master_hpx.bound_box.width_unit
+        hp1_w = master_hp1.bound_box.width_unit
 
-        ym_layer = dp_master.top_layer
+        ym_layer = master_dp.top_layer
         xm_layer = ym_layer + 1
+        blk_w, blk_h = self.grid.get_block_size(xm_layer, unit_mode=True, half_blk_y=False)
         tr_manager = TrackManager(self.grid, tr_widths, tr_spaces, half_space=True)
-        tmp = self._compute_route_height(ym_layer, tr_manager, dp_master.num_ffe,
-                                         dp_master.num_dfe, bias_config)
+
+        tmp = self._compute_route_height(ym_layer, tr_manager, master_dp.num_ffe,
+                                         master_dp.num_dfe, bias_config)
         clk_locs, clk_h, vss_h, vdd_h = tmp
 
         bot_h = hp_h + clk_h + vss_h + vdd_h
-        bnd_box = dp_master.bound_box
-        blk_w, blk_h = self.grid.get_block_size(xm_layer, unit_mode=True, half_blk_y=False)
-        dp_h = bnd_box.height_unit
+        dp_h = dp_box.height_unit
         inner_h = dp_h + 2 * bot_h
-        tot_w = -(-(bnd_box.width_unit + bus_margin) // blk_w) * blk_w
+        tot_w = -(-(bus_margin + ctle_w + dp_box.width_unit) // blk_w) * blk_w
         tot_h = -(-inner_h // blk_h) * blk_h
         yoff = (tot_h - inner_h) // 2
-        x0 = tot_w - bnd_box.width_unit
-        y0 = yoff + bot_h
-        dp_inst = self.add_instance(dp_master, 'XDP', loc=(x0, y0), unit_mode=True)
-        dbuf_locs = dp_master.buf_locs
-        self._buf_locs = ((dbuf_locs[0][0] + x0, dbuf_locs[0][1] + y0),
-                          (dbuf_locs[1][0] + x0, dbuf_locs[1][1] + y0))
-        x_hpx = x0 + dp_master.x_tapx[1] - hpx_w
-        x_hp1 = max(x_hpx + hpx_w, x0 + dp_master.x_tap1[1] - hp1_w)
-        hpxb_inst = self.add_instance(hpx_master, 'XHPXB', loc=(x_hpx, yoff), unit_mode=True)
-        hp1b_inst = self.add_instance(hp1_master, 'XHP1B', loc=(x_hp1, yoff), unit_mode=True)
-        hpxt_inst = self.add_instance(hpx_master, 'XHPXB', loc=(x_hpx, tot_h - yoff),
+        x_dp = tot_w - dp_box.width_unit
+        x_ctle = x_dp - ctle_w
+        y_dp = yoff + bot_h
+        y_ctle = (tot_h - ctle_h) // 2
+        ctle_inst = self.add_instance(master_ctle, 'XCTLE', loc=(x_ctle, y_ctle), unit_mode=True)
+        dp_inst = self.add_instance(master_dp, 'XDP', loc=(x_dp, y_dp), unit_mode=True)
+        dbuf_locs = master_dp.buf_locs
+        self._buf_locs = ((dbuf_locs[0][0] + x_dp, dbuf_locs[0][1] + y_dp),
+                          (dbuf_locs[1][0] + x_dp, dbuf_locs[1][1] + y_dp))
+        x_hpx = x_dp + master_dp.x_tapx[1] - hpx_w
+        x_hp1 = max(x_hpx + hpx_w, x_dp + master_dp.x_tap1[1] - hp1_w)
+        hpxb_inst = self.add_instance(master_hpx, 'XHPXB', loc=(x_hpx, yoff), unit_mode=True)
+        hp1b_inst = self.add_instance(master_hp1, 'XHP1B', loc=(x_hp1, yoff), unit_mode=True)
+        hpxt_inst = self.add_instance(master_hpx, 'XHPXB', loc=(x_hpx, tot_h - yoff),
                                       orient='MX', unit_mode=True)
-        hp1t_inst = self.add_instance(hp1_master, 'XHP1B', loc=(x_hp1, tot_h - yoff),
+        hp1t_inst = self.add_instance(master_hp1, 'XHP1B', loc=(x_hp1, tot_h - yoff),
                                       orient='MX', unit_mode=True)
 
-        bnd_box = BBox(0, 0, tot_w, tot_h, self.grid.resolution, unit_mode=True)
-        self.set_size_from_bound_box(ym_layer, bnd_box)
-        self.array_box = bnd_box
-        self.add_cell_boundary(bnd_box)
+        dp_box = BBox(0, 0, tot_w, tot_h, self.grid.resolution, unit_mode=True)
+        self.set_size_from_bound_box(ym_layer, dp_box)
+        self.array_box = dp_box
+        self.add_cell_boundary(dp_box)
 
         # mark blockages
         yb = yoff + hp_h
         yt = tot_h - yoff - hp_h
         res = self.grid.resolution
-        for xl, xu in dp_master.blockage_intvs:
-            self.mark_bbox_used(ym_layer, BBox(xl + x0, yb, xu + x0, yt, res, unit_mode=True))
+        for xl, xu in master_dp.blockage_intvs:
+            self.mark_bbox_used(ym_layer, BBox(xl + x_dp, yb, xu + x_dp, yt, res, unit_mode=True))
 
         # export pins
         self._reexport_dp_pins(dp_inst, show_pins)
@@ -178,37 +187,65 @@ class RXFrontend(TemplateBase):
         # connect supplies
         vdd_wires = dp_inst.get_all_port_pins('VDD', layer=ym_layer)
         vss_wires = dp_inst.get_all_port_pins('VSS', layer=ym_layer)
-        self._connect_supply_clk(tr_manager, ym_layer + 1, dp_inst, dp_master.sup_y_list,
-                                 vdd_wires, vss_wires, show_pins)
+        clkp, clkn = self._connect_supply_clk(tr_manager, ym_layer + 1, dp_inst,
+                                              master_dp.sup_y_list, vdd_wires, vss_wires, show_pins)
+
+        # connect CTLE
+        self._connect_ctle(tr_manager, ctle_inst, dp_inst, clkp.track_id, clkn.track_id, show_pins)
 
         # connect clocks and VSS-referenced wires
-        num_dfe = dp_master.num_dfe
+        num_dfe = master_dp.num_dfe
         hm_layer = ym_layer - 1
         clk_tr_w = tr_manager.get_width(hm_layer, 'clk')
         ytop = tot_h - yoff
 
-        self._connect_clk_vss_bias(hm_layer, vss_wires, x0, yoff, ytop, dp_inst, hpxb_inst,
+        self._connect_clk_vss_bias(hm_layer, vss_wires, x_dp, yoff, ytop, dp_inst, hpxb_inst,
                                    hp1b_inst, num_dfe, hp_h, clk_locs, clk_tr_w, clk_h, vss_h,
                                    bias_config, show_pins, is_bot=True)
 
-        self._connect_clk_vss_bias(hm_layer, vss_wires, x0, yoff, ytop, dp_inst, hpxt_inst,
+        self._connect_clk_vss_bias(hm_layer, vss_wires, x_dp, yoff, ytop, dp_inst, hpxt_inst,
                                    hp1t_inst, num_dfe, hp_h, clk_locs, clk_tr_w, clk_h, vss_h,
                                    bias_config, show_pins, is_bot=False)
 
         # gather VDD-referenced wires
-        num_ffe = dp_master.num_ffe
+        num_ffe = master_dp.num_ffe
         vdd_wires.extend(dp_inst.port_pins_iter('VDD', layer=ym_layer - 2))
-        y0 = yoff + hp_h + clk_h + vss_h
-        self._connect_vdd_bias(hm_layer, x0, num_dfe, num_ffe, vdd_wires, dp_inst,
-                               y0, bias_config, show_pins, is_bot=True)
+        y_dp = yoff + hp_h + clk_h + vss_h
+        self._connect_vdd_bias(hm_layer, x_dp, num_dfe, num_ffe, vdd_wires, dp_inst,
+                               y_dp, bias_config, show_pins, is_bot=True)
 
-        y0 = ytop - (hp_h + clk_h + vss_h + vdd_h)
-        self._connect_vdd_bias(hm_layer, x0, num_dfe, num_ffe, vdd_wires, dp_inst,
-                               y0, bias_config, show_pins, is_bot=False)
+        y_dp = ytop - (hp_h + clk_h + vss_h + vdd_h)
+        self._connect_vdd_bias(hm_layer, x_dp, num_dfe, num_ffe, vdd_wires, dp_inst,
+                               y_dp, bias_config, show_pins, is_bot=False)
 
-        self._sch_params = dp_master.sch_params.copy()
-        self._sch_params['hp_params'] = hpx_master.sch_params['hp_params']
-        self._sch_params['ndum_res'] = hpx_master.sch_params['ndum'] * 4
+        self._sch_params = master_dp.sch_params.copy()
+        self._sch_params['hp_params'] = master_hpx.sch_params['hp_params']
+        self._sch_params['ndum_res'] = master_hpx.sch_params['ndum'] * 4
+
+    def _connect_ctle(self, tr_manager, ctle_inst, dp_inst, p_tid, n_tid, show_pins):
+        xm_layer = p_tid.layer_id
+        tr_w = tr_manager.get_width(xm_layer, 'serdes_in')
+        pyb = p_tid.get_bounds(self.grid, unit_mode=True)[0]
+        nyt = n_tid.get_bounds(self.grid, unit_mode=True)[1]
+        pidx = self.grid.find_next_track(xm_layer, pyb, tr_width=tr_w, half_track=True,
+                                         mode=-1, unit_mode=True)
+        nidx = self.grid.find_next_track(xm_layer, nyt, tr_width=tr_w, half_track=True,
+                                         mode=1, unit_mode=True)
+
+        plist = [ctle_inst.get_pin('outp'), dp_inst.get_pin('inp')]
+        nlist = [ctle_inst.get_pin('outn'), dp_inst.get_pin('inn')]
+        self.connect_differential_tracks(plist, nlist, xm_layer, pidx, nidx, width=tr_w)
+
+        inp = self.connect_to_tracks(ctle_inst.get_pin('inp'), TrackID(xm_layer, pidx, width=tr_w),
+                                     min_len_mode=-1)
+        inn = self.connect_to_tracks(ctle_inst.get_pin('inn'), TrackID(xm_layer, nidx, width=tr_w),
+                                     min_len_mode=-1)
+
+        self.add_pin('inp', inp, show=show_pins)
+        self.add_pin('inn', inn, show=show_pins)
+        self.reexport(ctle_inst.get_port('outcm'), net_name='v_vincm', show=show_pins)
+
+        return ctle_inst.get_all_port_pins('VSS')
 
     def _connect_supply_clk(self, tr_manager, xm_layer, dp_inst, sup_yc_list, vdd_wires, vss_wires,
                             show_pins):
@@ -270,8 +307,10 @@ class RXFrontend(TemplateBase):
         self.add_pin('VDD_re', dp_inst.get_all_port_pins('VDD_re'), label='VDD', show=False)
         self.add_pin('VSS_re', dp_inst.get_all_port_pins('VSS_re'), label='VSS', show=False)
 
+        return clkp, clkn
+
     def _reexport_dp_pins(self, dp_inst, show_pins):
-        for name in ['inp', 'inn', 'v_vincm', 'des_clk', 'des_clkb']:
+        for name in ['inp', 'inn', 'des_clk', 'des_clkb']:
             self.reexport(dp_inst.get_port(name), show=show_pins)
 
         for idx in range(4):
@@ -546,11 +585,18 @@ class RXFrontend(TemplateBase):
         return locs, clk_h, vss_h, vdd_h
 
     def _make_masters(self, tr_widths, tr_spaces):
+        ctle_params = self.params['ctle_params']
         dp_params = self.params['dp_params']
         hp_params = self.params['hp_params']
         buf_params = self.params['scan_buf_params']
         tr_widths_dig = self.params['tr_widths_dig']
         tr_spaces_dig = self.params['tr_spaces_dig']
+
+        ctle_params = ctle_params.copy()
+        ctle_params['tr_widths'] = tr_widths
+        ctle_params['tr_spaces'] = tr_spaces
+        ctle_params['show_pins'] = False
+        master_ctle = self.new_template(params=ctle_params, temp_cls=PassiveCTLE)
 
         dp_params = dp_params.copy()
         dp_params['scan_buf_params'] = buf_params
@@ -559,20 +605,20 @@ class RXFrontend(TemplateBase):
         dp_params['tr_widths_dig'] = tr_widths_dig
         dp_params['tr_spaces_dig'] = tr_spaces_dig
         dp_params['show_pins'] = False
-        dp_master = self.new_template(params=dp_params, temp_cls=RXDatapath)
-        self._retime_ncol = dp_master.retime_ncol
+        master_dp = self.new_template(params=dp_params, temp_cls=RXDatapath)
+        self._retime_ncol = master_dp.retime_ncol
 
         hp_params = hp_params.copy()
-        hp_params['narr'] = dp_master.num_hp_tapx
+        hp_params['narr'] = master_dp.num_hp_tapx
         hp_params['tr_widths'] = tr_widths
         hp_params['tr_spaces'] = tr_spaces
         hp_params['show_pins'] = False
-        hpx_master = self.new_template(params=hp_params, temp_cls=HighPassArrayClk)
+        master_hpx = self.new_template(params=hp_params, temp_cls=HighPassArrayClk)
 
-        hp_params['narr'] = dp_master.num_hp_tap1
-        hp1_master = self.new_template(params=hp_params, temp_cls=HighPassArrayClk)
+        hp_params['narr'] = master_dp.num_hp_tap1
+        master_hp1 = self.new_template(params=hp_params, temp_cls=HighPassArrayClk)
 
-        return dp_master, hpx_master, hp1_master
+        return master_ctle, master_dp, master_hpx, master_hp1
 
 
 class RXTop(TemplateBase):
