@@ -790,7 +790,7 @@ class RXTop(TemplateBase):
         bias_config = self.params['bias_config']
         fill_orient_mode = self.params['fill_orient_mode']
 
-        dac_params['fill_config'] = fill_config
+        fe_params['fill_config'] = dac_params['fill_config'] = fill_config
         fe_params['bias_config'] = dac_params['bias_config'] = bias_config
         dac_params['fill_orient_mode'] = fill_orient_mode ^ 2
         fe_params['show_pins'] = dac_params['show_pins'] = False
