@@ -657,7 +657,7 @@ class RXTop(TemplateBase):
                               master_fe.top_scan_names, show_pins)
 
         for name in inst_dac.port_names_iter():
-            if name.startswith('bias_'):
+            if name.startswith('bias_') or name == 'VDD' or name == 'VSS':
                 self.reexport(inst_dac.get_port(name), show=show_pins)
 
         self._sch_params = dict(
@@ -666,7 +666,7 @@ class RXTop(TemplateBase):
         )
 
     def _reexport_fe_pins(self, inst_fe, show_pins):
-        for name in ['inp', 'inn', 'des_clk', 'des_clkb']:
+        for name in ['inp', 'inn', 'des_clk', 'des_clkb', 'clkp', 'clkn', 'VDD', 'VSS']:
             self.reexport(inst_fe.get_port(name), show=show_pins)
 
         for idx in range(4):
