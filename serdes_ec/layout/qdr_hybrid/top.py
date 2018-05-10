@@ -185,9 +185,10 @@ class RXFrontend(TemplateBase):
                                               master_dp.sup_y_list, vdd_wires, vss_wires, show_pins)
 
         # connect CTLE
-        self._connect_ctle(tr_manager, ctle_inst, dp_inst, clkp.track_id, clkn.track_id, show_pins)
+        vincm, ctle_vss = self._connect_ctle(tr_manager, ctle_inst, dp_inst, clkp.track_id,
+                                             clkn.track_id, show_pins)
 
-        # connect clocks and VSS-referenced wires
+        # connect biases
         num_dfe = master_dp.num_dfe
         hm_layer = ym_layer - 1
         clk_tr_w = tr_manager.get_width(hm_layer, 'clk')
@@ -219,9 +220,17 @@ class RXFrontend(TemplateBase):
                                     y_dp, bias_config, show_pins, vdd_pins, is_bot=False)
         hm_bias_info_list[2] = bi
 
+        # connect vincm
+        vss_rtids = BiasShield.get_route_tids(self.grid, vm_layer, vss_x[0] + x_route,
+                                              bias_config, num_vm_vss)
+        vincm_tid = TrackID(vm_layer, vss_rtids[-2][0], width=vss_rtids[-2][1])
+        vincm = self.connect_to_tracks(vincm, vincm_tid, track_upper=ytop - hp_h - clk_h,
+                                       unit_mode=True)
+        self.add_pin('v_vincm', vincm, show=show_pins, edge_mode=1)
+        # join bias routes together
         join_bias_vroutes(self, vm_layer, vdd_x, vss_x, x_ctle, num_vm_vdd, num_vm_vss,
                           hm_bias_info_list, bias_config, vdd_pins, vss_pins, show_pins,
-                          xl=x_route)
+                          xl=x_route, vss_warrs=ctle_vss)
 
         self._sch_params = master_dp.sch_params.copy()
         self._sch_params['ctle_params'] = master_ctle.sch_params
@@ -249,9 +258,8 @@ class RXFrontend(TemplateBase):
 
         self.add_pin('inp', inp, show=show_pins)
         self.add_pin('inn', inn, show=show_pins)
-        self.reexport(ctle_inst.get_port('outcm'), net_name='v_vincm', show=show_pins)
 
-        return ctle_inst.get_all_port_pins('VSS')
+        return ctle_inst.get_pin('outcm'), ctle_inst.get_all_port_pins('VSS')
 
     def _connect_supply_clk(self, tr_manager, xm_layer, dp_inst, sup_yc_list, vdd_wires, vss_wires,
                             show_pins):
