@@ -1,0 +1,188 @@
+lib_name: bag_serdes_ec
+cell_name: ctle_passive
+pins: [ "inp", "inn", "outp", "VSS", "outn", "outcm" ]
+instances:
+  RN1:
+    lib_name: BAG_prim
+    cell_name: res_standard
+    instpins:
+      PLUS:
+        direction: inputOutput
+        net_name: "outn"
+        num_bits: 1
+      MINUS:
+        direction: inputOutput
+        net_name: "inn"
+        num_bits: 1
+      BULK:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+  RDUM:
+    lib_name: BAG_prim
+    cell_name: res_standard
+    instpins:
+      PLUS:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      MINUS:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      BULK:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+  RP2:
+    lib_name: BAG_prim
+    cell_name: res_standard
+    instpins:
+      PLUS:
+        direction: inputOutput
+        net_name: "outp"
+        num_bits: 1
+      MINUS:
+        direction: inputOutput
+        net_name: "outcm"
+        num_bits: 1
+      BULK:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+  RN2:
+    lib_name: BAG_prim
+    cell_name: res_standard
+    instpins:
+      PLUS:
+        direction: inputOutput
+        net_name: "outcm"
+        num_bits: 1
+      MINUS:
+        direction: inputOutput
+        net_name: "outn"
+        num_bits: 1
+      BULK:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+  RP1:
+    lib_name: BAG_prim
+    cell_name: res_standard
+    instpins:
+      PLUS:
+        direction: inputOutput
+        net_name: "inp"
+        num_bits: 1
+      MINUS:
+        direction: inputOutput
+        net_name: "outp"
+        num_bits: 1
+      BULK:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+  PIN3:
+    lib_name: basic
+    cell_name: iopin
+    instpins: {}
+  RMIN:
+    lib_name: BAG_prim
+    cell_name: res_metal
+    instpins:
+      MINUS:
+        direction: inputOutput
+        net_name: "yn"
+        num_bits: 1
+      PLUS:
+        direction: inputOutput
+        net_name: "inn"
+        num_bits: 1
+  RMON:
+    lib_name: BAG_prim
+    cell_name: res_metal
+    instpins:
+      MINUS:
+        direction: inputOutput
+        net_name: "xn"
+        num_bits: 1
+      PLUS:
+        direction: inputOutput
+        net_name: "outn"
+        num_bits: 1
+  RMIP:
+    lib_name: BAG_prim
+    cell_name: res_metal
+    instpins:
+      MINUS:
+        direction: inputOutput
+        net_name: "yp"
+        num_bits: 1
+      PLUS:
+        direction: inputOutput
+        net_name: "inp"
+        num_bits: 1
+  RMOP:
+    lib_name: BAG_prim
+    cell_name: res_metal
+    instpins:
+      MINUS:
+        direction: inputOutput
+        net_name: "xp"
+        num_bits: 1
+      PLUS:
+        direction: inputOutput
+        net_name: "outp"
+        num_bits: 1
+  PIN2:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN5:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN4:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  XNC2:
+    lib_name: basic
+    cell_name: noConn
+    instpins:
+      noConn:
+        direction: inputOutput
+        net_name: "xp"
+        num_bits: 1
+  XNC1:
+    lib_name: basic
+    cell_name: noConn
+    instpins:
+      noConn:
+        direction: inputOutput
+        net_name: "yn"
+        num_bits: 1
+  XNC0:
+    lib_name: basic
+    cell_name: noConn
+    instpins:
+      noConn:
+        direction: inputOutput
+        net_name: "yp"
+        num_bits: 1
+  XNC3:
+    lib_name: basic
+    cell_name: noConn
+    instpins:
+      noConn:
+        direction: inputOutput
+        net_name: "xn"
+        num_bits: 1
+  PIN1:
+    lib_name: basic
+    cell_name: opin
+    instpins: {}
+  PIN0:
+    lib_name: basic
+    cell_name: opin
+    instpins: {}

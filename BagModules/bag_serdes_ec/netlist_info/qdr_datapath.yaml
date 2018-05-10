@@ -312,7 +312,7 @@ instances:
         num_bits: 2
       inn_a:
         direction: input
-        net_name: "inn"
+        net_name: "outn_ctle"
         num_bits: 1
       inn_d<3:0>:
         direction: input
@@ -320,7 +320,7 @@ instances:
         num_bits: 4
       inp_a:
         direction: input
-        net_name: "inp"
+        net_name: "outp_ctle"
         num_bits: 1
       inp_d<3:0>:
         direction: input
@@ -410,3 +410,31 @@ instances:
         direction: input
         net_name: "en_div<3:2>"
         num_bits: 2
+  XCTLE:
+    lib_name: bag_serdes_ec
+    cell_name: ctle_passive
+    instpins:
+      outcm:
+        direction: input
+        net_name: "v_vincm"
+        num_bits: 1
+      VSS:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      outp:
+        direction: output
+        net_name: "outp_ctle"
+        num_bits: 1
+      outn:
+        direction: output
+        net_name: "outn_ctle"
+        num_bits: 1
+      inp:
+        direction: input
+        net_name: "inp"
+        num_bits: 1
+      inn:
+        direction: input
+        net_name: "inn"
+        num_bits: 1
