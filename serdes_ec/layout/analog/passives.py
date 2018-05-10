@@ -8,6 +8,7 @@ from bag.layout.util import BBox
 
 from abs_templates_ec.resistor.core import ResArrayBase
 
+from analog_ec.layout.passives.substrate import SubstrateWrapper
 
 if TYPE_CHECKING:
     from bag.layout.template import TemplateDB
@@ -47,8 +48,6 @@ class PassiveCTLECore(ResArrayBase):
             l='unit resistor length, in meters.',
             w='unit resistor width, in meters.',
             cap_height='capacitor height, in resolution units.',
-            cap_spx='Space between capacitor and left/right edge, in resolution units.',
-            cap_spy='Space between capacitor and cm-port/top/bottom edge, in resolution units.',
             num_r1='number of r1 segments.',
             num_r2='number of r2 segments.',
             num_dumc='number of dummy columns.',
@@ -58,7 +57,10 @@ class PassiveCTLECore(ResArrayBase):
             tr_widths='Track width dictionary.',
             tr_spaces='Track spacing dictionary.',
             res_type='the resistor type.',
-            em_specs='EM specifications for the termination network.',
+            res_options='Configuration dictionary for ResArrayBase.',
+            cap_spx='Space between capacitor and left/right edge, in resolution units.',
+            cap_spy='Space between capacitor and cm-port/top/bottom edge, in resolution units.',
+            half_blk_x='True to allow for half horizontal blocks.',
             show_pins='True to draw pin layous.',
         )
 
@@ -67,7 +69,10 @@ class PassiveCTLECore(ResArrayBase):
         # type: () -> Dict[str, Any]
         return dict(
             res_type='standard',
-            em_specs=None,
+            res_options=None,
+            cap_spx=0,
+            cap_spy=0,
+            half_blk_x=True,
             show_pins=True,
         )
 
@@ -77,8 +82,6 @@ class PassiveCTLECore(ResArrayBase):
         l = self.params['l']
         w = self.params['w']
         cap_height = self.params['cap_height']
-        cap_spx = self.params['cap_spx']
-        cap_spy = self.params['cap_spy']
         num_r1 = self.params['num_r1']
         num_r2 = self.params['num_r2']
         num_dumc = self.params['num_dumc']
@@ -88,7 +91,10 @@ class PassiveCTLECore(ResArrayBase):
         tr_widths = self.params['tr_widths']
         tr_spaces = self.params['tr_spaces']
         res_type = self.params['res_type']
-        em_specs = self.params['em_specs']
+        res_options = self.params['res_options']
+        cap_spx = self.params['cap_spx']
+        cap_spy = self.params['cap_spy']
+        half_blk_x = self.params['half_blk_x']
         show_pins = self.params['show_pins']
 
         res = self.grid.resolution
@@ -97,15 +103,22 @@ class PassiveCTLECore(ResArrayBase):
             raise ValueError('num_r1 and num_r2 must be even.')
         if num_dumc <= 0 or num_dumr <= 0:
             raise ValueError('num_dumr and num_dumc must be greater than 0.')
+        if res_options is None:
+            my_options = dict(well_end_mode=2)
+        else:
+            my_options = res_options.copy()
+            my_options['well_end_mode'] = 2
 
         # draw array
         nr1 = num_r1 // 2
         nr2 = num_r2 // 2
         hm_layer = self.bot_layer_id + 2
         top_layer = hm_layer + 1
-        self.draw_array(l, w, sub_type, threshold, nx=4 + num_dumc * 2,
-                        ny=2 * (max(nr1, nr2) + num_dumr), em_specs=em_specs,
-                        res_type=res_type, half_blk_y=False, top_layer=top_layer)
+        nx = 4 + 2 * num_dumc
+        ny = 2 * (max(nr1, nr2) + num_dumr)
+        self.draw_array(l, w, sub_type, threshold, nx=nx, ny=ny, top_layer=top_layer,
+                        res_type=res_type, grid_type=None, options=my_options,
+                        connect_up=True, half_blk_x=half_blk_x, half_blk_y=False)
 
         # connect wires
         tr_manager = TrackManager(self.grid, tr_widths, tr_spaces, half_space=True)
@@ -147,8 +160,10 @@ class PassiveCTLECore(ResArrayBase):
         self.add_pin('outp', cap_top[top_layer][1], show=show_pins)
         self.add_pin('inn', cap_bot[top_layer][0], show=show_pins)
         self.add_pin('outn', cap_bot[top_layer][1], show=show_pins)
-        self.add_pin(sup_name + 'B', supb, label=sup_name, show=show_pins)
-        self.add_pin(sup_name + 'T', supt, label=sup_name, show=show_pins)
+        self.add_pin(sup_name, supb, label=sup_name, show=show_pins)
+        self.add_pin(sup_name, supt, label=sup_name, show=show_pins)
+
+        self._sch_params = {}
 
     def _connect_snake(self, nr1, nr2, ndumr, ndumc, io_width, show_pins):
         nrow_half = max(nr1, nr2) + ndumr
@@ -261,3 +276,75 @@ class PassiveCTLECore(ResArrayBase):
         ttr = self.connect_to_tracks(top_warrs, TrackID(hm_layer, num_hm_tracks - 1))
 
         return ttr, btr
+
+
+class PassiveCTLE(SubstrateWrapper):
+    """A wrapper with substrate contact around HighPassArrayClkCore
+
+    Parameters
+    ----------
+    temp_db : TemplateDB
+        the template database.
+    lib_name : str
+        the layout library name.
+    params : Dict[str, Any]
+        the parameter values.
+    used_names : Set[str]
+        a set of already used cell names.
+    **kwargs
+        dictionary of optional parameters.  See documentation of
+        :class:`bag.layout.template.TemplateBase` for details.
+    """
+
+    def __init__(self, temp_db, lib_name, params, used_names, **kwargs):
+        # type: (TemplateDB, str, Dict[str, Any], Set[str], **kwargs) -> None
+        SubstrateWrapper.__init__(self, temp_db, lib_name, params, used_names, **kwargs)
+
+    @classmethod
+    def get_params_info(cls):
+        # type: () -> Dict[str, str]
+        return dict(
+            l='unit resistor length, in meters.',
+            w='unit resistor width, in meters.',
+            cap_height='capacitor height, in resolution units.',
+            num_r1='number of r1 segments.',
+            num_r2='number of r2 segments.',
+            num_dumc='number of dummy columns.',
+            num_dumr='number of dummy rows.',
+            sub_w='Substrate width.',
+            sub_lch='Substrate channel length.',
+            sub_type='the substrate type.',
+            threshold='the substrate threshold flavor.',
+            tr_widths='Track width dictionary.',
+            tr_spaces='Track spacing dictionary.',
+            res_type='the resistor type.',
+            res_options='Configuration dictionary for ResArrayBase.',
+            cap_spx='Space between capacitor and left/right edge, in resolution units.',
+            cap_spy='Space between capacitor and cm-port/top/bottom edge, in resolution units.',
+            sub_tr_w='substrate track width in number of tracks.  None for default.',
+            show_pins='True to draw pin layous.',
+        )
+
+    @classmethod
+    def get_default_param_values(cls):
+        # type: () -> Dict[str, Any]
+        return dict(
+            res_type='standard',
+            res_options=None,
+            cap_spx=0,
+            cap_spy=0,
+            sub_tr_w=None,
+            show_pins=True,
+        )
+
+    def draw_layout(self):
+        sub_w = self.params['sub_w']
+        sub_lch = self.params['sub_lch']
+        sub_type = self.params['sub_type']
+        threshold = self.params['threshold']
+        sub_tr_w = self.params['sub_tr_w']
+        show_pins = self.params['show_pins']
+
+        params = self.params.copy()
+        self.draw_layout_helper(PassiveCTLECore, params, sub_lch, sub_w, sub_tr_w,
+                                sub_type, threshold, show_pins, is_passive=True)

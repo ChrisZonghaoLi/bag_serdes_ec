@@ -4,7 +4,7 @@ import yaml
 
 from bag.core import BagProject
 
-from serdes_ec.layout.analog.passives import PassiveCTLECore
+from serdes_ec.layout.analog.passives import PassiveCTLE
 
 
 if __name__ == '__main__':
@@ -20,5 +20,5 @@ if __name__ == '__main__':
         print('loading BAG project')
         bprj = local_dict['bprj']
 
-    bprj.generate_cell(block_specs, PassiveCTLECore, debug=True)
-    # bprj.generate_cell(block_specs, PassiveCTLECore, gen_sch=True, run_lvs=True, debug=True)
+    bprj.generate_cell(block_specs, PassiveCTLE, debug=True)
+    # bprj.generate_cell(block_specs, PassiveCTLE, gen_sch=True, run_lvs=True, debug=True)
