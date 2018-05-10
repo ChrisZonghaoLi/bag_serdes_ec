@@ -8,11 +8,11 @@ instances:
     instpins:
       PLUS:
         direction: inputOutput
-        net_name: "outn"
+        net_name: "outnr"
         num_bits: 1
       MINUS:
         direction: inputOutput
-        net_name: "inn"
+        net_name: "innr"
         num_bits: 1
       BULK:
         direction: inputOutput
@@ -40,7 +40,7 @@ instances:
     instpins:
       PLUS:
         direction: inputOutput
-        net_name: "outp"
+        net_name: "outpr"
         num_bits: 1
       MINUS:
         direction: inputOutput
@@ -60,7 +60,7 @@ instances:
         num_bits: 1
       MINUS:
         direction: inputOutput
-        net_name: "outn"
+        net_name: "outnr"
         num_bits: 1
       BULK:
         direction: inputOutput
@@ -72,11 +72,11 @@ instances:
     instpins:
       PLUS:
         direction: inputOutput
-        net_name: "inp"
+        net_name: "inpr"
         num_bits: 1
       MINUS:
         direction: inputOutput
-        net_name: "outp"
+        net_name: "outpr"
         num_bits: 1
       BULK:
         direction: inputOutput
@@ -92,11 +92,11 @@ instances:
     instpins:
       MINUS:
         direction: inputOutput
-        net_name: "yn"
+        net_name: "inn"
         num_bits: 1
       PLUS:
         direction: inputOutput
-        net_name: "inn"
+        net_name: "innr"
         num_bits: 1
   RMON:
     lib_name: BAG_prim
@@ -104,11 +104,11 @@ instances:
     instpins:
       MINUS:
         direction: inputOutput
-        net_name: "xn"
+        net_name: "outn"
         num_bits: 1
       PLUS:
         direction: inputOutput
-        net_name: "outn"
+        net_name: "outnr"
         num_bits: 1
   RMIP:
     lib_name: BAG_prim
@@ -116,7 +116,7 @@ instances:
     instpins:
       MINUS:
         direction: inputOutput
-        net_name: "yp"
+        net_name: "inpr"
         num_bits: 1
       PLUS:
         direction: inputOutput
@@ -128,7 +128,7 @@ instances:
     instpins:
       MINUS:
         direction: inputOutput
-        net_name: "xp"
+        net_name: "outpr"
         num_bits: 1
       PLUS:
         direction: inputOutput
@@ -146,38 +146,6 @@ instances:
     lib_name: basic
     cell_name: ipin
     instpins: {}
-  XNC2:
-    lib_name: basic
-    cell_name: noConn
-    instpins:
-      noConn:
-        direction: inputOutput
-        net_name: "xp"
-        num_bits: 1
-  XNC1:
-    lib_name: basic
-    cell_name: noConn
-    instpins:
-      noConn:
-        direction: inputOutput
-        net_name: "yn"
-        num_bits: 1
-  XNC0:
-    lib_name: basic
-    cell_name: noConn
-    instpins:
-      noConn:
-        direction: inputOutput
-        net_name: "yp"
-        num_bits: 1
-  XNC3:
-    lib_name: basic
-    cell_name: noConn
-    instpins:
-      noConn:
-        direction: inputOutput
-        net_name: "xn"
-        num_bits: 1
   PIN1:
     lib_name: basic
     cell_name: opin

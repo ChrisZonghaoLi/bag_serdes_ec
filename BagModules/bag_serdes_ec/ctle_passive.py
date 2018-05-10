@@ -72,10 +72,10 @@ class bag_serdes_ec__ctle_passive(Module):
                 self.reconnect_instance_terminal('RDUM', 'BULK', sub_name)
 
         # design main resistors
-        res_list = [('RP1', 'inp', 'outp', 'mid_inp', nr1),
-                    ('RN1', 'inn', 'outn', 'mid_inn', nr1),
-                    ('RP2', 'outp', 'outcm', 'mid_outp', nr2),
-                    ('RN2', 'outn', 'outcm', 'mid_outn', nr2)]
+        res_list = [('RP1', 'inpr', 'outpr', 'mid_inp', nr1),
+                    ('RN1', 'innr', 'outnr', 'mid_inn', nr1),
+                    ('RP2', 'outpr', 'outcm', 'mid_outp', nr2),
+                    ('RN2', 'outnr', 'outcm', 'mid_outn', nr2)]
         for inst_name, in_name, out_name, mid_name, num in res_list:
             self.instances[inst_name].design(w=w, l=l, intent=intent)
             if num == 1:

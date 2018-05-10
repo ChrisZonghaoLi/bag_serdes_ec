@@ -98,6 +98,7 @@ class PassiveCTLECore(ResArrayBase):
         show_pins = self.params['show_pins']
 
         res = self.grid.resolution
+        lay_unit = self.grid.layout_unit
 
         if num_r1 % 2 != 0 or num_r2 % 2 != 0:
             raise ValueError('num_r1 and num_r2 must be even.')
@@ -112,10 +113,12 @@ class PassiveCTLECore(ResArrayBase):
         # draw array
         nr1 = num_r1 // 2
         nr2 = num_r2 // 2
-        hm_layer = self.bot_layer_id + 2
+        vm_layer = self.bot_layer_id + 1
+        hm_layer = vm_layer + 1
         top_layer = hm_layer + 1
         nx = 4 + 2 * num_dumc
         ny = 2 * (max(nr1, nr2) + num_dumr)
+        ndum_tot = nx * ny - 2 * (num_r1 + num_r2)
         self.draw_array(l, w, sub_type, threshold, nx=nx, ny=ny, top_layer=top_layer,
                         res_type=res_type, grid_type=None, options=my_options,
                         connect_up=True, half_blk_x=half_blk_x, half_blk_y=False)
@@ -123,12 +126,11 @@ class PassiveCTLECore(ResArrayBase):
         # connect wires
         tr_manager = TrackManager(self.grid, tr_widths, tr_spaces, half_space=True)
 
-        vm_layer = hm_layer - 1
         vm_w_io = tr_manager.get_width(vm_layer, 'ctle')
         sup_name = 'VDD' if sub_type == 'ntap' else 'VSS'
         supt, supb = self._connect_dummies(nr1, nr2, num_dumr, num_dumc)
-        inp, inn, outp, outn, outcm = self._connect_snake(nr1, nr2, num_dumr, num_dumc, vm_w_io,
-                                                          show_pins)
+        tmp = self._connect_snake(nr1, nr2, num_dumr, num_dumc, vm_w_io, show_pins)
+        inp, inn, outp, outn, outcm, outp_yt, outn_yb = tmp
 
         # calculate capacitor bounding box
         bnd_box = self.bound_box
@@ -136,7 +138,8 @@ class PassiveCTLECore(ResArrayBase):
         hm_w_io = tr_manager.get_width(hm_layer, 'ctle')
         cm_tr = self.grid.coord_to_track(hm_layer, yc, unit_mode=True)
         cm_yb, cm_yt = self.grid.get_wire_bounds(hm_layer, cm_tr, width=hm_w_io, unit_mode=True)
-        cap_yb = cm_yt + cap_spy
+        # make sure metal resistor has non-zero length
+        cap_yb = max(outp_yt + 2, cm_yt + cap_spy)
         cap_yt = min(cap_yb + cap_height, bnd_box.top_unit - cap_spy)
         cap_xl = cap_spx
         cap_xr = bnd_box.right_unit - cap_spx
@@ -146,15 +149,34 @@ class PassiveCTLECore(ResArrayBase):
         bot_parity = {hm_layer: (1, 0), top_layer: (1, 0)}
         cap_top = self.add_mom_cap(BBox(cap_xl, cap_yb, cap_xr, cap_yt, res, unit_mode=True),
                                    hm_layer, 2, port_parity=top_parity)
-        cap_yt = cm_yb - cap_spy
+        # make sure metal resistor has non-zero length
+        cap_yt = min(outn_yb - 2, cm_yb - cap_spy)
         cap_yb = max(cap_yt - cap_height, cap_spy)
         cap_bot = self.add_mom_cap(BBox(cap_xl, cap_yb, cap_xr, cap_yt, res, unit_mode=True),
                                    hm_layer, 2, port_parity=bot_parity)
 
+        outp_hm_tid = cap_top[hm_layer][1][0].track_id
+        outn_hm_tid = cap_bot[hm_layer][1][0].track_id
         self.connect_to_tracks(inp, cap_top[hm_layer][0][0].track_id)
-        self.connect_to_tracks(outp, cap_top[hm_layer][1][0].track_id)
+        self.connect_to_tracks(outp, outp_hm_tid)
         self.connect_to_tracks(inn, cap_bot[hm_layer][0][0].track_id)
-        self.connect_to_tracks(outn, cap_bot[hm_layer][1][0].track_id)
+        self.connect_to_tracks(outn, outn_hm_tid)
+
+        # add metal resistors
+        inp_vm_tid = inp.track_id
+        outp_vm_tid = outp.track_id
+        res_w = self.grid.get_track_width(vm_layer, outp_vm_tid.width, unit_mode=True)
+        rmp_yt = min(outp_yt + res_w, outp_hm_tid.get_bounds(self.grid, unit_mode=True)[0])
+        rmn_yb = max(outn_yb - res_w, outn_hm_tid.get_bounds(self.grid, unit_mode=True)[1])
+        res_info = (vm_layer, res_w * res * lay_unit, (rmp_yt - outp_yt) * res * lay_unit)
+        self.add_res_metal_warr(vm_layer, outp_vm_tid.base_index, outp_yt, rmp_yt,
+                                width=outp_vm_tid.width, unit_mode=True)
+        self.add_res_metal_warr(vm_layer, inp_vm_tid.base_index, outp_yt, rmp_yt,
+                                width=inp_vm_tid.width, unit_mode=True)
+        self.add_res_metal_warr(vm_layer, outp_vm_tid.base_index, rmn_yb, outn_yb,
+                                width=outp_vm_tid.width, unit_mode=True)
+        self.add_res_metal_warr(vm_layer, inp_vm_tid.base_index, rmn_yb, outn_yb,
+                                width=inp_vm_tid.width, unit_mode=True)
 
         self.add_pin('inp', cap_top[top_layer][0], show=show_pins)
         self.add_pin('outp', cap_top[top_layer][1], show=show_pins)
@@ -163,7 +185,17 @@ class PassiveCTLECore(ResArrayBase):
         self.add_pin(sup_name, supb, label=sup_name, show=show_pins)
         self.add_pin(sup_name, supt, label=sup_name, show=show_pins)
 
-        self._sch_params = {}
+        self._sch_params = dict(
+            l=l,
+            w=w,
+            intent=res_type,
+            nr1=num_r1,
+            nr2=num_r2,
+            ndum=ndum_tot,
+            res_in_info=res_info,
+            res_out_info=res_info,
+            sub_name='VSS',
+        )
 
     def _connect_snake(self, nr1, nr2, ndumr, ndumc, io_width, show_pins):
         nrow_half = max(nr1, nr2) + ndumr
@@ -187,6 +219,8 @@ class PassiveCTLECore(ResArrayBase):
         outnl = self.get_res_ports(nrow_half - 1, ndumc + 1)[1]
         outnr = self.get_res_ports(nrow_half - 1, ndumc + 2)[1]
         outn = self.connect_wires([outnl, outnr])[0]
+        outp_yt = outp.track_id.get_bounds(self.grid, unit_mode=True)[1]
+        outn_yb = outn.track_id.get_bounds(self.grid, unit_mode=True)[0]
 
         vm_layer = outp.layer_id + 1
         vm_tr = self.grid.coord_to_nearest_track(vm_layer, outp.middle, half_track=True)
@@ -215,7 +249,7 @@ class PassiveCTLECore(ResArrayBase):
                                        track_lower=0)
         self.add_pin('outcm', outcm, show=show_pins)
 
-        return inp, inn, outp, outn, outcm_v
+        return inp, inn, outp, outn, outcm_v, outp_yt, outn_yb
 
     def _connect_mirror(self, offset, loc1, loc2, port1, port2):
         r1, c1 = loc1
@@ -342,9 +376,10 @@ class PassiveCTLE(SubstrateWrapper):
         sub_lch = self.params['sub_lch']
         sub_type = self.params['sub_type']
         threshold = self.params['threshold']
+        res_type = self.params['res_type']
         sub_tr_w = self.params['sub_tr_w']
         show_pins = self.params['show_pins']
 
         params = self.params.copy()
-        self.draw_layout_helper(PassiveCTLECore, params, sub_lch, sub_w, sub_tr_w,
-                                sub_type, threshold, show_pins, is_passive=True)
+        self.draw_layout_helper(PassiveCTLECore, params, sub_lch, sub_w, sub_tr_w, sub_type,
+                                threshold, show_pins, is_passive=True, res_type=res_type)
