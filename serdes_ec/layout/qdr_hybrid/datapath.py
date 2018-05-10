@@ -138,47 +138,41 @@ class RXDatapath(TemplateBase):
         )
 
     def draw_layout(self):
-        ctle_margin = 22000
         show_pins = self.params['show_pins']
 
-        tapx_master, tap1_master, offset_master, loff_master, samp_master = self._create_masters()
+        tmp = self._create_masters()
+        master_tapx, master_tap1, master_offset, master_loff, master_samp = tmp
 
-        blk_w = self.grid.get_block_size(tapx_master.top_layer, unit_mode=True)[0]
-        ctle_margin = -(-ctle_margin // blk_w) * blk_w
-
+        # place instances
+        xcur = 0
         self._blockage_intvs = []
-        xcur = ctle_margin
-        tapx = self.add_instance(tapx_master, 'XTAPX', loc=(xcur, 0), unit_mode=True)
-        xr = xcur + tapx_master.bound_box.width_unit
+        tapx_box = master_tapx.bound_box
+        top_layer = master_tapx.top_layer
+        tapx = self.add_instance(master_tapx, 'XTAPX', loc=(xcur, 0), unit_mode=True)
+        xr = xcur + tapx_box.width_unit
         self._x_tapx = (xcur, xr)
-        for xl, xu in tapx_master.blockage_intvs:
+        for xl, xu in master_tapx.blockage_intvs:
             self._blockage_intvs.append((xl + xcur, xu + xcur))
         xcur = xr
-        offset = self.add_instance(offset_master, 'XOFF', loc=(xcur, 0), unit_mode=True)
-        xcur += offset_master.bound_box.width_unit
-        tap1 = self.add_instance(tap1_master, 'XTAP1', loc=(xcur, 0), unit_mode=True)
-        xr = xcur + tap1_master.bound_box.width_unit
+        offset = self.add_instance(master_offset, 'XOFF', loc=(xcur, 0), unit_mode=True)
+        xcur += master_offset.bound_box.width_unit
+        tap1 = self.add_instance(master_tap1, 'XTAP1', loc=(xcur, 0), unit_mode=True)
+        xr = xcur + master_tap1.bound_box.width_unit
         self._x_tap1 = (xcur, xr)
-        for xl, xu in tap1_master.blockage_intvs:
+        for xl, xu in master_tap1.blockage_intvs:
             self._blockage_intvs.append((xl + xcur, xu + xcur))
 
         xcur = xr
-        offlev = self.add_instance(loff_master, 'XOFFL', loc=(xcur, 0), unit_mode=True)
-        xcur += loff_master.bound_box.width_unit
-        samp = self.add_instance(samp_master, 'XSAMP', loc=(xcur, 0), unit_mode=True)
-        sbuf_locs = samp_master.buf_locs
+        offlev = self.add_instance(master_loff, 'XOFFL', loc=(xcur, 0), unit_mode=True)
+        xcur += master_loff.bound_box.width_unit
+        samp = self.add_instance(master_samp, 'XSAMP', loc=(xcur, 0), unit_mode=True)
+        sbuf_locs = master_samp.buf_locs
         self._buf_locs = ((sbuf_locs[0][0] + xcur, sbuf_locs[0][1]),
                           (sbuf_locs[1][0] + xcur, sbuf_locs[1][1]))
 
-        self.array_box = bnd_box = tapx.bound_box.merge(samp.bound_box).extend(x=0, unit_mode=True)
-        self.set_size_from_bound_box(tapx_master.top_layer, bnd_box)
+        self.array_box = bnd_box = samp.bound_box.extend(x=0, unit_mode=True)
+        self.set_size_from_bound_box(top_layer, bnd_box)
         self.add_cell_boundary(bnd_box)
-
-        # add vincm for LVS purposes
-        hm_layer = tapx_master.top_layer - 1
-        tr_incm = self.grid.coord_to_nearest_track(hm_layer, bnd_box.yc_unit, unit_mode=True)
-        warr = self.add_wires(hm_layer, tr_incm, 0, 200, unit_mode=True)
-        self.add_pin('v_vincm', warr, show=show_pins)
 
         self._connect_signals(tapx, tap1, offset, offlev, samp)
 
@@ -187,15 +181,15 @@ class RXDatapath(TemplateBase):
         self._connect_supplies(tapx, tap1, offset, offlev, samp, show_pins)
 
         self._sch_params = dict(
-            tapx_params=tapx_master.sch_params,
-            off_params=offset_master.sch_params,
-            tap1_params=tap1_master.sch_params,
-            loff_params=loff_master.sch_params,
-            samp_params=samp_master.sch_params,
+            tapx_params=master_tapx.sch_params,
+            off_params=master_offset.sch_params,
+            tap1_params=master_tap1.sch_params,
+            loff_params=master_loff.sch_params,
+            samp_params=master_samp.sch_params,
         )
-        self._num_ffe = tapx_master.num_ffe
-        self._num_dfe = tapx_master.num_dfe
-        self._sup_y_list = tapx_master.sup_y_list
+        self._num_ffe = master_tapx.num_ffe
+        self._num_dfe = master_tapx.num_dfe
+        self._sup_y_list = master_tapx.sup_y_list
 
     def _connect_supplies(self, tapx, tap1, offset, offlev, samp, show_pins):
         fill_w = self.params['fill_w']
@@ -370,12 +364,12 @@ class RXDatapath(TemplateBase):
         tapx_params['tr_spaces'] = tr_spaces
         tapx_params['options'] = ana_options
         tapx_params['show_pins'] = False
-        tapx_master = self.new_template(params=tapx_params, temp_cls=TapXColumn)
-        row_heights = tapx_master.row_heights
-        sup_tids = tapx_master.sup_tids
-        vss_tids = tapx_master.vss_tids
-        vdd_tids = tapx_master.vdd_tids
-        tapx_out_tr_info = tapx_master.out_tr_info
+        master_tapx = self.new_template(params=tapx_params, temp_cls=TapXColumn)
+        row_heights = master_tapx.row_heights
+        sup_tids = master_tapx.sup_tids
+        vss_tids = master_tapx.vss_tids
+        vdd_tids = master_tapx.vdd_tids
+        tapx_out_tr_info = master_tapx.out_tr_info
 
         tap1_params = sum_params.copy()
         tap1_params['config'] = config
@@ -394,9 +388,9 @@ class RXDatapath(TemplateBase):
         tap1_params['row_heights'] = row_heights
         tap1_params['sup_tids'] = sup_tids
         tap1_params['show_pins'] = False
-        tap1_master = self.new_template(params=tap1_params, temp_cls=Tap1Column)
-        tap1_in_tr_info = tap1_master.in_tr_info
-        tap1_out_tr_info = tap1_master.out_tr_info
+        master_tap1 = self.new_template(params=tap1_params, temp_cls=Tap1Column)
+        tap1_in_tr_info = master_tap1.in_tr_info
+        tap1_out_tr_info = master_tap1.out_tr_info
 
         h_tot = row_heights[0] + row_heights[1]
         offset_params = hp_params.copy()
@@ -404,7 +398,7 @@ class RXDatapath(TemplateBase):
         offset_params['lch'] = lch
         offset_params['ptap_w'] = ptap_w
         offset_params['threshold'] = th_lat['tail']
-        offset_params['top_layer'] = tapx_master.top_layer
+        offset_params['top_layer'] = master_tapx.top_layer
         offset_params['in_tr_info'] = tapx_out_tr_info
         offset_params['out_tr_info'] = tap1_in_tr_info
         offset_params['vdd_tr_info'] = vdd_tids
@@ -413,14 +407,14 @@ class RXDatapath(TemplateBase):
         offset_params['ana_options'] = ana_options
         offset_params['sub_tids'] = vss_tids
         offset_params['show_pins'] = False
-        offset_master = self.new_template(params=offset_params, temp_cls=HighPassColumn)
+        master_offset = self.new_template(params=offset_params, temp_cls=HighPassColumn)
 
         loff_params = hp_params.copy()
         loff_params['h_unit'] = h_tot
         loff_params['lch'] = lch
         loff_params['ptap_w'] = ptap_w
         loff_params['threshold'] = th_lat['tail']
-        loff_params['top_layer'] = tapx_master.top_layer
+        loff_params['top_layer'] = master_tapx.top_layer
         loff_params['in_tr_info'] = tap1_out_tr_info
         loff_params['out_tr_info'] = tap1_in_tr_info
         loff_params['vdd_tr_info'] = vdd_tids
@@ -429,7 +423,7 @@ class RXDatapath(TemplateBase):
         loff_params['ana_options'] = ana_options
         loff_params['sub_tids'] = vss_tids
         loff_params['show_pins'] = False
-        loff_master = self.new_template(params=loff_params, temp_cls=HighPassColumn)
+        master_loff = self.new_template(params=loff_params, temp_cls=HighPassColumn)
 
         samp_params = samp_params.copy()
         samp_params['config'] = config
@@ -440,12 +434,12 @@ class RXDatapath(TemplateBase):
         samp_params['tr_spaces_dig'] = tr_spaces_dig
         samp_params['row_heights'] = row_heights
         samp_params['sup_tids'] = sup_tids
-        samp_params['sum_row_info'] = tap1_master.sum_row_info
-        samp_params['lat_row_info'] = tap1_master.lat_row_info
-        samp_params['div_tr_info'] = tap1_master.div_tr_info
+        samp_params['sum_row_info'] = master_tap1.sum_row_info
+        samp_params['lat_row_info'] = master_tap1.lat_row_info
+        samp_params['div_tr_info'] = master_tap1.div_tr_info
         samp_params['options'] = ana_options
         samp_params['show_pins'] = False
-        samp_master = self.new_template(params=samp_params, temp_cls=SamplerColumn)
-        self._retime_ncol = samp_master.retime_ncol
+        master_samp = self.new_template(params=samp_params, temp_cls=SamplerColumn)
+        self._retime_ncol = master_samp.retime_ncol
 
-        return tapx_master, tap1_master, offset_master, loff_master, samp_master
+        return master_tapx, master_tap1, master_offset, master_loff, master_samp
