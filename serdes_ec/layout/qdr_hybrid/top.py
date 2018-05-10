@@ -183,9 +183,9 @@ class RXFrontend(TemplateBase):
         clkp, clkn = self._connect_clk_en(tr_manager, top_layer, dp_inst, sup_yc_list, show_pins)
 
         # connect CTLE
-        vincm, ctle_vss = self._connect_ctle(tr_manager, ctle_inst, dp_inst, clkp.track_id,
-                                             clkn.track_id, show_pins)
-
+        tmp = self._connect_ctle(tr_manager, ctle_inst, dp_inst, clkp.track_id,
+                                 clkn.track_id, show_pins)
+        vincm, ctle_vss, biasl_vss, biasl_vdd = tmp
         # connect biases
         num_dfe = master_dp.num_dfe
         hm_layer = ym_layer - 1
@@ -211,14 +211,14 @@ class RXFrontend(TemplateBase):
         num_ffe = master_dp.num_ffe
         bias_vdd_wires = dp_inst.get_all_port_pins('VDD', layer=vm_layer)
         bias_vdd_wires.extend(vdd_wires)
-        y_dp = yoff + hp_h + clk_h + vss_h
+        y_bvdd = yoff + hp_h + clk_h + vss_h
         bi = self._connect_vdd_bias(hm_layer, x_ctle, num_dfe, num_ffe, bias_vdd_wires, dp_inst,
-                                    y_dp, bias_config, show_pins, vdd_pins, is_bot=True)
+                                    y_bvdd, bias_config, show_pins, vdd_pins, is_bot=True)
         hm_bias_info_list[1] = bi
 
-        y_dp = ytop - (hp_h + clk_h + vss_h + vdd_h)
+        y_tvdd = ytop - (hp_h + clk_h + vss_h + vdd_h)
         bi = self._connect_vdd_bias(hm_layer, x_ctle, num_dfe, num_ffe, bias_vdd_wires, dp_inst,
-                                    y_dp, bias_config, show_pins, vdd_pins, is_bot=False)
+                                    y_tvdd, bias_config, show_pins, vdd_pins, is_bot=False)
         hm_bias_info_list[2] = bi
 
         # connect vincm
@@ -229,16 +229,18 @@ class RXFrontend(TemplateBase):
                                        unit_mode=True)
         self.add_pin('v_vincm', vincm, show=show_pins, edge_mode=1)
         # join bias routes together
+        ctle_vss.extend(biasl_vss)
         tmp = join_bias_vroutes(self, vm_layer, vdd_x, vss_x, x_ctle, num_vm_vdd, num_vm_vss,
                                 hm_bias_info_list, bias_config, vdd_pins, vss_pins, show_pins,
-                                xl=x_route, vss_warrs=ctle_vss)
+                                xl=x_route, vss_warrs=ctle_vss, vdd_warrs=biasl_vdd)
         vdd_bias, vss_bias = tmp
 
         # connect supplies
         vdd_wires.extend(vdd_bias)
         vss_wires.extend(vss_bias)
+        fill_box = BBox(route_w, y_dp, x_dp, y_tvdd, res, unit_mode=True)
         self._connect_supplies(tr_manager, top_layer, dp_inst, sup_yc_list, vdd_wires,
-                               vss_wires, show_pins)
+                               vss_wires, biasl_vdd, ctle_vss, fill_box, fill_config, show_pins)
 
         self._sch_params = master_dp.sch_params.copy()
         self._sch_params['ctle_params'] = master_ctle.sch_params
@@ -247,6 +249,7 @@ class RXFrontend(TemplateBase):
 
     def _connect_ctle(self, tr_manager, ctle_inst, dp_inst, p_tid, n_tid, show_pins):
         xm_layer = p_tid.layer_id
+        hm_layer = xm_layer - 2
         tr_w = tr_manager.get_width(xm_layer, 'serdes_in')
         pyb = p_tid.get_bounds(self.grid, unit_mode=True)[0]
         nyt = n_tid.get_bounds(self.grid, unit_mode=True)[1]
@@ -267,7 +270,22 @@ class RXFrontend(TemplateBase):
         self.add_pin('inp', inp, show=show_pins)
         self.add_pin('inn', inn, show=show_pins)
 
-        return ctle_inst.get_pin('outcm'), ctle_inst.get_all_port_pins('VSS')
+        ctle_vss = ctle_inst.get_all_port_pins('VSS')
+        biasl_vss = []
+        biasl_vdd = []
+        ctle_box = ctle_inst.bound_box
+        ctle_yb = ctle_box.bottom_unit
+        ctle_yt = ctle_box.top_unit
+        for pin in dp_inst.port_pins_iter('VSS', layer=hm_layer):
+            pin_yb, pin_yt = pin.track_id.get_bounds(self.grid, unit_mode=True)
+            if pin_yt < ctle_yb or pin_yb > ctle_yt:
+                biasl_vss.append(pin)
+        for pin in dp_inst.port_pins_iter('VDD', layer=hm_layer):
+            pin_yb, pin_yt = pin.track_id.get_bounds(self.grid, unit_mode=True)
+            if pin_yt < ctle_yb or pin_yb > ctle_yt:
+                biasl_vdd.append(pin)
+
+        return ctle_inst.get_pin('outcm'), ctle_vss, biasl_vss, biasl_vdd
 
     def _connect_clk_en(self, tr_manager, xm_layer, dp_inst, sup_yc_list, show_pins):
         tr_w_clk = tr_manager.get_width(xm_layer, 'clk')
@@ -304,13 +322,24 @@ class RXFrontend(TemplateBase):
         return clkp, clkn
 
     def _connect_supplies(self, tr_manager, xm_layer, dp_inst, sup_yc_list, vdd_wires, vss_wires,
-                          show_pins):
+                          hm_vdd, hm_vss, fill_box, fill_config, show_pins):
+        # do power fill on CTLE region
+        ym_layer = xm_layer - 1
+        fw, fsp, sp, sple = fill_config[ym_layer]
+        xl = fill_box.left_unit
+        hm_vdd = self.extend_wires(hm_vdd, lower=xl, unit_mode=True)
+        hm_vss = self.extend_wires(hm_vss, lower=xl, unit_mode=True)
+        ym_vdd, ym_vss = self.do_power_fill(ym_layer, sp, sple, bound_box=fill_box,
+                                            vdd_warrs=hm_vdd, vss_warrs=hm_vss,
+                                            fill_width=fw, fill_space=fsp, unit_mode=True)
+        ym_vdd.extend(vdd_wires)
+        ym_vss.extend(vss_wires)
+
         tr_w_sup = tr_manager.get_width(xm_layer, 'sup')
         dp_box = dp_inst.bound_box
         y0 = dp_box.bottom_unit
         xr = dp_box.right_unit
         yc = dp_box.yc_unit
-
         for idx, ysup_mid in enumerate(sup_yc_list):
             ycur = ysup_mid + y0
             if ycur < yc:
@@ -320,12 +349,12 @@ class RXFrontend(TemplateBase):
                 tidx = self.grid.coord_to_nearest_track(xm_layer, ycur, half_track=True, mode=1,
                                                         unit_mode=True)
 
-            tid = TrackID(xm_layer, tidx, width=tr_w_sup)
+            warr = self.add_wires(xm_layer, tidx, 0, xr, width=tr_w_sup, unit_mode=True)
             if idx % 2 == 0:
-                warr = self.connect_to_tracks(vss_wires, tid, track_upper=xr, unit_mode=True)
+                self.draw_vias_on_intersections(ym_vss, warr)
                 self.add_pin('VSS', warr, show=show_pins)
             else:
-                warr = self.connect_to_tracks(vdd_wires, tid, track_upper=xr, unit_mode=True)
+                self.draw_vias_on_intersections(ym_vdd, warr)
                 self.add_pin('VDD', warr, show=show_pins)
 
         # re-export retimer VDD/VSS

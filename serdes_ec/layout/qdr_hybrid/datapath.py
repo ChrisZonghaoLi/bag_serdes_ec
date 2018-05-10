@@ -219,6 +219,8 @@ class RXDatapath(TemplateBase):
                                       fill_space=fill_sp, x_margin=x_margin, unit_mode=True)
         vdd_vm_list.extend(vdd)
         vss_vm_list.extend(vss)
+        self.add_pin('VDD', vdd_hm, show=show_pins)
+        self.add_pin('VSS', vss_hm, show=show_pins)
         self.add_pin('VDD', vdd_vm_list, show=show_pins)
         self.add_pin('VSS', vss_vm_list, show=show_pins)
         self.add_pin('VDD_re', samp.get_all_port_pins('VDD_re'), label='VDD', show=False)
