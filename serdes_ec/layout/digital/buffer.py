@@ -230,7 +230,9 @@ class BufferArray(StdDigitalTemplate):
         vss_list = []
         buf_params = None
         idx0 = 0
+        nbuf_tot = 0
         for ridx, nbuf in enumerate(nbuf_list):
+            nbuf_tot += nbuf
             params['nbuf'] = nbuf
             params['out_delta'] = ridx + 1
             master = self.new_template(params=params, temp_cls=BufferRow)
@@ -256,6 +258,6 @@ class BufferArray(StdDigitalTemplate):
         self.add_pin('VSS', WireArray.list_to_warr(vss_list), show=show_pins)
 
         self._sch_params = dict(
-            nbuf_list=nbuf_list,
+            nbuf=nbuf_tot,
             buf_params=buf_params,
         )
