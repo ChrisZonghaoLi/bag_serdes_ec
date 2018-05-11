@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from typing import Dict
+from typing import Dict, Any
 
 import os
 import pkg_resources
@@ -49,10 +49,18 @@ class bag_serdes_ec__qdr_frontend(Module):
             samp_params='sampler parameters.',
             hp_params='high-pass filter parameters.',
             ndum_res='number of dummy resistors total.',
+            export_probe='True to export probe ports.',
+        )
+
+    @classmethod
+    def get_default_param_values(cls):
+        # type: () -> Dict[str, Any]
+        return dict(
+            export_probe=False,
         )
 
     def design(self, ctle_params, tapx_params, off_params, tap1_params, loff_params, samp_params,
-               hp_params, ndum_res):
+               hp_params, ndum_res, export_probe):
         # design instances
         self.instances['XCTLE'].design(**ctle_params)
         self.instances['XDP'].design(tapx_params=tapx_params, off_params=off_params,
@@ -110,6 +118,15 @@ class bag_serdes_ec__qdr_frontend(Module):
                 sgnn_nets.append('bias_way_%d_dfe_%d_s<1>' % (way_idx, dfe_idx))
         self.reconnect_instance_terminal('XDP', sgnp_term, ','.join(sgnp_nets))
         self.reconnect_instance_terminal('XDP', sgnn_term, ','.join(sgnn_nets))
+
+        # handle probe exports
+        if export_probe:
+            self.add_pin('clk_analog<3:0>', 'output')
+            self.add_pin('clk_digital_tapx<3:0>', 'output')
+            self.add_pin('clk_digital_tap1<3:0>', 'output')
+            self.add_pin('clk_tap1<3:0>', 'output')
+            self.add_pin('clk_main<3:0>', 'output')
+            self.add_pin('clk_dfe<%d:4>' % (self._num_dfe * 4 + 3), 'output')
 
         # handle high pass filters
         if has_hp:

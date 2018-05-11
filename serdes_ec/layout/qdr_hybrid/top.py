@@ -103,6 +103,7 @@ class RXFrontend(TemplateBase):
             fill_config='fill configuration dictionary.',
             bias_config='The bias configuration dictionary.',
             show_pins='True to create pin labels.',
+            export_probe='True to export probe ports.',
         )
 
     @classmethod
@@ -110,6 +111,7 @@ class RXFrontend(TemplateBase):
         # type: () -> Dict[str, Any]
         return dict(
             show_pins=True,
+            export_probe=False,
         )
 
     def draw_layout(self):
@@ -118,6 +120,7 @@ class RXFrontend(TemplateBase):
         fill_config = self.params['fill_config']
         bias_config = self.params['bias_config']
         show_pins = self.params['show_pins']
+        export_probe = self.params['export_probe']
 
         master_ctle, master_dp, master_hpx, master_hp1 = self._make_masters(tr_widths, tr_spaces)
 
@@ -183,7 +186,7 @@ class RXFrontend(TemplateBase):
             self.mark_bbox_used(ym_layer, BBox(xl + x_dp, yb, xu + x_dp, yt, res, unit_mode=True))
 
         # export pins
-        self._reexport_dp_pins(dp_inst, show_pins)
+        self._reexport_dp_pins(dp_inst, show_pins, export_probe)
 
         # connect clocks and enables
         sup_yc_list = master_dp.sup_y_list
@@ -258,6 +261,7 @@ class RXFrontend(TemplateBase):
         self._sch_params['ctle_params'] = master_ctle.sch_params
         self._sch_params['hp_params'] = master_hpx.sch_params['hp_params']
         self._sch_params['ndum_res'] = master_hpx.sch_params['ndum'] * 4
+        self._sch_params['export_probe'] = export_probe
 
     def _extend_bias_routes(self, hm_layer, bias_config, vdd_pins, vss_pins, y_route,
                             x_vdd, x_vss, show_pins):
@@ -431,13 +435,18 @@ class RXFrontend(TemplateBase):
         self.add_pin('VDD_re', dp_inst.get_all_port_pins('VDD_re'), label='VDD', show=False)
         self.add_pin('VSS_re', dp_inst.get_all_port_pins('VSS_re'), label='VSS', show=False)
 
-    def _reexport_dp_pins(self, dp_inst, show_pins):
+    def _reexport_dp_pins(self, dp_inst, show_pins, export_probe):
         self.reexport(dp_inst.get_port('des_clk'), show=show_pins)
         self.reexport(dp_inst.get_port('des_clkb'), show=show_pins)
         for idx in range(4):
             suf = '<%d>' % idx
             self.reexport(dp_inst.get_port('data' + suf), show=show_pins)
             self.reexport(dp_inst.get_port('dlev' + suf), show=show_pins)
+
+        if export_probe:
+            for pin_name in dp_inst.port_names_iter():
+                if pin_name.startswith('clk_'):
+                    self.reexport(dp_inst.get_port(pin_name), show=True)
 
     def _connect_vdd_bias(self, hm_layer, x0, num_dfe, num_ffe, vdd_wires, dp_inst, y0,
                           bias_config, show_pins, pin_list, is_bot=True):
