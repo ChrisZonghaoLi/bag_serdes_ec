@@ -96,6 +96,7 @@ class RXFrontend(TemplateBase):
             dp_params='datapath parameters.',
             hp_params='high-pass filter array parameters.',
             scan_buf_params='scan buffer parameters.',
+            cap_h_table='AC coupling capacitor height dictionary.',
             tr_widths='Track width dictionary.',
             tr_spaces='Track spacing dictionary.',
             tr_widths_dig='Track width dictionary for digital.',
@@ -502,7 +503,7 @@ class RXFrontend(TemplateBase):
         hpx_iter = self._hpx_ports_iter(num_dfe, is_bot=is_bot)
         hp1_iter = self._hp1_ports_iter(is_bot=is_bot)
         for inst, port_iter in ((hpx_inst, hpx_iter), (hp1_inst, hp1_iter)):
-            for idx, (out_name, bias_name) in enumerate(port_iter):
+            for idx, (out_name, bias_name, _) in enumerate(port_iter):
                 suf = '<%d>' % idx
                 if idx % 2 == 0:
                     pwarr = [inst.get_pin('out' + suf), dp_inst.get_pin(out_name)]
@@ -642,28 +643,32 @@ class RXFrontend(TemplateBase):
             pway = nsufl = 2
             nsufa = 0
 
-        yield ('clk_analog<%d>' % psuf, 'v_analog')
-        yield ('clk_analog<%d>' % nsufl, 'v_analog')
-        yield ('clk_main<%d>' % nsufa, 'v_way_%d_main' % nway)
-        yield ('clk_main<%d>' % psuf, 'v_way_%d_main' % pway)
+        yield ('clk_analog<%d>' % psuf, 'v_analog', 'analog')
+        yield ('clk_analog<%d>' % nsufl, 'v_analog', 'analog')
+        yield ('clk_main<%d>' % nsufa, 'v_way_%d_main' % nway, 'main_tapx')
+        yield ('clk_main<%d>' % psuf, 'v_way_%d_main' % pway, 'main_tapx')
 
         idx = 0
         for dfe_idx in range(num_dfe, 1, -1):
             if dfe_idx == 3:
                 # insert digital bias
                 if idx % 2 == 0:
-                    yield ('clk_digital_tapx<%d>' % psuf, 'v_digital')
-                    yield ('clk_digital_tapx<%d>' % nsufl, 'v_digital')
+                    yield ('clk_digital_tapx<%d>' % psuf, 'v_digital', 'digital_tapx')
+                    yield ('clk_digital_tapx<%d>' % nsufl, 'v_digital', 'digital_tapx')
                 else:
-                    yield ('clk_digital_tapx<%d>' % nsufl, 'v_digital')
-                    yield ('clk_digital_tapx<%d>' % psuf, 'v_digital')
+                    yield ('clk_digital_tapx<%d>' % nsufl, 'v_digital', 'digital_tapx')
+                    yield ('clk_digital_tapx<%d>' % psuf, 'v_digital', 'digital_tapx')
                 idx += 1
             if idx % 2 == 0:
-                yield ('clk_dfe<%d>' % (4 * dfe_idx + psuf), 'v_way_%d_dfe_%d_m' % (pway, dfe_idx))
-                yield ('clk_dfe<%d>' % (4 * dfe_idx + nsufa), 'v_way_%d_dfe_%d_m' % (nway, dfe_idx))
+                yield ('clk_dfe<%d>' % (4 * dfe_idx + psuf), 'v_way_%d_dfe_%d_m' % (pway, dfe_idx),
+                       'dfe_%d' % dfe_idx)
+                yield ('clk_dfe<%d>' % (4 * dfe_idx + nsufa), 'v_way_%d_dfe_%d_m' % (nway, dfe_idx),
+                       'dfe_%d' % dfe_idx)
             else:
-                yield ('clk_dfe<%d>' % (4 * dfe_idx + nsufa), 'v_way_%d_dfe_%d_m' % (nway, dfe_idx))
-                yield ('clk_dfe<%d>' % (4 * dfe_idx + psuf), 'v_way_%d_dfe_%d_m' % (pway, dfe_idx))
+                yield ('clk_dfe<%d>' % (4 * dfe_idx + nsufa), 'v_way_%d_dfe_%d_m' % (nway, dfe_idx),
+                       'dfe_%d' % dfe_idx)
+                yield ('clk_dfe<%d>' % (4 * dfe_idx + psuf), 'v_way_%d_dfe_%d_m' % (pway, dfe_idx),
+                       'dfe_%d' % dfe_idx)
             idx += 1
 
     @classmethod
@@ -679,12 +684,12 @@ class RXFrontend(TemplateBase):
             nsufa = 0
             pway = 1
 
-        yield ('clk_digital_tap1<%d>' % psuf, 'v_digital')
-        yield ('clk_digital_tap1<%d>' % nsufl, 'v_digital')
-        yield ('clk_tap1<%d>' % nsufa, 'v_tap1_main')
-        yield ('clk_tap1<%d>' % psuf, 'v_tap1_main')
-        yield ('clk_dfe<%d>' % (4 + psuf), 'v_way_%d_dfe_1_m' % pway)
-        yield ('clk_dfe<%d>' % (4 + nsufa), 'v_way_%d_dfe_1_m' % nway)
+        yield ('clk_digital_tap1<%d>' % psuf, 'v_digital', 'digital_tap1')
+        yield ('clk_digital_tap1<%d>' % nsufl, 'v_digital', 'digital_tap1')
+        yield ('clk_tap1<%d>' % nsufa, 'v_tap1_main', 'main_tap1')
+        yield ('clk_tap1<%d>' % psuf, 'v_tap1_main', 'main_tap1')
+        yield ('clk_dfe<%d>' % (4 + psuf), 'v_way_%d_dfe_1_m' % pway, 'dfe_1')
+        yield ('clk_dfe<%d>' % (4 + nsufa), 'v_way_%d_dfe_1_m' % nway, 'dfe_1')
 
     def _compute_route_height(self, hm_layer, blk_h, tr_manager, num_ffe, num_dfe, bias_config):
         num_clk_tr = 2
@@ -714,6 +719,7 @@ class RXFrontend(TemplateBase):
         dp_params = self.params['dp_params']
         hp_params = self.params['hp_params']
         buf_params = self.params['scan_buf_params']
+        cap_h_table = self.params['cap_h_table']
         tr_widths_dig = self.params['tr_widths_dig']
         tr_spaces_dig = self.params['tr_spaces_dig']
 
@@ -732,15 +738,20 @@ class RXFrontend(TemplateBase):
         dp_params['show_pins'] = False
         master_dp = self.new_template(params=dp_params, temp_cls=RXDatapath)
         self._retime_ncol = master_dp.retime_ncol
+        num_dfe = master_dp.num_dfe
 
         hp_params = hp_params.copy()
         hp_params['narr'] = master_dp.num_hp_tapx
         hp_params['tr_widths'] = tr_widths
         hp_params['tr_spaces'] = tr_spaces
         hp_params['show_pins'] = False
+        hp_params['cap_h_list'] = [cap_h_table[name]
+                                   for _, _, name in self._hpx_ports_iter(num_dfe)]
         master_hpx = self.new_template(params=hp_params, temp_cls=HighPassArrayClk)
 
         hp_params['narr'] = master_dp.num_hp_tap1
+        hp_params['cap_h_list'] = [cap_h_table[name]
+                                   for _, _, name in self._hp1_ports_iter()]
         master_hp1 = self.new_template(params=hp_params, temp_cls=HighPassArrayClk)
 
         return master_ctle, master_dp, master_hpx, master_hp1
