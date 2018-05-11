@@ -593,6 +593,7 @@ class TapXSummerNoLast(TemplateBase):
         self._analog_master = None
         self._place_info = None
         self._fg_tot = None
+        self._blockage_intvs = None
 
     @property
     def sch_params(self):
@@ -619,6 +620,11 @@ class TapXSummerNoLast(TemplateBase):
     def fg_tot(self):
         # type: () -> int
         return self._fg_tot
+
+    @property
+    def blockage_intvs(self):
+        # type: () -> List[Tuple[int, int]]
+        return self._blockage_intvs
 
     @classmethod
     def get_params_info(cls):
@@ -703,15 +709,18 @@ class TapXSummerNoLast(TemplateBase):
                                      flip_sign_list, ffe_sig_list, base_params, vm_layer,
                                      route_locs, place_info, vdd_list, vss_list, 'a', sig_off=0,
                                      sum_off=0, is_end=False, left_out=True)
-        ffe_masters, self._ffe_track_info, ffe_sch_params, ffe_insts, place_info = tmp
+        ffe_masters, self._ffe_track_info, ffe_sch_params, ffe_insts, place_info, blk_intvs = tmp
+        self._blockage_intvs = blk_intvs
 
         dfe_sig_list = self._get_dfe_signals(num_dfe)
         tmp = self._create_and_place(tr_manager, num_dfe - 1, seg_dfe_list, seg_sum_list,
                                      flip_sign_list, dfe_sig_list, base_params, vm_layer,
                                      route_locs, place_info, vdd_list, vss_list, 'd', sig_off=3,
                                      sum_off=num_ffe + 1, is_end=False, left_out=False)
-        dfe_masters, self._dfe_track_info, dfe_sch_params, dfe_insts, self._place_info = tmp
-
+        dfe_masters, self._dfe_track_info, dfe_sch_params, dfe_insts, place_info, blk_intvs = tmp
+        self._place_info = place_info
+        self._blockage_intvs.extend(blk_intvs)
+        self._blockage_intvs.sort()
         # set size
         inst_first = ffe_insts[-1]
         inst_last = dfe_insts[0]
@@ -833,15 +842,15 @@ class TapXSummerNoLast(TemplateBase):
             return [([1, 'out', 'out', 1, 1, 'clk', 'clk', 'clk', 'clk', 1],
                      ['VDD', 'outp_a<0>', 'outn_a<0>', 'VDD',
                       'VSS', 'biasp_a', 'biasp_m', 'biasn_m', 'biasn_a', 'VSS'],
-                     False)]
+                     False, (4, 9))]
         else:
             sig_list = [(['out', 'out', 1],
                          ['outp_a<0>', 'outn_a<0>', 'VDD'],
-                         False),
+                         False, None),
                         ([1, 'clk', 'clk', 'clk', 'clk', 1, 1, 'casc', 'casc'],
                          ['VSS', 'biasp_a', 'biasp_m', 'biasn_m', 'biasn_a', 'VSS',
                           'VDD', 'cascp<1>', 'cascn<1>'],
-                         True)]
+                         True, (0, 5))]
             for idx in range(2, num_ffe):
                 cascl = 'cascp<%d>' % idx
                 cascr = 'cascn<%d>' % idx
@@ -857,24 +866,24 @@ class TapXSummerNoLast(TemplateBase):
                      ['VDD', 'outp_d<3>', 'outn_d<3>', 'VDD',
                       'sgnpp<3>', 'sgnnp<3>', 'sgnpn<3>', 'sgnnn<3>',
                       'VSS', 'biasp_d', 'biasp_s<3>', 'biasn_s<3>', 'biasn_d', 'VSS'],
-                     False)]
+                     False, (8, 13))]
         else:
             sig_list = [([1, 1, 1, 1, 1, 'clk', 'clk', 'clk', 'clk', 1],
                          ['sgnpp<3>', 'sgnnp<3>', 'sgnpn<3>', 'sgnnn<3>',
                           'VSS', 'biasp_d', 'biasp_s<3>', 'biasn_s<3>', 'biasn_d', 'VSS'],
-                         False)]
+                         False, (4, 9))]
             for dfe_idx in range(4, num_dfe + 1):
                 suf = '<%d>' % dfe_idx
                 sig_list.append(([1, 'clk', 'clk', 1, 1, 1, 1, 1],
                                  ['VSS', 'biasp_s' + suf, 'biasn_s' + suf, 'VSS',
                                   'sgnpp' + suf, 'sgnnp' + suf, 'sgnpn' + suf, 'sgnnn' + suf],
-                                 True))
+                                 True, (0, 3)))
             suf = '<%d>' % (num_dfe + 1)
             sig_list.append(([1, 'clk', 'clk', 1, 1, 1, 1, 1, 1, 'out', 'out'],
                              ['VSS', 'biasp_s' + suf, 'biasn_s' + suf, 'VSS',
                               'sgnpp' + suf, 'sgnnp' + suf, 'sgnpn' + suf, 'sgnnn' + suf,
                               'VDD', 'outp_d' + suf, 'outn_d' + suf],
-                             True))
+                             True, (0, 3)))
             return sig_list
 
     def _create_and_place(self, tr_manager, num_inst, seg_list, seg_sum_list, flip_sign_list,
@@ -887,10 +896,11 @@ class TapXSummerNoLast(TemplateBase):
         prev_data_w, prev_data_tr, prev_type, prev_tr, xarr = place_info
         left_out_b = not left_out
         inc = -1 if not left_out else 0
+        block_intvs = []
         for idx in range(num_inst - 1, -1, -1):
             sig_idx = idx + sig_off
             seg_lat = seg_list[idx]
-            sig_types, sig_names, sig_right = sig_list[idx]
+            sig_types, sig_names, sig_right, blk_idx_intv = sig_list[idx]
             seg_sum = seg_sum_list[idx + sum_off]
             flip_sign = flip_sign_list[idx + sum_off]
 
@@ -943,6 +953,14 @@ class TapXSummerNoLast(TemplateBase):
             for name, loc in zip(sig_names, sig_locs):
                 _record_track(track_info, name, loc + sig_offset)
 
+            # record blockage interval
+            if blk_idx_intv is not None:
+                sh_trl = sig_locs[blk_idx_intv[0]] + sig_offset
+                sh_trr = sig_locs[blk_idx_intv[1]] + sig_offset
+                xl = self.grid.get_wire_bounds(vm_layer, sh_trl, unit_mode=True)[0]
+                xr = self.grid.get_wire_bounds(vm_layer, sh_trr, unit_mode=True)[0]
+                block_intvs.append((xl, xr))
+
             # add instance
             inst = self.add_instance(cur_master, 'X%s%d' % (blk_type.upper(), sig_idx),
                                      loc=(xcur, 0), unit_mode=True)
@@ -976,7 +994,7 @@ class TapXSummerNoLast(TemplateBase):
         insts.reverse()
         sch_params.reverse()
         place_info = prev_data_w, prev_data_tr, prev_type, prev_tr, xarr
-        return masters, track_info, sch_params, insts, place_info
+        return masters, track_info, sch_params, insts, place_info, block_intvs
 
 
 class TapXSummer(TemplateBase):
@@ -1168,6 +1186,7 @@ class TapXSummer(TemplateBase):
         clkn_list = inst.get_all_port_pins('clkn')
         outsp = inst.get_pin('outp_s')
         outsn = inst.get_pin('outn_s')
+        self._blockage_intvs = list(sub_master.blockage_intvs)
 
         hm_layer = IntegAmp.get_mos_conn_layer(self.grid.tech_info) + 1
         vm_layer = hm_layer + 1
@@ -1236,7 +1255,7 @@ class TapXSummer(TemplateBase):
                                        unit_mode=True)[0]
         xr = self.grid.get_wire_bounds(vm_layer, sig_locs[clk_sh_idx1] + sig_offset,
                                        unit_mode=True)[1]
-        self._blockage_intvs = [(xl, xr)]
+        self._blockage_intvs.append((xl, xr))
 
         # add instance
         self._fg_core_last = last_master.fg_core
