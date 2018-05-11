@@ -821,8 +821,10 @@ class RXTop(TemplateBase):
 
         self._reexport_fe_pins(inst_fe, show_pins)
 
-        self._connect_buffers(inst_fe, inst_bufb, inst_buft, master_fe.bot_scan_names,
-                              master_fe.top_scan_names, show_pins)
+        bot_scan_names = master_fe.bot_scan_names
+        top_scan_names = master_fe.top_scan_names
+        self._connect_buffers(inst_fe, inst_bufb, inst_buft, bot_scan_names,
+                              top_scan_names, show_pins)
 
         self._connect_bias_routes(hm_layer, inst_fe, inst_dac, h_fe, bias_config)
 
@@ -834,6 +836,7 @@ class RXTop(TemplateBase):
         self._sch_params = dict(
             fe_params=master_fe.sch_params,
             dac_params=master_dac.sch_params,
+            buf_params=master_buf.sch_params,
         )
 
     def _connect_bias_routes(self, hm_layer, inst_fe, inst_dac, y_dac, bias_config):

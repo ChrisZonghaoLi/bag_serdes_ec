@@ -27,13 +27,18 @@ class bag_serdes_ec__qdr_top(Module):
         return dict(
             fe_params='frontend parameters.',
             dac_params='dac parameters.',
+            buf_params='scan buffer parameters.',
         )
 
-    def design(self, fe_params, dac_params):
+    def design(self, fe_params, dac_params, buf_params):
+        # design instances
         self.instances['XFE'].design(**fe_params)
         self.instances['XDAC'].design(**dac_params)
+        self.instances['XBUFB'].design(**buf_params)
+        self.instances['XBUFT'].design(**buf_params)
         pin_list = self.instances['XDAC'].master.pin_list
 
+        # connect DAC/FE bias signals
         for name in pin_list:
             self.reconnect_instance_terminal('XDAC', name, name)
             if name.startswith('v_'):
@@ -52,6 +57,8 @@ class bag_serdes_ec__qdr_top(Module):
         if not has_set:
             self.remove_pin('setp')
             self.remove_pin('setn')
+
+        # add new pins
         for way_idx in range(4):
             for ffe_idx in range(2, num_ffe + 1):
                 self.add_pin('bias_way_%d_ffe_%d<7:0>' % (way_idx, ffe_idx), 'input')
@@ -59,4 +66,35 @@ class bag_serdes_ec__qdr_top(Module):
                 sgn_name = 'bias_way_%d_dfe_%d_s<1:0>' % (way_idx, dfe_idx)
                 self.add_pin(sgn_name, 'input')
                 self.add_pin('bias_way_%d_dfe_%d_m<7:0>' % (way_idx, dfe_idx), 'input')
-                self.reconnect_instance_terminal('XFE', sgn_name, sgn_name)
+
+        # connect scan signals to buffer array
+        for inst_name, is_bot in (('XBUFB', True), ('XBUFT', False)):
+            out_scan_names = []
+            num_bits = 0
+            in_scan_names = []
+            for name, nbit in self._scan_name_iter(num_dfe, is_bot=is_bot):
+                cur_out = 'buf_' + name
+                out_scan_names.append(cur_out)
+                num_bits += nbit
+                self.reconnect_instance_terminal('XFE', name, cur_out)
+                in_scan_names.append(name)
+
+            suf = '<%d:0>' % (num_bits - 1)
+            in_names = ','.join(in_scan_names)
+            out_names = ','.join(out_scan_names)
+            self.reconnect_instance_terminal(inst_name, 'in' + suf, in_names)
+            self.reconnect_instance_terminal(inst_name, 'out' + suf, out_names)
+
+    @classmethod
+    def _scan_name_iter(cls, num_dfe, is_bot=False):
+        if is_bot:
+            ways = (3, 0)
+            sgn = 'n'
+        else:
+            ways = (2, 1)
+            sgn = 'p'
+
+        for dfe_idx in range(num_dfe, 1, -1):
+            for way in ways:
+                yield ('bias_way_%d_dfe_%d_s<1:0>' % (way, dfe_idx)), 2
+        yield ('scan_divider_clk' + sgn), 1
