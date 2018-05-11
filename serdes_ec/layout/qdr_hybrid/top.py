@@ -4,7 +4,7 @@
 
 from typing import TYPE_CHECKING, Dict, Any, Set, List, Tuple
 
-from itertools import repeat, chain
+from itertools import repeat, chain, islice
 
 from bag.layout.util import BBox
 from bag.layout.routing.base import TrackID, TrackManager
@@ -211,7 +211,8 @@ class RXFrontend(TemplateBase):
 
         bi = self._connect_clk_vss_bias(hm_layer, vss_wires, x_ctle_route, yoff, ytop, dp_inst,
                                         hpxt_inst, hp1t_inst, num_dfe, hp_h, clk_locs, clk_tr_w,
-                                        clk_h, vss_h, bias_config, show_pins, vss_pins, is_bot=False)
+                                        clk_h, vss_h, bias_config, show_pins, vss_pins,
+                                        is_bot=False)
         hm_bias_info_list[3] = bi
 
         # gather VDD-referenced wires
@@ -234,17 +235,17 @@ class RXFrontend(TemplateBase):
         vincm_tid = TrackID(vm_layer, vss_rtids[-2][0], width=vss_rtids[-2][1])
         y_route = ytop - hp_h - clk_h
         vincm = self.connect_to_tracks(vincm, vincm_tid, track_upper=y_route, unit_mode=True)
-        self.add_pin('v_vincm', vincm, show=show_pins, edge_mode=1)
         # join bias routes together
         ctle_vss.extend(biasl_vss)
         tmp = join_bias_vroutes(self, vm_layer, vdd_x, vss_x, x_ctle_route, num_vm_vdd, num_vm_vss,
                                 hm_bias_info_list, bias_config, vdd_pins, vss_pins,
                                 xl=0, vss_warrs=ctle_vss, vdd_warrs=biasl_vdd)
         vdd_pins, vss_pins, vdd_bias, vss_bias = tmp
+        vss_pins.append(('v_vincm', vincm))
 
         # extend bias routes to edge
         self._extend_bias_routes(hm_layer, bias_config, vdd_pins, vss_pins, y_route,
-                                 vdd_x[0], vss_x[0])
+                                 vdd_x[0], vss_x[0], show_pins)
 
         # connect supplies
         vdd_wires.extend(vdd_bias)
@@ -258,7 +259,8 @@ class RXFrontend(TemplateBase):
         self._sch_params['hp_params'] = master_hpx.sch_params['hp_params']
         self._sch_params['ndum_res'] = master_hpx.sch_params['ndum'] * 4
 
-    def _extend_bias_routes(self, hm_layer, bias_config, vdd_pins, vss_pins, y_route, x_vdd, x_vss):
+    def _extend_bias_routes(self, hm_layer, bias_config, vdd_pins, vss_pins, y_route,
+                            x_vdd, x_vss, show_pins):
         # make corner masters
         vm_layer = hm_layer - 1
         ym_layer = hm_layer + 1
@@ -289,18 +291,28 @@ class RXFrontend(TemplateBase):
         master_vssc = self.new_template(params=vssc_params, temp_cls=BiasShieldJoin)
         master_vddc = self.new_template(params=vddc_params, temp_cls=BiasShieldJoin)
 
-        # extend to corners
+        # extend to corners, then to edge
         ytop = self.bound_box.top_unit
         y_vssc = ytop - master_vssc.bound_box.height_unit
         y_vddc = y_vssc - master_vddc.bound_box.height_unit
-        for master, x, y, num in ((master_vssc, x_vss, y_vssc, num_vss),
-                                  (master_vddc, x_vdd, y_vddc, num_vdd)):
+        for master, x, y, num, pins in ((master_vssc, x_vss, y_vssc, num_vss, vss_pins),
+                                        (master_vddc, x_vdd, y_vddc, num_vdd, vdd_pins)):
             inst = self.add_instance(master, loc=(x, y), unit_mode=True)
             sup_ym = self.extend_wires(inst.get_all_port_pins('sup_core', layer=ym_layer),
                                        lower=y_route, unit_mode=True)
             sup_hm, _ = BiasShield.draw_bias_shields(self, vm_layer, bias_config, num, x,
                                                      y_route, y, check_blockage=False)
             self.draw_vias_on_intersections(sup_hm, sup_ym)
+
+            if x > 0:
+                BiasShield.draw_bias_shields(self, hm_layer, bias_config, num, y,
+                                             0, x, check_blockage=False)
+
+            tr0 = self.grid.find_next_track(hm_layer, y, half_track=True, mode=1, unit_mode=True)
+            for (name, warr), (tidx, tr_w) in zip(pins, islice(master.hm_route_tids, 1, num + 1)):
+                tid = TrackID(hm_layer, tidx + tr0, width=tr_w)
+                warr = self.connect_to_tracks(warr, tid, track_lower=0, unit_mode=True)
+                self.add_pin(name, warr, show=show_pins, edge_mode=-1)
 
     def _connect_ctle(self, tr_manager, ctle_inst, dp_inst, p_tid, n_tid, show_pins):
         xm_layer = p_tid.layer_id
