@@ -616,7 +616,11 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
         if seg_load > 0:
             self.connect_to_substrate('ntap', ports['VDD'])
             for name in ('pm0p', 'pm0n', 'pm1p', 'pm1n'):
-                warr = self.connect_to_tracks(ports[name], mp_tid, min_len_mode=0)
+                cur_ports = ports[name]
+                if cur_ports[0].track_id.num > 1:
+                    warr = self.connect_to_tracks(cur_ports, mp_tid, min_len_mode=0)
+                else:
+                    warr = self.connect_wires(cur_ports)[0]
                 ans[name] = warr
 
             pen0_tid = self.get_wire_id('pch', 0, 'g', wire_idx=idx_dict.get('pen0', 0))
