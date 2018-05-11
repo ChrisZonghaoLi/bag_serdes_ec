@@ -77,6 +77,11 @@ class RXFrontend(TemplateBase):
         # type: () -> List[str]
         return self._top_scan_names
 
+    @property
+    def bias_info_list(self):
+        # type: () -> List[Tuple[int, int, int]]
+        return self._bias_info_list
+
     @classmethod
     def get_cache_properties(cls):
         # type: () -> List[str]
@@ -150,7 +155,7 @@ class RXFrontend(TemplateBase):
         tot_w = -(-(route_w + ctle_w + dp_box.width_unit) // fill_w) * fill_w
         x_dp = tot_w - dp_box.width_unit
         x_ctle = x_dp - ctle_w
-        x_route = x_ctle - route_w
+        x_ctle_route = (x_ctle // fill_w) * fill_w
         ctle_inst = self.add_instance(master_ctle, 'XCTLE', loc=(x_ctle, y_ctle), unit_mode=True)
         dp_inst = self.add_instance(master_dp, 'XDP', loc=(x_dp, y_dp), unit_mode=True)
         dbuf_locs = master_dp.buf_locs
@@ -199,14 +204,14 @@ class RXFrontend(TemplateBase):
         hm_bias_info_list = [None, None, None, None]
         vdd_wires = dp_inst.get_all_port_pins('VDD', layer=ym_layer)
         vss_wires = dp_inst.get_all_port_pins('VSS', layer=ym_layer)
-        bi = self._connect_clk_vss_bias(hm_layer, vss_wires, x_ctle, yoff, ytop, dp_inst, hpxb_inst,
-                                        hp1b_inst, num_dfe, hp_h, clk_locs, clk_tr_w, clk_h, vss_h,
-                                        bias_config, show_pins, vss_pins, is_bot=True)
+        bi = self._connect_clk_vss_bias(hm_layer, vss_wires, x_ctle_route, yoff, ytop, dp_inst,
+                                        hpxb_inst, hp1b_inst, num_dfe, hp_h, clk_locs, clk_tr_w,
+                                        clk_h, vss_h, bias_config, show_pins, vss_pins, is_bot=True)
         hm_bias_info_list[0] = bi
 
-        bi = self._connect_clk_vss_bias(hm_layer, vss_wires, x_ctle, yoff, ytop, dp_inst, hpxt_inst,
-                                        hp1t_inst, num_dfe, hp_h, clk_locs, clk_tr_w, clk_h, vss_h,
-                                        bias_config, show_pins, vss_pins, is_bot=False)
+        bi = self._connect_clk_vss_bias(hm_layer, vss_wires, x_ctle_route, yoff, ytop, dp_inst,
+                                        hpxt_inst, hp1t_inst, num_dfe, hp_h, clk_locs, clk_tr_w,
+                                        clk_h, vss_h, bias_config, show_pins, vss_pins, is_bot=False)
         hm_bias_info_list[3] = bi
 
         # gather VDD-referenced wires
@@ -214,28 +219,32 @@ class RXFrontend(TemplateBase):
         bias_vdd_wires = dp_inst.get_all_port_pins('VDD', layer=vm_layer)
         bias_vdd_wires.extend(vdd_wires)
         y_bvdd = yoff + hp_h + clk_h + vss_h
-        bi = self._connect_vdd_bias(hm_layer, x_ctle, num_dfe, num_ffe, bias_vdd_wires, dp_inst,
-                                    y_bvdd, bias_config, show_pins, vdd_pins, is_bot=True)
+        bi = self._connect_vdd_bias(hm_layer, x_ctle_route, num_dfe, num_ffe, bias_vdd_wires,
+                                    dp_inst, y_bvdd, bias_config, show_pins, vdd_pins, is_bot=True)
         hm_bias_info_list[1] = bi
 
         y_tvdd = ytop - (hp_h + clk_h + vss_h + vdd_h)
-        bi = self._connect_vdd_bias(hm_layer, x_ctle, num_dfe, num_ffe, bias_vdd_wires, dp_inst,
-                                    y_tvdd, bias_config, show_pins, vdd_pins, is_bot=False)
+        bi = self._connect_vdd_bias(hm_layer, x_ctle_route, num_dfe, num_ffe, bias_vdd_wires,
+                                    dp_inst, y_tvdd, bias_config, show_pins, vdd_pins, is_bot=False)
         hm_bias_info_list[2] = bi
 
         # connect vincm
-        vss_rtids = BiasShield.get_route_tids(self.grid, vm_layer, vss_x[0] + x_route,
+        vss_rtids = BiasShield.get_route_tids(self.grid, vm_layer, vss_x[0],
                                               bias_config, num_vm_vss)
         vincm_tid = TrackID(vm_layer, vss_rtids[-2][0], width=vss_rtids[-2][1])
-        vincm = self.connect_to_tracks(vincm, vincm_tid, track_upper=ytop - hp_h - clk_h,
-                                       unit_mode=True)
+        y_route = ytop - hp_h - clk_h
+        vincm = self.connect_to_tracks(vincm, vincm_tid, track_upper=y_route, unit_mode=True)
         self.add_pin('v_vincm', vincm, show=show_pins, edge_mode=1)
         # join bias routes together
         ctle_vss.extend(biasl_vss)
-        tmp = join_bias_vroutes(self, vm_layer, vdd_x, vss_x, x_ctle, num_vm_vdd, num_vm_vss,
-                                hm_bias_info_list, bias_config, vdd_pins, vss_pins, show_pins,
-                                xl=x_route, vss_warrs=ctle_vss, vdd_warrs=biasl_vdd)
-        vdd_bias, vss_bias = tmp
+        tmp = join_bias_vroutes(self, vm_layer, vdd_x, vss_x, x_ctle_route, num_vm_vdd, num_vm_vss,
+                                hm_bias_info_list, bias_config, vdd_pins, vss_pins,
+                                xl=0, vss_warrs=ctle_vss, vdd_warrs=biasl_vdd)
+        vdd_pins, vss_pins, vdd_bias, vss_bias = tmp
+
+        # extend bias routes to edge
+        self._extend_bias_routes(hm_layer, bias_config, vdd_pins, vss_pins, y_route,
+                                 vdd_x[0], vss_x[0])
 
         # connect supplies
         vdd_wires.extend(vdd_bias)
@@ -248,6 +257,50 @@ class RXFrontend(TemplateBase):
         self._sch_params['ctle_params'] = master_ctle.sch_params
         self._sch_params['hp_params'] = master_hpx.sch_params['hp_params']
         self._sch_params['ndum_res'] = master_hpx.sch_params['ndum'] * 4
+
+    def _extend_bias_routes(self, hm_layer, bias_config, vdd_pins, vss_pins, y_route, x_vdd, x_vss):
+        # make corner masters
+        vm_layer = hm_layer - 1
+        ym_layer = hm_layer + 1
+        num_vss = len(vss_pins)
+        num_vdd = len(vdd_pins)
+        vss_params = dict(
+            nwire=num_vss,
+            width=1,
+            space_sig=0,
+        )
+        vdd_params = dict(
+            nwire=num_vdd,
+            width=1,
+            space_sig=0,
+        )
+        vssc_params = dict(
+            bot_layer=vm_layer,
+            bias_config=bias_config,
+            bot_params=vss_params,
+            top_params=vss_params,
+        )
+        vddc_params = dict(
+            bot_layer=vm_layer,
+            bias_config=bias_config,
+            bot_params=vdd_params,
+            top_params=vdd_params,
+        )
+        master_vssc = self.new_template(params=vssc_params, temp_cls=BiasShieldJoin)
+        master_vddc = self.new_template(params=vddc_params, temp_cls=BiasShieldJoin)
+
+        # extend to corners
+        ytop = self.bound_box.top_unit
+        y_vssc = ytop - master_vssc.bound_box.height_unit
+        y_vddc = y_vssc - master_vddc.bound_box.height_unit
+        for master, x, y, num in ((master_vssc, x_vss, y_vssc, num_vss),
+                                  (master_vddc, x_vdd, y_vddc, num_vdd)):
+            inst = self.add_instance(master, loc=(x, y), unit_mode=True)
+            sup_ym = self.extend_wires(inst.get_all_port_pins('sup_core', layer=ym_layer),
+                                       lower=y_route, unit_mode=True)
+            sup_hm, _ = BiasShield.draw_bias_shields(self, vm_layer, bias_config, num, x,
+                                                     y_route, y, check_blockage=False)
+            self.draw_vias_on_intersections(sup_hm, sup_ym)
 
     def _connect_ctle(self, tr_manager, ctle_inst, dp_inst, p_tid, n_tid, show_pins):
         xm_layer = p_tid.layer_id
