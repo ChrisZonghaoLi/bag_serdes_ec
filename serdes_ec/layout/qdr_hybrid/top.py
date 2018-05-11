@@ -10,7 +10,8 @@ from bag.layout.util import BBox
 from bag.layout.routing.base import TrackID, TrackManager
 from bag.layout.template import TemplateBase
 
-from abs_templates_ec.routing.bias import BiasShield, compute_vroute_width, join_bias_vroutes
+from abs_templates_ec.routing.bias import BiasShield, BiasShieldJoin,\
+    compute_vroute_width, join_bias_vroutes
 
 from analog_ec.layout.dac.rladder.top import RDACArray
 from analog_ec.layout.passives.filter.highpass import HighPassArrayClk
@@ -164,7 +165,7 @@ class RXFrontend(TemplateBase):
                                       orient='MX', unit_mode=True)
 
         dp_box = BBox(0, 0, tot_w, tot_h, self.grid.resolution, unit_mode=True)
-        self.set_size_from_bound_box(ym_layer, dp_box)
+        self.set_size_from_bound_box(top_layer, dp_box)
         self.array_box = dp_box
         self.add_cell_boundary(dp_box)
 
@@ -704,6 +705,7 @@ class RXTop(TemplateBase):
         return dict(
             fe_params='RX frontend parameters.',
             dac_params='RX DAC parameters.',
+            top_layer='Top routing layer.',
             fill_config='fill configuration dictionary.',
             bias_config='bias configuration dictionary.',
             fill_orient_mode='fill orientation mode.',
@@ -719,19 +721,24 @@ class RXTop(TemplateBase):
         )
 
     def draw_layout(self):
+        top_layer = self.params['top_layer']
+        bias_config = self.params['bias_config']
         show_pins = self.params['show_pins']
 
         master_fe, master_dac, master_buf = self._make_masters()
         box_fe = master_fe.bound_box
         box_dac = master_dac.bound_box
 
-        top_layer = master_dac.top_layer
+        xm_layer = master_fe.top_layer
+        hm_layer = xm_layer - 2
         w_fe = box_fe.width_unit
+        h_fe = box_fe.height_unit
         w_dac = box_dac.width_unit
+        h_dac = box_dac.height_unit
         w_tot = max(w_fe, w_dac)
         x_fe = w_tot - w_fe
         x_dac = w_tot - w_dac
-        h_tot = box_fe.height_unit + box_dac.height_unit
+        h_tot = h_fe + h_dac
 
         inst_fe = self.add_instance(master_fe, 'XFE', loc=(x_fe, 0), unit_mode=True)
         inst_dac = self.add_instance(master_dac, 'XDAC', loc=(x_dac, h_tot), orient='MX',
@@ -751,6 +758,10 @@ class RXTop(TemplateBase):
         self._connect_buffers(inst_fe, inst_bufb, inst_buft, master_fe.bot_scan_names,
                               master_fe.top_scan_names, show_pins)
 
+        self._connect_bias_routes(hm_layer, inst_fe, inst_dac, h_fe, master_dac.vdd_names,
+                                  master_dac.vss_names, bias_config, master_dac.bias_info_list)
+
+        # re-export DAC pins
         for name in inst_dac.port_names_iter():
             if name.startswith('bias_') or name == 'VDD' or name == 'VSS':
                 self.reexport(inst_dac.get_port(name), show=show_pins)
@@ -759,6 +770,47 @@ class RXTop(TemplateBase):
             fe_params=master_fe.sch_params,
             dac_params=master_dac.sch_params,
         )
+
+    def _connect_bias_routes(self, hm_layer, inst_fe, inst_dac, y_dac, vdd_names, vss_names,
+                             bias_config, dac_info_list):
+        vm_layer = hm_layer - 1
+        num_vss = len(vss_names)
+        num_vdd = len(vdd_names)
+        vss_params = dict(
+            nwire=num_vss,
+            width=1,
+            space_sig=0,
+        )
+        vdd_params = dict(
+            nwire=num_vdd,
+            width=1,
+            space_sig=0,
+        )
+        vssc_params = dict(
+            bot_layer=vm_layer,
+            bias_config=bias_config,
+            bot_params=vss_params,
+            top_params=vss_params,
+        )
+        vddc_params = dict(
+            bot_layer=vm_layer,
+            bias_config=bias_config,
+            bot_params=vdd_params,
+            top_params=vdd_params,
+        )
+        master_vssc = self.new_template(params=vssc_params, temp_cls=BiasShieldJoin)
+        master_vddc = self.new_template(params=vddc_params, temp_cls=BiasShieldJoin)
+        arr_box_vssc = master_vssc.array_box
+        w_vssc = arr_box_vssc.width_unit
+        arr_box_vddc = master_vddc.array_box
+        w_vddc = arr_box_vddc.width_unit
+
+        x_vssc = dac_info_list[1][2]
+        self.add_instance(master_vssc, loc=(x_vssc + w_vssc, y_dac), orient='R180', unit_mode=True)
+
+        y_vddc = y_dac - master_vssc.bound_box.height_unit
+        x_vddc = dac_info_list[0][2]
+        self.add_instance(master_vddc, loc=(x_vddc + w_vddc, y_vddc), orient='R180', unit_mode=True)
 
     def _reexport_fe_pins(self, inst_fe, show_pins):
         for name in ['inp', 'inn', 'des_clk', 'des_clkb', 'clkp', 'clkn', 'VDD', 'VSS',
@@ -789,6 +841,7 @@ class RXTop(TemplateBase):
     def _make_masters(self):
         fe_params = self.params['fe_params'].copy()
         dac_params = self.params['dac_params'].copy()
+        top_layer = self.params['top_layer']
         fill_config = self.params['fill_config']
         bias_config = self.params['bias_config']
         fill_orient_mode = self.params['fill_orient_mode']
@@ -797,6 +850,7 @@ class RXTop(TemplateBase):
         fe_params['bias_config'] = dac_params['bias_config'] = bias_config
         dac_params['fill_orient_mode'] = fill_orient_mode ^ 2
         fe_params['show_pins'] = dac_params['show_pins'] = False
+        dac_params['top_layer'] = top_layer
 
         master_fe = self.new_template(params=fe_params, temp_cls=RXFrontend)
         master_dac = self.new_template(params=dac_params, temp_cls=RDACArray)
