@@ -837,10 +837,12 @@ class RXTop(TemplateBase):
         )
 
     def _connect_bias_routes(self, hm_layer, inst_fe, inst_dac, y_dac, bias_config):
+        x_fe = inst_fe.location_unit[0]
+        x_dac = inst_dac.location_unit[0]
         master_dac = inst_dac.master
-        vdd_names = master_dac.vdd_names
-        vss_names = master_dac.vss_names
-        dac_info_list = master_dac.bias_info_list
+        (x_vdd, vdd_names), (x_vss, vss_names) = master_dac.bias_info
+        x_vdd += x_dac
+        x_vss += x_dac
 
         # make corner masters
         vm_layer = hm_layer - 1
@@ -872,28 +874,29 @@ class RXTop(TemplateBase):
         master_vssc = self.new_template(params=vssc_params, temp_cls=BiasShieldJoin)
         master_vddc = self.new_template(params=vddc_params, temp_cls=BiasShieldJoin)
         arr_box_vssc = master_vssc.array_box
-        w_vssc = arr_box_vssc.width_unit
         h_end = master_vssc.bound_box.top_unit - arr_box_vssc.top_unit
-        arr_box_vddc = master_vddc.array_box
-        w_vddc = arr_box_vddc.width_unit
-
-        # connect DACs to corners
-        x_vssc = dac_info_list[1][2]
         y_vssc = y_dac - h_end
-        inst = self.add_instance(master_vssc, loc=(x_vssc + w_vssc, y_vssc), orient='R180',
-                                 unit_mode=True)
-        self.extend_wires(inst.get_all_port_pins('sup', layer=ym_layer),
-                          upper=y_dac, unit_mode=True)
+        y_vddc = y_vssc - master_vssc.bound_box.height_unit
+        for master, x, yt, num, names in ((master_vssc, x_vss, y_vssc, num_vss, vss_names),
+                                          (master_vddc, x_vdd, y_vddc, num_vdd, vdd_names)):
+            arr_box = master.array_box
+            warr = arr_box.width_unit
+            harr = arr_box.height_unit
+            xr = x + warr
+            inst = self.add_instance(master, loc=(xr, yt), orient='R180', unit_mode=True)
+            sup_ym = self.extend_wires(inst.get_all_port_pins('sup', layer=ym_layer),
+                                       upper=y_dac, unit_mode=True)
+            sup_hm, _ = BiasShield.draw_bias_shields(self, vm_layer, bias_config, num, x,
+                                                     yt, y_dac, check_blockage=False)
+            self.draw_vias_on_intersections(sup_hm, sup_ym)
 
-        y_vddc = y_vssc - arr_box_vssc.height_unit - h_end
-        x_vddc = dac_info_list[0][2]
-        inst = self.add_instance(master_vddc, loc=(x_vddc + w_vddc, y_vddc), orient='R180',
-                                 unit_mode=True)
-        vdd_ym = self.extend_wires(inst.get_all_port_pins('sup', layer=ym_layer),
-                                   upper=y_dac, unit_mode=True)
-        vdd_hm, _ = BiasShield.draw_bias_shields(self, vm_layer, bias_config, num_vdd, x_vddc,
-                                                 y_vddc, y_dac, check_blockage=False)
-        self.draw_vias_on_intersections(vdd_hm, vdd_ym)
+            yb = yt - harr
+            BiasShield.draw_bias_shields(self, hm_layer, bias_config, num, yb,
+                                         xr, x_fe, check_blockage=False)
+            for name in names:
+                pin_dac = inst_dac.get_pin(name)
+                pin_fe = inst_fe.get_pin(name)
+                self.connect_to_track_wires(pin_dac, pin_fe)
 
     def _reexport_fe_pins(self, inst_fe, show_pins):
         for name in ['inp', 'inn', 'des_clk', 'des_clkb', 'clkp', 'clkn', 'VDD', 'VSS',
