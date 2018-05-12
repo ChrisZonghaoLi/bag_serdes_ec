@@ -21,11 +21,8 @@ class bag_serdes_ec__qdr_tap1_summer_row(Module):
 
     def __init__(self, bag_config, parent=None, prj=None, **kwargs):
         Module.__init__(self, bag_config, yaml_file, parent=parent, prj=prj, **kwargs)
-        self._has_hp = False
-
-    @property
-    def has_hp(self):
-        return self._has_hp
+        self.has_hp = False
+        self.has_set = False
 
     @classmethod
     def get_params_info(cls):
@@ -51,7 +48,7 @@ class bag_serdes_ec__qdr_tap1_summer_row(Module):
         )
 
     def design(self, lch, w_dict, th_dict, seg_main, seg_fb, hp_params, m_dum_info, f_dum_info):
-        self._has_hp = (hp_params is not None)
+        self.has_hp = (hp_params is not None)
 
         nw = {k: v for k, v in w_dict.items() if k != 'load' and k != 'pen'}
         nth = {k: v for k, v in th_dict.items() if k != 'load' and k != 'pen'}
@@ -76,7 +73,10 @@ class bag_serdes_ec__qdr_tap1_summer_row(Module):
         self.reconnect_instance_terminal('XLOAD', 'iip<1:0>', 'iip<1:0>')
         self.reconnect_instance_terminal('XLOAD', 'iin<1:0>', 'iin<1:0>')
 
-        if 'pulse' not in self.instances['XMAIN'].master.pin_list:
+        master = self.instances['XMAIN'].master
+        if master.has_set:
+            self.has_set = True
+        else:
             for name in ('setp', 'setn', 'pulse'):
                 self.remove_pin(name)
 

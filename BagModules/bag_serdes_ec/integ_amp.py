@@ -21,6 +21,9 @@ class bag_serdes_ec__integ_amp(Module):
 
     def __init__(self, bag_config, parent=None, prj=None, **kwargs):
         Module.__init__(self, bag_config, yaml_file, parent=parent, prj=prj, **kwargs)
+        self.has_set = False
+        self.has_casc = False
+        self.has_but = False
 
     @classmethod
     def get_params_info(cls):
@@ -50,18 +53,18 @@ class bag_serdes_ec__integ_amp(Module):
             self.remove_pin('tail')
             self.remove_pin('foot')
 
-        pin_list = self.instances['XGM'].master.pin_list
-        has_set = has_casc = False
-        for pin in pin_list:
-            if pin == 'setp':
-                has_set = True
-            if pin.startswith('casc'):
-                has_casc = True
-                if pin == 'casc':
-                    self.rename_pin('casc<1:0>', 'casc')
-        if not has_casc:
+        master = self.instances['XGM'].master
+        if master.has_casc:
+            self.has_casc = True
+            self.rename_pin('casc<1:0>', 'casc')
+        elif master.has_but:
+            self.has_but = True
+        else:
             self.remove_pin('casc<1:0>')
-        if not has_set:
+
+        if master.has_set:
+            self.has_set = True
+        else:
             self.remove_pin('setp')
             self.remove_pin('setn')
             self.remove_pin('pulse')

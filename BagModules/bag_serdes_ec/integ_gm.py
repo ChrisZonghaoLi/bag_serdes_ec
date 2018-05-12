@@ -20,6 +20,9 @@ class bag_serdes_ec__integ_gm(Module):
 
     def __init__(self, bag_config, parent=None, prj=None, **kwargs):
         Module.__init__(self, bag_config, yaml_file, parent=parent, prj=prj, **kwargs)
+        self.has_set = False
+        self.has_casc = False
+        self.has_but = False
 
     @classmethod
     def get_params_info(cls):
@@ -94,6 +97,7 @@ class bag_serdes_ec__integ_gm(Module):
                 self.instances[inst_name].design(w=w, l=lch, nf=seg, intent=th)
 
         if seg_casc > 0:
+            self.has_casc = True
             self.rename_pin('casc<1:0>', 'casc')
             self.reconnect_instance_terminal('XCASP0', 'G', 'casc')
             self.reconnect_instance_terminal('XCASN0', 'G', 'casc')
@@ -101,10 +105,14 @@ class bag_serdes_ec__integ_gm(Module):
             self.remove_pin('casc<1:0>')
             self.reconnect_instance_terminal('XINP', 'D', 'outp')
             self.reconnect_instance_terminal('XINN', 'D', 'outn')
+        else:
+            self.has_but = True
 
         if seg_set <= 0:
             for name in ('setp', 'setn', 'pulse'):
                 self.remove_pin(name)
+        else:
+            self.has_set = True
 
         if seg_tsw <= 0:
             self.remove_pin('clkn')

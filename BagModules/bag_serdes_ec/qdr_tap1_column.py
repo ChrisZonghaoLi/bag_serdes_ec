@@ -20,11 +20,7 @@ class bag_serdes_ec__qdr_tap1_column(Module):
 
     def __init__(self, bag_config, parent=None, prj=None, **kwargs):
         Module.__init__(self, bag_config, yaml_file, parent=parent, prj=prj, **kwargs)
-        self._has_hp = False
-
-    @property
-    def has_hp(self):
-        return self._has_hp
+        self.has_hp = False
 
     @classmethod
     def get_params_info(cls):
@@ -35,21 +31,26 @@ class bag_serdes_ec__qdr_tap1_column(Module):
             lat_div_params='latch parameters in the divider row.',
             lat_pul_params='latch parameters in the pulse row.',
             div_params='divider parameters.',
+            re_params='enable retimer parameters.',
             pul_params='pulse generation parameters.',
         )
 
     def design(self, sum_params, lat_params, lat_div_params, lat_pul_params,
-               div_params, pul_params):
+               div_params, re_params, pul_params):
         endb_lat_params = dict(
             div_pos_edge=True,
             lat_params=lat_params,
             div_params=None,
+            re_params=re_params,
+            re_dummy=True,
             pul_params=None,
         )
         endt_lat_params = dict(
             div_pos_edge=True,
             lat_params=lat_pul_params,
             div_params=None,
+            re_params=re_params,
+            re_dummy=False,
             pul_params=pul_params,
         )
         div2_lat_params = dict(
@@ -75,4 +76,4 @@ class bag_serdes_ec__qdr_tap1_column(Module):
         self.instances['X2'].design(sum_params=sum_params, lat_params=div3_lat_params)
         self.instances['X1'].design(sum_params=sum_params, lat_params=endb_lat_params)
 
-        self._has_hp = self.instances['X0'].master.has_hp
+        self.has_hp = self.instances['X0'].master.has_hp
