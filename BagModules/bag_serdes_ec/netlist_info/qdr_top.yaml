@@ -1,6 +1,6 @@
 lib_name: bag_serdes_ec
 cell_name: qdr_top
-pins: [ "VDD", "VSS", "data<3:0>", "dlev<3:0>", "des_clk", "des_clkb", "inp", "inn", "clkp", "clkn", "bias_vincm<7:0>", "setn", "setp", "scan_divider_clkp", "scan_divider_clkn", "bias_analog<7:0>", "bias_digital<7:0>", "bias_tap1_main<7:0>", "bias_way_0_dlev_p<7:0>", "bias_way_1_dlev_p<7:0>", "bias_way_2_dlev_p<7:0>", "bias_way_3_dlev_p<7:0>", "bias_way_0_ffe_1<7:0>", "bias_way_2_ffe_1<7:0>", "bias_way_3_ffe_1<7:0>", "bias_way_1_main<7:0>", "bias_way_1_dfe_2_s<1:0>", "bias_way_1_ffe_1<7:0>", "bias_way_0_dfe_2_s<1:0>", "bias_way_2_dfe_2_s<1:0>", "bias_way_3_dfe_2_s<1:0>", "bias_way_2_main<7:0>", "bias_way_3_main<7:0>", "bias_way_0_dfe_2_m<7:0>", "bias_way_1_dfe_2_m<7:0>", "bias_way_2_dfe_2_m<7:0>", "bias_way_3_dfe_2_m<7:0>", "bias_way_0_dlev_n<7:0>", "bias_way_1_dlev_n<7:0>", "bias_way_2_dlev_n<7:0>", "bias_way_3_dlev_n<7:0>", "bias_way_0_off_p<7:0>", "bias_way_1_off_p<7:0>", "bias_way_2_off_p<7:0>", "bias_way_3_off_p<7:0>", "bias_way_0_off_n<7:0>", "bias_way_1_off_n<7:0>", "bias_way_2_off_n<7:0>", "bias_way_3_off_n<7:0>", "bias_way_0_dfe_1_m<7:0>", "bias_way_1_dfe_1_m<7:0>", "bias_way_2_dfe_1_m<7:0>", "bias_way_3_dfe_1_m<7:0>", "enable_divider", "bias_way_0_main<7:0>" ]
+pins: [ "VDD", "VSS", "data<3:0>", "dlev<3:0>", "des_clk", "des_clkb", "inp", "inn", "clkp", "clkn", "bias_vincm<7:0>", "scan_divider_clkp", "scan_divider_clkn", "bias_analog<7:0>", "bias_digital<7:0>", "bias_tap1_main<7:0>", "bias_way_0_dlev_p<7:0>", "bias_way_1_dlev_p<7:0>", "bias_way_2_dlev_p<7:0>", "bias_way_3_dlev_p<7:0>", "bias_way_0_ffe_1<7:0>", "bias_way_2_ffe_1<7:0>", "bias_way_3_ffe_1<7:0>", "bias_way_1_main<7:0>", "bias_way_1_dfe_2_s<1:0>", "bias_way_1_ffe_1<7:0>", "bias_way_0_dfe_2_s<1:0>", "bias_way_2_dfe_2_s<1:0>", "bias_way_3_dfe_2_s<1:0>", "bias_way_2_main<7:0>", "bias_way_3_main<7:0>", "bias_way_0_dfe_2_m<7:0>", "bias_way_1_dfe_2_m<7:0>", "bias_way_2_dfe_2_m<7:0>", "bias_way_3_dfe_2_m<7:0>", "bias_way_0_dlev_n<7:0>", "bias_way_1_dlev_n<7:0>", "bias_way_2_dlev_n<7:0>", "bias_way_3_dlev_n<7:0>", "bias_way_0_off_p<7:0>", "bias_way_1_off_p<7:0>", "bias_way_2_off_p<7:0>", "bias_way_3_off_p<7:0>", "bias_way_0_off_n<7:0>", "bias_way_1_off_n<7:0>", "bias_way_2_off_n<7:0>", "bias_way_3_off_n<7:0>", "bias_way_0_dfe_1_m<7:0>", "bias_way_1_dfe_1_m<7:0>", "bias_way_2_dfe_1_m<7:0>", "bias_way_3_dfe_1_m<7:0>", "enable_divider", "bias_way_0_main<7:0>" ]
 instances:
   XFE:
     lib_name: bag_serdes_ec
@@ -77,14 +77,6 @@ instances:
       scan_divider_clkp:
         direction: input
         net_name: "scan_divider_clkp_buf"
-        num_bits: 1
-      setn:
-        direction: input
-        net_name: "setn"
-        num_bits: 1
-      setp:
-        direction: input
-        net_name: "setp"
         num_bits: 1
       v_analog:
         direction: input
@@ -250,10 +242,6 @@ instances:
     lib_name: basic
     cell_name: opin
     instpins: {}
-  PIN55:
-    lib_name: basic
-    cell_name: ipin
-    instpins: {}
   PIN53:
     lib_name: basic
     cell_name: ipin
@@ -415,10 +403,6 @@ instances:
     cell_name: ipin
     instpins: {}
   PIN13:
-    lib_name: basic
-    cell_name: ipin
-    instpins: {}
-  PIN54:
     lib_name: basic
     cell_name: ipin
     instpins: {}

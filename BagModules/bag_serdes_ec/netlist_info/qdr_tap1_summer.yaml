@@ -1,50 +1,26 @@
 lib_name: bag_serdes_ec
 cell_name: qdr_tap1_summer
-pins: [ "VDD", "VSS", "inp", "inn", "clkp", "clkn", "en_div2", "biasp_m", "biasn_d", "biasp_f", "setp", "outn_m", "fbp", "en_div", "outp_d", "outn_d", "outp_m", "scan_div", "div", "divb", "fbn", "setn", "pulse_in", "pulse_out", "en<3:0>", "en_div3" ]
+pins: [ "VDD", "VSS", "inp", "inn", "clkp", "clkn", "biasp_m", "biasn_d", "biasp_f", "setp", "outn_m", "fbp", "outp_d", "outn_d", "outp_m", "fbn", "setn", "pulse_in", "en<3:1>" ]
 instances:
   XLAT:
     lib_name: bag_serdes_ec
-    cell_name: qdr_tap1_latch_row
+    cell_name: integ_amp
     instpins:
-      en_div2:
-        direction: output
-        net_name: "en_div2"
-        num_bits: 1
-      en_div3:
-        direction: output
-        net_name: "en_div3"
-        num_bits: 1
-      en<3:2>:
-        direction: input
-        net_name: "en<2:1>"
-        num_bits: 2
-      pulse_out:
-        direction: output
-        net_name: "pulse_out"
-        num_bits: 1
-      pulse_in:
+      pulse:
         direction: input
         net_name: "pulse_in"
         num_bits: 1
-      en0:
+      casc<1:0>:
         direction: input
-        net_name: "en<0>"
-        num_bits: 1
-      en3:
-        direction: input
-        net_name: "en<3>"
-        num_bits: 1
-      setp:
-        direction: input
-        net_name: "setp"
-        num_bits: 1
+        net_name: "VSS,VDD"
+        num_bits: 2
       setn:
         direction: input
         net_name: "setn"
         num_bits: 1
-      biasp:
+      setp:
         direction: input
-        net_name: "biasn_d"
+        net_name: "setp"
         num_bits: 1
       VSS:
         direction: inputOutput
@@ -54,17 +30,21 @@ instances:
         direction: inputOutput
         net_name: "VDD"
         num_bits: 1
-      scan_div:
-        direction: input
-        net_name: "scan_div"
-        num_bits: 1
-      en_div:
-        direction: input
-        net_name: "en_div"
-        num_bits: 1
       outp:
         direction: output
         net_name: "outp_d"
+        num_bits: 1
+      outn:
+        direction: output
+        net_name: "outn_d"
+        num_bits: 1
+      foot:
+        direction: output
+        net_name: "foot_lat"
+        num_bits: 1
+      tail:
+        direction: output
+        net_name: "tail_lat"
         num_bits: 1
       clkp:
         direction: input
@@ -82,17 +62,13 @@ instances:
         direction: input
         net_name: "outn_m"
         num_bits: 1
-      outn:
-        direction: output
-        net_name: "outn_d"
-        num_bits: 1
-      divb:
-        direction: output
-        net_name: "divb"
-        num_bits: 1
-      div:
-        direction: output
-        net_name: "div"
+      en<3:2>:
+        direction: input
+        net_name: "en<2:1>"
+        num_bits: 2
+      biasp:
+        direction: input
+        net_name: "biasn_d"
         num_bits: 1
   PIN1:
     lib_name: basic
@@ -101,10 +77,6 @@ instances:
   PIN0:
     lib_name: basic
     cell_name: iopin
-    instpins: {}
-  PIN20:
-    lib_name: basic
-    cell_name: ipin
     instpins: {}
   PIN27:
     lib_name: basic
@@ -157,30 +129,6 @@ instances:
   PIN2:
     lib_name: basic
     cell_name: ipin
-    instpins: {}
-  PIN19:
-    lib_name: basic
-    cell_name: ipin
-    instpins: {}
-  PIN32:
-    lib_name: basic
-    cell_name: opin
-    instpins: {}
-  PIN31:
-    lib_name: basic
-    cell_name: opin
-    instpins: {}
-  PIN30:
-    lib_name: basic
-    cell_name: opin
-    instpins: {}
-  PIN22:
-    lib_name: basic
-    cell_name: opin
-    instpins: {}
-  PIN21:
-    lib_name: basic
-    cell_name: opin
     instpins: {}
   PIN18:
     lib_name: basic
