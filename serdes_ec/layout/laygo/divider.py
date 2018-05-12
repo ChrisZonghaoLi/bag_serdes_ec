@@ -884,7 +884,8 @@ class EnableRetimer(LaygoBase):
         col_ff1 = col_ff0 + ncol_ff + blk_sp
         col_lat = col_ff1 + ncol_ff + blk_sp
         vss_w, vdd_w = _draw_substrate(self, col0, num_col, num_col - col_inc)
-        ff0_ports = self._draw_ff(col_ff0, ncol_lat, seg_in, seg_fb, seg_out, blk_sp)
+        ff0_ports = self._draw_ff(col_ff0, ncol_lat, seg_in, seg_fb, seg_out, blk_sp,
+                                  draw_vm_in=True)
         ff1_ports = self._draw_ff(col_ff1, ncol_lat, seg_in, seg_fb, seg_out, blk_sp,
                                   draw_vm_in=False)
         lat_ports = self._draw_lat(col_lat, seg_in, seg_fb, seg_out, blk_sp,
@@ -900,8 +901,6 @@ class EnableRetimer(LaygoBase):
         vdd_intv = self.get_track_interval(self.num_rows - 1, 'ds')
         vss = _connect_supply(self, vss_w, vss_list, vss_intv, tr_manager, round_up=False)
         vdd = _connect_supply(self, vdd_w, vdd_list, vdd_intv, tr_manager, round_up=True)
-        self.add_pin('VDD', vdd, show=show_pins)
-        self.add_pin('VSS', vss, show=show_pins)
 
         # connect intermediate wires
         mid_hm = ff0_ports['out_hm']
@@ -910,6 +909,35 @@ class EnableRetimer(LaygoBase):
         mid_hm = ff1_ports['out_hm']
         mid_hm.extend(lat_ports['in'])
         self.connect_wires(mid_hm)
+
+        # export IO pins
+        self.add_pin('in', ff0_ports['in'], show=show_pins)
+        self.add_pin('en3', ff1_ports['out'], show=show_pins)
+        self.add_pin('en2', lat_ports['out'], show=show_pins)
+
+        clkp = ff0_ports['clk']
+        clkp.extend(ff1_ports['clk'])
+        clkp.append(lat_ports['clkb'])
+        clkn = ff0_ports['clkb']
+        clkn.extend(ff1_ports['clkb'])
+        clkn.append(lat_ports['clk'])
+
+        if tr_info is not None:
+            xm_layer = self.conn_layer + 3
+            clkp_idx, w_clk = tr_info['clkp']
+            clkn_idx, _ = tr_info['clkn']
+            vdd_idx, w_vdd = tr_info['VDD']
+            vss_idx, w_vss = tr_info['VSS']
+
+            clkp, clkn = self.connect_differential_tracks(clkp, clkn, xm_layer,
+                                                          clkp_idx, clkn_idx, width=w_clk)
+            vdd = self.connect_to_tracks(vdd, TrackID(xm_layer, vdd_idx, width=w_vdd))
+            vss = self.connect_to_tracks(vss, TrackID(xm_layer, vss_idx, width=w_vss))
+
+        self.add_pin('VDD', vdd, show=show_pins)
+        self.add_pin('VSS', vss, show=show_pins)
+        self.add_pin('clkp', clkp, show=show_pins)
+        self.add_pin('clkn', clkn, show=show_pins)
 
     def _draw_lat(self, col_in, seg_in, seg_fb, seg_out, blk_sp, draw_vm_in=True):
         grid = self.grid
