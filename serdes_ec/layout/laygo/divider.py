@@ -885,8 +885,10 @@ class EnableRetimer(LaygoBase):
         col_lat = col_ff1 + ncol_ff + blk_sp
         vss_w, vdd_w = _draw_substrate(self, col0, num_col, num_col - col_inc)
         ff0_ports = self._draw_ff(col_ff0, ncol_lat, seg_in, seg_fb, seg_out, blk_sp)
-        ff1_ports = self._draw_ff(col_ff1, ncol_lat, seg_in, seg_fb, seg_out, blk_sp)
-        lat_ports = self._draw_lat(col_lat, seg_in, seg_fb, seg_out, blk_sp)
+        ff1_ports = self._draw_ff(col_ff1, ncol_lat, seg_in, seg_fb, seg_out, blk_sp,
+                                  draw_vm_in=False)
+        lat_ports = self._draw_lat(col_lat, seg_in, seg_fb, seg_out, blk_sp,
+                                   draw_vm_in=False)
 
         # fill space
         self.fill_space()
@@ -900,6 +902,14 @@ class EnableRetimer(LaygoBase):
         vdd = _connect_supply(self, vdd_w, vdd_list, vdd_intv, tr_manager, round_up=True)
         self.add_pin('VDD', vdd, show=show_pins)
         self.add_pin('VSS', vss, show=show_pins)
+
+        # connect intermediate wires
+        mid_hm = ff0_ports['out_hm']
+        mid_hm.extend(ff1_ports['in'])
+        self.connect_wires(mid_hm)
+        mid_hm = ff1_ports['out_hm']
+        mid_hm.extend(lat_ports['in'])
+        self.connect_wires(mid_hm)
 
     def _draw_lat(self, col_in, seg_in, seg_fb, seg_out, blk_sp, draw_vm_in=True):
         grid = self.grid
@@ -1001,14 +1011,28 @@ class EnableRetimer(LaygoBase):
                 'clkb': clkb,
                 }
 
-    def _draw_ff(self, x0, ncol_lat, seg_in, seg_fb, seg_out, blk_sp):
-        m_ports = self._draw_lat(x0, seg_in, seg_fb, seg_out, blk_sp)
-        s_ports = self._draw_lat(x0 + ncol_lat + blk_sp, seg_in, seg_fb, seg_out, blk_sp)
+    def _draw_ff(self, x0, ncol_lat, seg_in, seg_fb, seg_out, blk_sp, draw_vm_in=True):
+        m_ports = self._draw_lat(x0, seg_in, seg_fb, seg_out, blk_sp, draw_vm_in=draw_vm_in)
+        s_ports = self._draw_lat(x0 + ncol_lat + blk_sp, seg_in, seg_fb, seg_out,
+                                 blk_sp, draw_vm_in=False)
+
+        mid_hm = m_ports['out_hm']
+        mid_hm.extend((s_ports['in']))
+        self.connect_wires(mid_hm)
 
         vss_warrs = m_ports['VSS']
         vdd_warrs = m_ports['VDD']
         vss_warrs.extend(s_ports['VSS'])
         vdd_warrs.extend(s_ports['VDD'])
+
+        clk = [s_ports['clk'], m_ports['clkb']]
+        clkb = [s_ports['clkb'], m_ports['clk']]
+
         return {'VSS': vss_warrs,
                 'VDD': vdd_warrs,
+                'out': s_ports['out'],
+                'out_hm': s_ports['out_hm'],
+                'in': m_ports['in'],
+                'clk': clk,
+                'clkb': clkb,
                 }
