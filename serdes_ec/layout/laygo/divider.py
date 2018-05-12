@@ -829,6 +829,7 @@ class EnableRetimer(LaygoBase):
             fg_min='Minimum number of core fingers.',
             end_mode='The LaygoBase end_mode flag.',
             abut_mode='The left/right abut mode flag.',
+            is_dummy='True to connect this retimer as a dummy cell.',
             show_pins='True to show pins.',
         )
 
@@ -840,6 +841,7 @@ class EnableRetimer(LaygoBase):
             fg_min=0,
             end_mode=None,
             abut_mode=0,
+            is_dummy=False,
             show_pins=True,
         )
 
@@ -854,6 +856,7 @@ class EnableRetimer(LaygoBase):
         fg_min = self.params['fg_min']
         end_mode = self.params['end_mode']
         abut_mode = self.params['abut_mode']
+        is_dummy = self.params['is_dummy']
         show_pins = self.params['show_pins']
 
         tr_manager = TrackManager(self.grid, tr_widths, tr_spaces, half_space=True)
@@ -921,11 +924,6 @@ class EnableRetimer(LaygoBase):
         mid_hm.extend(lat_ports['in'])
         self.connect_wires(mid_hm)
 
-        # export IO pins
-        self.add_pin('in', ff0_ports['in'], show=show_pins)
-        self.add_pin('en3', ff1_ports['out'], show=show_pins)
-        self.add_pin('en2', lat_ports['out'], show=show_pins)
-
         clkp = ff0_ports['clk']
         clkp.extend(ff1_ports['clk'])
         clkp.append(lat_ports['clkb'])
@@ -936,20 +934,33 @@ class EnableRetimer(LaygoBase):
         self.add_pin('VSS_vm', vss, show=show_pins)
         self.add_pin('clkp_vm', clkp, show=show_pins)
         self.add_pin('clkn_vm', clkn, show=show_pins)
-        if tr_info is not None:
-            xm_layer = self.conn_layer + 3
-            clkp_idx, w_clk = tr_info['clkp']
-            clkn_idx, _ = tr_info['clkn']
-            vdd_idx, w_vdd = tr_info['VDD']
-            vss_idx, w_vss = tr_info['VSS']
+        if is_dummy:
+            clkp.extend(vss)
+            clkn.extend(vdd)
+            clkp.append(ff0_ports['in'])
+            self.connect_wires(clkp)
+            self.connect_wires(clkn)
+        else:
+            # export IO pins
+            self.add_pin('in', ff0_ports['in'], show=show_pins)
+            self.add_pin('en3', ff1_ports['out'], show=show_pins)
+            self.add_pin('en2', lat_ports['out'], show=show_pins)
 
-            clkp, clkn = self.connect_differential_tracks(clkp, clkn, xm_layer,
-                                                          clkp_idx, clkn_idx, width=w_clk)
-            vdd = self.connect_to_tracks(vdd, TrackID(xm_layer, vdd_idx, width=w_vdd))
-            vss = self.connect_to_tracks(vss, TrackID(xm_layer, vss_idx, width=w_vss))
+            if tr_info is not None:
+                xm_layer = self.conn_layer + 3
+                clkp_idx, w_clk = tr_info['clkp']
+                clkn_idx, _ = tr_info['clkn']
+                vdd_idx, w_vdd = tr_info['VDD']
+                vss_idx, w_vss = tr_info['VSS']
 
-        self.add_pin('clkp', clkp, show=show_pins)
-        self.add_pin('clkn', clkn, show=show_pins)
+                clkp, clkn = self.connect_differential_tracks(clkp, clkn, xm_layer,
+                                                              clkp_idx, clkn_idx, width=w_clk)
+                vdd = self.connect_to_tracks(vdd, TrackID(xm_layer, vdd_idx, width=w_vdd))
+                vss = self.connect_to_tracks(vss, TrackID(xm_layer, vss_idx, width=w_vss))
+
+            self.add_pin('clkp', clkp, show=show_pins)
+            self.add_pin('clkn', clkn, show=show_pins)
+
         self.add_pin('VDD', vdd, show=show_pins)
         self.add_pin('VSS', vss, show=show_pins)
 
@@ -969,6 +980,7 @@ class EnableRetimer(LaygoBase):
                 pinv=seg_out, ninv=seg_out,
             ),
             seg_buf=seg_buf,
+            is_dummy=is_dummy
         )
 
     def _draw_lat(self, col_in, seg_in, seg_fb, seg_out, blk_sp, draw_vm_in=True):

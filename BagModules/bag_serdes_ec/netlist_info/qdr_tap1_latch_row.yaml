@@ -1,6 +1,6 @@
 lib_name: bag_serdes_ec
 cell_name: qdr_tap1_latch_row
-pins: [ "VDD", "VSS", "inp", "inn", "clkp", "clkn", "biasp", "en3", "en0", "setp", "outp", "setn", "div", "scan_div", "en_div", "outn", "divb", "pulse_in", "pulse_out", "en<3:2>" ]
+pins: [ "VDD", "VSS", "inp", "inn", "clkp", "clkn", "biasp", "en3", "en0", "setp", "en_div2", "en_div3", "outp", "setn", "div", "scan_div", "en_div", "outn", "divb", "pulse_in", "pulse_out", "en<3:2>" ]
 instances:
   XDIV:
     lib_name: bag_serdes_ec
@@ -162,6 +162,14 @@ instances:
     lib_name: basic
     cell_name: ipin
     instpins: {}
+  PIN26:
+    lib_name: basic
+    cell_name: opin
+    instpins: {}
+  PIN25:
+    lib_name: basic
+    cell_name: opin
+    instpins: {}
   PIN24:
     lib_name: basic
     cell_name: opin
@@ -209,4 +217,36 @@ instances:
       en0:
         direction: input
         net_name: "en0"
+        num_bits: 1
+  XRE:
+    lib_name: bag_serdes_ec
+    cell_name: enable_retimer
+    instpins:
+      VSS:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      VDD:
+        direction: inputOutput
+        net_name: "VDD"
+        num_bits: 1
+      en3:
+        direction: output
+        net_name: "en_div3"
+        num_bits: 1
+      en2:
+        direction: output
+        net_name: "en_div2"
+        num_bits: 1
+      in:
+        direction: input
+        net_name: "en_div"
+        num_bits: 1
+      clkp:
+        direction: input
+        net_name: "clkp"
+        num_bits: 1
+      clkn:
+        direction: input
+        net_name: "clkn"
         num_bits: 1

@@ -1,11 +1,19 @@
 lib_name: bag_serdes_ec
 cell_name: qdr_tap1_summer
-pins: [ "VDD", "VSS", "inp", "inn", "clkp", "clkn", "biasp_m", "biasn_d", "biasp_f", "setp", "outn_m", "fbp", "en_div", "outp_d", "outn_d", "outp_m", "scan_div", "div", "divb", "fbn", "setn", "pulse_in", "pulse_out", "en<3:0>" ]
+pins: [ "VDD", "VSS", "inp", "inn", "clkp", "clkn", "en_div2", "biasp_m", "biasn_d", "biasp_f", "setp", "outn_m", "fbp", "en_div", "outp_d", "outn_d", "outp_m", "scan_div", "div", "divb", "fbn", "setn", "pulse_in", "pulse_out", "en<3:0>", "en_div3" ]
 instances:
   XLAT:
     lib_name: bag_serdes_ec
     cell_name: qdr_tap1_latch_row
     instpins:
+      en_div2:
+        direction: output
+        net_name: "en_div2"
+        num_bits: 1
+      en_div3:
+        direction: output
+        net_name: "en_div3"
+        num_bits: 1
       en<3:2>:
         direction: input
         net_name: "en<2:1>"
@@ -153,6 +161,14 @@ instances:
   PIN19:
     lib_name: basic
     cell_name: ipin
+    instpins: {}
+  PIN32:
+    lib_name: basic
+    cell_name: opin
+    instpins: {}
+  PIN31:
+    lib_name: basic
+    cell_name: opin
     instpins: {}
   PIN30:
     lib_name: basic

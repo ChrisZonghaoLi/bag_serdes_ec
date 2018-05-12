@@ -1,6 +1,6 @@
 lib_name: bag_serdes_ec
 cell_name: qdr_sampler_column
-pins: [ "VDD", "VSS", "inp_data<3:0>", "inn_data<3:0>", "inp_dlev<3:0>", "inn_dlev<3:0>", "clkp", "clkn", "data<3:0>", "scan_div<3:2>", "en_div<3:2>", "dlev<3:0>", "des_clk", "des_clkb" ]
+pins: [ "VDD", "VSS", "inp_data<3:0>", "inn_data<3:0>", "inp_dlev<3:0>", "inn_dlev<3:0>", "clkp", "clkn", "data<3:0>", "scan_div<3:2>", "en_div", "dlev<3:0>", "des_clk", "des_clkb" ]
 instances:
   PIN1:
     lib_name: basic
@@ -102,6 +102,10 @@ instances:
     lib_name: bag_serdes_ec
     cell_name: qdr_divider_column
     instpins:
+      en_div:
+        direction: input
+        net_name: "en_div"
+        num_bits: 1
       VSS:
         direction: inputOutput
         net_name: "VSS"
@@ -122,10 +126,6 @@ instances:
         direction: input
         net_name: "clkp"
         num_bits: 1
-      en_div<3:2>:
-        direction: input
-        net_name: "en_div<3:2>"
-        num_bits: 2
       scan_div<3:2>:
         direction: input
         net_name: "scan_div<3:2>"

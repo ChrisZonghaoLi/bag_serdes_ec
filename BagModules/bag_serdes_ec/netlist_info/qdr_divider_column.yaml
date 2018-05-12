@@ -1,7 +1,71 @@
 lib_name: bag_serdes_ec
 cell_name: qdr_divider_column
-pins: [ "VDD", "VSS", "clkp", "clkn", "scan_div<3:2>", "en_div<3:2>", "en<3:0>" ]
+pins: [ "VDD", "VSS", "clkp", "clkn", "scan_div<3:2>", "en_div", "en<3:0>" ]
 instances:
+  XRE:
+    lib_name: bag_serdes_ec
+    cell_name: enable_retimer
+    instpins:
+      VSS:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      VDD:
+        direction: inputOutput
+        net_name: "VDD"
+        num_bits: 1
+      en3:
+        direction: output
+        net_name: "en3"
+        num_bits: 1
+      en2:
+        direction: output
+        net_name: "en2"
+        num_bits: 1
+      in:
+        direction: input
+        net_name: "en_div"
+        num_bits: 1
+      clkp:
+        direction: input
+        net_name: "clkp"
+        num_bits: 1
+      clkn:
+        direction: input
+        net_name: "clkn"
+        num_bits: 1
+  XDUM:
+    lib_name: bag_serdes_ec
+    cell_name: enable_retimer
+    instpins:
+      VSS:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      VDD:
+        direction: inputOutput
+        net_name: "VDD"
+        num_bits: 1
+      en3:
+        direction: output
+        net_name: "en3_dum"
+        num_bits: 1
+      en2:
+        direction: output
+        net_name: "en2_dum"
+        num_bits: 1
+      in:
+        direction: input
+        net_name: "VSS"
+        num_bits: 1
+      clkp:
+        direction: input
+        net_name: "VSS"
+        num_bits: 1
+      clkn:
+        direction: input
+        net_name: "VDD"
+        num_bits: 1
   XDIV2:
     lib_name: bag_serdes_ec
     cell_name: div2_sin_clk
@@ -28,7 +92,7 @@ instances:
         num_bits: 1
       en:
         direction: input
-        net_name: "en_div<2>"
+        net_name: "en2"
         num_bits: 1
       scan_s:
         direction: input
@@ -60,7 +124,7 @@ instances:
         num_bits: 1
       en:
         direction: input
-        net_name: "en_div<3>"
+        net_name: "en3"
         num_bits: 1
       scan_s:
         direction: input
@@ -94,3 +158,19 @@ instances:
     lib_name: basic
     cell_name: opin
     instpins: {}
+  I8:
+    lib_name: basic
+    cell_name: noConn
+    instpins:
+      noConn:
+        direction: inputOutput
+        net_name: "en3_dum"
+        num_bits: 1
+  I9:
+    lib_name: basic
+    cell_name: noConn
+    instpins:
+      noConn:
+        direction: inputOutput
+        net_name: "en2_dum"
+        num_bits: 1
