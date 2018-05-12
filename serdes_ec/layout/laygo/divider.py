@@ -875,9 +875,12 @@ class EnableRetimer(LaygoBase):
             # abut on right
             col_inc += blk_sp
 
-        ncol_lat = seg_in + seg_fb + seg_out + 2 * blk_sp
-        ncol_ff = 2 * ncol_lat + blk_sp
-        num_col = 2 * (ncol_ff + blk_sp) + ncol_lat + col_inc
+        ncol_lat0 = seg_in + seg_fb + seg_out + 2 * blk_sp
+        ncol_lat1 = seg_in + seg_fb + seg_buf + 2 * blk_sp
+
+        ncol_ff0 = 2 * ncol_lat0 + blk_sp
+        ncol_ff1 = ncol_lat0 + ncol_lat1 + blk_sp
+        num_col = (ncol_ff0 + ncol_ff1 + 2 * blk_sp) + ncol_lat1 + col_inc
         self.set_rows_direct(row_layout_info, end_mode=end_mode)
 
         # adjust number of columns according to fg_min
@@ -889,12 +892,12 @@ class EnableRetimer(LaygoBase):
 
         # draw individual blocks
         col_ff0 = col0
-        col_ff1 = col_ff0 + ncol_ff + blk_sp
-        col_lat = col_ff1 + ncol_ff + blk_sp
+        col_ff1 = col_ff0 + ncol_ff0 + blk_sp
+        col_lat = col_ff1 + ncol_ff1 + blk_sp
         vss_w, vdd_w = _draw_substrate(self, col0, num_col, num_col - col_inc)
-        ff0_ports = self._draw_ff(col_ff0, ncol_lat, seg_in, seg_fb, seg_out, seg_out, blk_sp,
+        ff0_ports = self._draw_ff(col_ff0, ncol_lat0, seg_in, seg_fb, seg_out, seg_out, blk_sp,
                                   draw_vm_in=True)
-        ff1_ports = self._draw_ff(col_ff1, ncol_lat, seg_in, seg_fb, seg_out, seg_buf, blk_sp,
+        ff1_ports = self._draw_ff(col_ff1, ncol_lat0, seg_in, seg_fb, seg_out, seg_buf, blk_sp,
                                   draw_vm_in=False)
         lat_ports = self._draw_lat(col_lat, seg_in, seg_fb, seg_buf, blk_sp,
                                    draw_vm_in=False)
@@ -1068,9 +1071,9 @@ class EnableRetimer(LaygoBase):
                 'clkb': clkb,
                 }
 
-    def _draw_ff(self, x0, ncol_lat, seg_in, seg_fb, seg_out, seg_buf, blk_sp, draw_vm_in=True):
+    def _draw_ff(self, x0, ncol_lat0, seg_in, seg_fb, seg_out, seg_buf, blk_sp, draw_vm_in=True):
         m_ports = self._draw_lat(x0, seg_in, seg_fb, seg_out, blk_sp, draw_vm_in=draw_vm_in)
-        s_ports = self._draw_lat(x0 + ncol_lat + blk_sp, seg_in, seg_fb, seg_buf,
+        s_ports = self._draw_lat(x0 + ncol_lat0 + blk_sp, seg_in, seg_fb, seg_buf,
                                  blk_sp, draw_vm_in=False)
 
         mid_hm = m_ports['out_hm']

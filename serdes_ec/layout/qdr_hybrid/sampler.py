@@ -296,6 +296,7 @@ class DividerColumn(TemplateBase):
         self._sa_clk_tidx = div3_master.sa_clk_tidx
 
         params['num_col'] = self._fg_tot
+        params['row_layout_info'] = sum_row_info
         params['sup_tids'] = sup_tids[0]
         dums_master = self.new_template(params=params, temp_cls=LaygoDummy)
 
