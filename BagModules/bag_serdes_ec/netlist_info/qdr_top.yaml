@@ -466,26 +466,6 @@ instances:
         direction: input
         net_name: "bias_vincm<0>"
         num_bits: 1
-  XBUFT:
-    lib_name: bag_digital_ec
-    cell_name: buffer_array
-    instpins:
-      VSS:
-        direction: inputOutput
-        net_name: "VSS"
-        num_bits: 1
-      VDD:
-        direction: inputOutput
-        net_name: "VDD"
-        num_bits: 1
-      out<0>:
-        direction: output
-        net_name: "scan_divider_clkp_buf"
-        num_bits: 1
-      in<0>:
-        direction: input
-        net_name: "scan_divider_clkp"
-        num_bits: 1
   XBUFB:
     lib_name: bag_digital_ec
     cell_name: buffer_array
@@ -505,4 +485,24 @@ instances:
       in<0>:
         direction: input
         net_name: "scan_divider_clkn"
+        num_bits: 1
+  XBUFT:
+    lib_name: bag_digital_ec
+    cell_name: buffer_array
+    instpins:
+      VSS:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      VDD:
+        direction: inputOutput
+        net_name: "VDD"
+        num_bits: 1
+      out<0>:
+        direction: output
+        net_name: "scan_divider_clkp_buf"
+        num_bits: 1
+      in<0>:
+        direction: input
+        net_name: "scan_divider_clkp"
         num_bits: 1

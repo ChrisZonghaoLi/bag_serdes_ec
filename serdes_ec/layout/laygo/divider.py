@@ -840,7 +840,6 @@ class EnableRetimer(LaygoBase):
     def draw_layout(self):
         blk_sp = 2
 
-        config = self.params['config']
         row_layout_info = self.params['row_layout_info']
         seg_dict = self.params['seg_dict'].copy()
         tr_widths = self.params['tr_widths']

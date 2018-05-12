@@ -12,7 +12,7 @@ from serdes_ec.layout.laygo.divider import EnableRetimer
 
 def run_main(prj):
     root_name = 'specs_test/serdes_ec/qdr_hybrid'
-    test_fname = os.path.join(root_name, 'en_div_retime_info.yaml')
+    test_fname = os.path.join(root_name, 'enable_retimer_info.yaml')
     if not os.path.isfile(test_fname):
         with open(os.path.join(root_name, 'tap1_summer.yaml'), 'r') as f:
             sum_specs = yaml.load(f)
@@ -31,13 +31,13 @@ def run_main(prj):
         with open(test_fname, 'r') as f:
             en_div_info = yaml.load(f)
 
-    with open(os.path.join(root_name, 'en_div_retime.yaml'), 'r') as f:
+    with open(os.path.join(root_name, 'enable_retimer.yaml'), 'r') as f:
         retime_specs = yaml.load(f)
 
     retime_specs['params'].update(en_div_info)
 
     prj.generate_cell(retime_specs, EnableRetimer, debug=True)
-    # prj.generate_cell(div_specs, EnableRetimer, gen_sch=True, debug=True)
+    # prj.generate_cell(retime_specs, EnableRetimer, gen_sch=True, debug=True)
 
 
 if __name__ == '__main__':
