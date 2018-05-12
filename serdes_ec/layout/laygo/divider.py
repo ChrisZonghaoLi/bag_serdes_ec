@@ -12,6 +12,71 @@ if TYPE_CHECKING:
     from bag.layout.template import TemplateDB
 
 
+def _draw_substrate(template, col_start, col_stop, num_col):
+    top_ridx = template.num_rows - 1
+
+    if col_start > 0:
+        template.add_laygo_mos(0, 0, col_start)
+        template.add_laygo_mos(top_ridx, 0, col_start)
+    sub_stop = col_start + num_col
+    nadd = col_stop - sub_stop
+    if nadd > 0:
+        template.add_laygo_mos(0, sub_stop, nadd)
+        template.add_laygo_mos(top_ridx, sub_stop, nadd)
+
+    nsub = template.add_laygo_mos(0, col_start, num_col)
+    psub = template.add_laygo_mos(top_ridx, col_start, num_col)
+    return nsub['VSS_s'], psub['VDD_s']
+
+
+def _connect_supply(template, sup_warr, sup_list, sup_intv, tr_manager, round_up=False):
+    grid = template.grid
+
+    # gather list of track indices and wires
+    idx_set = set()
+    warr_list = []
+    min_tid = max_tid = None
+    for sup in sup_list:
+        if isinstance(sup, WireArray):
+            sup = [sup]
+        for warr in sup:
+            warr_list.append(warr)
+            for tid in warr.track_id:
+                idx_set.add(tid)
+                if min_tid is None:
+                    min_tid = max_tid = tid
+                else:
+                    min_tid = min(tid, min_tid)
+                    max_tid = max(tid, max_tid)
+
+    for warr in sup_warr.to_warr_list():
+        tid = warr.track_id.base_index
+        if tid - 1 not in idx_set and tid + 1 not in idx_set:
+            warr_list.append(warr)
+            idx_set.add(tid)
+            if min_tid is None:
+                min_tid = max_tid = tid
+            else:
+                min_tid = min(tid, min_tid)
+                max_tid = max(tid, max_tid)
+
+    vm_layer = template.conn_layer
+    hm_layer = vm_layer + 1
+    ym_layer = hm_layer + 1
+    sup_w = tr_manager.get_width(hm_layer, 'sup')
+    sup_idx = grid.get_middle_track(sup_intv[0], sup_intv[1] - 1, round_up=round_up)
+
+    xl = grid.track_to_coord(vm_layer, min_tid, unit_mode=True)
+    xr = grid.track_to_coord(vm_layer, max_tid, unit_mode=True)
+    tl = grid.coord_to_nearest_track(ym_layer, xl, half_track=True, mode=1, unit_mode=True)
+    tr = grid.coord_to_nearest_track(ym_layer, xr, half_track=True, mode=-1, unit_mode=True)
+
+    num = int((tr - tl + 2) // 2)
+    tid = TrackID(ym_layer, tl, num=num, pitch=2)
+    sup = template.connect_to_tracks(warr_list, TrackID(hm_layer, sup_idx, width=sup_w))
+    return template.connect_to_tracks(sup, tid, min_len_mode=0)
+
+
 class SinClkDivider(LaygoBase):
     """A Sinusoidal clock divider using LaygoBase.
 
@@ -122,7 +187,7 @@ class SinClkDivider(LaygoBase):
         self._fg_tot = num_col
 
         # draw individual blocks
-        vss_w, vdd_w = self._draw_substrate(col_inv, num_col, num_col - inc_col)
+        vss_w, vdd_w = _draw_substrate(self, col_inv, num_col, num_col - inc_col)
         col_int = col_inv + seg_inv + blk_sp
         col_sr = col_int + seg_int + blk_sp
         inv_ports, inv_seg = self._draw_gate_inv(col_inv, seg_inv, seg_dict, tr_manager)
@@ -157,8 +222,8 @@ class SinClkDivider(LaygoBase):
         vdd_list = [inv_ports['VDD'], int_ports['VDD'], sr_ports['VDD']]
         vss_intv = self.get_track_interval(0, 'ds')
         vdd_intv = self.get_track_interval(self.num_rows - 1, 'ds')
-        vss = self._connect_supply(vss_w, vss_list, vss_intv, tr_manager, round_up=False)
-        vdd = self._connect_supply(vdd_w, vdd_list, vdd_intv, tr_manager, round_up=True)
+        vss = _connect_supply(self, vss_w, vss_list, vss_intv, tr_manager, round_up=False)
+        vdd = _connect_supply(self, vdd_w, vdd_list, vdd_intv, tr_manager, round_up=True)
 
         # fill space
         self.fill_space()
@@ -224,66 +289,6 @@ class SinClkDivider(LaygoBase):
             seg_dict=inv_seg,
             sr_params=sr_params,
         )
-
-    def _draw_substrate(self, col_start, col_stop, num_col):
-        if col_start > 0:
-            self.add_laygo_mos(0, 0, col_start)
-            self.add_laygo_mos(self.num_rows - 1, 0, col_start)
-        sub_stop = col_start + num_col
-        nadd = col_stop - sub_stop
-        if nadd > 0:
-            self.add_laygo_mos(0, sub_stop, nadd)
-            self.add_laygo_mos(self.num_rows - 1, sub_stop, nadd)
-
-        nsub = self.add_laygo_mos(0, col_start, num_col)
-        psub = self.add_laygo_mos(self.num_rows - 1, col_start, num_col)
-        return nsub['VSS_s'], psub['VDD_s']
-
-    def _connect_supply(self, sup_warr, sup_list, sup_intv, tr_manager, round_up=False):
-        # gather list of track indices and wires
-        idx_set = set()
-        warr_list = []
-        min_tid = max_tid = None
-        for sup in sup_list:
-            if isinstance(sup, WireArray):
-                sup = [sup]
-            for warr in sup:
-                warr_list.append(warr)
-                for tid in warr.track_id:
-                    idx_set.add(tid)
-                    if min_tid is None:
-                        min_tid = max_tid = tid
-                    else:
-                        min_tid = min(tid, min_tid)
-                        max_tid = max(tid, max_tid)
-
-        for warr in sup_warr.to_warr_list():
-            tid = warr.track_id.base_index
-            if tid - 1 not in idx_set and tid + 1 not in idx_set:
-                warr_list.append(warr)
-                idx_set.add(tid)
-                if min_tid is None:
-                    min_tid = max_tid = tid
-                else:
-                    min_tid = min(tid, min_tid)
-                    max_tid = max(tid, max_tid)
-
-        hm_layer = self.conn_layer + 1
-        vm_layer = hm_layer + 1
-        sup_w = tr_manager.get_width(hm_layer, 'sup')
-        sup_idx = self.grid.get_middle_track(sup_intv[0], sup_intv[1] - 1, round_up=round_up)
-
-        xl = self.grid.track_to_coord(self.conn_layer, min_tid, unit_mode=True)
-        xr = self.grid.track_to_coord(self.conn_layer, max_tid, unit_mode=True)
-        tl = self.grid.coord_to_nearest_track(vm_layer, xl, half_track=True,
-                                              mode=1, unit_mode=True)
-        tr = self.grid.coord_to_nearest_track(vm_layer, xr, half_track=True,
-                                              mode=-1, unit_mode=True)
-
-        num = int((tr - tl + 2) // 2)
-        tid = TrackID(vm_layer, tl, num=num, pitch=2)
-        sup = self.connect_to_tracks(warr_list, TrackID(hm_layer, sup_idx, width=sup_w))
-        return self.connect_to_tracks(sup, tid, min_len_mode=0)
 
     @classmethod
     def _get_gate_inv_info(cls, seg_dict):
@@ -775,3 +780,161 @@ class SinClkDivider(LaygoBase):
         )
 
         return ports, xm_locs, sr_sch_params
+
+
+class EnableRetimer(LaygoBase):
+    """A retimer circuit for divider's enable signal.
+
+    Parameters
+    ----------
+    temp_db : TemplateDB
+            the template database.
+    lib_name : str
+        the layout library name.
+    params : Dict[str, Any]
+        the parameter values.
+    used_names : Set[str]
+        a set of already used cell names.
+    **kwargs :
+        dictionary of optional parameters.  See documentation of
+        :class:`bag.layout.template.TemplateBase` for details.
+    """
+
+    def __init__(self, temp_db, lib_name, params, used_names, **kwargs):
+        # type: (TemplateDB, str, Dict[str, Any], Set[str], **kwargs) -> None
+        LaygoBase.__init__(self, temp_db, lib_name, params, used_names, **kwargs)
+        self._sch_params = None
+
+    @property
+    def sch_params(self):
+        # type: () -> Dict[str, Any]
+        return self._sch_params
+
+    @classmethod
+    def get_params_info(cls):
+        # type: () -> Dict[str, str]
+        return dict(
+            config='laygo configuration dictionary.',
+            row_layout_info='The AnalogBase layout information dictionary.',
+            seg_dict='Number of segments dictionary.',
+            tr_widths='Track width dictionary.',
+            tr_spaces='Track spacing dictionary.',
+            tr_info='output track information dictionary.',
+            fg_min='Minimum number of core fingers.',
+            end_mode='The LaygoBase end_mode flag.',
+            abut_mode='The left/right abut mode flag.',
+            show_pins='True to show pins.',
+        )
+
+    @classmethod
+    def get_default_param_values(cls):
+        # type: () -> Dict[str, Any]
+        return dict(
+            tr_info=None,
+            fg_min=0,
+            end_mode=None,
+            abut_mode=0,
+            show_pins=True,
+        )
+
+    def draw_layout(self):
+        blk_sp = 2
+
+        row_layout_info = self.params['row_layout_info']
+        seg_dict = self.params['seg_dict'].copy()
+        tr_widths = self.params['tr_widths']
+        tr_spaces = self.params['tr_spaces']
+        tr_info = self.params['tr_info']
+        fg_min = self.params['fg_min']
+        end_mode = self.params['end_mode']
+        abut_mode = self.params['abut_mode']
+        show_pins = self.params['show_pins']
+
+        tr_manager = TrackManager(self.grid, tr_widths, tr_spaces, half_space=True)
+
+        # compute number of columns, then draw floorplan
+        seg_in = seg_dict['in']
+        seg_fb = seg_dict['fb']
+        seg_out = seg_dict['out']
+
+        col_inc = 0
+        if abut_mode & 1 != 0:
+            # abut on left
+            col_inc += blk_sp
+            col0 = blk_sp
+        else:
+            col0 = 0
+        if abut_mode & 2 != 0:
+            # abut on right
+            col_inc += blk_sp
+
+        ncol_lat = seg_in + seg_fb + seg_out + 2 * blk_sp
+        ncol_ff = 2 * ncol_lat + blk_sp
+        num_col = 2 * (ncol_ff + blk_sp) + ncol_lat + col_inc
+        self.set_rows_direct(row_layout_info, end_mode=end_mode)
+
+        # adjust number of columns according to fg_min
+        fg_core = self.laygo_info.get_placement_info(num_col).core_fg
+        if fg_core < fg_min:
+            num_col += (fg_min - fg_core)
+        self.set_laygo_size(num_col)
+
+        # draw individual blocks
+        col_ff0 = col0
+        col_ff1 = col_ff0 + ncol_ff + blk_sp
+        col_lat = col_ff1 + ncol_ff + blk_sp
+        vss_w, vdd_w = _draw_substrate(self, col0, num_col, num_col - col_inc)
+        ff0_ports = self._draw_ff(col_ff0, ncol_lat, seg_in, seg_fb, seg_out, blk_sp, tr_manager)
+        ff1_ports = self._draw_ff(col_ff1, ncol_lat, seg_in, seg_fb, seg_out, blk_sp, tr_manager)
+        lat_ports = self._draw_lat(col_lat, seg_in, seg_fb, seg_out, blk_sp, tr_manager)
+
+        # fill space
+        self.fill_space()
+
+        # connect supply wires
+        vss_list = [ff0_ports['VSS'], ff1_ports['VSS'], lat_ports['VSS']]
+        vdd_list = [ff0_ports['VDD'], ff1_ports['VDD'], lat_ports['VDD']]
+        vss_intv = self.get_track_interval(0, 'ds')
+        vdd_intv = self.get_track_interval(self.num_rows - 1, 'ds')
+        vss = _connect_supply(self, vss_w, vss_list, vss_intv, tr_manager, round_up=False)
+        vdd = _connect_supply(self, vdd_w, vdd_list, vdd_intv, tr_manager, round_up=True)
+        self.add_pin('VDD', vdd, show=show_pins)
+        self.add_pin('VSS', vss, show=show_pins)
+
+    def _draw_lat(self, x0, seg_in, seg_fb, seg_out, blk_sp, tr_manager):
+        row_nin = 2
+        row_nen = row_nin + 1
+        row_pen = row_nen + 1
+        row_pin = row_pen + 1
+
+        # draw transistors
+        in_n = self.add_laygo_mos(row_nin, x0, seg_in, gate_loc='s')
+        in_nen = self.add_laygo_mos(row_nen, x0, seg_in, gate_loc='d')
+        in_p = self.add_laygo_mos(row_pin, x0, seg_in, gate_loc='d')
+
+        x0 += seg_in + blk_sp
+        fb_n = self.add_laygo_mos(row_nin, x0, seg_fb, gate_loc='s')
+        fb_nen = self.add_laygo_mos(row_nen, x0, seg_fb, gate_loc='d')
+        fb_pen = self.add_laygo_mos(row_pen, x0, seg_fb, gate_loc='d')
+        fb_p = self.add_laygo_mos(row_pin, x0, seg_fb, gate_loc='s')
+
+        x0 += seg_fb + blk_sp
+        out_n = self.add_laygo_mos(row_nen, x0, seg_out, gate_loc='d')
+        out_p = self.add_laygo_mos(row_pen, x0, seg_out, gate_loc='d')
+
+        return {'VSS': [in_n['d'], fb_n['d'], out_n['s']],
+                'VDD': [in_p['s'], fb_p['d'], out_p['s']],
+                }
+
+    def _draw_ff(self, x0, ncol_lat, seg_in, seg_fb, seg_out, blk_sp, tr_manager):
+        m_ports = self._draw_lat(x0, seg_in, seg_fb, seg_out, blk_sp, tr_manager)
+        s_ports = self._draw_lat(x0 + ncol_lat + blk_sp, seg_in, seg_fb, seg_out,
+                                 blk_sp, tr_manager)
+
+        vss_warrs = m_ports['VSS']
+        vdd_warrs = m_ports['VDD']
+        vss_warrs.extend(s_ports['VSS'])
+        vdd_warrs.extend(s_ports['VDD'])
+        return {'VSS': vss_warrs,
+                'VDD': vdd_warrs,
+                }
