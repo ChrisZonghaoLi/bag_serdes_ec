@@ -119,6 +119,24 @@ class SinClkDivider(LaygoBase):
         return self._sa_clk_tidx
 
     @classmethod
+    def get_num_col(cls, seg_dict, abut_mode):
+        # compute number of columns, then draw floorplan
+        blk_sp = seg_dict['blk_sp']
+        seg_inv = cls._get_gate_inv_info(seg_dict)
+        seg_int = cls._get_integ_amp_info(seg_dict)
+        seg_sr = cls._get_sr_latch_info(seg_dict)
+
+        inc_col = 0
+        if abut_mode & 1 != 0:
+            # abut on left
+            inc_col += blk_sp
+        if abut_mode & 2 != 0:
+            # abut on right
+            inc_col += blk_sp
+
+        return seg_inv + seg_int + seg_sr + 2 * blk_sp + inc_col
+
+    @classmethod
     def get_params_info(cls):
         # type: () -> Dict[str, str]
         return dict(
@@ -819,6 +837,31 @@ class EnableRetimer(LaygoBase):
         return self._fg_tot
 
     @classmethod
+    def get_num_col(cls, seg_dict, abut_mode):
+        # compute number of columns, then draw floorplan
+        blk_sp = 2
+
+        seg_in = seg_dict['re_in']
+        seg_fb = seg_dict['re_fb']
+        seg_out = seg_dict['re_out']
+        seg_buf = seg_dict['re_buf']
+
+        col_inc = 0
+        if abut_mode & 1 != 0:
+            # abut on left
+            col_inc += blk_sp
+        if abut_mode & 2 != 0:
+            # abut on right
+            col_inc += blk_sp
+
+        ncol_lat0 = seg_in + seg_fb + seg_out + 2 * blk_sp
+        ncol_lat1 = seg_in + seg_fb + seg_buf + 2 * blk_sp
+
+        ncol_ff0 = 2 * ncol_lat0 + blk_sp
+        ncol_ff1 = ncol_lat0 + ncol_lat1 + blk_sp
+        return (ncol_ff0 + ncol_ff1 + 2 * blk_sp) + ncol_lat1 + col_inc
+
+    @classmethod
     def get_params_info(cls):
         # type: () -> Dict[str, str]
         return dict(
@@ -947,8 +990,8 @@ class EnableRetimer(LaygoBase):
             vdd_idx, w_vdd = tr_info['VDD']
             vss_idx, w_vss = tr_info['VSS']
 
-            clkp, clkn = self.connect_differential_tracks(clkp, clkn, xm_layer,
-                                                          clkp_idx, clkn_idx, width=w_clk)
+            # clkp, clkn = self.connect_differential_tracks(clkp, clkn, xm_layer,
+            #                                               clkp_idx, clkn_idx, width=w_clk)
             vdd = self.connect_to_tracks(vdd, TrackID(xm_layer, vdd_idx, width=w_vdd))
             vss = self.connect_to_tracks(vss, TrackID(xm_layer, vss_idx, width=w_vss))
 

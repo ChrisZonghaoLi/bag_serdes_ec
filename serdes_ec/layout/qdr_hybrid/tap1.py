@@ -15,6 +15,7 @@ from abs_templates_ec.analog_core.base import AnalogBaseEnd
 from ..laygo.divider import SinClkDivider, EnableRetimer
 from .base import HybridQDRBaseInfo, HybridQDRBase
 from .amp import IntegAmp
+from .sampler import DividerColumn
 
 
 if TYPE_CHECKING:
@@ -43,18 +44,12 @@ class Tap1SummerRow(HybridQDRBase):
         # type: (TemplateDB, str, Dict[str, Any], Set[str], **kwargs) -> None
         HybridQDRBase.__init__(self, temp_db, lib_name, params, used_names, **kwargs)
         self._sch_params = None
-        self._fg_core = None
         self._fg_tot = None
 
     @property
     def sch_params(self):
         # type: () -> Dict[str, Any]
         return self._sch_params
-
-    @property
-    def fg_core(self):
-        # type: () -> int
-        return self._fg_core
 
     @property
     def fg_tot(self):
@@ -75,7 +70,7 @@ class Tap1SummerRow(HybridQDRBase):
             fg_dum='Number of single-sided edge dummy fingers.',
             tr_widths='Track width dictionary.',
             tr_spaces='Track spacing dictionary.',
-            fg_min='Minimum number of core fingers.',
+            fg_min='Minimum number of fingers.',
             options='other AnalogBase options',
             min_height='Minimum height.',
             sup_tids='supply track information.',
@@ -143,11 +138,7 @@ class Tap1SummerRow(HybridQDRBase):
 
         fg_main = main_info['fg_tot']
         fg_amp = fg_main + fb_info['fg_tot'] + fg_sep_out
-        fg_tot = fg_amp + 2 * fg_dumr
-        self._fg_core = qdr_info.get_placement_info(fg_tot).core_fg
-        if self._fg_core < fg_min:
-            fg_tot += (fg_min - self._fg_core)
-            self._fg_core = fg_min
+        fg_tot = max(fg_min, fg_amp + 2 * fg_dumr)
         fg_duml = fg_tot - fg_dumr - fg_amp
 
         self.draw_rows(lch, fg_tot, ptap_w, ntap_w, w_dict, th_dict, tr_manager,
@@ -569,7 +560,6 @@ class Tap1Summer(TemplateBase):
     def get_params_info(cls):
         # type: () -> Dict[str, str]
         return dict(
-            config='Laygo configuration dictionary for the divider.',
             lch='channel length, in meters.',
             ptap_w='NMOS substrate width, in meters/number of fins.',
             ntap_w='PMOS substrate width, in meters/number of fins.',
@@ -578,13 +568,10 @@ class Tap1Summer(TemplateBase):
             seg_main='number of segments dictionary for main tap.',
             seg_fb='number of segments dictionary for tap1 feedback.',
             seg_lat='number of segments dictionary for digital latch.',
-            seg_div='number of segments dictionary for clock divider.',
-            seg_pul='number of segments dictionary for pulse generation.',
             fg_dum='Number of single-sided edge dummy fingers.',
+            fg_dig='Number of fingers of digital block.',
             tr_widths='Track width dictionary.',
             tr_spaces='Track spacing dictionary.',
-            div_pos_edge='True if the divider triggers off positive edge of the clock.',
-            fg_min='Minimum number of core fingers.',
             options='other AnalogBase options',
             row_heights='row heights.',
             sup_tids='supply tracks information for a summer.',
@@ -596,8 +583,6 @@ class Tap1Summer(TemplateBase):
     def get_default_param_values(cls):
         # type: () -> Dict[str, Any]
         return dict(
-            div_pos_edge=True,
-            fg_min=0,
             options=None,
             row_heights=None,
             sup_tids=None,
@@ -607,42 +592,12 @@ class Tap1Summer(TemplateBase):
 
     def draw_layout(self):
         # get parameters
-        seg_div = self.params['seg_div']
-        fg_min = self.params['fg_min']
-        row_heights = self.params['row_heights']
-        sup_tids = self.params['sup_tids']
+        tr_widths = self.params['tr_widths']
+        tr_spaces = self.params['tr_spaces']
         show_pins = self.params['show_pins']
 
-        # handle row_heights/substrate tracks
-        bot_params = self.params.copy()
-        top_params = self.params.copy()
-        if row_heights is None:
-            bot_params['min_height'] = top_params['min_height'] = 0
-            bot_params['sup_tids'] = top_params['sup_tids'] = None
-        else:
-            bot_params['min_height'] = row_heights[0]
-            top_params['min_height'] = row_heights[1]
-            if sup_tids is None:
-                bot_params['sup_tids'] = top_params['sup_tids'] = None
-            else:
-                bot_params['sup_tids'] = sup_tids[0]
-                top_params['sup_tids'] = sup_tids[1]
-
-        bot_params['show_pins'] = top_params['show_pins'] = False
-        if seg_div is None:
-            l_master = self.new_template(params=top_params, temp_cls=Tap1LatchRow)
-            bot_params['fg_min'] = max(fg_min, l_master.fg_core)
-            m_master = self.new_template(params=bot_params, temp_cls=Tap1SummerRow)
-        else:
-            m_master = self.new_template(params=bot_params, temp_cls=Tap1SummerRow)
-            top_params['fg_min'] = max(fg_min, m_master.fg_core)
-            l_master = self.new_template(params=top_params, temp_cls=Tap1LatchRow)
-
-        self._fg_core = max(fg_min, l_master.fg_core, m_master.fg_core)
-        if l_master.fg_core < self._fg_core:
-            l_master = l_master.new_template_with(fg_min=self._fg_core)
-        if m_master.fg_core < self._fg_core:
-            m_master = m_master.new_template_with(fg_min=self._fg_core)
+        tr_manager = TrackManager(self.grid, tr_widths, tr_spaces, half_space=True)
+        l_master, m_master = self._make_masters(tr_manager)
 
         # place instances
         top_layer = m_master.top_layer
@@ -652,7 +607,9 @@ class Tap1Summer(TemplateBase):
 
         # set size
         self.array_box = m_inst.array_box.merge(l_inst.array_box)
-        self.set_size_from_bound_box(top_layer, m_inst.bound_box.merge(l_inst.bound_box))
+        bnd_box = m_inst.bound_box.merge(l_inst.bound_box)
+        self.set_size_from_bound_box(top_layer, bnd_box)
+        self.add_cell_boundary(bnd_box)
 
         # export pins in-place
         exp_list = [(m_inst, 'outp', 'outp_m', True), (m_inst, 'outn', 'outn_m', True),
@@ -669,9 +626,6 @@ class Tap1Summer(TemplateBase):
                     (l_inst, 'VDD', 'VDD', True), (l_inst, 'VSS', 'VSS', True),
                     (l_inst, 'biasp', 'biasn_d', False),
                     ]
-        if seg_div is not None:
-            exp_list.extend(((l_inst, name, name, False)
-                             for name in ['en_div', 'scan_div', 'div', 'divb']))
 
         for inst, port_name, name, vconn in exp_list:
             port = inst.get_port(port_name)
@@ -680,18 +634,93 @@ class Tap1Summer(TemplateBase):
             if inst is m_inst and (port_name == 'outp' or port_name == 'outn'):
                 self.reexport(port, net_name=port_name + '_main', show=False)
 
-        self._en_locs = l_master.en_locs
+        self._en_locs = self._get_en_locs(l_inst, tr_manager)
 
         # set schematic parameters
+        l_outp_tid = l_inst.get_pin('outp').track_id
         self._sch_params = dict(
             sum_params=m_master.sch_params,
             lat_params=l_master.sch_params,
         )
         self._fg_tot = m_master.fg_tot
-        self._data_tr_info = l_master.out_tr_info
-        self._div_tr_info = l_master.div_tr_info
+        self._data_tr_info = (l_outp_tid.base_index, l_inst.get_pin('outn').track_id.base_index,
+                              l_outp_tid.width)
+        m_tr_info = l_master.track_info
+        tr_info = dict(
+            VDD=m_tr_info['VDD'],
+            VSS=m_tr_info['VSS'],
+            q=m_tr_info['inp'],
+            qb=m_tr_info['inn'],
+            en=m_tr_info['nen3'],
+            clkp=m_tr_info['clkp'],
+            clkn=m_tr_info['clkn'],
+        )
+        self._div_tr_info = tr_info
         self._sum_row_info = m_master.row_layout_info
         self._lat_row_info = l_master.row_layout_info
+
+    def _get_en_locs(self, l_inst, tr_manager):
+
+        # compute metal 5 enable track locations
+        inp_warr = l_inst.get_pin('inp')
+        hm_layer = inp_warr.track_id.layer_id
+        vm_layer = hm_layer + 1
+        in_w = inp_warr.track_id.width
+        tr_w = tr_manager.get_width(vm_layer, 'en')
+        in_xl = inp_warr.lower_unit
+        via_ext = self.grid.get_via_extensions(hm_layer, in_w, tr_w, unit_mode=True)[0]
+        sp_le = self.grid.get_line_end_space(hm_layer, in_w, unit_mode=True)
+        ntr, tr_locs = tr_manager.place_wires(vm_layer, ['en'] * 4)
+        tr_xr = in_xl - sp_le - via_ext
+        tr_right = self.grid.find_next_track(vm_layer, tr_xr, tr_width=tr_w, half_track=True,
+                                             mode=-1, unit_mode=True)
+        return [tr_idx + tr_right - tr_locs[-1] for tr_idx in tr_locs]
+
+    def _make_masters(self, tr_manager):
+        # get parameters
+        seg_lat = self.params['seg_lat']
+        fg_dum = self.params['fg_dum']
+        fg_dig = self.params['fg_dig']
+        row_heights = self.params['row_heights']
+        sup_tids = self.params['sup_tids']
+
+        sum_params = self.params.copy()
+        lat_params = self.params.copy()
+        lat_params['show_pins'] = sum_params['show_pins'] = False
+        if row_heights is None:
+            lat_params['min_height'] = sum_params['min_height'] = 0
+            sum_params['sup_tids'] = None
+        else:
+            sum_params['min_height'] = row_heights[0]
+            lat_params['min_height'] = row_heights[1]
+            if sup_tids is None:
+                lat_params['sup_tids'] = sum_params['sup_tids'] = None
+            else:
+                sum_params['sup_tids'] = sup_tids[0]
+
+        m_master = self.new_template(params=sum_params, temp_cls=Tap1SummerRow)
+
+        top_layer = m_master.top_layer
+        if row_heights is not None and sup_tids is not None:
+            sup_w = tr_manager.get_width(top_layer, 'sup')
+            lat_params['vss_tid'] = (sup_tids[1][0], sup_w)
+            lat_params['vdd_tid'] = (sup_tids[1][1], sup_w)
+
+        lat_params['seg_dict'] = seg_lat
+        lat_params['fg_duml'] = lat_params['fg_dumr'] = fg_dum
+        lat_params['top_layer'] = top_layer
+        lat_params['end_mode'] = 12
+        l_master = self.new_template(params=lat_params, temp_cls=IntegAmp)
+
+        fg_tot_lat = fg_dig + l_master.fg_tot
+        if m_master.fg_tot > fg_tot_lat:
+            lat_params['fg_duml'] = fg_dum + (m_master.fg_tot - fg_tot_lat)
+            l_master = self.new_template(params=lat_params, temp_cls=IntegAmp)
+        elif fg_tot_lat > m_master.fg_tot:
+            sum_params['fg_min'] = fg_tot_lat
+            m_master = self.new_template(params=sum_params, temp_cls=Tap1SummerRow)
+
+        return l_master, m_master
 
 
 class Tap1Column(TemplateBase):
@@ -777,7 +806,6 @@ class Tap1Column(TemplateBase):
             seg_fb='number of segments dictionary for tap1 feedback.',
             seg_lat='number of segments dictionary for digital latch.',
             seg_div='number of segments dictionary for clock divider.',
-            seg_pul='number of segments dictionary for pulse generation.',
             fg_dum='Number of single-sided edge dummy fingers.',
             tr_widths='Track width dictionary.',
             tr_spaces='Track spacing dictionary.',
@@ -805,54 +833,21 @@ class Tap1Column(TemplateBase):
         tr_spaces = self.params['tr_spaces']
         show_pins = self.params['show_pins']
 
-        # make masters
-        div_params = self.params.copy()
-        div_params['seg_pul'] = None
-        div_params['div_pos_edge'] = False
-        div_params['show_pins'] = False
+        sum_master, end_row_master, div_master = self._make_masters()
 
-        div3_master = self.new_template(params=div_params, temp_cls=Tap1Summer)
-        fg_min = div3_master.fg_core
-
-        end_params = self.params.copy()
-        end_params['seg_div'] = None
-        end_params['fg_min'] = fg_min
-        end_params['show_pins'] = False
-
-        endt_master = self.new_template(params=end_params, temp_cls=Tap1Summer)
-        if endt_master.fg_core > fg_min:
-            fg_min = endt_master.fg_core
-            div_params['fg_min'] = fg_min
-            div3_master = self.new_template(params=div_params, temp_cls=Tap1Summer)
-
-        div_params['div_pos_edge'] = True
-        div2_master = self.new_template(params=div_params, temp_cls=Tap1Summer)
-        end_params['seg_pul'] = None
-        endb_master = self.new_template(params=end_params, temp_cls=Tap1Summer)
-
-        end_row_params = dict(
-            lch=self.params['lch'],
-            fg=endb_master.fg_tot,
-            sub_type='ptap',
-            threshold=self.params['th_dict']['tail'],
-            top_layer=endb_master.top_layer,
-            end_mode=0b11,
-            guard_ring_nf=0,
-            options=self.params['options'],
-        )
-        end_row_master = self.new_template(params=end_row_params, temp_cls=AnalogBaseEnd)
         end_row_box = end_row_master.array_box
+        sum_arr_box = sum_master.array_box
 
         # place instances
-        vm_layer = top_layer = endt_master.top_layer
+        vm_layer = top_layer = sum_master.top_layer
         bot_row = self.add_instance(end_row_master, 'XROWB', loc=(0, 0), unit_mode=True)
         ycur = end_row_box.top_unit
-        inst1 = self.add_instance(endb_master, 'X1', loc=(0, ycur), unit_mode=True)
-        ycur += endb_master.array_box.top_unit + div3_master.array_box.top_unit
-        inst2 = self.add_instance(div3_master, 'X2', loc=(0, ycur), orient='MX', unit_mode=True)
-        inst0 = self.add_instance(div2_master, 'X0', loc=(0, ycur), unit_mode=True)
-        ycur += div2_master.array_box.top_unit + endt_master.array_box.top_unit
-        inst3 = self.add_instance(endt_master, 'X3', loc=(0, ycur), orient='MX', unit_mode=True)
+        inst1 = self.add_instance(sum_master, 'X1', loc=(0, ycur), unit_mode=True)
+        ycur += sum_arr_box.top_unit + sum_arr_box.top_unit
+        inst2 = self.add_instance(sum_master, 'X2', loc=(0, ycur), orient='MX', unit_mode=True)
+        inst0 = self.add_instance(sum_master, 'X0', loc=(0, ycur), unit_mode=True)
+        ycur += sum_arr_box.top_unit + sum_arr_box.top_unit
+        inst3 = self.add_instance(sum_master, 'X3', loc=(0, ycur), orient='MX', unit_mode=True)
         ycur += end_row_box.top_unit
         top_row = self.add_instance(end_row_master, 'XROWT', loc=(0, ycur), orient='MX',
                                     unit_mode=True)
@@ -925,7 +920,7 @@ class Tap1Column(TemplateBase):
                                              out_locs[idx + 1], width=vm_w_out)
 
         # draw enable wires
-        en_locs = div3_master.en_locs
+        en_locs = sum_master.en_locs
         vm_w_en = tr_manager.get_width(vm_layer, 'en')
         for tr_idx, en_warr in zip(en_locs, en_warrs):
             self.connect_to_tracks(en_warr, TrackID(vm_layer, tr_idx, width=vm_w_en))
@@ -1013,6 +1008,7 @@ class Tap1Column(TemplateBase):
                                                res, unit_mode=True))
 
         # draw en_div/scan wires
+        """
         tr_scan = shield_tidl - 1
         tr_endiv = tr_scan - sp_clk_shield
         scan_tid = TrackID(vm_layer, tr_scan)
@@ -1029,23 +1025,68 @@ class Tap1Column(TemplateBase):
         self.add_pin('scan_div<2>', scan2, show=show_pins)
         self.add_pin('en_div<3>', endiv3, show=show_pins)
         self.add_pin('en_div<2>', endiv2, show=show_pins)
-
+        """
         # set schematic parameters
         self._sch_params = dict(
-            sum_params=endb_master.sch_params['sum_params'],
-            lat_params=endb_master.sch_params['lat_params']['lat_params'],
-            lat_div_params=div3_master.sch_params['lat_params']['lat_params'],
-            lat_pul_params=endt_master.sch_params['lat_params']['lat_params'],
-            div_params=div3_master.sch_params['lat_params']['div_params'],
-            pul_params=endt_master.sch_params['lat_params']['pul_params'],
+            sum_params=sum_master.sch_params['sum_params'],
+            lat_params=sum_master.sch_params['lat_params'],
+            div_params=div_master.sch_params,
         )
-        inp = endb_master.get_port('inp').get_pins()[0].track_id
-        inn = endb_master.get_port('inn').get_pins()[0].track_id
-        outp_m = endb_master.get_port('outp_m').get_pins()[0].track_id
-        outn_m = endb_master.get_port('outn_m').get_pins()[0].track_id
+        inp = sum_master.get_port('inp').get_pins()[0].track_id
+        inn = sum_master.get_port('inn').get_pins()[0].track_id
+        outp_m = sum_master.get_port('outp_m').get_pins()[0].track_id
+        outn_m = sum_master.get_port('outn_m').get_pins()[0].track_id
         self._in_tr_info = (inp.base_index, inn.base_index, inp.width)
         self._out_tr_info = (outp_m.base_index, outn_m.base_index, outp_m.width)
-        self._data_tr_info = endb_master.data_tr_info
-        self._div_tr_info = div3_master.div_tr_info
-        self._sum_row_info = endb_master.sum_row_info
-        self._lat_row_info = endb_master.lat_row_info
+        self._data_tr_info = sum_master.data_tr_info
+        self._div_tr_info = sum_master.div_tr_info
+        self._sum_row_info = sum_master.sum_row_info
+        self._lat_row_info = sum_master.lat_row_info
+
+    def _make_masters(self):
+        # get parameters
+        config = self.params['config']
+        lch = self.params['lch']
+        seg_div = self.params['seg_div']
+        tr_widths = self.params['tr_widths']
+        tr_spaces = self.params['tr_spaces']
+        sup_tids = self.params['sup_tids']
+        options = self.params['options']
+
+        fg_dig = DividerColumn.get_num_col(seg_div, 1)
+
+        # make masters
+        sum_params = self.params.copy()
+        sum_params['fg_dig'] = fg_dig
+        sum_params['seg_pul'] = None
+        sum_params['div_pos_edge'] = False
+        sum_params['show_pins'] = False
+        sum_master = self.new_template(params=sum_params, temp_cls=Tap1Summer)
+
+        end_row_params = dict(
+            lch=lch,
+            fg=sum_master.fg_tot,
+            sub_type='ptap',
+            threshold=self.params['th_dict']['tail'],
+            top_layer=sum_master.top_layer,
+            end_mode=0b11,
+            guard_ring_nf=0,
+            options=self.params['options'],
+        )
+        end_row_master = self.new_template(params=end_row_params, temp_cls=AnalogBaseEnd)
+
+        div_params = dict(
+            config=config,
+            sum_row_info=sum_master.sum_row_info,
+            lat_row_info=sum_master.lat_row_info,
+            seg_dict=seg_div,
+            tr_widths=tr_widths,
+            tr_spaces=tr_spaces,
+            div_tr_info=sum_master.div_tr_info,
+            sup_tids=sup_tids,
+            options=options,
+            show_pins=False,
+        )
+        div_master = self.new_template(params=div_params, temp_cls=DividerColumn)
+
+        return sum_master, end_row_master, div_master

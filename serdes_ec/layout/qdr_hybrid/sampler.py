@@ -225,6 +225,12 @@ class DividerColumn(TemplateBase):
         return self._sa_clk_tidx
 
     @classmethod
+    def get_num_col(cls, seg_dict, abut_mode):
+        num_col_div = SinClkDivider.get_num_col(seg_dict, abut_mode)
+        num_col_re = EnableRetimer.get_num_col(seg_dict, abut_mode)
+        return max(num_col_div, num_col_re)
+
+    @classmethod
     def get_params_info(cls):
         # type: () -> Dict[str, str]
         return dict(

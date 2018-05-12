@@ -33,14 +33,14 @@ class bag_serdes_ec__enable_retimer(Module):
         )
 
     def design(self, lch, w_dict, th_dict, seg_dict, seg_buf):
-        wp = w_dict['pin']
-        wn = w_dict['nin']
-        wpen = w_dict['pen']
-        wnen = w_dict['nen']
-        thp = th_dict['pin']
-        thn = th_dict['nin']
-        thpen = th_dict['pen']
-        thnen = th_dict['nen']
+        wp = w_dict['p1']
+        wn = w_dict['n1']
+        wpen = w_dict['p0']
+        wnen = w_dict['n2']
+        thp = th_dict['p1']
+        thn = th_dict['n1']
+        thpen = th_dict['p0']
+        thnen = th_dict['n2']
 
         params = dict(lch=lch, wp=wp, wn=wn, thp=thp, thn=thn, seg_m=seg_dict,
                       seg_s=seg_dict, pass_zero=True, wpen=wpen,
