@@ -901,7 +901,10 @@ class EnableRetimer(LaygoBase):
         self.add_pin('VDD', vdd, show=show_pins)
         self.add_pin('VSS', vss, show=show_pins)
 
-    def _draw_lat(self, col_in, seg_in, seg_fb, seg_out, blk_sp):
+    def _draw_lat(self, col_in, seg_in, seg_fb, seg_out, blk_sp, draw_vm_in=True):
+        grid = self.grid
+        laygo_info = self.laygo_info
+
         row_nin = 2
         row_nen = row_nin + 1
         row_pen = row_nen + 1
@@ -930,9 +933,10 @@ class EnableRetimer(LaygoBase):
         nen_gn = TrackID(hm_layer, nen_gp.base_index - 2)
         nen_gb = TrackID(hm_layer, self.get_track_index(row_nen, 'gb', -1))
         pen_gb = TrackID(hm_layer, self.get_track_index(row_pen, 'gb', -1))
-        pen_g = TrackID(hm_layer, self.get_track_index(row_pen, 'g', 0))
-        pin_g = TrackID(hm_layer, self.get_track_index(row_pin, 'g', 0))
+        pen_g = TrackID(hm_layer, self.get_track_index(row_pen, 'g', -1))
+        pin_g = TrackID(hm_layer, self.get_track_index(row_pin, 'g', -1))
 
+        # connect to hm_layer
         # connect input tristate inverter
         self.connect_wires([in_nen['s'], in_n['s']])
         in_ng = self.connect_to_tracks(in_n['g'], nin_g, min_len_mode=-1)
@@ -954,13 +958,47 @@ class EnableRetimer(LaygoBase):
         out_pg = self.connect_to_tracks(out_p['g'], pen_g, min_len_mode=-1)
         out_warr = self.connect_to_tracks([out_p['d'], out_n['d']], nen_gb, min_len_mode=1)
 
-        vm_x = self.laygo_info.col_to_coord(col_in, unit_mode=True)
-        vm_tidx = self.grid.coord_to_nearest_track(vm_layer, vm_x, half_track=True, mode=-1,
-                                                   unit_mode=True)
-        in_warr = self.connect_to_tracks([in_ng, in_pg], TrackID(vm_layer, vm_tidx))
+        # connect to vm_layer
+        # input wire
+        vm_x = laygo_info.col_to_coord(col_in, unit_mode=True)
+        vm_tidx = grid.coord_to_nearest_track(vm_layer, vm_x, half_track=True, mode=-1,
+                                              unit_mode=True)
+        in_hm = [in_ng, in_pg]
+        if draw_vm_in:
+            in_warr = self.connect_to_tracks(in_hm, TrackID(vm_layer, vm_tidx))
+        else:
+            in_warr = in_hm
+
+        # clock wires
+        vm_xn = laygo_info.col_to_coord(col_in + seg_in, unit_mode=True)
+        vm_nidx = grid.coord_to_nearest_track(vm_layer, vm_xn, half_track=True, mode=-1,
+                                              unit_mode=True)
+        vm_xp = laygo_info.col_to_coord(col_fb, unit_mode=True)
+        vm_pidx = grid.coord_to_nearest_track(vm_layer, vm_xp, half_track=True, mode=1,
+                                              unit_mode=True)
+        clk, clkb = self.connect_differential_tracks([in_neng, fb_peng], fb_neng, vm_layer,
+                                                     vm_pidx, vm_nidx)
+
+        # middle wire
+        vm_x = laygo_info.col_to_coord(col_out, unit_mode=True)
+        vm_idx = grid.coord_to_nearest_track(vm_layer, vm_x, half_track=True, mode=1,
+                                             unit_mode=True)
+        self.connect_to_tracks([out_ng, out_pg, mid_warr], TrackID(vm_layer, vm_idx))
+
+        # out wire
+        vm_x = laygo_info.col_to_coord(col_out + seg_out, unit_mode=True)
+        out_tidx = grid.coord_to_nearest_track(vm_layer, vm_x, half_track=True, mode=1,
+                                               unit_mode=True)
+        out_hm = [out_warr, fb_pg, fb_ng]
+        out_warr = self.connect_to_tracks(out_hm, TrackID(vm_layer, out_tidx))
 
         return {'VSS': [in_n['d'], fb_n['d'], out_n['s']],
                 'VDD': [in_p['s'], fb_p['d'], out_p['s']],
+                'in': in_warr,
+                'out_hm': out_hm,
+                'out': out_warr,
+                'clk': clk,
+                'clkb': clkb,
                 }
 
     def _draw_ff(self, x0, ncol_lat, seg_in, seg_fb, seg_out, blk_sp):
