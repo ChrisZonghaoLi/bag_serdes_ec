@@ -49,16 +49,16 @@ def _connect_supply(template, sup_warr, sup_list, sup_intv, tr_manager, round_up
                     min_tid = min(tid, min_tid)
                     max_tid = max(tid, max_tid)
 
-    for warr in sup_warr.to_warr_list():
+    for warr in WireArray.single_warr_iter(sup_warr):
         tid = warr.track_id.base_index
+        if min_tid is None:
+            min_tid = max_tid = tid
+        else:
+            min_tid = min(tid, min_tid)
+            max_tid = max(tid, max_tid)
         if tid - 1 not in idx_set and tid + 1 not in idx_set:
             warr_list.append(warr)
             idx_set.add(tid)
-            if min_tid is None:
-                min_tid = max_tid = tid
-            else:
-                min_tid = min(tid, min_tid)
-                max_tid = max(tid, max_tid)
 
     vm_layer = template.conn_layer
     hm_layer = vm_layer + 1
@@ -823,6 +823,7 @@ class EnableRetimer(LaygoBase):
             fg_min='Minimum number of core fingers.',
             end_mode='The LaygoBase end_mode flag.',
             abut_mode='The left/right abut mode flag.',
+            is_dummy='True to connect this cell as dummy.',
             show_pins='True to show pins.',
         )
 
@@ -834,6 +835,7 @@ class EnableRetimer(LaygoBase):
             fg_min=0,
             end_mode=None,
             abut_mode=0,
+            is_dummy=False,
             show_pins=True,
         )
 
@@ -848,6 +850,7 @@ class EnableRetimer(LaygoBase):
         fg_min = self.params['fg_min']
         end_mode = self.params['end_mode']
         abut_mode = self.params['abut_mode']
+        is_dummy = self.params['is_dummy']
         show_pins = self.params['show_pins']
 
         tr_manager = TrackManager(self.grid, tr_widths, tr_spaces, half_space=True)
@@ -911,7 +914,6 @@ class EnableRetimer(LaygoBase):
         self.connect_wires(mid_hm)
 
         # export IO pins
-        self.add_pin('in', ff0_ports['in'], show=show_pins)
         self.add_pin('en3', ff1_ports['out'], show=show_pins)
         self.add_pin('en2', lat_ports['out'], show=show_pins)
 
@@ -922,22 +924,31 @@ class EnableRetimer(LaygoBase):
         clkn.extend(ff1_ports['clkb'])
         clkn.append(lat_ports['clk'])
 
-        if tr_info is not None:
-            xm_layer = self.conn_layer + 3
-            clkp_idx, w_clk = tr_info['clkp']
-            clkn_idx, _ = tr_info['clkn']
-            vdd_idx, w_vdd = tr_info['VDD']
-            vss_idx, w_vss = tr_info['VSS']
+        if is_dummy:
+            clkp.extend(clkn)
+            clkp.extend(vss)
+            clkp.append(ff0_ports['in'])
+            self.connect_wires(clkp)
+        else:
+            self.add_pin('in', ff0_ports['in'], show=show_pins)
 
-            clkp, clkn = self.connect_differential_tracks(clkp, clkn, xm_layer,
-                                                          clkp_idx, clkn_idx, width=w_clk)
-            vdd = self.connect_to_tracks(vdd, TrackID(xm_layer, vdd_idx, width=w_vdd))
-            vss = self.connect_to_tracks(vss, TrackID(xm_layer, vss_idx, width=w_vss))
+            if tr_info is not None:
+                xm_layer = self.conn_layer + 3
+                clkp_idx, w_clk = tr_info['clkp']
+                clkn_idx, _ = tr_info['clkn']
+                vdd_idx, w_vdd = tr_info['VDD']
+                vss_idx, w_vss = tr_info['VSS']
+
+                clkp, clkn = self.connect_differential_tracks(clkp, clkn, xm_layer,
+                                                              clkp_idx, clkn_idx, width=w_clk)
+                vdd = self.connect_to_tracks(vdd, TrackID(xm_layer, vdd_idx, width=w_vdd))
+                vss = self.connect_to_tracks(vss, TrackID(xm_layer, vss_idx, width=w_vss))
+
+            self.add_pin('clkp', clkp, show=show_pins)
+            self.add_pin('clkn', clkn, show=show_pins)
 
         self.add_pin('VDD', vdd, show=show_pins)
         self.add_pin('VSS', vss, show=show_pins)
-        self.add_pin('clkp', clkp, show=show_pins)
-        self.add_pin('clkn', clkn, show=show_pins)
 
         nin_info = self.get_row_info(2)
         nen_info = self.get_row_info(3)
