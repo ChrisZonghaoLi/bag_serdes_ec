@@ -289,8 +289,6 @@ class DividerColumn(TemplateBase):
         if fg_core_re > fg_min:
             params['fg_min'] = fg_core_re
             div3_master = self.new_template(params=params, temp_cls=SinClkDivider)
-        params['is_dummy'] = True
-        re_dum_master = self.new_template(params=params, temp_cls=EnableRetimer)
 
         params['div_pos_edge'] = not clk_inverted
         div2_master = self.new_template(params=params, temp_cls=SinClkDivider)
@@ -332,7 +330,7 @@ class DividerColumn(TemplateBase):
         for idx in range(4):
             is_even = idx % 2 == 0
             if is_even:
-                m0, m1 = dums_master, re_dum_master
+                m0, m1 = dums_master, re_master
                 if idx == 2:
                     m1 = div2_master
             else:
@@ -350,6 +348,12 @@ class DividerColumn(TemplateBase):
                                       orient='MX', unit_mode=True)
             if m1 is div2_master:
                 topn = tinst
+            else:
+                vss_vm = list(chain(tinst.port_pins_iter('VSS_vm'), tinst.port_pins_iter('in'),
+                                    tinst.port_pins_iter('clkp')))
+                vdd_vm = list(chain(tinst.port_pins_iter('VDD_vm'), tinst.port_pins_iter('clkn')))
+                self.connect_wires(vss_vm)
+                self.connect_wires(vdd_vm)
 
             bnd_box = bnd_box.merge(tinst.bound_box)
             for inst in (binst, tinst):
