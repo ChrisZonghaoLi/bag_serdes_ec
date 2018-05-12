@@ -380,7 +380,16 @@ class DividerColumn(TemplateBase):
         self.reexport(botp.get_port('q'), net_name='en<3>', show=show_pins)
         self.reexport(botp.get_port('qb'), net_name='en<1>', show=show_pins)
 
-        self._sch_params = div3_master.sch_params
+        div_sch_params = div3_master.sch_params
+        self._sch_params = dict(
+            lch=div_sch_params['lch'],
+            w_dict=div_sch_params['w_dict'],
+            th_dict=div_sch_params['th_dict'],
+            seg_div=div_sch_params['seg_dict'],
+            seg_re=re_master.sch_params['seg_dict'],
+            seg_buf=re_master.sch_params['seg_buf'],
+            sr_params=div_sch_params['sr_params'],
+        )
 
 
 class Retimer(StdDigitalTemplate):

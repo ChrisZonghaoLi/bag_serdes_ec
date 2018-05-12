@@ -7,7 +7,6 @@ import pkg_resources
 
 from bag.design import Module
 
-
 yaml_file = pkg_resources.resource_filename(__name__, os.path.join('netlist_info',
                                                                    'qdr_tapx_column.yaml'))
 
@@ -23,7 +22,6 @@ class bag_serdes_ec__qdr_tapx_column(Module):
         Module.__init__(self, bag_config, yaml_file, parent=parent, prj=prj, **kwargs)
         self._num_ffe = None
         self._num_dfe = None
-        self._has_set = None
 
     @property
     def num_ffe(self):
@@ -33,18 +31,14 @@ class bag_serdes_ec__qdr_tapx_column(Module):
     def num_dfe(self):
         return self._num_dfe
 
-    @property
-    def has_set(self):
-        return self._has_set
-
     @classmethod
     def get_params_info(cls):
         # type: () -> Dict[str, str]
         return dict(
-            div_params='Divider column parameters.',
+            div_params='ivider column parameters.',
             ffe_params_list='List of FFE summer cell parameters.',
             dfe_params_list='List of DFE summer cell parameters.',
-            last_params_list='List of last summer cell parameters, from bottom to top.',
+            dfe2_params='DFE tap2 gm/load parameters.',
             export_probe='True to export probe ports.',
         )
 
@@ -55,9 +49,10 @@ class bag_serdes_ec__qdr_tapx_column(Module):
             export_probe=False,
         )
 
-    def design(self, div_params, ffe_params_list, dfe_params_list, last_params_list, export_probe):
+    def design(self, div_params, ffe_params_list, dfe_params_list, dfe2_params, export_probe):
         # design divider
-        self.instances['XDIV'].design(**div_params)
+        self.instances['XDIVL'].design(**div_params)
+        self.instances['XDIVR'].design(**div_params)
 
         num_ffe = len(ffe_params_list)
         num_dfe = len(dfe_params_list) + 2
@@ -72,10 +67,10 @@ class bag_serdes_ec__qdr_tapx_column(Module):
             raise NotImplementedError('Did not implement 2/3 taps schematic generator yet.')
 
         # design instances
-        for idx, name in enumerate(['X3', 'X0', 'X2', 'X1']):
-            self.instances[name].design(ffe_params_list=ffe_params_list,
-                                        dfe_params_list=dfe_params_list,
-                                        last_params=last_params_list[idx])
+        for idx in range(4):
+            self.instances['X%d' % idx].design(ffe_params_list=ffe_params_list,
+                                               dfe_params_list=dfe_params_list,
+                                               dfe2_params=dfe2_params)
 
         # rename pins
         max_ffe = 4 * (num_ffe - 1)
@@ -89,16 +84,6 @@ class bag_serdes_ec__qdr_tapx_column(Module):
         self.rename_pin('sgnp<3:0>', 'sgnp' + dfe_suf)
         self.rename_pin('sgnn<3:0>', 'sgnn' + dfe_suf)
         self.rename_pin('bias_s<3:0>', 'bias_s' + dfe_suf)
-
-        # remove pins if not needed
-        if 'pulse_in' not in self.instances['X0'].master.pin_list:
-            self._has_set = False
-            self.remove_pin('setp')
-            self.remove_pin('setn')
-        else:
-            # TODO: handle setp/setn logic
-            self._has_set = True
-            pass
 
         # reconnect pins
         a_suf = '<%d:0>' % (num_ffe - 1)

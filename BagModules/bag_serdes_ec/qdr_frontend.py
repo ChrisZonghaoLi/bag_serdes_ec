@@ -23,7 +23,6 @@ class bag_serdes_ec__qdr_frontend(Module):
         Module.__init__(self, bag_config, yaml_file, parent=parent, prj=prj, **kwargs)
         self._num_ffe = None
         self._num_dfe = None
-        self._has_set = None
 
     @property
     def num_ffe(self):
@@ -32,10 +31,6 @@ class bag_serdes_ec__qdr_frontend(Module):
     @property
     def num_dfe(self):
         return self._num_dfe
-
-    @property
-    def has_set(self):
-        return self._has_set
 
     @classmethod
     def get_params_info(cls):
@@ -80,14 +75,9 @@ class bag_serdes_ec__qdr_frontend(Module):
 
         # modify pins and update connections
         dp_master = self.instances['XDP'].master
-        self._has_set = dp_master.has_set
         self._num_ffe = dp_master.num_ffe
         self._num_dfe = dp_master.num_dfe
         has_hp = dp_master.has_hp
-
-        if not self._has_set:
-            self.remove_pin('setp')
-            self.remove_pin('setn')
 
         # handle FFE pins
         way_order = (0, 3, 2, 1)

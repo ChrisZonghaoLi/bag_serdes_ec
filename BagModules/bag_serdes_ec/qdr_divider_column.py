@@ -7,7 +7,6 @@ import pkg_resources
 
 from bag.design import Module
 
-
 yaml_file = pkg_resources.resource_filename(__name__, os.path.join('netlist_info',
                                                                    'qdr_divider_column.yaml'))
 
@@ -29,11 +28,16 @@ class bag_serdes_ec__qdr_divider_column(Module):
             lch='channel length, in meters.',
             w_dict='NMOS/PMOS width dictionary.',
             th_dict='NMOS/PMOS threshold flavor dictionary.',
-            seg_dict='number of segments dictionary.',
+            seg_div='number of segments dictionary for divider.',
+            seg_re='number of segments dictionary for retimer latches.',
+            seg_buf='retimer output buffer size.',
             sr_params='SR latch parameteres.'
         )
 
-    def design(self, lch, w_dict, th_dict, seg_dict, sr_params):
+    def design(self, lch, w_dict, th_dict, seg_div, seg_re, seg_buf, sr_params):
         for name in ('XDIV2', 'XDIV3'):
             self.instances[name].design(lch=lch, w_dict=w_dict, th_dict=th_dict,
-                                        seg_dict=seg_dict, sr_params=sr_params)
+                                        seg_dict=seg_div, sr_params=sr_params)
+        for name in ('XRE', 'XDUM'):
+            self.instances[name].design(lch=lch, w_dict=w_dict, th_dict=th_dict,
+                                        seg_dict=seg_re, seg_buf=seg_buf)

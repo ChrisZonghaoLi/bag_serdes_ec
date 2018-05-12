@@ -28,10 +28,10 @@ class bag_serdes_ec__qdr_tapx_summer(Module):
         return dict(
             ffe_params_list='List of FFE summer cell parameters.',
             dfe_params_list='List of DFE summer cell parameters.',
-            last_params='Last summer cell parameters.',
+            dfe2_params='DFE tap2 gm/load parameters.',
         )
 
-    def design(self, ffe_params_list, dfe_params_list, last_params):
+    def design(self, ffe_params_list, dfe_params_list, dfe2_params):
         num_ffe = len(ffe_params_list)
         num_dfe = len(dfe_params_list)
 
@@ -129,14 +129,14 @@ class bag_serdes_ec__qdr_tapx_summer(Module):
             for idx, sum_params in enumerate(sum_params_list):
                 self.instances['XDFE'][idx].design(**sum_params)
 
-        # design last cell
-        self.reconnect_instance_terminal('XLAST', 'inp', 'inp_d<2>')
-        self.reconnect_instance_terminal('XLAST', 'inn', 'inn_d<2>')
-        self.reconnect_instance_terminal('XLAST', 'biasn', 'biasn_s<2>')
-        self.reconnect_instance_terminal('XLAST', 'casc<1:0>', 'sgnn<2>,sgnp<2>')
+        # design DFE tap2
+        self.reconnect_instance_terminal('XDFE2', 'inp', 'inp_d<2>')
+        self.reconnect_instance_terminal('XDFE2', 'inn', 'inn_d<2>')
+        self.reconnect_instance_terminal('XDFE2', 'biasp', 'biasn_s<2>')
+        self.reconnect_instance_terminal('XDFE2', 'casc<1:0>', 'sgnn<2>,sgnp<2>')
         load_suf = '<%d>' % load_idx
         load_idx += 1
-        if last_params.get('flip_sign', False):
+        if dfe2_params.get('flip_sign', False):
             outp_s = 'iin' + load_suf
             outn_s = 'iip' + load_suf
         else:
@@ -144,8 +144,8 @@ class bag_serdes_ec__qdr_tapx_summer(Module):
             outn_s = 'iin' + load_suf
         self.reconnect_instance_terminal('XLAST', 'outp', outp_s)
         self.reconnect_instance_terminal('XLAST', 'outn', outn_s)
-        self.instances['XLAST'].design(**last_params['sum_params'])
-        load_params_list.append(last_params['load_params'])
+        self.instances['XLAST'].design(**dfe2_params['gm_params'])
+        load_params_list.append(dfe2_params['load_params'])
 
         # design load
         nin = len(load_params_list)
@@ -159,14 +159,3 @@ class bag_serdes_ec__qdr_tapx_summer(Module):
             self.remove_pin('setp')
             self.remove_pin('setn')
             self.remove_pin('pulse_in')
-        last_pins = self.instances['XLAST'].master.pin_list
-        has_div = 'div' in last_pins
-        has_pulse = 'pulse_out' in last_pins
-        if not has_div:
-            self.remove_pin('scan_div')
-            self.remove_pin('div')
-            self.remove_pin('divb')
-            if not has_pulse:
-                self.remove_pin('en_div')
-        if not has_pulse:
-            self.remove_pin('pulse_out')

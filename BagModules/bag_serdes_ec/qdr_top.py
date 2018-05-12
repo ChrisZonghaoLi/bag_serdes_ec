@@ -45,7 +45,6 @@ class bag_serdes_ec__qdr_top(Module):
                 self.reconnect_instance_terminal('XFE', name, name)
 
         fe_master = self.instances['XFE'].master
-        has_set = fe_master.has_set
         num_ffe = fe_master.num_ffe
         num_dfe = fe_master.num_dfe
 
@@ -53,10 +52,6 @@ class bag_serdes_ec__qdr_top(Module):
             raise ValueError('Only support 1+ FFE.')
         if num_dfe < 2:
             raise ValueError('Only support 2+ DFE')
-
-        if not has_set:
-            self.remove_pin('setp')
-            self.remove_pin('setn')
 
         # add new pins
         for way_idx in range(4):

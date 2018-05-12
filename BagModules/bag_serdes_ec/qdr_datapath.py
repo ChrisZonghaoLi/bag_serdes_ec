@@ -23,7 +23,6 @@ class bag_serdes_ec__qdr_datapath(Module):
         Module.__init__(self, bag_config, yaml_file, parent=parent, prj=prj, **kwargs)
         self._num_ffe = None
         self._num_dfe = None
-        self._has_set = None
         self._has_hp = None
 
     @property
@@ -33,10 +32,6 @@ class bag_serdes_ec__qdr_datapath(Module):
     @property
     def num_dfe(self):
         return self._num_dfe
-
-    @property
-    def has_set(self):
-        return self._has_set
 
     @property
     def has_hp(self):
@@ -61,14 +56,9 @@ class bag_serdes_ec__qdr_datapath(Module):
         self.instances['XSAMP'].design(**samp_params)
 
         tapx_master = self.instances['XTAPX'].master
-        self._has_set = tapx_master.has_set
         self._num_ffe = tapx_master.num_ffe
         self._num_dfe = tapx_master.num_dfe
         self._has_hp = self.instances['XTAP1'].master.has_hp
-
-        if not self._has_set:
-            self.remove_pin('setp')
-            self.remove_pin('setn')
 
         # handle FFE pins
         if self._num_ffe == 0:

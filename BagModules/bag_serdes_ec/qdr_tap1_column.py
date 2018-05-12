@@ -28,52 +28,14 @@ class bag_serdes_ec__qdr_tap1_column(Module):
         return dict(
             sum_params='summer row parameters.',
             lat_params='latch parameters.',
-            lat_div_params='latch parameters in the divider row.',
-            lat_pul_params='latch parameters in the pulse row.',
-            div_params='divider parameters.',
-            re_params='enable retimer parameters.',
-            pul_params='pulse generation parameters.',
+            div_params='divider column parameters.',
         )
 
-    def design(self, sum_params, lat_params, lat_div_params, lat_pul_params,
-               div_params, re_params, pul_params):
-        endb_lat_params = dict(
-            div_pos_edge=True,
-            lat_params=lat_params,
-            div_params=None,
-            re_params=re_params,
-            re_dummy=True,
-            pul_params=None,
-        )
-        endt_lat_params = dict(
-            div_pos_edge=True,
-            lat_params=lat_pul_params,
-            div_params=None,
-            re_params=re_params,
-            re_dummy=False,
-            pul_params=pul_params,
-        )
-        div2_lat_params = dict(
-            div_pos_edge=True,
-            lat_params=lat_div_params,
-            div_params=div_params,
-            pul_params=None,
-        )
-        div3_lat_params = dict(
-            div_pos_edge=False,
-            lat_params=lat_div_params,
-            div_params=div_params,
-            pul_params=None,
-        )
-
-        if pul_params is None:
-            # remove set pins
-            self.remove_pin('setp<1:0>')
-            self.remove_pin('setn<1:0>')
-
-        self.instances['X3'].design(sum_params=sum_params, lat_params=endt_lat_params)
-        self.instances['X0'].design(sum_params=sum_params, lat_params=div2_lat_params)
-        self.instances['X2'].design(sum_params=sum_params, lat_params=div3_lat_params)
-        self.instances['X1'].design(sum_params=sum_params, lat_params=endb_lat_params)
+    def design(self, sum_params, lat_params, div_params):
+        self.instances['X0'].design(sum_params=sum_params, lat_params=lat_params)
+        self.instances['X1'].design(sum_params=sum_params, lat_params=lat_params)
+        self.instances['X2'].design(sum_params=sum_params, lat_params=lat_params)
+        self.instances['X3'].design(sum_params=sum_params, lat_params=lat_params)
+        self.instances['XDIV'].design(**div_params)
 
         self.has_hp = self.instances['X0'].master.has_hp
