@@ -840,6 +840,7 @@ class EnableRetimer(LaygoBase):
     def draw_layout(self):
         blk_sp = 2
 
+        config = self.params['config']
         row_layout_info = self.params['row_layout_info']
         seg_dict = self.params['seg_dict'].copy()
         tr_widths = self.params['tr_widths']
@@ -938,6 +939,23 @@ class EnableRetimer(LaygoBase):
         self.add_pin('VSS', vss, show=show_pins)
         self.add_pin('clkp', clkp, show=show_pins)
         self.add_pin('clkn', clkn, show=show_pins)
+
+        nin_info = self.get_row_info(2)
+        nen_info = self.get_row_info(3)
+        pen_info = self.get_row_info(4)
+        pin_info = self.get_row_info(5)
+        self._sch_params = dict(
+            lch=self.laygo_info.lch,
+            w_dict=dict(nin=nin_info['w_max'], nen=nen_info['w_max'],
+                        pin=pin_info['w_max'], pen=pen_info['w_max']),
+            th_dict=dict(nin=nin_info['threshold'], nen=nen_info['threshold'],
+                         pin=pin_info['threshold'], pen=pen_info['threshold']),
+            seg_dict=dict(
+                pt0=seg_in, nt0=seg_in,
+                pt1=seg_fb, nt1=seg_fb,
+                pinv=seg_out, ninv=seg_out,
+            ),
+        )
 
     def _draw_lat(self, col_in, seg_in, seg_fb, seg_out, blk_sp, draw_vm_in=True):
         grid = self.grid
