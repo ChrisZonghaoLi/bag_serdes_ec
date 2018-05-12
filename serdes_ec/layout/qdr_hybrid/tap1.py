@@ -12,7 +12,7 @@ from bag.layout.template import TemplateBase
 
 from abs_templates_ec.analog_core.base import AnalogBaseEnd
 
-from ..laygo.divider import SinClkDivider
+from ..laygo.divider import SinClkDivider, EnableRetimer
 from .base import HybridQDRBaseInfo, HybridQDRBase
 from .amp import IntegAmp
 
@@ -229,6 +229,7 @@ class Tap1LatchRow(TemplateBase):
         TemplateBase.__init__(self, temp_db, lib_name, params, used_names, **kwargs)
         self._sch_params = None
         self._fg_core = None
+        self._fg_core_dig = None
         self._en_locs = None
         self._out_tr_info = None
         self._div_tr_info = None
@@ -243,6 +244,11 @@ class Tap1LatchRow(TemplateBase):
     def fg_core(self):
         # type: () -> int
         return self._fg_core
+
+    @property
+    def fg_core_dig(self):
+        # type: () -> int
+        return self._fg_core_dig
 
     @property
     def en_locs(self):
@@ -276,12 +282,15 @@ class Tap1LatchRow(TemplateBase):
             th_dict='NMOS/PMOS threshold flavor dictionary.',
             seg_lat='number of segments dictionary for tap2 latch.',
             seg_div='number of segments dictionary for clock divider.',
+            seg_re='number of segments dictionary for enable retimer.',
             seg_pul='number of segments dictionary for pulse generation.',
+            re_dummy='True to connect retimer as dummy.',
             fg_dum='Number of single-sided edge dummy fingers.',
             tr_widths='Track width dictionary.',
             tr_spaces='Track spacing dictionary.',
             div_pos_edge='True if the divider triggers off positive edge of the clock.',
             fg_min='Minimum number of core fingers.',
+            fg_min_dig='Minimum number of core digital fingers.',
             options='other AnalogBase options',
             min_height='Minimum height.',
             sup_tids='supply track information.',
@@ -294,6 +303,7 @@ class Tap1LatchRow(TemplateBase):
         return dict(
             div_pos_edge=True,
             fg_min=0,
+            fg_min_dig=0,
             options=None,
             min_height=0,
             sup_tids=None,
@@ -302,151 +312,74 @@ class Tap1LatchRow(TemplateBase):
 
     def draw_layout(self):
         # get parameters
-        config = self.params['config']
-        seg_div = self.params['seg_div']
-        seg_pul = self.params['seg_pul']
-        fg_dum = self.params['fg_dum']
+        seg_re = self.params['seg_re']
+        re_dummy = self.params['re_dummy']
         tr_widths = self.params['tr_widths']
         tr_spaces = self.params['tr_spaces']
         div_pos_edge = self.params['div_pos_edge']
-        fg_min = self.params['fg_min']
         show_pins = self.params['show_pins']
 
-        no_dig = (seg_div is None and seg_pul is None)
+        l_master, d_master = self._make_masters()
 
-        # get layout masters
-        lat_params = self.params.copy()
-        del lat_params['config']
-        del lat_params['seg_div']
-        del lat_params['seg_lat']
-        del lat_params['fg_min']
-        del lat_params['fg_dum']
-        lat_params['seg_dict'] = self.params['seg_lat']
-        lat_params['show_pins'] = False
-        lat_params['end_mode'] = 12 if no_dig else 8
-        lat_params['fg_duml'] = lat_params['fg_dumr'] = fg_dum
-        dig_end_mode = 4
-        dig_abut_mode = 2
+        # calculate instance placements
+        top_layer = l_master.top_layer
+        blk_w = self.grid.get_block_size(top_layer, unit_mode=True)[0]
+        core_width = d_master.bound_box.width_unit + l_master.bound_box.width_unit
+        tot_width = -(-core_width // blk_w) * blk_w
+        xl = (tot_width - core_width) // 2
 
-        top_layer = HybridQDRBase.get_mos_conn_layer(self.grid.tech_info) + 2
-        if no_dig:
-            d_master = None
-            div_sch_params = pul_sch_params = None
-            lat_params['top_layer'] = top_layer
-            l_master = self.new_template(params=lat_params, temp_cls=IntegAmp)
-            self._fg_core = l_master.layout_info.fg_core
-            self._div_tr_info = None
+        # place instances
+        d_inst = self.add_instance(d_master, 'XDIG', loc=(xl, 0))
+        m_inst = self.add_instance(l_master, 'XLAT', loc=(d_inst.bound_box.right_unit, 0),
+                                   unit_mode=True)
+
+        # set size
+        res = self.grid.resolution
+        bnd_box = BBox(0, 0, tot_width, d_inst.bound_box.height_unit, res, unit_mode=True)
+        self.array_box = BBox(0, m_inst.array_box.bottom_unit, tot_width,
+                              m_inst.array_box.top_unit, res, unit_mode=True)
+        self.set_size_from_bound_box(top_layer, bnd_box)
+
+        # connect pins between two masters
+        clkp = m_inst.get_all_port_pins('clkp')
+        clkn = m_inst.get_all_port_pins('clkn')
+        vdd = self.connect_wires(list(chain(m_inst.port_pins_iter('VDD'),
+                                            d_inst.port_pins_iter('VDD'))))
+        vss = self.connect_wires(list(chain(m_inst.port_pins_iter('VSS'),
+                                            d_inst.port_pins_iter('VSS'))))
+        if seg_re is None:
+            div_sch_params = d_master.sch_params
+            re_sch_params = None
+
+            # perform connections for divider
+            if div_pos_edge:
+                clkp.extend(d_inst.port_pins_iter('clk'))
+                clkp = self.connect_wires(clkp)[0]
+                clkn = self.extend_wires(clkn, lower=clkp.lower_unit, unit_mode=True)
+            else:
+                clkn.extend(d_inst.port_pins_iter('clk'))
+                clkn = self.connect_wires(clkn)[0]
+                clkp = self.extend_wires(clkp, lower=clkn.lower_unit, unit_mode=True)
+
+            # re-export divider pins
+            self.reexport(d_inst.get_port('q'), net_name='div', show=show_pins)
+            self.reexport(d_inst.get_port('qb'), net_name='divb', show=show_pins)
+            self.reexport(d_inst.get_port('en'), net_name='en_div', show=show_pins)
+            self.reexport(d_inst.get_port('scan_s'), net_name='scan_div', show=show_pins)
         else:
-            l_master = self.new_template(params=lat_params, temp_cls=IntegAmp)
-            m_tr_info = l_master.track_info
-            tr_info = dict(
-                VDD=m_tr_info['VDD'],
-                VSS=m_tr_info['VSS'],
-                q=m_tr_info['inp'],
-                qb=m_tr_info['inn'],
-                en=m_tr_info['nen3'],
-                clkp=m_tr_info['clkp'],
-                clkn=m_tr_info['clkn'],
-            )
-            self._div_tr_info = tr_info
+            div_sch_params = None
+            re_sch_params = d_master.sch_params
 
-            if seg_pul is None:
-                seg_dig = seg_div
-                dig_cls = SinClkDivider
+            if re_dummy:
+                EnableRetimer.connect_as_dummy(self, d_inst)
             else:
-                # TODO: add pulse generator logic here
-                seg_dig = seg_pul
-                dig_cls = SinClkDivider
-
-            dig_params = dict(
-                config=config,
-                row_layout_info=l_master.row_layout_info,
-                seg_dict=seg_dig,
-                tr_info=tr_info,
-                tr_widths=tr_widths,
-                tr_spaces=tr_spaces,
-                end_mode=dig_end_mode,
-                abut_mode=dig_abut_mode,
-                div_pos_edge=div_pos_edge,
-                show_pins=False,
-                laygo_edger=l_master.lr_edge_info[0],
-            )
-            d_master = self.new_template(params=dig_params, temp_cls=dig_cls)
-            if seg_pul is None:
-                div_sch_params = d_master.sch_params
-                pul_sch_params = None
-            else:
-                div_sch_params = None
-                pul_sch_params = d_master.sch_params
-            self._fg_core = l_master.layout_info.fg_core + d_master.laygo_info.core_col
-
-        # compute fg_core, and resize main tap if necessary
-        if self._fg_core < fg_min:
-            fg_inc = fg_min - self._fg_core
-            fg_duml = fg_dum + fg_inc
-            l_master = l_master.new_template_with(fg_duml=fg_duml)
-            self._fg_core = fg_min
-
-        # place instances and set bounding box
-        if no_dig:
-            m_inst = self.add_instance(l_master, 'XLAT', loc=(0, 0), unit_mode=True)
-            self.array_box = m_inst.array_box
-            self.set_size_from_bound_box(top_layer, m_inst.bound_box)
-
-            # get pins
-            vdd = m_inst.get_all_port_pins('VDD')
-            vss = m_inst.get_all_port_pins('VSS')
-            clkp = m_inst.get_all_port_pins('clkp')
-            clkn = m_inst.get_all_port_pins('clkn')
-        else:
-            # calculate instance placements
-            blk_w = self.grid.get_block_size(top_layer, unit_mode=True)[0]
-            core_width = d_master.bound_box.width_unit + l_master.bound_box.width_unit
-            tot_width = -(-core_width // blk_w) * blk_w
-            xl = (tot_width - core_width) // 2
-
-            # place instances
-            top_layer = l_master.top_layer
-            d_inst = self.add_instance(d_master, 'XDIG', loc=(xl, 0))
-            m_inst = self.add_instance(l_master, 'XLAT', loc=(d_inst.bound_box.right_unit, 0),
-                                       unit_mode=True)
-
-            # set size
-            res = self.grid.resolution
-            bnd_box = BBox(0, 0, tot_width, d_inst.bound_box.height_unit, res, unit_mode=True)
-            self.array_box = BBox(0, m_inst.array_box.bottom_unit, tot_width,
-                                  m_inst.array_box.top_unit, res, unit_mode=True)
-            self.set_size_from_bound_box(top_layer, bnd_box)
-
-            # connect pins between two masters
-            vdd = m_inst.get_all_port_pins('VDD')
-            vss = m_inst.get_all_port_pins('VSS')
-            clkp = m_inst.get_all_port_pins('clkp')
-            clkn = m_inst.get_all_port_pins('clkn')
-
-            vdd.extend(d_inst.port_pins_iter('VDD'))
-            vss.extend(d_inst.port_pins_iter('VSS'))
-            vdd = self.connect_wires(vdd)
-            vss = self.connect_wires(vss)
-            if seg_pul is None:
-                # perform connections for divider
-                if div_pos_edge:
-                    clkp.extend(d_inst.port_pins_iter('clk'))
-                    clkp = self.connect_wires(clkp)[0]
-                    clkn = self.extend_wires(clkn, lower=clkp.lower_unit, unit_mode=True)
-                else:
-                    clkn.extend(d_inst.port_pins_iter('clk'))
-                    clkn = self.connect_wires(clkn)[0]
-                    clkp = self.extend_wires(clkp, lower=clkn.lower_unit, unit_mode=True)
-
-                # re-export divider pins
-                self.reexport(d_inst.get_port('q'), net_name='div', show=show_pins)
-                self.reexport(d_inst.get_port('qb'), net_name='divb', show=show_pins)
-                self.reexport(d_inst.get_port('en'), net_name='en_div', show=show_pins)
-                self.reexport(d_inst.get_port('scan_s'), net_name='scan_div', show=show_pins)
-            else:
-                # TODO: perform connections for pulse generation
-                pass
+                clkp.extend(d_inst.port_pins_iter('clkp'))
+                clkn.extend(d_inst.port_pins_iter('clkn'))
+                clkp = self.connect_wires(clkp)
+                clkn = self.connect_wires(clkn)
+                self.reexport(d_inst.get_port('in'), net_name='en_div', show=show_pins)
+                self.reexport(d_inst.get_port('en3'), net_name='en_div3', show=show_pins)
+                self.reexport(d_inst.get_port('en2'), net_name='en_div2', show=show_pins)
 
         self.add_pin('VDD', vdd, show=show_pins)
         self.add_pin('VSS', vss, show=show_pins)
@@ -474,17 +407,92 @@ class Tap1LatchRow(TemplateBase):
                                              mode=-1, unit_mode=True)
         self._en_locs = [tr_idx + tr_right - tr_locs[-1] for tr_idx in tr_locs]
 
-        # set schematic parameters
         self._sch_params = dict(
             div_pos_edge=div_pos_edge,
             lat_params=l_master.sch_params,
             div_params=div_sch_params,
-            pul_params=pul_sch_params,
+            pul_params=None,
+            re_params=re_sch_params,
+            re_dummy=re_dummy,
         )
         outp_tid = m_inst.get_pin('outp').track_id
         self._out_tr_info = (outp_tid.base_index, m_inst.get_pin('outn').track_id.base_index,
                              outp_tid.width)
         self._row_layout_info = l_master.row_layout_info
+
+    def _make_masters(self):
+        dig_end_mode = 4
+        dig_abut_mode = 2
+
+        # get parameters
+        config = self.params['config']
+        seg_div = self.params['seg_div']
+        seg_re = self.params['seg_re']
+        fg_dum = self.params['fg_dum']
+        tr_widths = self.params['tr_widths']
+        tr_spaces = self.params['tr_spaces']
+        div_pos_edge = self.params['div_pos_edge']
+        fg_min = self.params['fg_min']
+        fg_min_dig = self.params['fg_min_dig']
+
+        # get layout masters
+        lat_params = self.params.copy()
+        del lat_params['config']
+        del lat_params['seg_div']
+        del lat_params['seg_lat']
+        del lat_params['fg_min']
+        del lat_params['fg_dum']
+        lat_params['seg_dict'] = self.params['seg_lat']
+        lat_params['show_pins'] = False
+        lat_params['end_mode'] = 8
+        lat_params['fg_duml'] = lat_params['fg_dumr'] = fg_dum
+
+        l_master = self.new_template(params=lat_params, temp_cls=IntegAmp)
+        m_tr_info = l_master.track_info
+        tr_info = dict(
+            VDD=m_tr_info['VDD'],
+            VSS=m_tr_info['VSS'],
+            q=m_tr_info['inp'],
+            qb=m_tr_info['inn'],
+            en=m_tr_info['nen3'],
+            clkp=m_tr_info['clkp'],
+            clkn=m_tr_info['clkn'],
+        )
+        self._div_tr_info = tr_info
+
+        if seg_re is None:
+            seg_dig = seg_div
+            dig_cls = SinClkDivider
+        else:
+            seg_dig = seg_re
+            dig_cls = EnableRetimer
+
+        dig_params = dict(
+            config=config,
+            row_layout_info=l_master.row_layout_info,
+            seg_dict=seg_dig,
+            tr_info=tr_info,
+            tr_widths=tr_widths,
+            tr_spaces=tr_spaces,
+            fg_min=fg_min_dig,
+            end_mode=dig_end_mode,
+            abut_mode=dig_abut_mode,
+            div_pos_edge=div_pos_edge,
+            show_pins=False,
+            laygo_edger=l_master.lr_edge_info[0],
+        )
+        d_master = self.new_template(params=dig_params, temp_cls=dig_cls)
+
+        self._fg_core_dig = d_master.laygo_info.core_col
+        self._fg_core = l_master.layout_info.fg_core + self._fg_core_dig
+        # compute fg_core, and resize main tap if necessary
+        if self._fg_core < fg_min:
+            fg_inc = fg_min - self._fg_core
+            fg_duml = fg_dum + fg_inc
+            l_master = l_master.new_template_with(fg_duml=fg_duml)
+            self._fg_core = fg_min
+
+        return l_master, d_master
 
 
 class Tap1Summer(TemplateBase):

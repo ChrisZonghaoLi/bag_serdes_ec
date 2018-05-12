@@ -349,11 +349,7 @@ class DividerColumn(TemplateBase):
             if m1 is div2_master:
                 topn = tinst
             else:
-                vss_vm = list(chain(tinst.port_pins_iter('VSS_vm'), tinst.port_pins_iter('in'),
-                                    tinst.port_pins_iter('clkp')))
-                vdd_vm = list(chain(tinst.port_pins_iter('VDD_vm'), tinst.port_pins_iter('clkn')))
-                self.connect_wires(vss_vm)
-                self.connect_wires(vdd_vm)
+                EnableRetimer.connect_as_dummy(self, tinst)
 
             bnd_box = bnd_box.merge(tinst.bound_box)
             for inst in (binst, tinst):

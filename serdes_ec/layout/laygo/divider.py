@@ -4,6 +4,8 @@
 
 from typing import TYPE_CHECKING, Dict, Any, Set
 
+from itertools import chain
+
 from abs_templates_ec.laygo.core import LaygoBase
 
 from bag.layout.routing import TrackManager, TrackID, WireArray
@@ -1098,3 +1100,11 @@ class EnableRetimer(LaygoBase):
                 'clk': clk,
                 'clkb': clkb,
                 }
+
+    @classmethod
+    def connect_as_dummy(cls, template, inst):
+        vss_vm = list(chain(inst.port_pins_iter('VSS_vm'), inst.port_pins_iter('in'),
+                            inst.port_pins_iter('clkp')))
+        vdd_vm = list(chain(inst.port_pins_iter('VDD_vm'), inst.port_pins_iter('clkn')))
+        template.connect_wires(vss_vm)
+        template.connect_wires(vdd_vm)
