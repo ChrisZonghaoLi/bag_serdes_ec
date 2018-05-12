@@ -804,11 +804,17 @@ class EnableRetimer(LaygoBase):
         # type: (TemplateDB, str, Dict[str, Any], Set[str], **kwargs) -> None
         LaygoBase.__init__(self, temp_db, lib_name, params, used_names, **kwargs)
         self._sch_params = None
+        self._fg_tot = None
 
     @property
     def sch_params(self):
         # type: () -> Dict[str, Any]
         return self._sch_params
+
+    @property
+    def fg_tot(self):
+        # type: () -> int
+        return self._fg_tot
 
     @classmethod
     def get_params_info(cls):
@@ -823,7 +829,6 @@ class EnableRetimer(LaygoBase):
             fg_min='Minimum number of core fingers.',
             end_mode='The LaygoBase end_mode flag.',
             abut_mode='The left/right abut mode flag.',
-            is_dummy='True to connect this cell as dummy.',
             show_pins='True to show pins.',
         )
 
@@ -835,7 +840,6 @@ class EnableRetimer(LaygoBase):
             fg_min=0,
             end_mode=None,
             abut_mode=0,
-            is_dummy=False,
             show_pins=True,
         )
 
@@ -850,15 +854,15 @@ class EnableRetimer(LaygoBase):
         fg_min = self.params['fg_min']
         end_mode = self.params['end_mode']
         abut_mode = self.params['abut_mode']
-        is_dummy = self.params['is_dummy']
         show_pins = self.params['show_pins']
 
         tr_manager = TrackManager(self.grid, tr_widths, tr_spaces, half_space=True)
 
         # compute number of columns, then draw floorplan
-        seg_in = seg_dict['in']
-        seg_fb = seg_dict['fb']
-        seg_out = seg_dict['out']
+        seg_in = seg_dict['re_in']
+        seg_fb = seg_dict['re_fb']
+        seg_out = seg_dict['re_out']
+        seg_buf = seg_dict['re_buf']
 
         col_inc = 0
         if abut_mode & 1 != 0:
@@ -880,6 +884,7 @@ class EnableRetimer(LaygoBase):
         fg_core = self.laygo_info.get_placement_info(num_col).core_fg
         if fg_core < fg_min:
             num_col += (fg_min - fg_core)
+        self._fg_tot = num_col
         self.set_laygo_size(num_col)
 
         # draw individual blocks
@@ -887,11 +892,11 @@ class EnableRetimer(LaygoBase):
         col_ff1 = col_ff0 + ncol_ff + blk_sp
         col_lat = col_ff1 + ncol_ff + blk_sp
         vss_w, vdd_w = _draw_substrate(self, col0, num_col, num_col - col_inc)
-        ff0_ports = self._draw_ff(col_ff0, ncol_lat, seg_in, seg_fb, seg_out, blk_sp,
+        ff0_ports = self._draw_ff(col_ff0, ncol_lat, seg_in, seg_fb, seg_out, seg_out, blk_sp,
                                   draw_vm_in=True)
-        ff1_ports = self._draw_ff(col_ff1, ncol_lat, seg_in, seg_fb, seg_out, blk_sp,
+        ff1_ports = self._draw_ff(col_ff1, ncol_lat, seg_in, seg_fb, seg_out, seg_buf, blk_sp,
                                   draw_vm_in=False)
-        lat_ports = self._draw_lat(col_lat, seg_in, seg_fb, seg_out, blk_sp,
+        lat_ports = self._draw_lat(col_lat, seg_in, seg_fb, seg_buf, blk_sp,
                                    draw_vm_in=False)
 
         # fill space
@@ -914,6 +919,7 @@ class EnableRetimer(LaygoBase):
         self.connect_wires(mid_hm)
 
         # export IO pins
+        self.add_pin('in', ff0_ports['in'], show=show_pins)
         self.add_pin('en3', ff1_ports['out'], show=show_pins)
         self.add_pin('en2', lat_ports['out'], show=show_pins)
 
@@ -924,29 +930,23 @@ class EnableRetimer(LaygoBase):
         clkn.extend(ff1_ports['clkb'])
         clkn.append(lat_ports['clk'])
 
-        if is_dummy:
-            clkp.extend(clkn)
-            clkp.extend(vss)
-            clkp.append(ff0_ports['in'])
-            self.connect_wires(clkp)
-        else:
-            self.add_pin('in', ff0_ports['in'], show=show_pins)
+        self.add_pin('VSS_vm', vss, show=show_pins)
+        self.add_pin('clkp_vm', clkp, show=show_pins)
+        self.add_pin('clkn_vm', clkn, show=show_pins)
+        if tr_info is not None:
+            xm_layer = self.conn_layer + 3
+            clkp_idx, w_clk = tr_info['clkp']
+            clkn_idx, _ = tr_info['clkn']
+            vdd_idx, w_vdd = tr_info['VDD']
+            vss_idx, w_vss = tr_info['VSS']
 
-            if tr_info is not None:
-                xm_layer = self.conn_layer + 3
-                clkp_idx, w_clk = tr_info['clkp']
-                clkn_idx, _ = tr_info['clkn']
-                vdd_idx, w_vdd = tr_info['VDD']
-                vss_idx, w_vss = tr_info['VSS']
+            clkp, clkn = self.connect_differential_tracks(clkp, clkn, xm_layer,
+                                                          clkp_idx, clkn_idx, width=w_clk)
+            vdd = self.connect_to_tracks(vdd, TrackID(xm_layer, vdd_idx, width=w_vdd))
+            vss = self.connect_to_tracks(vss, TrackID(xm_layer, vss_idx, width=w_vss))
 
-                clkp, clkn = self.connect_differential_tracks(clkp, clkn, xm_layer,
-                                                              clkp_idx, clkn_idx, width=w_clk)
-                vdd = self.connect_to_tracks(vdd, TrackID(xm_layer, vdd_idx, width=w_vdd))
-                vss = self.connect_to_tracks(vss, TrackID(xm_layer, vss_idx, width=w_vss))
-
-            self.add_pin('clkp', clkp, show=show_pins)
-            self.add_pin('clkn', clkn, show=show_pins)
-
+        self.add_pin('clkp', clkp, show=show_pins)
+        self.add_pin('clkn', clkn, show=show_pins)
         self.add_pin('VDD', vdd, show=show_pins)
         self.add_pin('VSS', vss, show=show_pins)
 
@@ -965,6 +965,7 @@ class EnableRetimer(LaygoBase):
                 pt1=seg_fb, nt1=seg_fb,
                 pinv=seg_out, ninv=seg_out,
             ),
+            seg_buf=seg_buf,
         )
 
     def _draw_lat(self, col_in, seg_in, seg_fb, seg_out, blk_sp, draw_vm_in=True):
@@ -1067,9 +1068,9 @@ class EnableRetimer(LaygoBase):
                 'clkb': clkb,
                 }
 
-    def _draw_ff(self, x0, ncol_lat, seg_in, seg_fb, seg_out, blk_sp, draw_vm_in=True):
+    def _draw_ff(self, x0, ncol_lat, seg_in, seg_fb, seg_out, seg_buf, blk_sp, draw_vm_in=True):
         m_ports = self._draw_lat(x0, seg_in, seg_fb, seg_out, blk_sp, draw_vm_in=draw_vm_in)
-        s_ports = self._draw_lat(x0 + ncol_lat + blk_sp, seg_in, seg_fb, seg_out,
+        s_ports = self._draw_lat(x0 + ncol_lat + blk_sp, seg_in, seg_fb, seg_buf,
                                  blk_sp, draw_vm_in=False)
 
         mid_hm = m_ports['out_hm']

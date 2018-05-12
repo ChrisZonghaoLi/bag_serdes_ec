@@ -28,10 +28,11 @@ class bag_serdes_ec__enable_retimer(Module):
             lch='channel length, in meters.',
             w_dict='NMOS/PMOS width dictionary.',
             th_dict='NMOS/PMOS threshold flavor dictionary.',
-            seg_dict='number of segments dictionary.',
+            seg_dict='number of segments dictionary for latches.',
+            seg_buf='output inverter size.',
         )
 
-    def design(self, lch, w_dict, th_dict, seg_dict):
+    def design(self, lch, w_dict, th_dict, seg_dict, seg_buf):
         wp = w_dict['pin']
         wn = w_dict['nin']
         wpen = w_dict['pen']
@@ -42,8 +43,14 @@ class bag_serdes_ec__enable_retimer(Module):
         thnen = th_dict['nen']
 
         params = dict(lch=lch, wp=wp, wn=wn, thp=thp, thn=thn, seg_m=seg_dict,
-                      seg_s=seg_dict, seg_dict=seg_dict, pass_zero=True, wpen=wpen,
+                      seg_s=seg_dict, pass_zero=True, wpen=wpen,
                       wnen=wnen, thpen=thpen, thnen=thnen)
         self.instances['XFF0'].design(**params)
+        seg_dict_out = seg_dict.copy()
+        seg_dict_out['pinv'] = seg_dict_out['ninv'] = seg_buf
+        params = dict(lch=lch, wp=wp, wn=wn, thp=thp, thn=thn, seg_m=seg_dict,
+                      seg_s=seg_dict_out, pass_zero=True, wpen=wpen,
+                      wnen=wnen, thpen=thpen, thnen=thnen)
         self.instances['XFF1'].design(**params)
+        params['seg_dict'] = seg_dict_out
         self.instances['XLAT'].design(**params)

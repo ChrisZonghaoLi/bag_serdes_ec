@@ -18,7 +18,7 @@ from digital_ec.layout.stdcells.latch import DFlipFlopCK2, LatchCK2
 
 from ..laygo.misc import LaygoDummy
 from ..laygo.strongarm import SenseAmpStrongArm
-from ..laygo.divider import SinClkDivider
+from ..laygo.divider import SinClkDivider, EnableRetimer
 from ..digital.buffer import BufferArray
 
 if TYPE_CHECKING:
@@ -276,24 +276,28 @@ class DividerColumn(TemplateBase):
             end_mode = 4
             draw_end_row = False
 
-        div_params = dict(config=config, row_layout_info=lat_row_info, seg_dict=seg_dict,
-                          tr_widths=tr_widths, tr_spaces=tr_spaces, tr_info=div_tr_info, fg_min=0,
-                          end_mode=end_mode, abut_mode=abut_mode, div_pos_edge=clk_inverted,
-                          laygo_edger=right_edge_info, show_pins=False)
+        params = dict(config=config, row_layout_info=lat_row_info, seg_dict=seg_dict,
+                      tr_widths=tr_widths, tr_spaces=tr_spaces, tr_info=div_tr_info, fg_min=0,
+                      end_mode=end_mode, abut_mode=abut_mode, div_pos_edge=clk_inverted,
+                      laygo_edger=right_edge_info, show_pins=False)
+        div3_master = self.new_template(params=params, temp_cls=SinClkDivider)
 
-        div3_master = self.new_template(params=div_params, temp_cls=SinClkDivider)
-        div_params['div_pos_edge'] = not clk_inverted
-        div2_master = self.new_template(params=div_params, temp_cls=SinClkDivider)
+        fg_min = div3_master.laygo_info.core_col
+        params['fg_min'] = div3_master.laygo_info.core_col
+        re_master = self.new_template(params=params, temp_cls=EnableRetimer)
+        fg_core_re = re_master.laygo_info.core_col
+        if fg_core_re > fg_min:
+            params['fg_min'] = fg_core_re
+            div3_master = self.new_template(params=params, temp_cls=SinClkDivider)
+
+        params['div_pos_edge'] = not clk_inverted
+        div2_master = self.new_template(params=params, temp_cls=SinClkDivider)
         self._fg_tot = div3_master.fg_tot
         self._sa_clk_tidx = div3_master.sa_clk_tidx
 
-        dums_params = dict(config=config, row_layout_info=sum_row_info, num_col=self._fg_tot,
-                           tr_widths=tr_widths, tr_spaces=tr_spaces, sup_tids=sup_tids[0],
-                           end_mode=end_mode, abut_mode=abut_mode, laygo_edger=right_edge_info,
-                           show_pins=False)
-        dums_master = self.new_template(params=dums_params, temp_cls=LaygoDummy)
-        duml_master = dums_master.new_template_with(row_layout_info=lat_row_info,
-                                                    sup_tids=sup_tids[1])
+        params['num_col'] = self._fg_tot
+        params['sup_tids'] = sup_tids[0]
+        dums_master = self.new_template(params=params, temp_cls=LaygoDummy)
 
         top_layer = div3_master.top_layer
         if draw_end_row:
@@ -320,27 +324,34 @@ class DividerColumn(TemplateBase):
         vdd_list = []
         vss_list = []
         bayt = dums_master.array_box.top_unit
-        tayt = duml_master.array_box.top_unit
-        botp = topn = None
+        tayt = div3_master.array_box.top_unit
+        botp = topn = re_inst = None
         for idx in range(4):
             is_even = idx % 2 == 0
             if is_even:
-                m0, m1 = dums_master, duml_master
+                m0, m1 = dums_master, re_master
                 if idx == 2:
                     m1 = div2_master
             else:
-                m0, m1 = duml_master, dums_master
+                m0, m1 = re_master, dums_master
                 if idx == 1:
                     m0 = div3_master
             binst = self.add_instance(m0, 'X%d' % (idx * 2), loc=(0, ycur),
                                       orient='R0', unit_mode=True)
             if m0 is div3_master:
                 botp = binst
+            else:
+                re_inst = binst
             ycur += bayt + tayt
             tinst = self.add_instance(m1, 'X%d' % (idx * 2 + 1), loc=(0, ycur),
                                       orient='MX', unit_mode=True)
             if m1 is div2_master:
                 topn = tinst
+            else:
+                vss_shorts = list(chain(tinst.port_pins_iter('VSS_vm'), tinst.port_pins_iter('in'),
+                                        tinst.port_pins_iter('clkp_vm'),
+                                        tinst.port_pins_iter('clkn_vm')))
+                self.connect_wires(vss_shorts)
 
             bnd_box = bnd_box.merge(tinst.bound_box)
             for inst in (binst, tinst):
