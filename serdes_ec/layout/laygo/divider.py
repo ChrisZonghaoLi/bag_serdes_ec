@@ -884,9 +884,9 @@ class EnableRetimer(LaygoBase):
         col_ff1 = col_ff0 + ncol_ff + blk_sp
         col_lat = col_ff1 + ncol_ff + blk_sp
         vss_w, vdd_w = _draw_substrate(self, col0, num_col, num_col - col_inc)
-        ff0_ports = self._draw_ff(col_ff0, ncol_lat, seg_in, seg_fb, seg_out, blk_sp, tr_manager)
-        ff1_ports = self._draw_ff(col_ff1, ncol_lat, seg_in, seg_fb, seg_out, blk_sp, tr_manager)
-        lat_ports = self._draw_lat(col_lat, seg_in, seg_fb, seg_out, blk_sp, tr_manager)
+        ff0_ports = self._draw_ff(col_ff0, ncol_lat, seg_in, seg_fb, seg_out, blk_sp)
+        ff1_ports = self._draw_ff(col_ff1, ncol_lat, seg_in, seg_fb, seg_out, blk_sp)
+        lat_ports = self._draw_lat(col_lat, seg_in, seg_fb, seg_out, blk_sp)
 
         # fill space
         self.fill_space()
@@ -901,35 +901,71 @@ class EnableRetimer(LaygoBase):
         self.add_pin('VDD', vdd, show=show_pins)
         self.add_pin('VSS', vss, show=show_pins)
 
-    def _draw_lat(self, x0, seg_in, seg_fb, seg_out, blk_sp, tr_manager):
+    def _draw_lat(self, col_in, seg_in, seg_fb, seg_out, blk_sp):
         row_nin = 2
         row_nen = row_nin + 1
         row_pen = row_nen + 1
         row_pin = row_pen + 1
 
         # draw transistors
-        in_n = self.add_laygo_mos(row_nin, x0, seg_in, gate_loc='s')
-        in_nen = self.add_laygo_mos(row_nen, x0, seg_in, gate_loc='d')
-        in_p = self.add_laygo_mos(row_pin, x0, seg_in, gate_loc='d')
+        in_n = self.add_laygo_mos(row_nin, col_in, seg_in, gate_loc='s')
+        in_nen = self.add_laygo_mos(row_nen, col_in, seg_in, gate_loc='d')
+        in_p = self.add_laygo_mos(row_pin, col_in, seg_in, gate_loc='d')
 
-        x0 += seg_in + blk_sp
-        fb_n = self.add_laygo_mos(row_nin, x0, seg_fb, gate_loc='s')
-        fb_nen = self.add_laygo_mos(row_nen, x0, seg_fb, gate_loc='d')
-        fb_pen = self.add_laygo_mos(row_pen, x0, seg_fb, gate_loc='d')
-        fb_p = self.add_laygo_mos(row_pin, x0, seg_fb, gate_loc='s')
+        col_fb = col_in + seg_in + blk_sp
+        fb_n = self.add_laygo_mos(row_nin, col_fb, seg_fb, gate_loc='s')
+        fb_nen = self.add_laygo_mos(row_nen, col_fb, seg_fb, gate_loc='d')
+        fb_pen = self.add_laygo_mos(row_pen, col_fb, seg_fb, gate_loc='d')
+        fb_p = self.add_laygo_mos(row_pin, col_fb, seg_fb, gate_loc='s')
 
-        x0 += seg_fb + blk_sp
-        out_n = self.add_laygo_mos(row_nen, x0, seg_out, gate_loc='d')
-        out_p = self.add_laygo_mos(row_pen, x0, seg_out, gate_loc='d')
+        col_out = col_fb + seg_fb + blk_sp
+        out_n = self.add_laygo_mos(row_nen, col_out, seg_out, gate_loc='d')
+        out_p = self.add_laygo_mos(row_pen, col_out, seg_out, gate_loc='d')
+
+        # get track IDs
+        hm_layer = self.conn_layer + 1
+        vm_layer = hm_layer + 1
+        nin_g = TrackID(hm_layer, self.get_track_index(row_nin, 'g', -1))
+        nen_gp = TrackID(hm_layer, self.get_track_index(row_nen, 'g', -1))
+        nen_gn = TrackID(hm_layer, nen_gp.base_index - 2)
+        nen_gb = TrackID(hm_layer, self.get_track_index(row_nen, 'gb', -1))
+        pen_gb = TrackID(hm_layer, self.get_track_index(row_pen, 'gb', -1))
+        pen_g = TrackID(hm_layer, self.get_track_index(row_pen, 'g', 0))
+        pin_g = TrackID(hm_layer, self.get_track_index(row_pin, 'g', 0))
+
+        # connect input tristate inverter
+        self.connect_wires([in_nen['s'], in_n['s']])
+        in_ng = self.connect_to_tracks(in_n['g'], nin_g, min_len_mode=-1)
+        in_neng = self.connect_to_tracks(in_nen['g'], nen_gp, min_len_mode=1)
+        in_pg = self.connect_to_tracks(in_p['g'], pin_g, min_len_mode=-1)
+
+        # connect feedback tristate inverter
+        self.connect_wires([fb_nen['s'], fb_n['s']])
+        self.connect_wires([fb_pen['s'], fb_p['s']])
+        fb_ng = self.connect_to_tracks(fb_n['g'], nin_g, min_len_mode=1)
+        fb_neng = self.connect_to_tracks(fb_nen['g'], nen_gn, min_len_mode=-1)
+        fb_peng = self.connect_to_tracks(fb_pen['g'], pen_g, min_len_mode=-1)
+        fb_pg = self.connect_to_tracks(fb_p['g'], pin_g, min_len_mode=1)
+        mid_warr = self.connect_to_tracks([in_p['d'], in_nen['d'], fb_nen['d'], fb_pen['d']],
+                                          pen_gb, min_len_mode=1)
+
+        # connect output inverter
+        out_ng = self.connect_to_tracks(out_n['g'], nen_gp, min_len_mode=-1)
+        out_pg = self.connect_to_tracks(out_p['g'], pen_g, min_len_mode=-1)
+        out_warr = self.connect_to_tracks([out_p['d'], out_n['d']], nen_gb, min_len_mode=1)
+
+        vm_x = self.laygo_info.col_to_coord(col_in, unit_mode=True)
+        vm_tidx = self.grid.coord_to_nearest_track(vm_layer, vm_x, half_track=True, mode=-1,
+                                                   unit_mode=True)
+        in_warr = self.connect_to_tracks([in_ng, in_pg], TrackID(vm_layer, vm_tidx))
 
         return {'VSS': [in_n['d'], fb_n['d'], out_n['s']],
                 'VDD': [in_p['s'], fb_p['d'], out_p['s']],
                 }
 
-    def _draw_ff(self, x0, ncol_lat, seg_in, seg_fb, seg_out, blk_sp, tr_manager):
-        m_ports = self._draw_lat(x0, seg_in, seg_fb, seg_out, blk_sp, tr_manager)
-        s_ports = self._draw_lat(x0 + ncol_lat + blk_sp, seg_in, seg_fb, seg_out,
-                                 blk_sp, tr_manager)
+    def _draw_ff(self, x0, ncol_lat, seg_in, seg_fb, seg_out, blk_sp):
+        m_ports = self._draw_lat(x0, seg_in, seg_fb, seg_out, blk_sp)
+        s_ports = self._draw_lat(x0 + ncol_lat + blk_sp, seg_in, seg_fb, seg_out, blk_sp)
 
         vss_warrs = m_ports['VSS']
         vdd_warrs = m_ports['VDD']
