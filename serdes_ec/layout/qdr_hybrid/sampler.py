@@ -237,6 +237,7 @@ class DividerColumn(TemplateBase):
             div_tr_info='divider track information dictionary.',
             sup_tids='supply tracks information.',
             clk_inverted='True if clock tracks are flipped.',
+            re_out_type='retimer output track type.',
             options='other AnalogBase options.',
             right_edge_info='If not None, abut on right edge.',
             show_pins='True to draw pin geometries.',
@@ -247,6 +248,7 @@ class DividerColumn(TemplateBase):
         # type: () -> Dict[str, Any]
         return dict(
             clk_inverted=False,
+            re_out_type='in',
             options=None,
             right_edge_info=None,
             show_pins=True,
@@ -262,6 +264,7 @@ class DividerColumn(TemplateBase):
         div_tr_info = self.params['div_tr_info']
         sup_tids = self.params['sup_tids']
         clk_inverted = self.params['clk_inverted']
+        re_out_type = self.params['re_out_type']
         options = self.params['options']
         right_edge_info = self.params['right_edge_info']
         show_pins = self.params['show_pins']
@@ -274,7 +277,7 @@ class DividerColumn(TemplateBase):
         else:
             draw_end_row = False
             end_mode = 4
-            abut_mode = 1
+            abut_mode = 2
 
         params = dict(
             config=config,
@@ -283,7 +286,7 @@ class DividerColumn(TemplateBase):
             tr_widths=tr_widths,
             tr_spaces=tr_spaces,
             div_tr_info=div_tr_info,
-            re_out_type='in',
+            re_out_type=re_out_type,
             re_in_type='tail',
             clk_inverted=clk_inverted,
             laygo_edger=right_edge_info,

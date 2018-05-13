@@ -1117,6 +1117,10 @@ class TapXColumn(TemplateBase):
         # connect divider signals
         en_list = self._connect_div(tr0, tr_manager, ym_layer, dfe_track_info, inst_list, div3_inst,
                                     div2_inst, show_pins, export_probe)
+        clkp_list.extend(div3_inst.port_pins_iter('clkp'))
+        clkp_list.extend(div2_inst.port_pins_iter('clkp'))
+        clkn_list.extend(div3_inst.port_pins_iter('clkn'))
+        clkn_list.extend(div2_inst.port_pins_iter('clkn'))
 
         # connect shields
         sh_lower, sh_upper = None, None
@@ -1373,7 +1377,8 @@ class TapXColumn(TemplateBase):
         self.connect_to_tracks([div2.get_pin('en2'), div3.get_pin('en2')],
                                TrackID(ym_layer, tr, width=ym_w_clk))
         tr = track_info['en_div'][0] + tr0
-        warr = self.connect_to_tracks(div3.get_pin('in'), TrackID(ym_layer, tr, width=ym_w_clk))
+        warr = self.connect_to_tracks(div3.get_pin('in'), TrackID(ym_layer, tr, width=ym_w_clk),
+                                      min_len_mode=1)
         self.add_pin('en_div', warr, label='en_div:', show=show_pins)
 
         # connect enable clocks
@@ -1494,13 +1499,14 @@ class TapXColumn(TemplateBase):
             re_out_type='out',
             re_in_type='foot',
             laygo_edgel=redge_info,
+            clk_inverted=True,
             re_dummy=False,
             fg_min=fg_tot_dfe2,
             show_pins=False,
         )
         div3_master = self.new_template(params=div_params, temp_cls=DividerGroup)
         div_params['re_dummy'] = True
-        div_params['clk_inverted'] = True
+        div_params['clk_inverted'] = False
         div2_master = self.new_template(params=div_params, temp_cls=DividerGroup)
 
         div_col_params = dict(config=config, sum_row_info=sum_master.sum_row_info,
@@ -1508,7 +1514,8 @@ class TapXColumn(TemplateBase):
                               tr_widths=tr_widths, tr_spaces=tr_spaces,
                               div_tr_info=sum_master.div_tr_info,
                               sup_tids=sum_master.sup_tids, options=options,
-                              right_edge_info=ledge_info, clk_inverted=True, show_pins=False)
+                              right_edge_info=ledge_info, clk_inverted=True,
+                              re_out_type='out', show_pins=False)
         div_col_master = self.new_template(params=div_col_params, temp_cls=DividerColumn)
 
         ym_layer = sum_master.top_layer
