@@ -211,7 +211,6 @@ class RXDatapath(TemplateBase):
 
         bnd_box = self.bound_box
         xl = tapx.location_unit[0] + x_margin
-        """
         vdd_hm = self.connect_wires(vdd_hm_list, lower=xl, unit_mode=True)
         vss_hm = self.connect_wires(vss_hm_list, lower=xl, unit_mode=True)
         sp_le = bnd_box.height_unit
@@ -222,7 +221,6 @@ class RXDatapath(TemplateBase):
         vss_vm_list.extend(vss)
         self.add_pin('VDD', vdd_hm, show=show_pins)
         self.add_pin('VSS', vss_hm, show=show_pins)
-        """
         self.add_pin('VDD', vdd_vm_list, show=show_pins)
         self.add_pin('VSS', vss_vm_list, show=show_pins)
         self.add_pin('VDD_re', samp.get_all_port_pins('VDD_re'), label='VDD', show=False)
@@ -231,11 +229,9 @@ class RXDatapath(TemplateBase):
     def _export_pins(self, tapx, tap1, offset, offlev, samp, show_pins):
 
         # reexport common ports
-        reexport_set = {'clkp', 'clkn', 'en_div<3>', 'en_div<2>', 'scan_div<3>', 'scan_div<2>'}
+        reexport_set = {'clkp', 'clkn', 'en_div', 'scan_div<3>', 'scan_div<2>'}
         for name in reexport_set:
-            """
             self.reexport(tap1.get_port(name), label=name + ':', show=show_pins)
-            """
             self.reexport(tapx.get_port(name), label=name + ':', show=show_pins)
             self.reexport(samp.get_port(name), label=name + ':', show=show_pins)
 
