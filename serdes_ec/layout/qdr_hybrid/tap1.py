@@ -15,7 +15,7 @@ from abs_templates_ec.analog_core.base import AnalogBaseEnd
 from ..laygo.divider import SinClkDivider, EnableRetimer
 from .base import HybridQDRBaseInfo, HybridQDRBase
 from .amp import IntegAmp
-from .sampler import DividerColumn
+from ..laygo.divider import DividerGroup
 
 
 if TYPE_CHECKING:
@@ -516,6 +516,7 @@ class Tap1Summer(TemplateBase):
         self._sum_row_info = None
         self._lat_row_info = None
         self._left_edge_info = None
+        self._div_grp_loc = None
 
     @property
     def sch_params(self):
@@ -561,6 +562,11 @@ class Tap1Summer(TemplateBase):
     def left_edge_info(self):
         return self._left_edge_info
 
+    @property
+    def div_grp_loc(self):
+        # type: () -> Tuple[int, int]
+        return self._div_grp_loc
+
     @classmethod
     def get_params_info(cls):
         # type: () -> Dict[str, str]
@@ -604,7 +610,7 @@ class Tap1Summer(TemplateBase):
         tr_manager = TrackManager(self.grid, tr_widths, tr_spaces, half_space=True)
         l_master, m_master = self._make_masters(tr_manager)
 
-        mr_margin = m_master.layout_info.edge_margins[1]
+        ml_margin, mr_margin = m_master.layout_info.edge_margins
         m_arr_box = m_master.array_box
         m_bnd_box = m_master.bound_box
         # place instances
@@ -614,6 +620,7 @@ class Tap1Summer(TemplateBase):
         x_lat = m_bnd_box.right_unit - mr_margin - l_master.array_box.right_unit
         l_inst = self.add_instance(l_master, 'XLAT', loc=(x_lat, y_lat),
                                    orient='MX', unit_mode=True)
+        self._div_grp_loc = (ml_margin, m_arr_box.top_unit)
 
         # set size
         self.array_box = m_arr_box.extend(y=l_inst.array_box.top_unit, unit_mode=True)
@@ -844,7 +851,7 @@ class Tap1Column(TemplateBase):
         tr_spaces = self.params['tr_spaces']
         show_pins = self.params['show_pins']
 
-        sum_master, end_row_master, div_master = self._make_masters()
+        sum_master, end_row_master, div2_master, div3_master = self._make_masters()
 
         end_row_box = end_row_master.array_box
         sum_arr_box = sum_master.array_box
@@ -852,17 +859,26 @@ class Tap1Column(TemplateBase):
         # place instances
         vm_layer = top_layer = sum_master.top_layer
         bot_row = self.add_instance(end_row_master, 'XROWB', loc=(0, 0), unit_mode=True)
-        ycur = end_row_box.top_unit
+        y1 = ycur = end_row_box.top_unit
         inst1 = self.add_instance(sum_master, 'X1', loc=(0, ycur), unit_mode=True)
         ycur += sum_arr_box.top_unit + sum_arr_box.top_unit
         inst2 = self.add_instance(sum_master, 'X2', loc=(0, ycur), orient='MX', unit_mode=True)
         inst0 = self.add_instance(sum_master, 'X0', loc=(0, ycur), unit_mode=True)
-        ycur += sum_arr_box.top_unit + sum_arr_box.top_unit
+        y3 = ycur = ycur + sum_arr_box.top_unit + sum_arr_box.top_unit
         inst3 = self.add_instance(sum_master, 'X3', loc=(0, ycur), orient='MX', unit_mode=True)
         ycur += end_row_box.top_unit
         top_row = self.add_instance(end_row_master, 'XROWT', loc=(0, ycur), orient='MX',
                                     unit_mode=True)
         inst_list = [inst0, inst1, inst2, inst3]
+
+        div_grp_x0, div_grp_y0 = sum_master.div_grp_loc
+        div_grp_x = div_grp_x0 - div3_master.array_box.left_unit
+        div_grp_y3 = div_grp_y0 + y1
+        div_grp_y2 = y3 - div_grp_y0
+        div3_inst = self.add_instance(div3_master, 'XDIV3', loc=(div_grp_x, div_grp_y3),
+                                      unit_mode=True)
+        div2_inst = self.add_instance(div2_master, 'XDIV2', loc=(div_grp_x, div_grp_y2),
+                                      orient='MX', unit_mode=True)
 
         tr_manager = TrackManager(self.grid, tr_widths, tr_spaces, half_space=True)
 
@@ -1041,7 +1057,7 @@ class Tap1Column(TemplateBase):
         self._sch_params = dict(
             sum_params=sum_master.sch_params['sum_params'],
             lat_params=sum_master.sch_params['lat_params'],
-            div_params=div_master.sch_params,
+            div_params=div3_master.sch_params,
         )
         inp = sum_master.get_port('inp').get_pins()[0].track_id
         inn = sum_master.get_port('inn').get_pins()[0].track_id
@@ -1061,10 +1077,9 @@ class Tap1Column(TemplateBase):
         seg_div = self.params['seg_div']
         tr_widths = self.params['tr_widths']
         tr_spaces = self.params['tr_spaces']
-        sup_tids = self.params['sup_tids']
         options = self.params['options']
 
-        fg_dig = DividerColumn.get_num_col(seg_div, 1)
+        fg_dig = DividerGroup.get_num_col(seg_div, 1)
 
         # make masters
         sum_params = self.params.copy()
@@ -1082,22 +1097,23 @@ class Tap1Column(TemplateBase):
             top_layer=sum_master.top_layer,
             end_mode=0b11,
             guard_ring_nf=0,
-            options=self.params['options'],
+            options=options,
         )
         end_row_master = self.new_template(params=end_row_params, temp_cls=AnalogBaseEnd)
 
         div_params = dict(
             config=config,
-            sum_row_info=sum_master.sum_row_info,
             lat_row_info=sum_master.lat_row_info,
             seg_dict=seg_div,
             tr_widths=tr_widths,
             tr_spaces=tr_spaces,
             div_tr_info=sum_master.div_tr_info,
-            sup_tids=sup_tids,
-            options=options,
+            laygo_edger=sum_master.left_edge_info,
+            re_dummy=False,
             show_pins=False,
         )
-        div_master = self.new_template(params=div_params, temp_cls=DividerColumn)
+        div3_master = self.new_template(params=div_params, temp_cls=DividerGroup)
+        div_params['re_dummy'] = True
+        div2_master = self.new_template(params=div_params, temp_cls=DividerGroup)
 
-        return sum_master, end_row_master, div_master
+        return sum_master, end_row_master, div2_master, div3_master

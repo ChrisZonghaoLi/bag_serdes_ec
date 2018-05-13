@@ -134,6 +134,28 @@ class SinClkDivider(LaygoBase):
         return self._sa_clk_tidx
 
     @classmethod
+    def get_col_info(cls, seg_dict, abut_mode):
+        # compute number of columns, then draw floorplan
+        blk_sp = seg_dict['blk_sp']
+        seg_inv = cls._get_gate_inv_info(seg_dict)
+        seg_int = cls._get_integ_amp_info(seg_dict)
+        seg_sr = cls._get_sr_latch_info(seg_dict)
+
+        if abut_mode & 1 != 0:
+            # abut on left
+            inc_coll = blk_sp
+        else:
+            inc_coll = 0
+        if abut_mode & 2 != 0:
+            # abut on right
+            inc_colr = blk_sp
+        else:
+            inc_colr = 0
+
+        seg_tot = seg_inv + seg_int + seg_sr + 2 * blk_sp + inc_coll + inc_colr
+        return seg_tot, blk_sp, seg_inv, seg_int, seg_sr, inc_coll, inc_colr
+
+    @classmethod
     def get_params_info(cls):
         # type: () -> Dict[str, str]
         return dict(
@@ -176,29 +198,15 @@ class SinClkDivider(LaygoBase):
         div_pos_edge = self.params['div_pos_edge']
         show_pins = self.params['show_pins']
 
-        tr_manager = TrackManager(self.grid, tr_widths, tr_spaces, half_space=True)
-
-        # compute number of columns, then draw floorplan
-        blk_sp = seg_dict['blk_sp']
-        seg_inv = self._get_gate_inv_info(seg_dict)
-        seg_int = self._get_integ_amp_info(seg_dict)
-        seg_sr = self._get_sr_latch_info(seg_dict)
-
-        inc_col = 0
-        if abut_mode & 1 != 0:
-            # abut on left
-            inc_col += blk_sp
-            col_inv = blk_sp
-        else:
-            col_inv = 0
-        if abut_mode & 2 != 0:
-            # abut on right
-            inc_col += blk_sp
-        self._fg_tot = num_col = max(fg_min, seg_inv + seg_int + seg_sr + 2 * blk_sp + inc_col)
-        self.set_rows_direct(row_layout_info, end_mode=end_mode, num_col=num_col)
+        # compute number of columns
+        tmp = self.get_col_info(seg_dict, abut_mode)
+        seg_tot, blk_sp, seg_inv, seg_int, seg_sr, col_inv, inc_colr = tmp
+        self._fg_tot = seg_tot = max(fg_min, seg_tot)
+        self.set_rows_direct(row_layout_info, end_mode=end_mode, num_col=seg_tot)
 
         # draw individual blocks
-        vss_w, vdd_w = _draw_substrate(self, col_inv, num_col, num_col - inc_col)
+        tr_manager = TrackManager(self.grid, tr_widths, tr_spaces, half_space=True)
+        vss_w, vdd_w = _draw_substrate(self, col_inv, seg_tot, seg_tot - inc_colr - col_inv)
         col_int = col_inv + seg_inv + blk_sp
         col_sr = col_int + seg_int + blk_sp
         inv_ports, inv_seg = self._draw_gate_inv(col_inv, seg_inv, seg_dict, tr_manager)
@@ -838,6 +846,36 @@ class EnableRetimer(LaygoBase):
         return self._en3_htr_tidx
 
     @classmethod
+    def get_col_info(cls, seg_dict, abut_mode):
+        blk_sp = 2
+
+        # compute number of columns, then draw floorplan
+        seg_in = seg_dict['re_in']
+        seg_fb = seg_dict['re_fb']
+        seg_out = seg_dict['re_out']
+        seg_buf = seg_dict['re_buf']
+
+        if abut_mode & 1 != 0:
+            # abut on left
+            inc_coll = blk_sp
+        else:
+            inc_coll = 0
+        if abut_mode & 2 != 0:
+            # abut on right
+            inc_colr = blk_sp
+        else:
+            inc_colr = 0
+
+        ncol_lat0 = seg_in + seg_fb + seg_out + 2 * blk_sp
+        ncol_lat1 = seg_in + seg_fb + seg_buf + 2 * blk_sp
+
+        ncol_ff0 = 2 * ncol_lat0 + blk_sp
+        ncol_ff1 = ncol_lat0 + ncol_lat1 + blk_sp
+        num_col = (ncol_ff0 + ncol_ff1 + 2 * blk_sp) + ncol_lat1 + inc_coll + inc_colr
+        return (num_col, ncol_ff0, ncol_ff1, ncol_lat0,
+                seg_in, seg_fb, seg_out, seg_buf, blk_sp, inc_coll, inc_colr)
+
+    @classmethod
     def get_params_info(cls):
         # type: () -> Dict[str, str]
         return dict(
@@ -865,8 +903,6 @@ class EnableRetimer(LaygoBase):
         )
 
     def draw_layout(self):
-        blk_sp = 2
-
         row_layout_info = self.params['row_layout_info']
         seg_dict = self.params['seg_dict'].copy()
         tr_widths = self.params['tr_widths']
@@ -877,39 +913,18 @@ class EnableRetimer(LaygoBase):
         abut_mode = self.params['abut_mode']
         show_pins = self.params['show_pins']
 
-        tr_manager = TrackManager(self.grid, tr_widths, tr_spaces, half_space=True)
+        tmp = self.get_col_info(seg_dict, abut_mode)
+        (num_col, ncol_ff0, ncol_ff1, ncol_lat0,
+         seg_in, seg_fb, seg_out, seg_buf, blk_sp, col_ff0, inc_colr) = tmp
 
-        # compute number of columns, then draw floorplan
-        seg_in = seg_dict['re_in']
-        seg_fb = seg_dict['re_fb']
-        seg_out = seg_dict['re_out']
-        seg_buf = seg_dict['re_buf']
-
-        col_inc = 0
-        if abut_mode & 1 != 0:
-            # abut on left
-            col_inc += blk_sp
-            col0 = blk_sp
-        else:
-            col0 = 0
-        if abut_mode & 2 != 0:
-            # abut on right
-            col_inc += blk_sp
-
-        ncol_lat0 = seg_in + seg_fb + seg_out + 2 * blk_sp
-        ncol_lat1 = seg_in + seg_fb + seg_buf + 2 * blk_sp
-
-        ncol_ff0 = 2 * ncol_lat0 + blk_sp
-        ncol_ff1 = ncol_lat0 + ncol_lat1 + blk_sp
-        num_col = (ncol_ff0 + ncol_ff1 + 2 * blk_sp) + ncol_lat1 + col_inc
         self._fg_tot = num_col = max(fg_min, num_col)
         self.set_rows_direct(row_layout_info, end_mode=end_mode, num_col=num_col)
 
         # draw individual blocks
-        col_ff0 = col0
+        tr_manager = TrackManager(self.grid, tr_widths, tr_spaces, half_space=True)
         col_ff1 = col_ff0 + ncol_ff0 + blk_sp
         col_lat = col_ff1 + ncol_ff1 + blk_sp
-        vss_w, vdd_w = _draw_substrate(self, col0, num_col, num_col - col_inc)
+        vss_w, vdd_w = _draw_substrate(self, col_ff0, num_col, num_col - inc_colr - col_ff0)
         ff0_ports = self._draw_ff(col_ff0, ncol_lat0, seg_in, seg_fb, seg_out, seg_out, blk_sp,
                                   draw_vm_in=True)
         ff1_ports = self._draw_ff(col_ff1, ncol_lat0, seg_in, seg_fb, seg_out, seg_buf, blk_sp,
@@ -1167,6 +1182,12 @@ class DividerGroup(TemplateBase):
         return self._fg_tot
 
     @classmethod
+    def get_num_col(cls, seg_dict, abut_mode):
+        seg_div = SinClkDivider.get_col_info(seg_dict, abut_mode)[0]
+        seg_re = EnableRetimer.get_col_info(seg_dict, abut_mode)[0]
+        return max(seg_div, seg_re)
+
+    @classmethod
     def get_params_info(cls):
         # type: () -> Dict[str, str]
         return dict(
@@ -1193,6 +1214,12 @@ class DividerGroup(TemplateBase):
             re_dummy=False,
             show_pins=True,
         )
+
+    def get_layout_basename(self):
+        if self.params['re_dummy']:
+            return 'divider_group_re_dummy'
+        else:
+            return 'divider_group'
 
     def draw_layout(self):
         config = self.params['config']
@@ -1230,6 +1257,9 @@ class DividerGroup(TemplateBase):
         if fg_tot_div > fg_min:
             params['fg_min'] = fg_tot_div
             re_master = self.new_template(params=params, temp_cls=EnableRetimer)
+
+        # set this template to use the same RoutingGrid as LaygoBase
+        self.grid = re_master.grid.copy()
 
         # add instances
         ycur = re_master.bound_box.top_unit
