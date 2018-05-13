@@ -762,10 +762,10 @@ class TapXSummer(TemplateBase):
     @classmethod
     def _get_dfe2_signals(cls):
         sig_types = [1, 'en', 'en', 'en', 'en', 1, 'clk', 'clk', 'clk', 'clk', 1,
-                     1, 1, 1, 1, 'clk', 1]
+                     1, 1, 1, 1, 'clk', 'clk', 1]
         sig_names = ['VSS', 'en3', 'en2', 'en1', 'en0',
                      'VSS', 'clkp', 'biasp_s<2>', 'biasn_s<2>', 'clkn', 'VSS',
-                     'sgnpp<2>', 'sgnnp<2>', 'sgnpn<2>', 'sgnnn<2>', 'en_div', 'scan_div']
+                     'sgnpp<2>', 'sgnnp<2>', 'sgnpn<2>', 'sgnnn<2>', 'en_div', 'en2d', 'scan_div']
 
         return sig_types, sig_names, True, (5, 10)
 
@@ -1237,7 +1237,7 @@ class TapXColumn(TemplateBase):
         warr = self.connect_to_tracks(div_inst.get_pin('scan_div<2>'), scan_tid, min_len_mode=0)
         self.add_pin('scan_div<2>', warr, label='scan_div<2>:', show=show_pins)
         warr = self.connect_to_tracks(div_inst.get_pin('en_div'), en_tid, min_len_mode=0)
-        self.add_pin('en_div', warr, show=show_pins)
+        self.add_pin('en_div', warr, label='en_div:', show=show_pins)
         self.connect_to_tracks(div_inst.get_all_port_pins('en2'), en2_tid)
 
     def _connect_ffe(self, tr0, tr_manager, vm_layer, num_sig, track_info, inst_list, show_pins):
@@ -1355,20 +1355,26 @@ class TapXColumn(TemplateBase):
         self.add_pin('bias_d<1>', wp, show=show_pins, edge_mode=1)
         self.add_pin('bias_d<2>', wn, show=show_pins, edge_mode=1)
 
-    def _connect_div(self, tr0, tr_manager, vm_layer, track_info, inst_list, div3, div2,
+    def _connect_div(self, tr0, tr_manager, ym_layer, track_info, inst_list, div3, div2,
                      show_pins, export_probe):
-        vm_w_clk = tr_manager.get_width(vm_layer, 'clk')
+        ym_w_clk = tr_manager.get_width(ym_layer, 'clk')
 
         # connect scan/enable signals
         div_warrs = [div2.get_pin('qb'), div3.get_pin('qb'),
                      div2.get_pin('q'), div3.get_pin('q')]
         tr = track_info['scan_div'][0] + tr0
-        warr = self.connect_to_tracks(div3.get_pin('scan_s'), TrackID(vm_layer, tr),
+        warr = self.connect_to_tracks(div3.get_pin('scan_s'), TrackID(ym_layer, tr),
                                       min_len_mode=-1)
         self.add_pin('scan_div<3>', warr, label='scan_div<3>:', show=show_pins)
-        warr = self.connect_to_tracks(div2.get_pin('scan_s'), TrackID(vm_layer, tr),
+        warr = self.connect_to_tracks(div2.get_pin('scan_s'), TrackID(ym_layer, tr),
                                       min_len_mode=-1)
         self.add_pin('scan_div<2>', warr, label='scan_div<2>:', show=show_pins)
+        tr = track_info['en2d'][0] + tr0
+        self.connect_to_tracks([div2.get_pin('en2'), div3.get_pin('en2')],
+                               TrackID(ym_layer, tr, width=ym_w_clk))
+        tr = track_info['en_div'][0] + tr0
+        warr = self.connect_to_tracks(div3.get_pin('in'), TrackID(ym_layer, tr, width=ym_w_clk))
+        self.add_pin('en_div', warr, label='en_div:', show=show_pins)
 
         # connect enable clocks
         en_warrs = [[], [], [], []]
@@ -1379,7 +1385,7 @@ class TapXColumn(TemplateBase):
 
         for en_idx in range(4):
             tr = track_info['en%d' % en_idx][0] + tr0
-            tid = TrackID(vm_layer, tr, width=vm_w_clk)
+            tid = TrackID(ym_layer, tr, width=ym_w_clk)
             if export_probe:
                 en_cur = self.connect_wires(en_warrs[en_idx])
                 en_exp = en_cur[0].to_warr_list()[0]
