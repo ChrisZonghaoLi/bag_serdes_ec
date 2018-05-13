@@ -1107,10 +1107,11 @@ class SamplerColumn(TemplateBase):
 
         # connect shields
         sh_tid = TrackID(ym_layer, dtr + locs[0], num=2, pitch=locs[3] - locs[0])
+        """
         vdd_warrs = self.connect_to_tracks(vdd_list, sh_tid, track_lower=tr_lower,
                                            track_upper=tr_upper, unit_mode=True)
         self.add_pin('VDD', vdd_warrs, show=show_pins)
-
+        """
         # connect clocks
         clkp = div_inst.get_pin('clkp')
         clkn = div_inst.get_pin('clkn')
