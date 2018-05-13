@@ -18,7 +18,7 @@ from digital_ec.layout.stdcells.latch import DFlipFlopCK2, LatchCK2
 
 from ..laygo.misc import LaygoDummy
 from ..laygo.strongarm import SenseAmpStrongArm
-from ..laygo.divider import SinClkDivider, EnableRetimer
+from ..laygo.divider import DividerGroup
 from ..digital.buffer import BufferArray
 
 if TYPE_CHECKING:
@@ -225,12 +225,6 @@ class DividerColumn(TemplateBase):
         return self._sa_clk_tidx
 
     @classmethod
-    def get_num_col(cls, seg_dict, abut_mode):
-        num_col_div = SinClkDivider.get_num_col(seg_dict, abut_mode)
-        num_col_re = EnableRetimer.get_num_col(seg_dict, abut_mode)
-        return max(num_col_div, num_col_re)
-
-    @classmethod
     def get_params_info(cls):
         # type: () -> Dict[str, str]
         return dict(
@@ -244,7 +238,6 @@ class DividerColumn(TemplateBase):
             sup_tids='supply tracks information.',
             options='other AnalogBase options.',
             right_edge_info='If not None, abut on right edge.',
-            clk_inverted='True if the clock tracks are inverted.',
             show_pins='True to draw pin geometries.',
         )
 
@@ -254,7 +247,6 @@ class DividerColumn(TemplateBase):
         return dict(
             options=None,
             right_edge_info=None,
-            clk_inverted=False,
             show_pins=True,
         )
 
@@ -269,41 +261,43 @@ class DividerColumn(TemplateBase):
         sup_tids = self.params['sup_tids']
         options = self.params['options']
         right_edge_info = self.params['right_edge_info']
-        clk_inverted = self.params['clk_inverted']
         show_pins = self.params['show_pins']
 
         # create masters
         if right_edge_info is None:
-            abut_mode = 0
-            end_mode = 12
             draw_end_row = True
+            end_mode = 12
+            abut_mode = 0
         else:
-            abut_mode = 2
-            end_mode = 4
             draw_end_row = False
+            end_mode = 4
+            abut_mode = 1
 
-        params = dict(config=config, row_layout_info=lat_row_info, seg_dict=seg_dict,
-                      tr_widths=tr_widths, tr_spaces=tr_spaces, tr_info=div_tr_info, fg_min=0,
-                      end_mode=end_mode, abut_mode=abut_mode, div_pos_edge=clk_inverted,
-                      laygo_edger=right_edge_info, show_pins=False)
-        div3_master = self.new_template(params=params, temp_cls=SinClkDivider)
-
-        fg_min = div3_master.laygo_info.core_col
-        params['fg_min'] = div3_master.laygo_info.core_col
-        re_master = self.new_template(params=params, temp_cls=EnableRetimer)
-        fg_core_re = re_master.laygo_info.core_col
-        if fg_core_re > fg_min:
-            params['fg_min'] = fg_core_re
-            div3_master = self.new_template(params=params, temp_cls=SinClkDivider)
-
-        params['div_pos_edge'] = not clk_inverted
-        div2_master = self.new_template(params=params, temp_cls=SinClkDivider)
+        params = dict(
+            config=config,
+            lat_row_info=lat_row_info,
+            seg_dict=seg_dict,
+            tr_widths=tr_widths,
+            tr_spaces=tr_spaces,
+            div_tr_info=div_tr_info,
+            re_out_type='in',
+            re_in_type='foot',
+            laygo_edger=right_edge_info,
+            re_dummy=False,
+            show_pins=False,
+        )
+        div3_master = self.new_template(params=params, temp_cls=DividerGroup)
+        params['re_dummy'] = True
+        params['clk_inverted'] = True
+        div2_master = self.new_template(params=params, temp_cls=DividerGroup)
         self._fg_tot = div3_master.fg_tot
         self._sa_clk_tidx = div3_master.sa_clk_tidx
 
         params['num_col'] = self._fg_tot
         params['row_layout_info'] = sum_row_info
         params['sup_tids'] = sup_tids[0]
+        params['end_mode'] = end_mode
+        params['abut_mode'] = abut_mode
         dums_master = self.new_template(params=params, temp_cls=LaygoDummy)
 
         top_layer = div3_master.top_layer
@@ -323,7 +317,7 @@ class DividerColumn(TemplateBase):
             ycur = eayt = end_row_master.array_box.top_unit
             bnd_box = bot_row.bound_box
         else:
-            bnd_box = BBox(0, 0, 0, 0, self.grid.resolution, unit_mode=True)
+            bnd_box = BBox.get_invalid_bbox()
             end_row_master = None
             ycur = eayt = 0
 
@@ -332,35 +326,31 @@ class DividerColumn(TemplateBase):
         vss_list = []
         bayt = dums_master.array_box.top_unit
         tayt = div3_master.array_box.top_unit
-        botp = topn = re_inst = None
-        for idx in range(4):
-            is_even = idx % 2 == 0
-            if is_even:
-                m0, m1 = dums_master, re_master
-                if idx == 2:
-                    m1 = div2_master
-            else:
-                m0, m1 = re_master, dums_master
-                if idx == 1:
-                    m0 = div3_master
-            binst = self.add_instance(m0, 'X%d' % (idx * 2), loc=(0, ycur),
-                                      orient='R0', unit_mode=True)
-            if m0 is div3_master:
-                botp = binst
-            else:
-                re_inst = binst
-            ycur += bayt + tayt
-            tinst = self.add_instance(m1, 'X%d' % (idx * 2 + 1), loc=(0, ycur),
-                                      orient='MX', unit_mode=True)
-            if m1 is div2_master:
-                topn = tinst
-            else:
-                EnableRetimer.connect_as_dummy(self, tinst)
-
-            bnd_box = bnd_box.merge(tinst.bound_box)
-            for inst in (binst, tinst):
-                vdd_list.append(inst.get_pin('VDD'))
-                vss_list.append(inst.get_pin('VSS'))
+        inst = self.add_instance(dums_master, 'XDUM0', loc=(0, ycur), unit_mode=True)
+        bnd_box = bnd_box.merge(inst.bound_box)
+        vdd_list.extend(inst.port_pins_iter('VDD'))
+        vss_list.extend(inst.port_pins_iter('VSS'))
+        ycur += bayt
+        div3_inst = self.add_instance(div3_master, 'XDIV3', loc=(0, ycur), unit_mode=True)
+        vdd_list.extend(div3_inst.port_pins_iter('VDD'))
+        vss_list.extend(div3_inst.port_pins_iter('VSS'))
+        ycur += tayt + bayt
+        inst = self.add_instance(dums_master, 'XDUM1', loc=(0, ycur), orient='MX', unit_mode=True)
+        vdd_list.extend(inst.port_pins_iter('VDD'))
+        vss_list.extend(inst.port_pins_iter('VSS'))
+        inst = self.add_instance(dums_master, 'XDUM2', loc=(0, ycur), unit_mode=True)
+        vdd_list.extend(inst.port_pins_iter('VDD'))
+        vss_list.extend(inst.port_pins_iter('VSS'))
+        ycur += tayt + bayt
+        div2_inst = self.add_instance(div2_master, 'XDIV2', loc=(0, ycur), orient='MX',
+                                      unit_mode=True)
+        vdd_list.extend(div2_inst.port_pins_iter('VDD'))
+        vss_list.extend(div2_inst.port_pins_iter('VSS'))
+        ycur += bayt
+        inst = self.add_instance(dums_master, 'XDUM3', loc=(0, ycur), orient='MX', unit_mode=True)
+        bnd_box = bnd_box.merge(inst.bound_box)
+        vdd_list.extend(inst.port_pins_iter('VDD'))
+        vss_list.extend(inst.port_pins_iter('VSS'))
 
         if end_row_master is not None:
             ycur += eayt
@@ -373,29 +363,21 @@ class DividerColumn(TemplateBase):
         self.set_size_from_bound_box(top_layer, bnd_box)
 
         # export pins
+        clkp_list = list(chain(div3_inst.port_pins_iter('clkp'), div2_inst.port_pins_iter('clkp')))
+        clkn_list = list(chain(div3_inst.port_pins_iter('clkn'), div2_inst.port_pins_iter('clkn')))
         self.add_pin('VDD', vdd_list, label='VDD:', show=show_pins)
         self.add_pin('VSS', vss_list, label='VSS:', show=show_pins)
-        self.reexport(topn.get_port('clk'), net_name='clkp', show=show_pins)
-        self.reexport(topn.get_port('en'), net_name='en_div<2>', show=show_pins)
-        self.reexport(topn.get_port('scan_s'), net_name='scan_div<2>', show=show_pins)
-        self.reexport(topn.get_port('q'), net_name='en<2>', show=show_pins)
-        self.reexport(topn.get_port('qb'), net_name='en<0>', show=show_pins)
-        self.reexport(botp.get_port('clk'), net_name='clkn', show=show_pins)
-        self.reexport(botp.get_port('en'), net_name='en_div<3>', show=show_pins)
-        self.reexport(botp.get_port('scan_s'), net_name='scan_div<3>', show=show_pins)
-        self.reexport(botp.get_port('q'), net_name='en<3>', show=show_pins)
-        self.reexport(botp.get_port('qb'), net_name='en<1>', show=show_pins)
+        self.add_pin('clkp', clkp_list, label='clkp:', show=show_pins)
+        self.add_pin('clkn', clkn_list, label='clkn:', show=show_pins)
+        self.add_pin('en_div', div3_inst.get_pin('in'), show=show_pins)
+        self.add_pin('scan_div<3>', div3_inst.get_pin('scan_s'), show=show_pins)
+        self.add_pin('scan_div<2>', div2_inst.get_pin('scan_s'), show=show_pins)
+        self.reexport(div2_inst.get_port('q'), net_name='en<2>', show=show_pins)
+        self.reexport(div2_inst.get_port('qb'), net_name='en<0>', show=show_pins)
+        self.reexport(div3_inst.get_port('q'), net_name='en<3>', show=show_pins)
+        self.reexport(div3_inst.get_port('qb'), net_name='en<1>', show=show_pins)
 
-        div_sch_params = div3_master.sch_params
-        self._sch_params = dict(
-            lch=div_sch_params['lch'],
-            w_dict=div_sch_params['w_dict'],
-            th_dict=div_sch_params['th_dict'],
-            seg_div=div_sch_params['seg_dict'],
-            seg_re=re_master.sch_params['seg_dict'],
-            seg_buf=re_master.sch_params['seg_buf'],
-            sr_params=div_sch_params['sr_params'],
-        )
+        self._sch_params = div3_master.sch_params
 
 
 class Retimer(StdDigitalTemplate):

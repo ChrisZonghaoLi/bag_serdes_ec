@@ -1186,6 +1186,7 @@ class DividerGroup(TemplateBase):
         TemplateBase.__init__(self, temp_db, lib_name, params, used_names, **kwargs)
         self._sch_params = None
         self._fg_tot = None
+        self._sa_clk_tidx = None
 
     @property
     def sch_params(self):
@@ -1196,6 +1197,10 @@ class DividerGroup(TemplateBase):
     def fg_tot(self):
         # type: () -> int
         return self._fg_tot
+
+    @property
+    def sa_clk_tidx(self):
+        return self._sa_clk_tidx
 
     @classmethod
     def get_num_col(cls, seg_dict, abut_mode):
@@ -1231,7 +1236,7 @@ class DividerGroup(TemplateBase):
             laygo_edger=None,
             clk_inverted=False,
             re_dummy=False,
-            fg_min=None,
+            fg_min=0,
             show_pins=True,
         )
 
@@ -1275,6 +1280,7 @@ class DividerGroup(TemplateBase):
         params['fg_min'] = fg_min = re_master.fg_tot
         params['en3_htr_idx'] = re_master.en3_htr_tidx
         div_master = self.new_template(params=params, temp_cls=SinClkDivider)
+        self._sa_clk_tidx = div_master.sa_clk_tidx
 
         self._fg_tot = fg_tot_div = div_master.fg_tot
         if fg_tot_div > fg_min:
