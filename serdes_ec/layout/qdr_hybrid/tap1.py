@@ -705,9 +705,9 @@ class Tap1Summer(TemplateBase):
 
         m_master = self.new_template(params=sum_params, temp_cls=Tap1SummerRow)
 
-        top_layer = m_master.top_layer
+        ym_layer = m_master.top_layer
         if row_heights is not None and sup_tids is not None:
-            sup_w = tr_manager.get_width(top_layer, 'sup')
+            sup_w = tr_manager.get_width(ym_layer - 1, 'sup')
             lat_params['vss_tid'] = (sup_tids[1][0], sup_w)
             lat_params['vdd_tid'] = (sup_tids[1][1], sup_w)
 
