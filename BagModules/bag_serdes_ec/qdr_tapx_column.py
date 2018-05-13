@@ -35,7 +35,7 @@ class bag_serdes_ec__qdr_tapx_column(Module):
     def get_params_info(cls):
         # type: () -> Dict[str, str]
         return dict(
-            div_params='ivider column parameters.',
+            div_params='divider column parameters.',
             ffe_params_list='List of FFE summer cell parameters.',
             dfe_params_list='List of DFE summer cell parameters.',
             dfe2_params='DFE tap2 gm/load parameters.',

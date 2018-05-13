@@ -544,11 +544,7 @@ class TapXSummerLast(TemplateBase):
 
         # set schematic parameters
         self._sch_params = dict(
-            sum_params=dict(div_pos_edge=div_pos_edge,
-                            sum_params=s_master.sch_params['gm_params'],
-                            div_params=div_sch_params,
-                            pul_params=pul_sch_params,
-                            ),
+            gm_params=s_master.sch_params['gm_params'],
             load_params=s_master.sch_params['load_params'],
             flip_sign=flip_sign,
         )
@@ -1365,7 +1361,7 @@ class TapXSummer(TemplateBase):
         self._sch_params = dict(
             ffe_params_list=sub_master.sch_params['ffe_params_list'],
             dfe_params_list=sub_master.sch_params['dfe_params_list'],
-            last_params=last_master.sch_params,
+            dfe2_params=last_master.sch_params,
         )
         self._row_heights = last_master.row_heights
         self._sup_tids = last_master.sup_tids
@@ -1669,10 +1665,7 @@ class TapXColumn(TemplateBase):
             div_params=div_col_master.sch_params,
             ffe_params_list=div3_master.sch_params['ffe_params_list'],
             dfe_params_list=div3_master.sch_params['dfe_params_list'],
-            last_params_list=[endb_master.sch_params['last_params'],
-                              div3_master.sch_params['last_params'],
-                              div2_master.sch_params['last_params'],
-                              endt_master.sch_params['last_params']],
+            dfe2_params=endb_master.sch_params['dfe2_params'],
             export_probe=export_probe,
         )
         self._vss_tids = endb_master.vss_tids

@@ -142,9 +142,9 @@ class bag_serdes_ec__qdr_tapx_summer(Module):
         else:
             outp_s = 'iip' + load_suf
             outn_s = 'iin' + load_suf
-        self.reconnect_instance_terminal('XLAST', 'outp', outp_s)
-        self.reconnect_instance_terminal('XLAST', 'outn', outn_s)
-        self.instances['XLAST'].design(**dfe2_params['gm_params'])
+        self.reconnect_instance_terminal('XDFE2', 'outp', outp_s)
+        self.reconnect_instance_terminal('XDFE2', 'outn', outn_s)
+        self.instances['XDFE2'].design(**dfe2_params['gm_params'])
         load_params_list.append(dfe2_params['load_params'])
 
         # design load
