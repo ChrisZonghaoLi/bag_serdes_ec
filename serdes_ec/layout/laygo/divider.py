@@ -6,9 +6,10 @@ from typing import TYPE_CHECKING, Dict, Any, Set
 
 from itertools import chain
 
-from abs_templates_ec.laygo.core import LaygoBase
-
 from bag.layout.routing import TrackManager, TrackID, WireArray
+from bag.layout.template import TemplateBase
+
+from abs_templates_ec.laygo.core import LaygoBase
 
 if TYPE_CHECKING:
     from bag.layout.template import TemplateDB
@@ -985,7 +986,6 @@ class EnableRetimer(LaygoBase):
 
         if tr_info is not None:
             xm_layer = self.conn_layer + 3
-            clkp_idx, w_clk = tr_info['clkp']
             clkn_idx, _ = tr_info['clkn']
             vdd_idx, w_vdd = tr_info['VDD']
             vss_idx, w_vss = tr_info['VSS']
@@ -1151,3 +1151,133 @@ class EnableRetimer(LaygoBase):
         vdd_vm = list(chain(inst.port_pins_iter('VDD_vm'), inst.port_pins_iter('clkn')))
         template.connect_wires(vss_vm)
         template.connect_wires(vdd_vm)
+
+
+class DividerGroup(TemplateBase):
+    """A column of clock dividers.
+
+    Parameters
+    ----------
+    temp_db : TemplateDB
+        the template database.
+    lib_name : str
+        the layout library name.
+    params : Dict[str, Any]
+        the parameter values.
+    used_names : Set[str]
+        a set of already used cell names.
+    **kwargs
+        dictionary of optional parameters.  See documentation of
+        :class:`bag.layout.template.TemplateBase` for details.
+    """
+
+    def __init__(self, temp_db, lib_name, params, used_names, **kwargs):
+        # type: (TemplateDB, str, Dict[str, Any], Set[str], **kwargs) -> None
+        TemplateBase.__init__(self, temp_db, lib_name, params, used_names, **kwargs)
+        self._sch_params = None
+        self._fg_tot = None
+
+    @property
+    def sch_params(self):
+        # type: () -> Dict[str, Any]
+        return self._sch_params
+
+    @property
+    def fg_tot(self):
+        # type: () -> int
+        return self._fg_tot
+
+    @classmethod
+    def get_params_info(cls):
+        # type: () -> Dict[str, str]
+        return dict(
+            config='laygo configuration dictionary.',
+            lat_row_info='Latch row AnalogBase layout information dictionary.',
+            seg_dict='Number of segments dictionary.',
+            tr_widths='Track width dictionary.',
+            tr_spaces='Track spacing dictionary.',
+            div_tr_info='divider track information dictionary.',
+            laygo_edgel='If not None, abut on left edge.',
+            laygo_edger='If not None, abut on right edge.',
+            clk_inverted='True if the clock tracks are inverted.',
+            show_pins='True to draw pin geometries.',
+        )
+
+    @classmethod
+    def get_default_param_values(cls):
+        # type: () -> Dict[str, Any]
+        return dict(
+            laygo_edgel=None,
+            laygo_edger=None,
+            clk_inverted=False,
+            show_pins=True,
+        )
+
+    def draw_layout(self):
+        config = self.params['config']
+        lat_row_info = self.params['lat_row_info']
+        seg_dict = self.params['seg_dict']
+        tr_widths = self.params['tr_widths']
+        tr_spaces = self.params['tr_spaces']
+        div_tr_info = self.params['div_tr_info']
+        laygo_edgel = self.params['laygo_edgel']
+        laygo_edger = self.params['laygo_edger']
+        clk_inverted = self.params['clk_inverted']
+        show_pins = self.params['show_pins']
+
+        # create masters
+        end_mode = 12
+        abut_mode = 0
+        if laygo_edgel is not None:
+            end_mode ^= 4
+            abut_mode |= 1
+        if laygo_edger is not None:
+            end_mode ^= 8
+            abut_mode |= 2
+
+        params = dict(config=config, row_layout_info=lat_row_info, seg_dict=seg_dict,
+                      tr_widths=tr_widths, tr_spaces=tr_spaces, tr_info=div_tr_info, fg_min=0,
+                      end_mode=end_mode, abut_mode=abut_mode, div_pos_edge=clk_inverted,
+                      laygo_edgel=laygo_edgel, laygo_edger=laygo_edger, show_pins=False)
+        div_master = self.new_template(params=params, temp_cls=SinClkDivider)
+
+        params['fg_min'] = fg_min = div_master.laygo_info.core_col
+        re_master = self.new_template(params=params, temp_cls=EnableRetimer)
+        fg_core_re = re_master.laygo_info.core_col
+        if fg_core_re > fg_min:
+            params['fg_min'] = fg_core_re
+            div_master = self.new_template(params=params, temp_cls=SinClkDivider)
+
+        self._fg_tot = div_master.fg_tot
+
+        # add instances
+        ycur = re_master.bound_box.top_unit
+        inst_re = self.add_instance(re_master, 'XRE', loc=(0, ycur), orient='MX', unit_mode=True)
+        inst_div = self.add_instance(div_master, 'XDIV', loc=(0, ycur), unit_mode=True)
+
+        # set size
+        self.array_box = inst_re.array_box.merge(inst_div.array_box)
+        bnd_box = inst_re.bound_box.merge(inst_div.bound_box)
+        top_layer = div_master.top_layer
+        self.set_size_from_bound_box(top_layer, bnd_box)
+
+        # export pins
+        for name in ['VDD', 'VSS', 'clkp', 'clkn']:
+            warrs = list(chain(inst_re.port_pins_iter(name), inst_div.port_pins_iter(name)))
+            self.add_pin(name, warrs, label=name + ':', show=show_pins)
+
+        for name in ['en', 'scan_s', 'q', 'qb']:
+            self.reexport(inst_div.get_port(name), show=show_pins)
+        for name in ['en3', 'en2']:
+            self.reexport(inst_re.get_port(name), show=show_pins)
+
+        div_sch_params = div_master.sch_params
+        self._sch_params = dict(
+            lch=div_sch_params['lch'],
+            w_dict=div_sch_params['w_dict'],
+            th_dict=div_sch_params['th_dict'],
+            seg_div=div_sch_params['seg_dict'],
+            seg_re=re_master.sch_params['seg_dict'],
+            seg_buf=re_master.sch_params['seg_buf'],
+            sr_params=div_sch_params['sr_params'],
+        )

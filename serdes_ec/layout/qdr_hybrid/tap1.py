@@ -515,6 +515,7 @@ class Tap1Summer(TemplateBase):
         self._div_tr_info = None
         self._sum_row_info = None
         self._lat_row_info = None
+        self._left_edge_info = None
 
     @property
     def sch_params(self):
@@ -555,6 +556,10 @@ class Tap1Summer(TemplateBase):
     def lat_row_info(self):
         # type: () -> Dict[str, Any]
         return self._lat_row_info
+
+    @property
+    def left_edge_info(self):
+        return self._left_edge_info
 
     @classmethod
     def get_params_info(cls):
@@ -663,6 +668,7 @@ class Tap1Summer(TemplateBase):
         self._div_tr_info = tr_info
         self._sum_row_info = m_master.row_layout_info
         self._lat_row_info = l_master.row_layout_info
+        self._left_edge_info = l_master.lr_edge_info[0]
 
     def _get_en_locs(self, l_inst, tr_manager):
 
