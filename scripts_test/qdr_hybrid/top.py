@@ -22,4 +22,5 @@ if __name__ == '__main__':
     # bprj.generate_cell(block_specs, RXTop, debug=True, save_cache=True)
     # bprj.generate_cell(block_specs, RXTop, debug=True, use_cache=True)
     bprj.generate_cell(block_specs, RXTop, debug=True)
+    # bprj.generate_cell(block_specs, RXTop, gen_sch=True, debug=True)
     # bprj.generate_cell(block_specs, RXTop, gen_lay=False, gen_sch=True, debug=True)
