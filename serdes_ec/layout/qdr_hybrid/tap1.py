@@ -599,15 +599,20 @@ class Tap1Summer(TemplateBase):
         tr_manager = TrackManager(self.grid, tr_widths, tr_spaces, half_space=True)
         l_master, m_master = self._make_masters(tr_manager)
 
+        mr_margin = m_master.layout_info.edge_margins[1]
+        m_arr_box = m_master.array_box
+        m_bnd_box = m_master.bound_box
         # place instances
         top_layer = m_master.top_layer
         m_inst = self.add_instance(m_master, 'XMAIN', loc=(0, 0), unit_mode=True)
-        y0 = m_inst.array_box.top_unit + l_master.array_box.top_unit
-        l_inst = self.add_instance(l_master, 'XLAT', loc=(0, y0), orient='MX', unit_mode=True)
+        y_lat = m_arr_box.top_unit + l_master.array_box.top_unit
+        x_lat = m_bnd_box.right_unit - mr_margin - l_master.array_box.right_unit
+        l_inst = self.add_instance(l_master, 'XLAT', loc=(x_lat, y_lat),
+                                   orient='MX', unit_mode=True)
 
         # set size
-        self.array_box = m_inst.array_box.merge(l_inst.array_box)
-        bnd_box = m_inst.bound_box.merge(l_inst.bound_box)
+        self.array_box = m_arr_box.extend(y=l_inst.array_box.top_unit, unit_mode=True)
+        bnd_box = m_bnd_box.extend(y=l_inst.bound_box.top_unit, unit_mode=True)
         self.set_size_from_bound_box(top_layer, bnd_box)
         self.add_cell_boundary(bnd_box)
 
@@ -708,8 +713,8 @@ class Tap1Summer(TemplateBase):
 
         lat_params['seg_dict'] = seg_lat
         lat_params['fg_duml'] = lat_params['fg_dumr'] = fg_dum
-        lat_params['top_layer'] = top_layer
-        lat_params['end_mode'] = 12
+        lat_params['top_layer'] = None
+        lat_params['end_mode'] = 8
         l_master = self.new_template(params=lat_params, temp_cls=IntegAmp)
 
         fg_tot_lat = fg_dig + l_master.fg_tot
