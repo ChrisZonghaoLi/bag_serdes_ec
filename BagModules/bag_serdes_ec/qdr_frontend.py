@@ -120,12 +120,8 @@ class bag_serdes_ec__qdr_frontend(Module):
 
         # handle high pass filters
         if has_hp:
-            self.delete_instance('XHPM<3:0>')
             self.delete_instance('XHPD<3:0>')
-
-            # handle main clock
-            main_net = ','.join(('v_way_%d_main' % way_idx for way_idx in way_order))
-            self.reconnect_instance_terminal('XDP', 'clk_main<3:0>', main_net)
+            self.instances['XHPM<3:0>'].design(**hp_params)
 
             # handle DFE
             dfe_term = 'clk_dfe<%d:4>' % max_dfe_idx

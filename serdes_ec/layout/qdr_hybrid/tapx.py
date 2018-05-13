@@ -507,7 +507,7 @@ class TapXSummer(TemplateBase):
         base_params = dict(lch=lch, ptap_w=ptap_w, ntap_w=ntap_w, w_sum=w_sum, w_lat=w_lat,
                            th_sum=th_sum, th_lat=th_lat, fg_duml=fg_dum, fg_dumr=fg_dum,
                            tr_widths=tr_widths, tr_spaces=tr_spaces, end_mode=0,
-                           sch_hp_params=sch_hp_params, options=options, show_pins=False)
+                           sch_hp_params=None, options=options, show_pins=False)
         place_info = None, None, None, 0, None
         ffe_sig_list = self._get_ffe_signals(num_ffe)
         self._fg_tot = 0
@@ -527,6 +527,7 @@ class TapXSummer(TemplateBase):
         self._sup_y_mid = ffe_master0.sup_y_mid
 
         # DFE instances
+        base_params['sch_hp_params'] = sch_hp_params
         dfe_sig_list = self._get_dfe_signals(num_dfe)
         tmp = self._create_and_place(tr_manager, num_dfe - 1, seg_dfe_list, seg_sum_list,
                                      flip_sign_list, dfe_sig_list, base_params, ym_layer,

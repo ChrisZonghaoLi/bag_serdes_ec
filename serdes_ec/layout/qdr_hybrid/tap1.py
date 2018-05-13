@@ -444,6 +444,7 @@ class Tap1Summer(TemplateBase):
         lat_params['fg_duml'] = lat_params['fg_dumr'] = fg_dum
         lat_params['top_layer'] = None
         lat_params['end_mode'] = 8
+        lat_params['sch_hp_params'] = None
         l_master = self.new_template(params=lat_params, temp_cls=IntegAmp)
 
         fg_tot_lat = fg_dig + l_master.fg_tot
