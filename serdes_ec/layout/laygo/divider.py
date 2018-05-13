@@ -2,7 +2,7 @@
 
 """This module contains LaygoBase templates used in Hybrid-QDR receiver."""
 
-from typing import TYPE_CHECKING, Dict, Any, Set
+from typing import TYPE_CHECKING, Dict, Any, Set, Union
 
 from itertools import chain
 
@@ -32,8 +32,14 @@ def _draw_substrate(template, col_start, col_stop, num_col):
     return nsub['VSS_s'], psub['VDD_s']
 
 
-def _connect_supply(template, sup_warr, sup_list, sup_intv, tr_manager, round_up=False):
+def _connect_supply(template, sup_warr, sup_list, sup_intv, tr_manager, round_up=False,
+                    inc_set=None, exc_set=None):
     grid = template.grid
+
+    if inc_set is None:
+        inc_set = set()
+    if exc_set is None:
+        exc_set = set()
 
     # gather list of track indices and wires
     idx_set = set()
@@ -74,10 +80,18 @@ def _connect_supply(template, sup_warr, sup_list, sup_intv, tr_manager, round_up
     tl = grid.coord_to_nearest_track(ym_layer, xl, half_track=True, mode=1, unit_mode=True)
     tr = grid.coord_to_nearest_track(ym_layer, xr, half_track=True, mode=-1, unit_mode=True)
 
-    num = int((tr - tl + 2) // 2)
-    tid = TrackID(ym_layer, tl, num=num, pitch=2)
     sup = template.connect_to_tracks(warr_list, TrackID(hm_layer, sup_idx, width=sup_w))
-    return template.connect_to_tracks(sup, tid, min_len_mode=0)
+    tl_htr = int(round(tl * 2))
+    tr_htr = int(round(tr * 2))
+    for htr in range(tl_htr, tr_htr + 1, 2):
+        htrl = htr - 2
+        htrr = htr + 2
+        if (htr not in exc_set and htrl not in inc_set and htrr not in inc_set
+                and htrl not in exc_set and htrr not in exc_set):
+            inc_set.add(htr)
+    warr_list = [template.connect_to_tracks(sup, TrackID(ym_layer, htr / 2))
+                 for htr in inc_set]
+    return warr_list
 
 
 class SinClkDivider(LaygoBase):
@@ -120,24 +134,6 @@ class SinClkDivider(LaygoBase):
         return self._sa_clk_tidx
 
     @classmethod
-    def get_num_col(cls, seg_dict, abut_mode):
-        # compute number of columns, then draw floorplan
-        blk_sp = seg_dict['blk_sp']
-        seg_inv = cls._get_gate_inv_info(seg_dict)
-        seg_int = cls._get_integ_amp_info(seg_dict)
-        seg_sr = cls._get_sr_latch_info(seg_dict)
-
-        inc_col = 0
-        if abut_mode & 1 != 0:
-            # abut on left
-            inc_col += blk_sp
-        if abut_mode & 2 != 0:
-            # abut on right
-            inc_col += blk_sp
-
-        return seg_inv + seg_int + seg_sr + 2 * blk_sp + inc_col
-
-    @classmethod
     def get_params_info(cls):
         # type: () -> Dict[str, str]
         return dict(
@@ -146,6 +142,7 @@ class SinClkDivider(LaygoBase):
             seg_dict='Number of segments dictionary.',
             tr_widths='Track width dictionary.',
             tr_spaces='Track spacing dictionary.',
+            en3_htr_idx='Enable3 half-track index.',
             tr_info='output track information dictionary.',
             fg_min='Minimum number of core fingers.',
             end_mode='The LaygoBase end_mode flag.',
@@ -171,6 +168,7 @@ class SinClkDivider(LaygoBase):
         seg_dict = self.params['seg_dict'].copy()
         tr_widths = self.params['tr_widths']
         tr_spaces = self.params['tr_spaces']
+        en3_htr_idx = self.params['en3_htr_idx']
         tr_info = self.params['tr_info']
         fg_min = self.params['fg_min']
         end_mode = self.params['end_mode']
@@ -196,16 +194,8 @@ class SinClkDivider(LaygoBase):
         if abut_mode & 2 != 0:
             # abut on right
             inc_col += blk_sp
-        num_col = seg_inv + seg_int + seg_sr + 2 * blk_sp + inc_col
-
-        self.set_rows_direct(row_layout_info, end_mode=end_mode)
-
-        # adjust number of columns according to fg_min
-        fg_core = self.laygo_info.get_placement_info(num_col).core_fg
-        if fg_core < fg_min:
-            num_col += (fg_min - fg_core)
-        self.set_laygo_size(num_col)
-        self._fg_tot = num_col
+        self._fg_tot = num_col = max(fg_min, seg_inv + seg_int + seg_sr + 2 * blk_sp + inc_col)
+        self.set_rows_direct(row_layout_info, end_mode=end_mode, num_col=num_col)
 
         # draw individual blocks
         vss_w, vdd_w = _draw_substrate(self, col_inv, num_col, num_col - inc_col)
@@ -213,11 +203,14 @@ class SinClkDivider(LaygoBase):
         col_sr = col_int + seg_int + blk_sp
         inv_ports, inv_seg = self._draw_gate_inv(col_inv, seg_inv, seg_dict, tr_manager)
         int_ports, int_seg = self._draw_integ_amp(col_int, seg_int, seg_dict, tr_manager)
-        sr_ports, xm_locs, sr_params = self._draw_sr_latch(col_sr, seg_sr, seg_dict, tr_manager)
+        sr_ports, xm_locs, sr_params = self._draw_sr_latch(col_sr, seg_sr, seg_dict, tr_manager,
+                                                           en3_htr_idx)
 
         # connect enable
         en = self.connect_to_track_wires([inv_ports['en'], sr_ports['pen']], int_ports['en'])
-        en.append(sr_ports['nen'])
+        en_vm = sr_ports['nen']
+        self.add_pin('en_vm', en_vm, show=show_pins)
+        en.append(en_vm)
         # connect inverters to integ amp
         clk = self.connect_to_track_wires(inv_ports['clk'], int_ports['clk'])
         mp = inv_ports['mp']
@@ -243,7 +236,8 @@ class SinClkDivider(LaygoBase):
         vdd_list = [inv_ports['VDD'], int_ports['VDD'], sr_ports['VDD']]
         vss_intv = self.get_track_interval(0, 'ds')
         vdd_intv = self.get_track_interval(self.num_rows - 1, 'ds')
-        vss = _connect_supply(self, vss_w, vss_list, vss_intv, tr_manager, round_up=False)
+        vss = _connect_supply(self, vss_w, vss_list, vss_intv, tr_manager, round_up=False,
+                              exc_set={en3_htr_idx})
         vdd = _connect_supply(self, vdd_w, vdd_list, vdd_intv, tr_manager, round_up=True)
 
         # fill space
@@ -270,7 +264,7 @@ class SinClkDivider(LaygoBase):
 
             q, qb = self.connect_differential_tracks(q_warrs, qb_warrs, xm_layer, q_idx, qb_idx,
                                                      width=w_q)
-            en = self.connect_to_tracks(en, TrackID(xm_layer, en_idx, width=w_en))
+            en = self.connect_to_tracks(en, TrackID(xm_layer, en_idx))
             clk = self.connect_to_tracks(clk, TrackID(xm_layer, clk_idx, width=w_clk))
             vdd = self.connect_to_tracks(vdd, TrackID(xm_layer, vdd_idx, width=w_vdd))
             vss = self.connect_to_tracks(vss, TrackID(xm_layer, vss_idx, width=w_vss))
@@ -541,7 +535,7 @@ class SinClkDivider(LaygoBase):
         )
         return ports, int_seg_dict
 
-    def _draw_sr_latch(self, start, seg_tot, seg_dict, tr_manager):
+    def _draw_sr_latch(self, start, seg_tot, seg_dict, tr_manager, en_htr_idx):
         seg_nand = seg_dict['sr_nand']
         seg_set = seg_dict['sr_set']
         seg_sp = seg_dict['sr_sp']
@@ -735,7 +729,7 @@ class SinClkDivider(LaygoBase):
         scan_sb_ng = self.connect_to_tracks(nnor1l['g'], nsgl_tid, min_len_mode=0)
         scan_sb_nd = self.connect_to_tracks(nsinv['d'], nsinvd_tid, min_len_mode=0)
         nen = self.connect_to_tracks([nnor2l['g'], nnor2r['g']], nen_tid)
-        nen_tid = TrackID(vm_layer, self.grid.get_middle_track(vm_q_idx, vm_qb_idx))
+        nen_tid = TrackID(vm_layer, en_htr_idx / 2)
         nen = self.connect_to_tracks(nen, nen_tid, min_len_mode=1)
         ports['nen'] = nen
         # connect top PMOS logic nets
@@ -826,6 +820,7 @@ class EnableRetimer(LaygoBase):
         LaygoBase.__init__(self, temp_db, lib_name, params, used_names, **kwargs)
         self._sch_params = None
         self._fg_tot = None
+        self._en3_htr_tidx = None
 
     @property
     def sch_params(self):
@@ -837,30 +832,10 @@ class EnableRetimer(LaygoBase):
         # type: () -> int
         return self._fg_tot
 
-    @classmethod
-    def get_num_col(cls, seg_dict, abut_mode):
-        # compute number of columns, then draw floorplan
-        blk_sp = 2
-
-        seg_in = seg_dict['re_in']
-        seg_fb = seg_dict['re_fb']
-        seg_out = seg_dict['re_out']
-        seg_buf = seg_dict['re_buf']
-
-        col_inc = 0
-        if abut_mode & 1 != 0:
-            # abut on left
-            col_inc += blk_sp
-        if abut_mode & 2 != 0:
-            # abut on right
-            col_inc += blk_sp
-
-        ncol_lat0 = seg_in + seg_fb + seg_out + 2 * blk_sp
-        ncol_lat1 = seg_in + seg_fb + seg_buf + 2 * blk_sp
-
-        ncol_ff0 = 2 * ncol_lat0 + blk_sp
-        ncol_ff1 = ncol_lat0 + ncol_lat1 + blk_sp
-        return (ncol_ff0 + ncol_ff1 + 2 * blk_sp) + ncol_lat1 + col_inc
+    @property
+    def en3_htr_tidx(self):
+        # type: () -> Union[float, int]
+        return self._en3_htr_tidx
 
     @classmethod
     def get_params_info(cls):
@@ -927,14 +902,8 @@ class EnableRetimer(LaygoBase):
         ncol_ff0 = 2 * ncol_lat0 + blk_sp
         ncol_ff1 = ncol_lat0 + ncol_lat1 + blk_sp
         num_col = (ncol_ff0 + ncol_ff1 + 2 * blk_sp) + ncol_lat1 + col_inc
-        self.set_rows_direct(row_layout_info, end_mode=end_mode)
-
-        # adjust number of columns according to fg_min
-        fg_core = self.laygo_info.get_placement_info(num_col).core_fg
-        if fg_core < fg_min:
-            num_col += (fg_min - fg_core)
-        self._fg_tot = num_col
-        self.set_laygo_size(num_col)
+        self._fg_tot = num_col = max(fg_min, num_col)
+        self.set_rows_direct(row_layout_info, end_mode=end_mode, num_col=num_col)
 
         # draw individual blocks
         col_ff0 = col0
@@ -951,17 +920,11 @@ class EnableRetimer(LaygoBase):
         # fill space
         self.fill_space()
 
-        # connect supply wires
-        vss_list = [ff0_ports['VSS'], ff1_ports['VSS'], lat_ports['VSS']]
-        vdd_list = [ff0_ports['VDD'], ff1_ports['VDD'], lat_ports['VDD']]
-        vss_intv = self.get_track_interval(0, 'ds')
-        vdd_intv = self.get_track_interval(self.num_rows - 1, 'ds')
-        vss = _connect_supply(self, vss_w, vss_list, vss_intv, tr_manager, round_up=False)
-        vdd = _connect_supply(self, vdd_w, vdd_list, vdd_intv, tr_manager, round_up=True)
-
         # export IO pins
-        self.add_pin('in', ff0_ports['in'], show=show_pins)
-        self.add_pin('en3', ff1_ports['out'], show=show_pins)
+        in_pin = ff0_ports['in']
+        en3_pin = ff1_ports['out']
+        self.add_pin('in', in_pin, show=show_pins)
+        self.add_pin('en3', en3_pin, show=show_pins)
         self.add_pin('en2', lat_ports['out'], show=show_pins)
 
         # connect intermediate wires
@@ -978,6 +941,22 @@ class EnableRetimer(LaygoBase):
         clkn = ff0_ports['clkb']
         clkn.extend(ff1_ports['clkb'])
         clkn.append(lat_ports['clk'])
+
+        self._en3_htr_tidx = en3_htr_idx = int(round(en3_pin.track_id.base_index * 2))
+        vss_inc_set = set((int(round(warr.track_id.base_index * 2)) for warr in clkp))
+        vss_inc_set.add(int(round(in_pin.track_id.base_index * 2)))
+        vdd_inc_set = set((int(round(warr.track_id.base_index * 2)) for warr in clkn))
+        vss_exc_set = {en3_htr_idx}
+
+        # connect supply wires
+        vss_list = [ff0_ports['VSS'], ff1_ports['VSS'], lat_ports['VSS']]
+        vdd_list = [ff0_ports['VDD'], ff1_ports['VDD'], lat_ports['VDD']]
+        vss_intv = self.get_track_interval(0, 'ds')
+        vdd_intv = self.get_track_interval(self.num_rows - 1, 'ds')
+        vss = _connect_supply(self, vss_w, vss_list, vss_intv, tr_manager, round_up=False,
+                              inc_set=vss_inc_set, exc_set=vss_exc_set)
+        vdd = _connect_supply(self, vdd_w, vdd_list, vdd_intv, tr_manager, round_up=True,
+                              inc_set=vdd_inc_set)
 
         self.add_pin('VSS_vm', vss, show=show_pins)
         self.add_pin('VDD_vm', vdd, show=show_pins)
@@ -1239,16 +1218,15 @@ class DividerGroup(TemplateBase):
                       tr_widths=tr_widths, tr_spaces=tr_spaces, tr_info=div_tr_info, fg_min=0,
                       end_mode=end_mode, abut_mode=abut_mode, div_pos_edge=clk_inverted,
                       laygo_edgel=laygo_edgel, laygo_edger=laygo_edger, show_pins=False)
+        re_master = self.new_template(params=params, temp_cls=EnableRetimer)
+        params['fg_min'] = fg_min = re_master.fg_tot
+        params['en3_htr_idx'] = re_master.en3_htr_tidx
         div_master = self.new_template(params=params, temp_cls=SinClkDivider)
 
-        params['fg_min'] = fg_min = div_master.laygo_info.core_col
-        re_master = self.new_template(params=params, temp_cls=EnableRetimer)
-        fg_core_re = re_master.laygo_info.core_col
-        if fg_core_re > fg_min:
-            params['fg_min'] = fg_core_re
-            div_master = self.new_template(params=params, temp_cls=SinClkDivider)
-
-        self._fg_tot = div_master.fg_tot
+        self._fg_tot = fg_tot_div = div_master.fg_tot
+        if fg_tot_div > fg_min:
+            params['fg_min'] = fg_tot_div
+            re_master = self.new_template(params=params, temp_cls=EnableRetimer)
 
         # add instances
         ycur = re_master.bound_box.top_unit
@@ -1266,9 +1244,9 @@ class DividerGroup(TemplateBase):
             warrs = list(chain(inst_re.port_pins_iter(name), inst_div.port_pins_iter(name)))
             self.add_pin(name, warrs, label=name + ':', show=show_pins)
 
-        for name in ['en', 'scan_s', 'q', 'qb']:
+        for name in ['en', 'scan_s', 'q', 'qb', 'en_vm']:
             self.reexport(inst_div.get_port(name), show=show_pins)
-        for name in ['en3', 'en2']:
+        for name in ['in', 'en3', 'en2']:
             self.reexport(inst_re.get_port(name), show=show_pins)
 
         div_sch_params = div_master.sch_params
