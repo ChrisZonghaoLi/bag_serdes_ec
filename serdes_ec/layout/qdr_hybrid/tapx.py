@@ -539,11 +539,16 @@ class TapXSummer(TemplateBase):
         seg_last = seg_sum_list[num_ffe]
         fs_last = flip_sign_list[num_ffe]
         vm_w_out = tr_manager.get_width(ym_layer, 'out')
+        fg_amp = IntegAmp.get_amp_fg_info(self.grid, lch, seg_last)[0]
+        if fg_amp + 2 * fg_dum < fg_dig:
+            fg_duml = fg_dig - fg_dum - fg_amp
+        else:
+            fg_duml = fg_dum
         sig_types, sig_names, sig_right, blk_idx_intv = self._get_dfe2_signals()
         base_params = dict(lch=lch, ptap_w=ptap_w, ntap_w=ntap_w, w_dict=w_sum, th_dict=th_sum,
-                           seg_dict=seg_last, fg_duml=fg_dum, fg_dumr=fg_dum, tr_widths=tr_widths,
+                           seg_dict=seg_last, fg_duml=fg_duml, fg_dumr=fg_dum, tr_widths=tr_widths,
                            tr_spaces=tr_spaces, flip_sign=fs_last, end_mode=8, options=options,
-                           sch_hp_params=sch_hp_params, fg_min=fg_dig, but_sw=True, show_pins=False)
+                           sch_hp_params=sch_hp_params, but_sw=True, show_pins=False)
         gm_master = self.new_template(params=base_params, temp_cls=IntegAmp)
         # NOTE: we reuse _place_master() command to place tap2 gm cell.
         # blk_idx just cannot be zero.

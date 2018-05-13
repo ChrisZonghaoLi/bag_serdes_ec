@@ -86,6 +86,16 @@ class IntegAmp(HybridQDRBase):
         return coord + sgn * (sple + extx)
 
     @classmethod
+    def get_amp_fg_info(cls, grid, lch, seg_dict):
+        qdr_info = HybridQDRBaseInfo(grid, lch, 0)
+        fg_sep_hm = qdr_info.get_fg_sep_from_hm_space(1, round_even=True)
+        fg_sep_hm = max(0, fg_sep_hm)
+
+        amp_info = qdr_info.get_integ_amp_info(seg_dict, fg_dum=0, fg_sep_hm=fg_sep_hm)
+
+        return amp_info['fg_tot'], fg_sep_hm
+
+    @classmethod
     def get_params_info(cls):
         # type: () -> Dict[str, str]
         return dict(
@@ -176,15 +186,8 @@ class IntegAmp(HybridQDRBase):
         hm_layer = self.mos_conn_layer + 1
         if top_layer is None:
             top_layer = hm_layer
-        qdr_info = HybridQDRBaseInfo(self.grid, lch, 0, top_layer=top_layer,
-                                     end_mode=end_mode, **options)
-        fg_sep_hm = qdr_info.get_fg_sep_from_hm_space(tr_manager.get_width(hm_layer, 1),
-                                                      round_even=True)
-        fg_sep_hm = max(0, fg_sep_hm)
 
-        amp_info = qdr_info.get_integ_amp_info(seg_dict, fg_dum=0, fg_sep_hm=fg_sep_hm)
-
-        fg_amp = amp_info['fg_tot']
+        fg_amp, fg_sep_hm = self.get_amp_fg_info(self.grid, lch, seg_dict)
         fg_tot = fg_amp + fg_duml + fg_dumr
         self.draw_rows(lch, fg_tot, ptap_w, ntap_w, w_dict, th_dict, tr_manager, wire_names,
                        top_layer=top_layer, end_mode=end_mode, min_height=min_height, **options)
