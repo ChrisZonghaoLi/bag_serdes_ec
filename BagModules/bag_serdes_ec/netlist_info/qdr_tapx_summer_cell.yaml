@@ -148,7 +148,7 @@ instances:
         num_bits: 1
       casc<1:0>:
         direction: input
-        net_name: "casc<1:0>"
+        net_name: "casc<1>,casc<0>"
         num_bits: 2
       pulse:
         direction: input

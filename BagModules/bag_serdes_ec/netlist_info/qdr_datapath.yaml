@@ -12,7 +12,7 @@ instances:
         num_bits: 1
       biasn<3:0>:
         direction: input
-        net_name: "bias_offn<1:2>,bias_offn<0>,bias_offn<3>"
+        net_name: "bias_offn<1>,bias_offn<2>,bias_offn<0>,bias_offn<3>"
         num_bits: 4
       VDD:
         direction: inputOutput
@@ -20,7 +20,7 @@ instances:
         num_bits: 1
       biasp<3:0>:
         direction: input
-        net_name: "bias_offp<1:2>,bias_offp<0>,bias_offp<3>"
+        net_name: "bias_offp<1>,bias_offp<2>,bias_offp<0>,bias_offp<3>"
         num_bits: 4
       outp<3:0>:
         direction: output
@@ -48,7 +48,7 @@ instances:
         num_bits: 1
       biasn<3:0>:
         direction: input
-        net_name: "bias_dlevn<1:2>,bias_dlevn<0>,bias_dlevn<3>"
+        net_name: "bias_dlevn<1>,bias_dlevn<2>,bias_dlevn<0>,bias_dlevn<3>"
         num_bits: 4
       VDD:
         direction: inputOutput
@@ -56,7 +56,7 @@ instances:
         num_bits: 1
       biasp<3:0>:
         direction: input
-        net_name: "bias_dlevp<1:2>,bias_dlevp<0>,bias_dlevp<3>"
+        net_name: "bias_dlevp<1>,bias_dlevp<2>,bias_dlevp<0>,bias_dlevp<3>"
         num_bits: 4
       outp<3:0>:
         direction: output
@@ -244,7 +244,7 @@ instances:
         num_bits: 1
       bias_a<3:0>:
         direction: input
-        net_name: "clk_analog<3:0>"
+        net_name: "clk_analog<3>,clk_analog<2>,clk_analog<1>,clk_analog<0>"
         num_bits: 4
       bias_d<3:0>:
         direction: input
@@ -280,15 +280,15 @@ instances:
         num_bits: 4
       bias_m<3:0>:
         direction: input
-        net_name: "clk_main<3:0>"
+        net_name: "clk_main<3>,clk_main<2>,clk_main<1>,clk_main<0>"
         num_bits: 4
       bias_s<3:0>:
         direction: input
-        net_name: "clk_dfe<11:8>"
+        net_name: "clk_dfe<11>,clk_dfe<10>,clk_dfe<9>,clk_dfe<8>"
         num_bits: 4
       casc<3:0>:
         direction: input
-        net_name: "bias_ffe<7:4>"
+        net_name: "bias_ffe<7>,bias_ffe<6>,bias_ffe<5>,bias_ffe<4>"
         num_bits: 4
       clkn:
         direction: input
@@ -308,7 +308,7 @@ instances:
         num_bits: 1
       inn_d<3:0>:
         direction: input
-        net_name: "outn_data<3:0>"
+        net_name: "outn_data<3>,outn_data<2>,outn_data<1>,outn_data<0>"
         num_bits: 4
       inp_a:
         direction: input
@@ -316,7 +316,7 @@ instances:
         num_bits: 1
       inp_d<3:0>:
         direction: input
-        net_name: "outp_data<3:0>"
+        net_name: "outp_data<3>,outp_data<2>,outp_data<1>,outp_data<0>"
         num_bits: 4
   XTAP1:
     lib_name: bag_serdes_ec
@@ -364,7 +364,7 @@ instances:
         num_bits: 4
       bias_f<3:0>:
         direction: input
-        net_name: "clk_dfe<7:4>"
+        net_name: "clk_dfe<7>,clk_dfe<6>,clk_dfe<5>,clk_dfe<4>"
         num_bits: 4
       clkn:
         direction: input
