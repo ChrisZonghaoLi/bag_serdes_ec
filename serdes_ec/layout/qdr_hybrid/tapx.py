@@ -312,6 +312,7 @@ class TapXSummerCell(TemplateBase):
             outp=m_tr_info['outp'],
             outn=m_tr_info['outn'],
             foot=m_tr_info['foot'],
+            tail=m_tr_info['tail'],
         )
 
 

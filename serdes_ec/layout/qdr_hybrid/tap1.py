@@ -386,6 +386,7 @@ class Tap1Summer(TemplateBase):
             outp=m_tr_info['outp'],
             outn=m_tr_info['outn'],
             foot=m_tr_info['foot'],
+            tail=m_tr_info['tail'],
         )
         self._div_tr_info = tr_info
         self._sum_row_info = m_master.row_layout_info

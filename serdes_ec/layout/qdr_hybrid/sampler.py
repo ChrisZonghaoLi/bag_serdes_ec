@@ -284,7 +284,7 @@ class DividerColumn(TemplateBase):
             tr_spaces=tr_spaces,
             div_tr_info=div_tr_info,
             re_out_type='in',
-            re_in_type='foot',
+            re_in_type='tail',
             laygo_edger=right_edge_info,
             re_dummy=False,
             show_pins=False,
@@ -365,16 +365,6 @@ class DividerColumn(TemplateBase):
         self.array_box = bnd_box
         self.set_size_from_bound_box(top_layer, bnd_box)
 
-        # connect en_div2
-        ym_layer = top_layer + 1
-        if en2_tidx is None:
-            en2_tidx = self.grid.coord_to_nearest_track(ym_layer, bnd_box.xc_unit, half_track=True,
-                                                        mode=0, unit_mode=True)
-        tr_manager = TrackManager(self.grid, tr_widths, tr_spaces, half_space=True)
-        en2_w = tr_manager.get_width(ym_layer, 'clk')
-        self.connect_to_tracks([div3_inst.get_pin('en2'), div2_inst.get_pin('en2')],
-                               TrackID(ym_layer, en2_tidx, width=en2_w))
-
         # export pins
         clkp_list = list(chain(div3_inst.port_pins_iter('clkp'), div2_inst.port_pins_iter('clkp')))
         clkn_list = list(chain(div3_inst.port_pins_iter('clkn'), div2_inst.port_pins_iter('clkn')))
@@ -383,6 +373,7 @@ class DividerColumn(TemplateBase):
         self.add_pin('clkp', clkp_list, label='clkp:', show=show_pins)
         self.add_pin('clkn', clkn_list, label='clkn:', show=show_pins)
         self.add_pin('en_div', div3_inst.get_pin('in'), show=show_pins)
+        self.add_pin('en2', [div3_inst.get_pin('en2'), div2_inst.get_pin('en2')], show=show_pins)
         self.add_pin('scan_div<3>', div3_inst.get_pin('scan_s'), show=show_pins)
         self.add_pin('scan_div<2>', div2_inst.get_pin('scan_s'), show=show_pins)
         self.reexport(div2_inst.get_port('q'), net_name='en<2>', show=show_pins)
@@ -1065,7 +1056,7 @@ class SamplerColumn(TemplateBase):
         tr0 = self.grid.coord_to_nearest_track(ym_layer, xc, half_track=True, mode=-1,
                                                unit_mode=True)
 
-        wtype_list = [1, 'clk', 'clk', 1, 'clk', 'clk', 'clk', 'clk', 1, 'clk']
+        wtype_list = [1, 'clk', 'clk', 1, 'clk', 'clk', 'clk', 'clk', 1, 'clk', 'clk']
         locs = tr_manager.place_wires(ym_layer, wtype_list)[1]
         dtr = tr0 - self.grid.get_middle_track(locs[5], locs[6], round_up=False)
 
@@ -1093,8 +1084,10 @@ class SamplerColumn(TemplateBase):
             self.connect_to_tracks([ym_tr, en_re], sa_en)
 
         # connect scan/enable signals
-        scan_tid = TrackID(ym_layer, dtr + locs[-2], width=1)
+        scan_tid = TrackID(ym_layer, dtr + locs[-3], width=1)
         en_tid = TrackID(ym_layer, dtr + locs[-1], width=tr_w)
+        en2_tid = TrackID(ym_layer, dtr + locs[-2], width=tr_w)
+        self.connect_to_tracks(div_inst.get_all_port_pins('en2'), en2_tid)
         for name, tid in (('scan_div<2>', scan_tid), ('scan_div<3>', scan_tid),
                           ('en_div', en_tid)):
             warr = self.connect_to_tracks(div_inst.get_pin(name), tid, min_len_mode=0)
@@ -1106,8 +1099,8 @@ class SamplerColumn(TemplateBase):
                                            track_upper=tr_upper, unit_mode=True)
         self.add_pin('VDD', vdd_warrs, show=show_pins)
         # connect clocks
-        clkp = div_inst.get_pin('clkp')
-        clkn = div_inst.get_pin('clkn')
+        clkp = div_inst.get_all_port_pins('clkp')
+        clkn = div_inst.get_all_port_pins('clkn')
         clkp, clkn = self.connect_differential_tracks(clkp, clkn, ym_layer, dtr + locs[1],
                                                       dtr + locs[2], width=tr_w)
         self.add_pin('clkp', clkp, show=show_pins)
