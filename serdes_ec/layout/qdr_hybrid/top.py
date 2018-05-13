@@ -386,12 +386,8 @@ class RXFrontend(TemplateBase):
 
         nidx = self.grid.coord_to_nearest_track(xm_layer, enb_y, half_track=True, mode=-1,
                                                 unit_mode=True)
-        pidx = self.grid.coord_to_nearest_track(xm_layer, ent_y, half_track=True, mode=1,
-                                                unit_mode=True)
-        en = self.connect_wires(list(chain(dp_inst.port_pins_iter('en_div<3>'),
-                                           dp_inst.port_pins_iter('en_div<2>'))))
-        tid = TrackID(xm_layer, nidx, width=tr_w_div, num=2, pitch=pidx - nidx)
-        en = self.connect_to_tracks(en, tid)
+        tid = TrackID(xm_layer, nidx, width=tr_w_div)
+        en = self.connect_to_tracks(dp_inst.get_all_port_pins('en_div'), tid)
         self.add_pin('enable_divider', en, show=show_pins)
 
         return clkp, clkn
