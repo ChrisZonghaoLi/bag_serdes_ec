@@ -201,7 +201,13 @@ class SinClkDivider(LaygoBase):
         # compute number of columns
         tmp = self.get_col_info(seg_dict, abut_mode)
         seg_tot, blk_sp, seg_inv, seg_int, seg_sr, col_inv, inc_colr = tmp
-        self._fg_tot = seg_tot = max(fg_min, seg_tot)
+        if fg_min > seg_tot:
+            deltal = (fg_min - seg_tot) // 4 * 2
+            col_inv += deltal
+            inc_colr += (fg_min - seg_tot - col_inv)
+            seg_tot = fg_min
+
+        self._fg_tot = seg_tot
         self.set_rows_direct(row_layout_info, end_mode=end_mode, num_col=seg_tot)
 
         # draw individual blocks
@@ -926,7 +932,12 @@ class EnableRetimer(LaygoBase):
         (num_col, ncol_ff0, ncol_ff1, ncol_lat0,
          seg_in, seg_fb, seg_out, seg_buf, blk_sp, col_ff0, inc_colr) = tmp
 
-        self._fg_tot = num_col = max(fg_min, num_col)
+        if fg_min > num_col:
+            deltal = (fg_min - num_col) // 4 * 2
+            col_ff0 += deltal
+            inc_colr += (fg_min - num_col - deltal)
+            num_col = fg_min
+        self._fg_tot = num_col
         self.set_rows_direct(row_layout_info, end_mode=end_mode, num_col=num_col)
 
         # draw individual blocks
@@ -1202,6 +1213,8 @@ class DividerGroup(TemplateBase):
             tr_widths='Track width dictionary.',
             tr_spaces='Track spacing dictionary.',
             div_tr_info='divider track information dictionary.',
+            re_out_type='retimer output track type.',
+            re_in_type='retimer input track type.',
             laygo_edgel='If not None, abut on left edge.',
             laygo_edger='If not None, abut on right edge.',
             clk_inverted='True if the clock tracks are inverted.',
@@ -1233,6 +1246,8 @@ class DividerGroup(TemplateBase):
         tr_widths = self.params['tr_widths']
         tr_spaces = self.params['tr_spaces']
         div_tr_info = self.params['div_tr_info']
+        re_out_type = self.params['re_out_type']
+        re_in_type = self.params['re_in_type']
         laygo_edgel = self.params['laygo_edgel']
         laygo_edger = self.params['laygo_edger']
         clk_inverted = self.params['clk_inverted']
@@ -1304,8 +1319,22 @@ class DividerGroup(TemplateBase):
             self.add_pin('clkn', inst_div.get_pin('clk'), show=show_pins)
             self.add_pin('clkp', inst_div.get_pin('clkb'), show=show_pins)
 
-            for name in ['in', 'en2']:
-                self.reexport(inst_re.get_port(name), show=show_pins)
+            if re_out_type == 'in':
+                out_idx1 = div_tr_info['inp'][0]
+                out_idx2 = div_tr_info['inn'][0]
+            else:
+                out_idx1 = div_tr_info['outp'][0]
+                out_idx2 = div_tr_info['outn'][0]
+            out_idx1 = inst_re.translate_master_track(top_layer, out_idx1)
+            out_idx2 = inst_re.translate_master_track(top_layer, out_idx2)
+            out_idx = self.grid.get_middle_track(out_idx1, out_idx2)
+            en2 = self.connect_to_tracks(inst_re.get_pin('en2'),
+                                         TrackID(top_layer, out_idx, width=clk_w))
+            self.add_pin('en2', en2, show=show_pins)
+
+            in_idx = inst_re.translate_master_track(top_layer, div_tr_info[re_in_type][0])
+            in_pin = self.connect_to_tracks(inst_re.get_pin('in'), TrackID(top_layer, in_idx))
+            self.add_pin('in', in_pin, show=show_pins)
 
         for name in ['scan_s', 'q', 'qb']:
             self.reexport(inst_div.get_port(name), show=show_pins)

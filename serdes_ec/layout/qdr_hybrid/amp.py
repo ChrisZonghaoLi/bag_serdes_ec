@@ -227,9 +227,11 @@ class IntegAmp(HybridQDRBase):
             self.add_pin(name, warr, show=show_pins)
             self._track_info[name] = (warr.track_id.base_index, warr.track_id.width)
 
-        if export_probe:
-            for name in ('foot', 'tail'):
-                self.add_pin(name, ports[name], show=True)
+        for name in ('foot', 'tail'):
+            warr = ports[name]
+            self._track_info[name] = (warr.track_id.base_index, warr.track_id.width)
+            if export_probe:
+                self.add_pin(name, warr, show=True)
 
         nen3 = ports['nen3']
         self.add_pin('nen3', nen3, show=False)

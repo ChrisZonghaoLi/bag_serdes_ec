@@ -448,6 +448,11 @@ class Tap1LatchRow(TemplateBase):
             en=m_tr_info['nen3'],
             clkp=m_tr_info['clkp'],
             clkn=m_tr_info['clkn'],
+            inp=m_tr_info['inp'],
+            inn=m_tr_info['inn'],
+            outp=m_tr_info['outp'],
+            outn=m_tr_info['outn'],
+            foot=m_tr_info['foot'],
         )
         self._div_tr_info = tr_info
 
@@ -671,6 +676,11 @@ class Tap1Summer(TemplateBase):
             en=m_tr_info['nen3'],
             clkp=m_tr_info['clkp'],
             clkn=m_tr_info['clkn'],
+            inp=m_tr_info['inp'],
+            inn=m_tr_info['inn'],
+            outp=m_tr_info['outp'],
+            outn=m_tr_info['outn'],
+            foot=m_tr_info['foot'],
         )
         self._div_tr_info = tr_info
         self._sum_row_info = m_master.row_layout_info
@@ -1039,31 +1049,19 @@ class Tap1Column(TemplateBase):
 
         # draw en_div/scan wires
         tr_scan = shield_tidl - 1
-        tr_endiv = tr_scan - sp_clk_shield
+        tr_en2 = tr_scan - sp_clk_shield
+        tr_en_div = tr_en2 - sp_clk_shield
         scan_tid = TrackID(vm_layer, tr_scan)
-        endiv_tid = TrackID(vm_layer, tr_endiv, width=vm_w_clk)
+        en2_tid = TrackID(vm_layer, tr_en2, width=vm_w_clk)
+        en_div_tid = TrackID(vm_layer, tr_en_div)
         scan3 = self.connect_to_tracks(div3_inst.get_pin('scan_s'), scan_tid, min_len_mode=1)
         scan2 = self.connect_to_tracks(div2_inst.get_pin('scan_s'), scan_tid, min_len_mode=-1)
         self.add_pin('scan_div<3>', scan3, show=show_pins)
         self.add_pin('scan_div<2>', scan2, show=show_pins)
+        self.connect_to_tracks([div3_inst.get_pin('en2'), div2_inst.get_pin('en2')], en2_tid)
+        en_div = self.connect_to_tracks(div3_inst.get_pin('in'), en_div_tid, min_len_mode=1)
+        self.add_pin('en_div', en_div, show=show_pins)
 
-        """
-        tr_scan = shield_tidl - 1
-        tr_endiv = tr_scan - sp_clk_shield
-        scan_tid = TrackID(vm_layer, tr_scan)
-        endiv_tid = TrackID(vm_layer, tr_endiv, width=vm_w_clk)
-        scan3 = self.connect_to_tracks(inst2.get_pin('scan_div'),
-                                       scan_tid, min_len_mode=1)
-        scan2 = self.connect_to_tracks(inst0.get_pin('scan_div'),
-                                       scan_tid, min_len_mode=-1)
-        endiv3 = self.connect_to_tracks(inst2.get_pin('en_div'),
-                                        endiv_tid, min_len_mode=1)
-        endiv2 = self.connect_to_tracks(inst0.get_pin('en_div'),
-                                        endiv_tid, min_len_mode=-1)
-        self.add_pin('scan_div<2>', scan2, show=show_pins)
-        self.add_pin('en_div<3>', endiv3, show=show_pins)
-        self.add_pin('en_div<2>', endiv2, show=show_pins)
-        """
         # set schematic parameters
         self._sch_params = dict(
             sum_params=sum_master.sch_params['sum_params'],
@@ -1119,12 +1117,15 @@ class Tap1Column(TemplateBase):
             tr_widths=tr_widths,
             tr_spaces=tr_spaces,
             div_tr_info=sum_master.div_tr_info,
+            re_out_type='in',
+            re_in_type='foot',
             laygo_edger=sum_master.left_edge_info,
             re_dummy=False,
             show_pins=False,
         )
         div3_master = self.new_template(params=div_params, temp_cls=DividerGroup)
         div_params['re_dummy'] = True
+        div_params['clk_inverted'] = True
         div2_master = self.new_template(params=div_params, temp_cls=DividerGroup)
 
         return sum_master, end_row_master, div2_master, div3_master
