@@ -236,6 +236,7 @@ class DividerColumn(TemplateBase):
             tr_spaces='Track spacing dictionary.',
             div_tr_info='divider track information dictionary.',
             sup_tids='supply tracks information.',
+            en2_tidx='en_div<2> track index.',
             options='other AnalogBase options.',
             right_edge_info='If not None, abut on right edge.',
             show_pins='True to draw pin geometries.',
@@ -245,6 +246,7 @@ class DividerColumn(TemplateBase):
     def get_default_param_values(cls):
         # type: () -> Dict[str, Any]
         return dict(
+            en2_tidx=None,
             options=None,
             right_edge_info=None,
             show_pins=True,
@@ -259,6 +261,7 @@ class DividerColumn(TemplateBase):
         tr_spaces = self.params['tr_spaces']
         div_tr_info = self.params['div_tr_info']
         sup_tids = self.params['sup_tids']
+        en2_tidx = self.params['en2_tidx']
         options = self.params['options']
         right_edge_info = self.params['right_edge_info']
         show_pins = self.params['show_pins']
@@ -361,6 +364,16 @@ class DividerColumn(TemplateBase):
         # set size
         self.array_box = bnd_box
         self.set_size_from_bound_box(top_layer, bnd_box)
+
+        # connect en_div2
+        ym_layer = top_layer + 1
+        if en2_tidx is None:
+            en2_tidx = self.grid.coord_to_nearest_track(ym_layer, bnd_box.xc_unit, half_track=True,
+                                                        mode=0, unit_mode=True)
+        tr_manager = TrackManager(self.grid, tr_widths, tr_spaces, half_space=True)
+        en2_w = tr_manager.get_width(ym_layer, 'clk')
+        self.connect_to_tracks([div3_inst.get_pin('en2'), div2_inst.get_pin('en2')],
+                               TrackID(ym_layer, en2_tidx, width=en2_w))
 
         # export pins
         clkp_list = list(chain(div3_inst.port_pins_iter('clkp'), div2_inst.port_pins_iter('clkp')))
@@ -1083,17 +1096,15 @@ class SamplerColumn(TemplateBase):
         scan_tid = TrackID(ym_layer, dtr + locs[-2], width=1)
         en_tid = TrackID(ym_layer, dtr + locs[-1], width=tr_w)
         for name, tid in (('scan_div<2>', scan_tid), ('scan_div<3>', scan_tid),
-                          ('en_div<2>', en_tid), ('en_div<3>', en_tid)):
+                          ('en_div', en_tid)):
             warr = self.connect_to_tracks(div_inst.get_pin(name), tid, min_len_mode=0)
             self.add_pin(name, warr, show=show_pins)
 
         # connect shields
         sh_tid = TrackID(ym_layer, dtr + locs[0], num=2, pitch=locs[3] - locs[0])
-        """
         vdd_warrs = self.connect_to_tracks(vdd_list, sh_tid, track_lower=tr_lower,
                                            track_upper=tr_upper, unit_mode=True)
         self.add_pin('VDD', vdd_warrs, show=show_pins)
-        """
         # connect clocks
         clkp = div_inst.get_pin('clkp')
         clkn = div_inst.get_pin('clkn')
