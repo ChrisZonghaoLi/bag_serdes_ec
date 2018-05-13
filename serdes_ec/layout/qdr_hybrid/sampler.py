@@ -237,7 +237,10 @@ class DividerColumn(TemplateBase):
             div_tr_info='divider track information dictionary.',
             sup_tids='supply tracks information.',
             clk_inverted='True if clock tracks are flipped.',
+            en2_tr_idx='enable2 track index.  If None, do not connect.  If equals to "default", '
+                       'connect with center track',
             re_out_type='retimer output track type.',
+            add_dummy='True to add dummy blocks.',
             options='other AnalogBase options.',
             right_edge_info='If not None, abut on right edge.',
             show_pins='True to draw pin geometries.',
@@ -248,7 +251,9 @@ class DividerColumn(TemplateBase):
         # type: () -> Dict[str, Any]
         return dict(
             clk_inverted=False,
+            en2_tr_idx=None,
             re_out_type='in',
+            add_dummy=True,
             options=None,
             right_edge_info=None,
             show_pins=True,
@@ -264,7 +269,9 @@ class DividerColumn(TemplateBase):
         div_tr_info = self.params['div_tr_info']
         sup_tids = self.params['sup_tids']
         clk_inverted = self.params['clk_inverted']
+        en2_tr_idx = self.params['en2_tr_idx']
         re_out_type = self.params['re_out_type']
+        add_dummy = self.params['add_dummy']
         options = self.params['options']
         right_edge_info = self.params['right_edge_info']
         show_pins = self.params['show_pins']
@@ -333,37 +340,57 @@ class DividerColumn(TemplateBase):
         vss_list = []
         bayt = dums_master.array_box.top_unit
         tayt = div3_master.array_box.top_unit
-        inst = self.add_instance(dums_master, 'XDUM0', loc=(0, ycur), unit_mode=True)
-        bnd_box = bnd_box.merge(inst.bound_box)
-        vdd_list.extend(inst.port_pins_iter('VDD'))
-        vss_list.extend(inst.port_pins_iter('VSS'))
-        ycur += bayt
+        if add_dummy:
+            inst = self.add_instance(dums_master, 'XDUM0', loc=(0, ycur), unit_mode=True)
+            bnd_box = bnd_box.merge(inst.bound_box)
+            vdd_list.extend(inst.port_pins_iter('VDD'))
+            vss_list.extend(inst.port_pins_iter('VSS'))
+            ycur += bayt
         div3_inst = self.add_instance(div3_master, 'XDIV3', loc=(0, ycur), unit_mode=True)
         vdd_list.extend(div3_inst.port_pins_iter('VDD'))
         vss_list.extend(div3_inst.port_pins_iter('VSS'))
-        ycur += tayt + bayt
-        inst = self.add_instance(dums_master, 'XDUM1', loc=(0, ycur), orient='MX', unit_mode=True)
-        vdd_list.extend(inst.port_pins_iter('VDD'))
-        vss_list.extend(inst.port_pins_iter('VSS'))
-        inst = self.add_instance(dums_master, 'XDUM2', loc=(0, ycur), unit_mode=True)
-        vdd_list.extend(inst.port_pins_iter('VDD'))
-        vss_list.extend(inst.port_pins_iter('VSS'))
-        ycur += tayt + bayt
+        ycur += tayt
+        if add_dummy:
+            ycur += bayt
+            inst = self.add_instance(dums_master, 'XDUM1', loc=(0, ycur), orient='MX',
+                                     unit_mode=True)
+            vdd_list.extend(inst.port_pins_iter('VDD'))
+            vss_list.extend(inst.port_pins_iter('VSS'))
+            inst = self.add_instance(dums_master, 'XDUM2', loc=(0, ycur), unit_mode=True)
+            vdd_list.extend(inst.port_pins_iter('VDD'))
+            vss_list.extend(inst.port_pins_iter('VSS'))
+            ycur += bayt
+        ycur += tayt
         div2_inst = self.add_instance(div2_master, 'XDIV2', loc=(0, ycur), orient='MX',
                                       unit_mode=True)
         vdd_list.extend(div2_inst.port_pins_iter('VDD'))
         vss_list.extend(div2_inst.port_pins_iter('VSS'))
-        ycur += bayt
-        inst = self.add_instance(dums_master, 'XDUM3', loc=(0, ycur), orient='MX', unit_mode=True)
-        bnd_box = bnd_box.merge(inst.bound_box)
-        vdd_list.extend(inst.port_pins_iter('VDD'))
-        vss_list.extend(inst.port_pins_iter('VSS'))
+        if add_dummy:
+            ycur += bayt
+            inst = self.add_instance(dums_master, 'XDUM3', loc=(0, ycur), orient='MX',
+                                     unit_mode=True)
+            bnd_box = bnd_box.merge(inst.bound_box)
+            vdd_list.extend(inst.port_pins_iter('VDD'))
+            vss_list.extend(inst.port_pins_iter('VSS'))
 
         if end_row_master is not None:
             ycur += eayt
             top_row = self.add_instance(end_row_master, 'XROWT', loc=(0, ycur), orient='MX',
                                         unit_mode=True)
             bnd_box = bnd_box.merge(top_row.bound_box)
+
+        # connect en2
+        en2_warrs = [div3_inst.get_pin('en2'), div2_inst.get_pin('en2')]
+        if en2_tr_idx is None:
+            self.add_pin('en2', en2_warrs, show=show_pins)
+        else:
+            top_layer += 1
+            tr_manager = TrackManager(self.grid, tr_widths, tr_spaces, half_space=True)
+            tr_w = tr_manager.get_width(top_layer, 'clk')
+            if en2_tr_idx == 'default':
+                en2_tr_idx = self.grid.coord_to_nearest_track(top_layer, bnd_box.xc_unit,
+                                                              half_track=True, unit_mode=True)
+            self.connect_to_tracks(en2_warrs, TrackID(top_layer, en2_tr_idx, width=tr_w))
 
         # set size
         self.array_box = bnd_box
@@ -377,7 +404,6 @@ class DividerColumn(TemplateBase):
         self.add_pin('clkp', clkp_list, label='clkp:', show=show_pins)
         self.add_pin('clkn', clkn_list, label='clkn:', show=show_pins)
         self.add_pin('en_div', div3_inst.get_pin('in'), show=show_pins)
-        self.add_pin('en2', [div3_inst.get_pin('en2'), div2_inst.get_pin('en2')], show=show_pins)
         self.add_pin('scan_div<3>', div3_inst.get_pin('scan_s'), show=show_pins)
         self.add_pin('scan_div<2>', div2_inst.get_pin('scan_s'), show=show_pins)
         self.reexport(div2_inst.get_port('q'), net_name='en<2>', show=show_pins)

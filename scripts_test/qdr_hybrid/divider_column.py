@@ -34,6 +34,10 @@ def run_main(prj):
         with open(test_fname, 'r') as f:
             div_info = yaml.load(f)
 
+    div_info['right_edge_info'] = None
+    div_info['en2_tr_idx'] = 'default'
+    div_info['add_dummy'] = False
+
     with open(os.path.join(root_name, 'divider_column.yaml'), 'r') as f:
         div_specs = yaml.load(f)
 
