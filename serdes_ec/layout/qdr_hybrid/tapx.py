@@ -498,9 +498,9 @@ class TapXSummer(TemplateBase):
         # create layout masters and place instances
         tr_manager = TrackManager(self.grid, tr_widths, tr_spaces, half_space=True)
         hm_layer = IntegAmp.get_mos_conn_layer(self.grid.tech_info) + 1
-        vm_layer = hm_layer + 1
+        ym_layer = hm_layer + 1
         route_types = [1, 'out', 'out', 1, 'out', 'out', 1, 'out', 'out', 1]
-        _, route_locs = tr_manager.place_wires(vm_layer, route_types)
+        _, route_locs = tr_manager.place_wires(ym_layer, route_types)
 
         # FFE instances
         vdd_list, vss_list = [], []
@@ -512,7 +512,7 @@ class TapXSummer(TemplateBase):
         ffe_sig_list = self._get_ffe_signals(num_ffe)
         self._fg_tot = 0
         tmp = self._create_and_place(tr_manager, num_ffe, seg_ffe_list, seg_sum_list,
-                                     flip_sign_list, ffe_sig_list, base_params, vm_layer,
+                                     flip_sign_list, ffe_sig_list, base_params, ym_layer,
                                      route_locs, place_info, vdd_list, vss_list, 'a', sig_off=0,
                                      sum_off=0, is_end=False, left_out=True)
         ffe_masters, self._ffe_track_info, ffe_sch_params, ffe_insts, place_info, blk_intvs = tmp
@@ -529,7 +529,7 @@ class TapXSummer(TemplateBase):
         # DFE instances
         dfe_sig_list = self._get_dfe_signals(num_dfe)
         tmp = self._create_and_place(tr_manager, num_dfe - 1, seg_dfe_list, seg_sum_list,
-                                     flip_sign_list, dfe_sig_list, base_params, vm_layer,
+                                     flip_sign_list, dfe_sig_list, base_params, ym_layer,
                                      route_locs, place_info, vdd_list, vss_list, 'd', sig_off=3,
                                      sum_off=num_ffe + 1, is_end=False, left_out=False)
         dfe_masters, self._dfe_track_info, dfe_sch_params, dfe_insts, place_info, blk_intvs2 = tmp
@@ -538,16 +538,18 @@ class TapXSummer(TemplateBase):
         # DFE2 gm cell
         seg_last = seg_sum_list[num_ffe]
         fs_last = flip_sign_list[num_ffe]
-        vm_w_out = tr_manager.get_width(vm_layer, 'out')
+        vm_w_out = tr_manager.get_width(ym_layer, 'out')
         sig_types, sig_names, sig_right, blk_idx_intv = self._get_dfe2_signals()
         base_params = dict(lch=lch, ptap_w=ptap_w, ntap_w=ntap_w, w_dict=w_sum, th_dict=th_sum,
                            seg_dict=seg_last, fg_duml=fg_dum, fg_dumr=fg_dum, tr_widths=tr_widths,
                            tr_spaces=tr_spaces, flip_sign=fs_last, end_mode=8, options=options,
                            sch_hp_params=sch_hp_params, fg_min=fg_dig, but_sw=True, show_pins=False)
         gm_master = self.new_template(params=base_params, temp_cls=IntegAmp)
-        tmp = self._place_master(tr_manager, vm_layer, gm_master, self._dfe_track_info, blk_intvs,
+        # NOTE: we reuse _place_master() command to place tap2 gm cell.
+        # blk_idx just cannot be zero.
+        tmp = self._place_master(tr_manager, ym_layer, gm_master, self._dfe_track_info, blk_intvs,
                                  fg_dum, route_locs, sig_types, sig_names, sig_right, vm_w_out,
-                                 blk_idx_intv, place_info, True, 'd', 2, 0, vdd_list, vss_list)
+                                 blk_idx_intv, place_info, True, 'd', 2, 0, vdd_list, vss_list, -2)
         gm_master, gm_inst, place_info = tmp
         gm_arr_box = gm_inst.array_box
         self._div_grp_loc = (gm_inst.location_unit[0], gm_arr_box.top_unit)
@@ -559,9 +561,12 @@ class TapXSummer(TemplateBase):
 
         # set size
         inst_first = ffe_insts[-1]
+        blk_w = self.grid.get_block_size(ym_layer, unit_mode=True)[0]
         bnd_box = inst_first.bound_box.merge(gm_inst.bound_box)
+        tot_w = -(-bnd_box.width_unit // blk_w) * blk_w
+        bnd_box = bnd_box.extend(x=tot_w, unit_mode=True)
         self.array_box = inst_first.array_box.merge(gm_arr_box)
-        self.set_size_from_bound_box(hm_layer, bnd_box)
+        self.set_size_from_bound_box(ym_layer, bnd_box)
         self.add_cell_boundary(bnd_box)
 
         # add pins
@@ -787,7 +792,7 @@ class TapXSummer(TemplateBase):
             tmp = self._place_master(tr_manager, vm_layer, cur_master, track_info, block_intvs,
                                      fg_dum, route_locs, sig_types, sig_names, sig_right, vm_w_out,
                                      blk_idx_intv, place_info, left_out, blk_type, sig_idx, inc,
-                                     vdd_list, vss_list)
+                                     vdd_list, vss_list, idx)
 
             cur_master, inst, place_info = tmp
             masters.append(cur_master)
@@ -802,7 +807,8 @@ class TapXSummer(TemplateBase):
 
     def _place_master(self, tr_manager, vm_layer, cur_master, track_info, block_intvs, fg_dum,
                       route_locs, sig_types, sig_names, sig_right, vm_w_out, blk_idx_intv,
-                      place_info, left_out, blk_type, sig_idx, sig_inc, vdd_list, vss_list):
+                      place_info, left_out, blk_type, sig_idx, sig_inc, vdd_list, vss_list,
+                      blk_idx):
 
         if isinstance(cur_master, IntegAmp):
             left_out_b = left_out = 0
@@ -835,7 +841,7 @@ class TapXSummer(TemplateBase):
         else:
             _, left_locs = tr_manager.place_wires(vm_layer, [prev_type, sig_types[0]])
             left_delta = left_locs[1] - left_locs[0]
-        if is_first:
+        if blk_idx == 0:
             right_delta = 0
         else:
             _, right_locs = tr_manager.place_wires(vm_layer, [sig_types[-1], 1, 'out'])
@@ -866,7 +872,7 @@ class TapXSummer(TemplateBase):
         vss_list.extend(inst.port_pins_iter('VSS'))
         xarr = inst.array_box.right_unit
         # record routing track locations, and update placement information
-        if is_first:
+        if blk_idx == 0:
             prev_data_w = tr_manager.get_width(vm_layer, sig_types[-2])
             prev_data_tr = sig_locs[-2] + sig_offset
             prev_type = sig_types[-1]
@@ -1156,8 +1162,8 @@ class TapXColumn(TemplateBase):
         # set schematic parameters and various properties
         self._sch_params = dict(
             div_params=div_col_master.sch_params,
-            ffe_params_list=div3_master.sch_params['ffe_params_list'],
-            dfe_params_list=div3_master.sch_params['dfe_params_list'],
+            ffe_params_list=sum_master.sch_params['ffe_params_list'],
+            dfe_params_list=sum_master.sch_params['dfe_params_list'],
             dfe2_params=sum_master.sch_params['dfe2_params'],
             export_probe=export_probe,
         )
@@ -1229,13 +1235,12 @@ class TapXColumn(TemplateBase):
         # connect enable and scan
         scan_tid = TrackID(vm_layer, locs[4] + tr0)
         en_tid = TrackID(vm_layer, locs[5] + tr0, width=vm_w_clk)
-        for idx in range(2, 4):
-            sname = 'scan_div<%d>' % idx
-            ename = 'en_div<%d>' % idx
-            warr = self.connect_to_tracks(div_inst.get_pin(sname), scan_tid, min_len_mode=0)
-            self.add_pin(sname, warr, label=sname + ':', show=show_pins)
-            warr = self.connect_to_tracks(div_inst.get_pin(ename), en_tid, min_len_mode=0)
-            self.add_pin(ename, warr, label=ename + ':', show=show_pins)
+        warr = self.connect_to_tracks(div_inst.get_pin('scan_div<3>'), scan_tid, min_len_mode=0)
+        self.add_pin('scan_div<3>', warr, label='scan_div<3>:', show=show_pins)
+        warr = self.connect_to_tracks(div_inst.get_pin('scan_div<2>'), scan_tid, min_len_mode=0)
+        self.add_pin('scan_div<2>', warr, label='scan_div<2>:', show=show_pins)
+        warr = self.connect_to_tracks(div_inst.get_pin('en_div'), en_tid, min_len_mode=0)
+        self.add_pin('en_div', warr, show=show_pins)
 
     def _connect_ffe(self, tr0, tr_manager, vm_layer, num_sig, track_info, inst_list, show_pins):
         vm_w_casc = tr_manager.get_width(vm_layer, 'casc')
