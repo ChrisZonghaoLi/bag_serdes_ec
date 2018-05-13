@@ -41,9 +41,7 @@ class bag_serdes_ec__qdr_tapx_summer(Module):
             self.remove_pin('casc')
             a_arr = '<0>'
         else:
-            if num_ffe == 2:
-                self.rename_pin('casc', 'casc<1>')
-            else:
+            if num_ffe > 2:
                 self.rename_pin('casc', 'casc<%d:1>' % (num_ffe - 1))
             a_arr = '<%d:0>' % (num_ffe - 1)
 
@@ -70,7 +68,10 @@ class bag_serdes_ec__qdr_tapx_summer(Module):
                              outp_l='outp_a' + ffe_suf, outn_l='outn_a' + ffe_suf,
                              outp_s=outp_s, outn_s=outn_s)
             if fidx != 0:
-                term_dict['casc'] = 'casc' + ffe_suf
+                if num_ffe == 2:
+                    term_dict['casc'] = 'casc'
+                else:
+                    term_dict['casc'] = 'casc' + ffe_suf
             term_list.append(term_dict)
             name_list.append('XFFE%d' % fidx)
             sum_params_list.append(ffe_params['sum_params'])

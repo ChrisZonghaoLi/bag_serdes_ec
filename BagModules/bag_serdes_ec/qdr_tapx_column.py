@@ -87,7 +87,7 @@ class bag_serdes_ec__qdr_tapx_column(Module):
 
         # reconnect pins
         a_suf = '<%d:0>' % (num_ffe - 1)
-        casc_pin = 'casc<1>' if num_ffe == 2 else 'casc<%d:1>' % (num_ffe - 1)
+        casc_pin = 'casc' if num_ffe == 2 else 'casc<%d:1>' % (num_ffe - 1)
         d_suf = '<%d:2>' % num_dfe
         do_suf = '<%d:3>' % num_dfe
         for cidx in range(4):

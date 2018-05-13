@@ -7,7 +7,6 @@ import pkg_resources
 
 from bag.design import Module
 
-
 yaml_file = pkg_resources.resource_filename(__name__, os.path.join('netlist_info',
                                                                    'integ_load_summer.yaml'))
 
@@ -48,5 +47,11 @@ class bag_serdes_ec__integ_load_summer(Module):
             suf = '<%d:0>' % (nin - 1)
             self.rename_pin('iip', 'iip' + suf)
             self.rename_pin('iin', 'iin' + suf)
-            self.array_instance('XTHP', ['XTHP' + suf], term_list=[dict(src='iip' + suf)])
-            self.array_instance('XTHN', ['XTHN' + suf], term_list=[dict(src='iin' + suf)])
+            pname = self._get_arr_name('iip', nin)
+            nname = self._get_arr_name('iin', nin)
+            self.array_instance('XTHP', ['XTHP' + suf], term_list=[dict(src=pname)])
+            self.array_instance('XTHN', ['XTHN' + suf], term_list=[dict(src=nname)])
+
+    @classmethod
+    def _get_arr_name(cls, base, n):
+        return ','.join(('%s<%d>' % (base, idx) for idx in range(n - 1, -1, -1)))

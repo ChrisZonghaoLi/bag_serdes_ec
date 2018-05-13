@@ -67,7 +67,8 @@ class bag_serdes_ec__qdr_datapath(Module):
             ffe_suf = '<%d:4>' % (4 * self._num_ffe + 3)
             new_name = 'bias_ffe' + ffe_suf
             self.rename_pin('bias_ffe<7:4>', new_name)
-            self.reconnect_instance_terminal('XTAPX', 'casc' + ffe_suf, new_name)
+            new_net = self._get_arr_name('bias_ffe', 4, 4 * self._num_ffe + 4)
+            self.reconnect_instance_terminal('XTAPX', 'casc' + ffe_suf, new_net)
 
         # handle DFE pins
         if self._num_dfe < 2:
@@ -75,6 +76,7 @@ class bag_serdes_ec__qdr_datapath(Module):
         else:
             dfe_max_idx = 4 * self._num_dfe + 3
             dfe_suf = '<%d:8>' % dfe_max_idx
+            dfe_net = self._get_arr_name('clk_dfe', 8, dfe_max_idx + 1)
             sgnp_name = 'sgnp_dfe' + dfe_suf
             sgnn_name = 'sgnn_dfe' + dfe_suf
             self.rename_pin('sgnp_dfe<11:8>', sgnp_name)
@@ -82,4 +84,8 @@ class bag_serdes_ec__qdr_datapath(Module):
             self.rename_pin('clk_dfe<11:4>', 'clk_dfe<%d:4>' % dfe_max_idx)
             self.reconnect_instance_terminal('XTAPX', 'sgnp' + dfe_suf, sgnp_name)
             self.reconnect_instance_terminal('XTAPX', 'sgnn' + dfe_suf, sgnn_name)
-            self.reconnect_instance_terminal('XTAPX', 'bias_s' + dfe_suf, 'clk_dfe' + dfe_suf)
+            self.reconnect_instance_terminal('XTAPX', 'bias_s' + dfe_suf, dfe_net)
+
+    @classmethod
+    def _get_arr_name(cls, base, start, stop, step=1):
+        return ','.join(('%s<%d>' % (base, idx) for idx in range(stop - 1, start - 1, -step)))
