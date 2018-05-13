@@ -55,7 +55,7 @@ class TapXSummerCell(TemplateBase):
         self._lat_track_info = None
         self._div_tr_info = None
         self._amp_masters = None
-        self._sd_pitch = None
+        self._sd_pitch_unit = None
         self._fg_tot = None
         self._row_heights = None
         self._sup_tids = None
@@ -91,9 +91,9 @@ class TapXSummerCell(TemplateBase):
         return self._div_tr_info
 
     @property
-    def sd_pitch(self):
+    def sd_pitch_unit(self):
         # type: () -> int
-        return self._sd_pitch
+        return self._sd_pitch_unit
 
     @property
     def fg_tot(self):
@@ -285,7 +285,7 @@ class TapXSummerCell(TemplateBase):
         self._lat_lr_edge_info = l_master.lr_edge_info
         self._lat_track_info = m_tr_info = l_master.track_info
         self._amp_masters = s_master, l_master
-        self._sd_pitch = s_master.sd_pitch_unit
+        self._sd_pitch_unit = s_master.sd_pitch_unit
         self._row_heights = (s_master.bound_box.height_unit, l_master.bound_box.height_unit)
         s_tids = (s_master.get_port('VSS').get_pins()[0].track_id.base_index,
                   s_master.get_port('VDD').get_pins()[0].track_id.base_index,)
@@ -339,6 +339,7 @@ class TapXSummer(TemplateBase):
         self._ffe_track_info = None
         self._dfe_track_info = None
         self._fg_tot = None
+        self._fg_tot_dfe2 = None
         self._blockage_intvs = None
         self._lr_edge_info = None
         self._sum_row_info = None
@@ -367,6 +368,11 @@ class TapXSummer(TemplateBase):
     def fg_tot(self):
         # type: () -> int
         return self._fg_tot
+
+    @property
+    def fg_tot_dfe2(self):
+        # type: () -> int
+        return self._fg_tot_dfe2
 
     @property
     def blockage_intvs(self):
@@ -431,6 +437,7 @@ class TapXSummer(TemplateBase):
             seg_dfe_list='list of segment dictionaries for DFE latches.',
             flip_sign_list='list of flip_sign values for summer taps.',
             fg_dum='Number of single-sided edge dummy fingers.',
+            fg_dig='Number of fingers of digital block.',
             tr_widths='Track width dictionary.',
             tr_spaces='Track spacing dictionary.',
             options='other AnalogBase options',
@@ -461,6 +468,7 @@ class TapXSummer(TemplateBase):
         seg_dfe_list = self.params['seg_dfe_list']
         flip_sign_list = self.params['flip_sign_list']
         fg_dum = self.params['fg_dum']
+        fg_dig = self.params['fg_dig']
         tr_widths = self.params['tr_widths']
         tr_spaces = self.params['tr_spaces']
         show_pins = self.params['show_pins']
@@ -527,12 +535,14 @@ class TapXSummer(TemplateBase):
         base_params = dict(lch=lch, ptap_w=ptap_w, ntap_w=ntap_w, w_dict=w_sum, th_dict=th_sum,
                            seg_dict=seg_last, fg_duml=fg_dum, fg_dumr=fg_dum, tr_widths=tr_widths,
                            tr_spaces=tr_spaces, flip_sign=fs_last, end_mode=8, options=options,
-                           sch_hp_params=sch_hp_params, show_pins=False)
+                           sch_hp_params=sch_hp_params, fg_min=fg_dig, but_sw=True, show_pins=False)
         gm_master = self.new_template(params=base_params, temp_cls=IntegAmp)
         tmp = self._place_master(tr_manager, vm_layer, gm_master, self._dfe_track_info, blk_intvs,
                                  fg_dum, route_locs, sig_types, sig_names, sig_right, vm_w_out,
                                  blk_idx_intv, place_info, True, 'd', 2, 0, vdd_list, vss_list)
         gm_master, gm_inst, place_info = tmp
+        self._fg_tot += gm_master.fg_tot
+        self._fg_tot_dfe2 = gm_master.fg_tot
         self._blockage_intvs = blk_intvs
         self._blockage_intvs.sort()
 
@@ -665,7 +675,7 @@ class TapXSummer(TemplateBase):
         # add alias pins for column layout connection only
         self.add_pin('outp_d<2>', inp_pin, show=False)
         self.add_pin('outn_d<2>', inn_pin, show=False)
-        self.reexport(gm_inst.get_port('biasn'), net_name='biasn_s<2>', show=show_pins)
+        self.reexport(gm_inst.get_port('biasp'), net_name='biasn_s<2>', show=show_pins)
         if gm_inst.has_port('casc<0>'):
             self.reexport(gm_inst.get_port('casc<0>'), net_name='sgnp<2>', show=show_pins)
             self.reexport(gm_inst.get_port('casc<1>'), net_name='sgnn<2>', show=show_pins)
@@ -799,7 +809,7 @@ class TapXSummer(TemplateBase):
             xcur_min = data_xr - cur_master.get_vm_coord(prev_data_w, True, left_out_b)
             if xcur_min > xcur:
                 # need to increment left dummy fingers to avoid line-end spacing issues
-                sd_pitch = cur_master.sd_pitch
+                sd_pitch = cur_master.sd_pitch_unit
                 num_fg_inc = -(-(xcur_min - xcur) // (2 * sd_pitch)) * 2
                 cur_master = cur_master.new_template_with(fg_duml=fg_dum + num_fg_inc)
 
