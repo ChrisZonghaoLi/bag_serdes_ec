@@ -1162,7 +1162,7 @@ class TapXColumn(TemplateBase):
                                                    mode=-1, unit_mode=True)
         self._connect_div_column(tr_manager, ym_layer, div_inst, right_vdd_tidx, clkp_list,
                                  clkn_list, en_list, vdd_list, vss_list, inp_warrs, inn_warrs,
-                                 sh_lower, sh_upper, inst0, inst2, show_pins)
+                                 sh_lower, sh_upper, show_pins)
 
         # set schematic parameters and various properties
         self._sch_params = dict(
@@ -1185,8 +1185,9 @@ class TapXColumn(TemplateBase):
 
     def _connect_div_column(self, tr_manager, vm_layer, div_inst, right_tidx, clkp_list, clkn_list,
                             en_list, vdd_list, vss_list, inp_warrs, inn_warrs, sh_lower, sh_upper,
-                            inst0, inst2, show_pins):
-        wtype_list = [1, 'in', 'in', 1, 1, 'clk', 1, 'clk', 'clk', 1, 'en', 'en', 'en', 'en', 1]
+                            show_pins):
+        wtype_list = [1, 'in', 'in', 1, 1, 'clk', 'clk', 1, 'clk', 'clk', 1,
+                      'en', 'en', 'en', 'en', 1]
         _, locs = tr_manager.place_wires(vm_layer, wtype_list)
         tr0 = right_tidx - locs[-1]
 
@@ -1200,7 +1201,7 @@ class TapXColumn(TemplateBase):
         self.add_pin('inn_a', inn, show=show_pins)
 
         # connect VDD shield
-        for tidx in (locs[6] + tr0, locs[9] + tr0, locs[14] + tr0):
+        for tidx in (locs[7] + tr0, locs[10] + tr0, locs[15] + tr0):
             warr = self.connect_to_tracks(vdd_list, TrackID(vm_layer, tidx), track_lower=sh_lower,
                                           track_upper=sh_upper, unit_mode=True)
             self.add_pin('VDD', warr, show=show_pins)
@@ -1211,7 +1212,7 @@ class TapXColumn(TemplateBase):
             self.add_pin('VSS', warr, show=show_pins)
 
         # connect enables
-        en_off = 10
+        en_off = 11
         vm_w_en = tr_manager.get_width(vm_layer, 'en')
         for en_idx, en_warrs in enumerate(en_list):
             en_warrs.append(div_inst.get_pin('en<%d>' % en_idx))
@@ -1219,33 +1220,25 @@ class TapXColumn(TemplateBase):
             self.connect_to_tracks(en_warrs, tid)
         # connect clocks
         vm_w_clk = tr_manager.get_width(vm_layer, 'clk')
-        clkp_list.append(div_inst.get_pin('clkp'))
-        clkn_list.append(div_inst.get_pin('clkn'))
-        trp = locs[7] + tr0
-        trn = locs[8] + tr0
+        clkp_list.extend(div_inst.port_pins_iter('clkp'))
+        clkn_list.extend(div_inst.port_pins_iter('clkn'))
+        trp = locs[8] + tr0
+        trn = locs[9] + tr0
         clkp, clkn = self.connect_differential_tracks(clkp_list, clkn_list, vm_layer, trp, trn,
                                                       width=vm_w_clk, unit_mode=True)
-        # extend clkp/clkn in digital latch row so that we have matching wires
-        ckl = clkp_list[0].lower_unit
-        cku = clkp_list[0].upper_unit
-        for warr in chain(clkp_list, clkn_list):
-            ckl = min(ckl, warr.lower_unit)
-            cku = max(cku, warr.upper_unit)
-        for warr in chain(inst0.port_pins_iter('clkp_d'), inst2.port_pins_iter('clkp_d'),
-                          inst0.port_pins_iter('clkn_d'), inst2.port_pins_iter('clkn_d')):
-            self.extend_wires(warr, lower=ckl, upper=cku, unit_mode=True)
-
         self.add_pin('clkp', clkp, show=show_pins)
         self.add_pin('clkn', clkn, show=show_pins)
         # connect enable and scan
         scan_tid = TrackID(vm_layer, locs[4] + tr0)
-        en_tid = TrackID(vm_layer, locs[5] + tr0, width=vm_w_clk)
+        en2_tid = TrackID(vm_layer, locs[5] + tr0, width=vm_w_clk)
+        en_tid = TrackID(vm_layer, locs[6] + tr0, width=vm_w_clk)
         warr = self.connect_to_tracks(div_inst.get_pin('scan_div<3>'), scan_tid, min_len_mode=0)
         self.add_pin('scan_div<3>', warr, label='scan_div<3>:', show=show_pins)
         warr = self.connect_to_tracks(div_inst.get_pin('scan_div<2>'), scan_tid, min_len_mode=0)
         self.add_pin('scan_div<2>', warr, label='scan_div<2>:', show=show_pins)
         warr = self.connect_to_tracks(div_inst.get_pin('en_div'), en_tid, min_len_mode=0)
         self.add_pin('en_div', warr, show=show_pins)
+        self.connect_to_tracks(div_inst.get_all_port_pins('en2'), en2_tid)
 
     def _connect_ffe(self, tr0, tr_manager, vm_layer, num_sig, track_info, inst_list, show_pins):
         vm_w_casc = tr_manager.get_width(vm_layer, 'casc')

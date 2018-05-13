@@ -1317,8 +1317,12 @@ class DividerGroup(TemplateBase):
             self.connect_wires([inst_re.get_pin('en3'), inst_div.get_pin('en_vm')])
 
             # NOTE: we flip clkp/clkn tracks
-            clkp_idx, clk_w = div_tr_info['clkn']
-            clkn_idx, _ = div_tr_info['clkp']
+            if clk_inverted:
+                clkp_idx, clk_w = div_tr_info['clkp']
+                clkn_idx, _ = div_tr_info['clkn']
+            else:
+                clkp_idx, clk_w = div_tr_info['clkn']
+                clkn_idx, _ = div_tr_info['clkp']
             clkp_idx = inst_re.translate_master_track(top_layer, clkp_idx)
             clkn_idx = inst_re.translate_master_track(top_layer, clkn_idx)
             clkp, clkn = self.connect_differential_tracks(clkp, clkn, top_layer, clkp_idx,

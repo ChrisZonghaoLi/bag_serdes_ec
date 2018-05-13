@@ -236,7 +236,7 @@ class DividerColumn(TemplateBase):
             tr_spaces='Track spacing dictionary.',
             div_tr_info='divider track information dictionary.',
             sup_tids='supply tracks information.',
-            en2_tidx='en_div<2> track index.',
+            clk_inverted='True if clock tracks are flipped.',
             options='other AnalogBase options.',
             right_edge_info='If not None, abut on right edge.',
             show_pins='True to draw pin geometries.',
@@ -246,7 +246,7 @@ class DividerColumn(TemplateBase):
     def get_default_param_values(cls):
         # type: () -> Dict[str, Any]
         return dict(
-            en2_tidx=None,
+            clk_inverted=False,
             options=None,
             right_edge_info=None,
             show_pins=True,
@@ -261,7 +261,7 @@ class DividerColumn(TemplateBase):
         tr_spaces = self.params['tr_spaces']
         div_tr_info = self.params['div_tr_info']
         sup_tids = self.params['sup_tids']
-        en2_tidx = self.params['en2_tidx']
+        clk_inverted = self.params['clk_inverted']
         options = self.params['options']
         right_edge_info = self.params['right_edge_info']
         show_pins = self.params['show_pins']
@@ -285,13 +285,14 @@ class DividerColumn(TemplateBase):
             div_tr_info=div_tr_info,
             re_out_type='in',
             re_in_type='tail',
+            clk_inverted=clk_inverted,
             laygo_edger=right_edge_info,
             re_dummy=False,
             show_pins=False,
         )
         div3_master = self.new_template(params=params, temp_cls=DividerGroup)
         params['re_dummy'] = True
-        params['clk_inverted'] = True
+        params['clk_inverted'] = not clk_inverted
         div2_master = self.new_template(params=params, temp_cls=DividerGroup)
         self._fg_tot = div3_master.fg_tot
         self._sa_clk_tidx = div3_master.sa_clk_tidx
