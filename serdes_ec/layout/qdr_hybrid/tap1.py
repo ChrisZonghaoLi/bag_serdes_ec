@@ -883,8 +883,14 @@ class Tap1Column(TemplateBase):
         tr_manager = TrackManager(self.grid, tr_widths, tr_spaces, half_space=True)
 
         # re-export supply pins
-        vdd_list = list(chain(*(inst.port_pins_iter('VDD') for inst in inst_list)))
-        vss_list = list(chain(*(inst.port_pins_iter('VSS') for inst in inst_list)))
+        vdd_list = list(chain(div3_inst.port_pins_iter('VDD'),
+                              div2_inst.port_pins_iter('VDD'),
+                              *(inst.port_pins_iter('VDD') for inst in inst_list)))
+        vss_list = list(chain(div3_inst.port_pins_iter('VSS'),
+                              div2_inst.port_pins_iter('VSS'),
+                              *(inst.port_pins_iter('VSS') for inst in inst_list)))
+        vdd_list = self.connect_wires(vdd_list)
+        vss_list = self.connect_wires(vss_list)
         self.add_pin('VDD', vdd_list, show=show_pins)
         self.add_pin('VSS', vss_list, show=show_pins)
 
@@ -898,9 +904,13 @@ class Tap1Column(TemplateBase):
         # re-export ports, and gather wires
         outp_warrs = [[], [], [], []]
         outn_warrs = [[], [], [], []]
-        en_warrs = [[], [], [], []]
+        en_warrs = [[div2_inst.get_pin('qb')], [div3_inst.get_pin('qb')],
+                    [div2_inst.get_pin('q')], [div3_inst.get_pin('q')]]
         biasf_warrs = []
-        clk_warrs = [[], []]
+        clk_warrs = [list(chain(div2_inst.port_pins_iter('clkp'),
+                                div3_inst.port_pins_iter('clkp'))),
+                     list(chain(div2_inst.port_pins_iter('clkn'),
+                                div3_inst.port_pins_iter('clkn')))]
         biasd_warrs = []
         biasm_warrs = []
         for idx, inst in enumerate(inst_list):
@@ -918,13 +928,6 @@ class Tap1Column(TemplateBase):
                 en_idx = (off + idx + 1) % 4
                 if inst.has_port(en_pin):
                     en_warrs[en_idx].extend(inst.port_pins_iter(en_pin))
-            if inst.has_port('div'):
-                if idx == 2:
-                    idxp, idxn = 3, 1
-                else:
-                    idxp, idxn = 2, 0
-                en_warrs[idxp].extend(inst.port_pins_iter('div'))
-                en_warrs[idxn].extend(inst.port_pins_iter('divb'))
 
             self.reexport(inst.get_port('inp'), net_name='inp<%d>' % pidx, show=show_pins)
             self.reexport(inst.get_port('inn'), net_name='inn<%d>' % pidx, show=show_pins)
@@ -1035,6 +1038,15 @@ class Tap1Column(TemplateBase):
                                                res, unit_mode=True))
 
         # draw en_div/scan wires
+        tr_scan = shield_tidl - 1
+        tr_endiv = tr_scan - sp_clk_shield
+        scan_tid = TrackID(vm_layer, tr_scan)
+        endiv_tid = TrackID(vm_layer, tr_endiv, width=vm_w_clk)
+        scan3 = self.connect_to_tracks(div3_inst.get_pin('scan_s'), scan_tid, min_len_mode=1)
+        scan2 = self.connect_to_tracks(div2_inst.get_pin('scan_s'), scan_tid, min_len_mode=-1)
+        self.add_pin('scan_div<3>', scan3, show=show_pins)
+        self.add_pin('scan_div<2>', scan2, show=show_pins)
+
         """
         tr_scan = shield_tidl - 1
         tr_endiv = tr_scan - sp_clk_shield
@@ -1048,7 +1060,6 @@ class Tap1Column(TemplateBase):
                                         endiv_tid, min_len_mode=1)
         endiv2 = self.connect_to_tracks(inst0.get_pin('en_div'),
                                         endiv_tid, min_len_mode=-1)
-        self.add_pin('scan_div<3>', scan3, show=show_pins)
         self.add_pin('scan_div<2>', scan2, show=show_pins)
         self.add_pin('en_div<3>', endiv3, show=show_pins)
         self.add_pin('en_div<2>', endiv2, show=show_pins)

@@ -264,7 +264,12 @@ class SinClkDivider(LaygoBase):
             q_idx, w_q = tr_info['q']
             qb_idx = tr_info['qb'][0]
             en_idx, w_en = tr_info['en']
-            clk_idx, w_clk = tr_info['clkp'] if div_pos_edge else tr_info['clkn']
+            if div_pos_edge:
+                clk_idx, w_clk = tr_info['clkp']
+                clkb_idx = tr_info['clkn'][0]
+            else:
+                clk_idx, w_clk = tr_info['clkn']
+                clkb_idx = tr_info['clkp'][0]
             vdd_idx, w_vdd = tr_info['VDD']
             vss_idx, w_vss = tr_info['VSS']
             s_idx = tr_manager.get_next_track(xm_layer, en_idx, w_en, 1, up=False)
@@ -277,6 +282,10 @@ class SinClkDivider(LaygoBase):
             vdd = self.connect_to_tracks(vdd, TrackID(xm_layer, vdd_idx, width=w_vdd))
             vss = self.connect_to_tracks(vss, TrackID(xm_layer, vss_idx, width=w_vss))
             scan_s = self.connect_to_tracks(scan_s, TrackID(xm_layer, s_idx), min_len_mode=0)
+            # add fake port so we can match clock wires
+            clkb = self.add_wires(xm_layer, clkb_idx, clk.lower_unit, clk.upper_unit, width=w_clk,
+                                  unit_mode=True)
+            self.add_pin('clkb', clkb, show=False)
 
         self.add_pin('q', q, show=show_pins)
         self.add_pin('qb', qb, show=show_pins)
@@ -980,12 +989,8 @@ class EnableRetimer(LaygoBase):
 
         if tr_info is not None:
             xm_layer = self.conn_layer + 3
-            clkn_idx, _ = tr_info['clkn']
             vdd_idx, w_vdd = tr_info['VDD']
             vss_idx, w_vss = tr_info['VSS']
-
-            # clkp, clkn = self.connect_differential_tracks(clkp, clkn, xm_layer,
-            #                                               clkp_idx, clkn_idx, width=w_clk)
             vdd = self.connect_to_tracks(vdd, TrackID(xm_layer, vdd_idx, width=w_vdd))
             vss = self.connect_to_tracks(vss, TrackID(xm_layer, vss_idx, width=w_vss))
 
@@ -1269,9 +1274,10 @@ class DividerGroup(TemplateBase):
         # set size
         self.array_box = inst_re.array_box.merge(inst_div.array_box)
         bnd_box = inst_re.bound_box.merge(inst_div.bound_box)
-        top_layer = div_master.top_layer
+        top_layer = div_master.conn_layer + 3
         self.set_size_from_bound_box(top_layer, bnd_box)
 
+        # connect/export pins
         clkp = inst_re.get_all_port_pins('clkp')
         clkn = inst_re.get_all_port_pins('clkn')
         if re_dummy:
@@ -1282,12 +1288,24 @@ class DividerGroup(TemplateBase):
             self.connect_wires(clkn)
             self.reexport(inst_div.get_port('en'), net_name='en2', show=show_pins)
             self.reexport(inst_div.get_port('clk'), net_name='clkp', show=show_pins)
+            self.reexport(inst_div.get_port('clkb'), net_name='clkn', show=show_pins)
         else:
             self.connect_wires([inst_re.get_pin('en3'), inst_div.get_pin('en_vm')])
 
+            # NOTE: we flip clkp/clkn tracks
+            clkp_idx, clk_w = div_tr_info['clkn']
+            clkn_idx, _ = div_tr_info['clkp']
+            clkp_idx = inst_re.translate_master_track(top_layer, clkp_idx)
+            clkn_idx = inst_re.translate_master_track(top_layer, clkn_idx)
+            clkp, clkn = self.connect_differential_tracks(clkp, clkn, top_layer, clkp_idx,
+                                                          clkn_idx, width=clk_w)
+            self.add_pin('clkp', clkp, show=show_pins)
+            self.add_pin('clkn', clkn, show=show_pins)
+            self.add_pin('clkn', inst_div.get_pin('clk'), show=show_pins)
+            self.add_pin('clkp', inst_div.get_pin('clkb'), show=show_pins)
+
             for name in ['in', 'en2']:
                 self.reexport(inst_re.get_port(name), show=show_pins)
-            self.reexport(inst_div.get_port('clk'), net_name='clkn', show=show_pins)
 
         for name in ['scan_s', 'q', 'qb']:
             self.reexport(inst_div.get_port(name), show=show_pins)
