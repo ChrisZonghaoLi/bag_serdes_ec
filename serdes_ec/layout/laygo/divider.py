@@ -1179,6 +1179,7 @@ class DividerGroup(TemplateBase):
             laygo_edgel='If not None, abut on left edge.',
             laygo_edger='If not None, abut on right edge.',
             clk_inverted='True if the clock tracks are inverted.',
+            re_dummy='True to connect retimer as dummy.',
             show_pins='True to draw pin geometries.',
         )
 
@@ -1189,6 +1190,7 @@ class DividerGroup(TemplateBase):
             laygo_edgel=None,
             laygo_edger=None,
             clk_inverted=False,
+            re_dummy=False,
             show_pins=True,
         )
 
@@ -1202,6 +1204,7 @@ class DividerGroup(TemplateBase):
         laygo_edgel = self.params['laygo_edgel']
         laygo_edger = self.params['laygo_edger']
         clk_inverted = self.params['clk_inverted']
+        re_dummy = self.params['re_dummy']
         show_pins = self.params['show_pins']
 
         # create masters
@@ -1239,15 +1242,29 @@ class DividerGroup(TemplateBase):
         top_layer = div_master.top_layer
         self.set_size_from_bound_box(top_layer, bnd_box)
 
+        clkp = inst_re.get_all_port_pins('clkp')
+        clkn = inst_re.get_all_port_pins('clkn')
+        if re_dummy:
+            clkp.extend(inst_re.port_pins_iter('VSS_vm'))
+            clkp.append(inst_re.get_pin('in'))
+            clkn.extend(inst_re.port_pins_iter('VDD_vm'))
+            self.connect_wires(clkp)
+            self.connect_wires(clkn)
+            self.reexport(inst_div.get_port('en'), net_name='en2', show=show_pins)
+            self.reexport(inst_div.get_port('clk'), net_name='clkp', show=show_pins)
+        else:
+            self.connect_wires([inst_re.get_pin('en3'), inst_div.get_pin('en_vm')])
+
+            for name in ['in', 'en2']:
+                self.reexport(inst_re.get_port(name), show=show_pins)
+            self.reexport(inst_div.get_port('clk'), net_name='clkn', show=show_pins)
+
+        for name in ['scan_s', 'q', 'qb']:
+            self.reexport(inst_div.get_port(name), show=show_pins)
         # export pins
-        for name in ['VDD', 'VSS', 'clkp', 'clkn']:
+        for name in ['VDD', 'VSS']:
             warrs = list(chain(inst_re.port_pins_iter(name), inst_div.port_pins_iter(name)))
             self.add_pin(name, warrs, label=name + ':', show=show_pins)
-
-        for name in ['en', 'scan_s', 'q', 'qb', 'en_vm']:
-            self.reexport(inst_div.get_port(name), show=show_pins)
-        for name in ['in', 'en3', 'en2']:
-            self.reexport(inst_re.get_port(name), show=show_pins)
 
         div_sch_params = div_master.sch_params
         self._sch_params = dict(
