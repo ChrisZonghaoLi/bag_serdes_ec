@@ -11,6 +11,7 @@ from bag.layout.routing.base import TrackManager, TrackID
 
 from abs_templates_ec.analog_core.base import AnalogBaseEnd
 
+from ..laygo.divider import DividerGroup
 from .amp import IntegAmp
 from .sampler import DividerColumn
 
@@ -350,6 +351,7 @@ class TapXSummer(TemplateBase):
         self._sup_tids = None
         self._sup_y_mid = None
         self._row_heights = None
+        self._div_grp_loc = None
 
     @property
     def sch_params(self):
@@ -420,6 +422,11 @@ class TapXSummer(TemplateBase):
     def row_heights(self):
         # type: () -> Tuple[int, int]
         return self._row_heights
+
+    @property
+    def div_grp_loc(self):
+        # type: () -> Tuple[int, int]
+        return self._div_grp_loc
 
     @classmethod
     def get_params_info(cls):
@@ -541,6 +548,9 @@ class TapXSummer(TemplateBase):
                                  fg_dum, route_locs, sig_types, sig_names, sig_right, vm_w_out,
                                  blk_idx_intv, place_info, True, 'd', 2, 0, vdd_list, vss_list)
         gm_master, gm_inst, place_info = tmp
+        gm_arr_box = gm_inst.array_box
+        self._div_grp_loc = (gm_inst.location_unit[0], gm_arr_box.top_unit)
+
         self._fg_tot += gm_master.fg_tot
         self._fg_tot_dfe2 = gm_master.fg_tot
         self._blockage_intvs = blk_intvs
@@ -549,7 +559,7 @@ class TapXSummer(TemplateBase):
         # set size
         inst_first = ffe_insts[-1]
         bnd_box = inst_first.bound_box.merge(gm_inst.bound_box)
-        self.array_box = inst_first.array_box.merge(gm_inst.array_box)
+        self.array_box = inst_first.array_box.merge(gm_arr_box)
         self.set_size_from_bound_box(hm_layer, bnd_box)
         self.add_cell_boundary(bnd_box)
 
@@ -977,7 +987,6 @@ class TapXColumn(TemplateBase):
             seg_dfe_list='list of segment dictionaries for DFE latches.',
             flip_sign_list='list of flip_sign values for summer taps.',
             seg_div='number of segments dictionary for clock divider.',
-            seg_pul='number of segments dictionary for pulse generation.',
             fg_dum='Number of single-sided edge dummy fingers.',
             tr_widths='Track width dictionary.',
             tr_spaces='Track spacing dictionary.',
@@ -999,11 +1008,8 @@ class TapXColumn(TemplateBase):
 
     def draw_layout(self):
         # get parameters
-        config = self.params['config']
-        seg_div = self.params['seg_div']
         tr_widths = self.params['tr_widths']
         tr_spaces = self.params['tr_spaces']
-        options = self.params['options']
         show_pins = self.params['show_pins']
         export_probe = self.params['export_probe']
 
@@ -1011,77 +1017,53 @@ class TapXColumn(TemplateBase):
         num_dfe = len(self.params['seg_dfe_list']) + 1
 
         # make masters
-        div_row_params = self.params.copy()
-        div_row_params['seg_pul'] = None
-        div_row_params['div_pos_edge'] = False
-        div_row_params['show_pins'] = False
-
-        div3_master = self.new_template(params=div_row_params, temp_cls=TapXSummer)
-        fg_min_last = div3_master.fg_core_last
-
-        end_params = self.params.copy()
-        end_params['seg_div'] = None
-        end_params['fg_min_last'] = fg_min_last
-        end_params['show_pins'] = False
-
-        endb_master = self.new_template(params=end_params, temp_cls=TapXSummer)
-        if endb_master.fg_core_last > fg_min_last:
-            fg_min_last = endb_master.fg_core_last
-            div3_master = div3_master.new_template_with(fg_min_last=fg_min_last)
-
-        div2_master = div3_master.new_template_with(div_pos_edge=True)
-        endt_master = endb_master.new_template_with(seg_pul=None)
-
-        div_col_params = dict(config=config, sum_row_info=div3_master.sum_row_info,
-                              lat_row_info=div3_master.lat_row_info, seg_dict=seg_div,
-                              tr_widths=tr_widths, tr_spaces=tr_spaces,
-                              div_tr_info=div3_master.div_tr_info, sup_tids=div3_master.sup_tids,
-                              options=options, right_edge_info=div3_master.left_edge_info,
-                              clk_inverted=True, show_pins=False)
-        div_col_master = self.new_template(params=div_col_params, temp_cls=DividerColumn)
-
-        vm_layer = endt_master.top_layer
-        end_row_params = dict(
-            lch=self.params['lch'],
-            fg=endb_master.fg_tot + div_col_master.fg_tot,
-            sub_type='ptap',
-            threshold=self.params['th_lat']['tail'],
-            top_layer=vm_layer,
-            end_mode=0b11,
-            guard_ring_nf=0,
-            options=self.params['options'],
-        )
-        end_row_master = self.new_template(params=end_row_params, temp_cls=AnalogBaseEnd)
+        sum_master, div3_master, div2_master, div_col_master, end_row_master = self._make_masters()
+        ym_layer = sum_master.top_layer
         end_row_box = end_row_master.array_box
+        sum_arr_box = sum_master.array_box
 
-        blk_w = self.grid.get_block_size(vm_layer, unit_mode=True)[0]
+        # place instances
+        blk_w = self.grid.get_block_size(ym_layer, unit_mode=True)[0]
         x0 = -(-div_col_master.array_box.right_unit // blk_w) * blk_w
         xdiv = x0 - div_col_master.array_box.right_unit
-        # place instances
+
         bot_row = self.add_instance(end_row_master, 'XROWB', loc=(xdiv, 0), unit_mode=True)
         y0 = end_row_box.top_unit
         div_inst = self.add_instance(div_col_master, 'XDIV', loc=(xdiv, y0), unit_mode=True)
-        inst3 = self.add_instance(endb_master, 'X3', loc=(x0, y0), unit_mode=True)
-        y1 = y0 + endb_master.array_box.top_unit
-        y2 = y1 + div3_master.array_box.top_unit
-        inst0 = self.add_instance(div3_master, 'X0', loc=(x0, y2), orient='MX', unit_mode=True)
-        inst2 = self.add_instance(div2_master, 'X2', loc=(x0, y2), unit_mode=True)
-        y3 = y2 + div2_master.array_box.top_unit
-        y4 = y3 + endt_master.array_box.top_unit
-        inst1 = self.add_instance(endt_master, 'X1', loc=(x0, y4), orient='MX', unit_mode=True)
+        inst3 = self.add_instance(sum_master, 'X3', loc=(x0, y0), unit_mode=True)
+        y1 = y0 + sum_arr_box.top_unit
+        y2 = y1 + sum_arr_box.top_unit
+        inst0 = self.add_instance(sum_master, 'X0', loc=(x0, y2), orient='MX', unit_mode=True)
+        inst2 = self.add_instance(sum_master, 'X2', loc=(x0, y2), unit_mode=True)
+        y3 = y2 + sum_arr_box.top_unit
+        y4 = y3 + sum_arr_box.top_unit
+        inst1 = self.add_instance(sum_master, 'X1', loc=(x0, y4), orient='MX', unit_mode=True)
         y5 = y4 + end_row_box.top_unit
         top_row = self.add_instance(end_row_master, 'XROWT', loc=(xdiv, y5), orient='MX',
                                     unit_mode=True)
         inst_list = [inst0, inst1, inst2, inst3]
-        self._sup_y_list = [y0, endb_master.sup_y_mid + y0, y1, y2 - div3_master.sup_y_mid,
-                            y2, y2 + div2_master.sup_y_mid, y3, y4 - endt_master.sup_y_mid,
-                            y4]
+        sup_y_mid = sum_master.sup_y_mid
+        self._sup_y_list = [y0, sup_y_mid + y0, y1, y2 - sup_y_mid, y2,
+                            y2 + sup_y_mid, y3, y4 - sup_y_mid, y4]
+
+        div_grp_x0, div_grp_y0 = sum_master.div_grp_loc
+        div_grp_x = x0 + div_grp_x0
+        div_grp_y3 = y0 + div_grp_y0
+        div_grp_y2 = y4 - div_grp_y0
+        div3_inst = self.add_instance(div3_master, 'XDIV3', loc=(div_grp_x, div_grp_y3),
+                                      unit_mode=True)
+        div2_inst = self.add_instance(div2_master, 'XDIV2', loc=(div_grp_x, div_grp_y2),
+                                      orient='MX', unit_mode=True)
 
         # re-export supply pins
-        vdd_list = list(chain(*(inst.port_pins_iter('VDD') for inst in inst_list)))
-        vss_list = list(chain(*(inst.port_pins_iter('VSS') for inst in inst_list)))
-        vdd_list.extend(div_inst.port_pins_iter('VDD'))
-        vss_list.extend(div_inst.port_pins_iter('VSS'))
+        vdd_list = list(chain(div3_inst.port_pins_iter('VDD'),
+                              div2_inst.port_pins_iter('VDD'),
+                              div_inst.port_pins_iter('VDD'),
+                              *(inst.port_pins_iter('VDD') for inst in inst_list)))
+        vss_list = list(chain(div3_inst.port_pins_iter('VSS'),
+                              div2_inst.port_pins_iter('VSS'),
+                              div_inst.port_pins_iter('VSS'),
+                              *(inst.port_pins_iter('VSS') for inst in inst_list)))
         self.add_pin('VDD', self.connect_wires(vdd_list), label='VDD', show=show_pins)
         self.add_pin('VSS', self.connect_wires(vss_list), label='VSS', show=show_pins)
 
@@ -1095,11 +1077,11 @@ class TapXColumn(TemplateBase):
             self.reexport(inst.get_port('outn_s'), net_name='outn<%d>' % nidx, show=show_pins)
 
         # connect DFE/FFE signals
-        ffe_track_info = endb_master.ffe_track_info
-        dfe_track_info = endb_master.dfe_track_info
-        vm_w_out = tr_manager.get_width(vm_layer, 'out')
-        tr0 = self.grid.coord_to_track(vm_layer, x0, unit_mode=True) + 0.5
-        tmp = self._connect_signals(tr0, num_ffe, ffe_track_info, inst_list, vm_layer,
+        ffe_track_info = sum_master.ffe_track_info
+        dfe_track_info = sum_master.dfe_track_info
+        vm_w_out = tr_manager.get_width(ym_layer, 'out')
+        tr0 = self.grid.coord_to_track(ym_layer, x0, unit_mode=True) + 0.5
+        tmp = self._connect_signals(tr0, num_ffe, ffe_track_info, inst_list, ym_layer,
                                     vm_w_out, 'a', sig_off=0, is_ffe=True)
         inp_warrs = []
         inn_warrs = []
@@ -1107,29 +1089,29 @@ class TapXColumn(TemplateBase):
             inp_warrs.extend(warrp)
             inn_warrs.extend(warrn)
 
-        tmp = self._connect_signals(tr0, num_dfe, dfe_track_info, inst_list, vm_layer,
+        tmp = self._connect_signals(tr0, num_dfe, dfe_track_info, inst_list, ym_layer,
                                     vm_w_out, 'd', sig_off=2, is_ffe=False)
         for cidx, (warrp, warrn) in enumerate(zip(*tmp)):
             self.add_pin('inp_d<%d>' % cidx, warrp, show=show_pins)
             self.add_pin('inn_d<%d>' % cidx, warrn, show=show_pins)
 
         # connect FFE biases/clks
-        tmp = self._connect_ffe(tr0, tr_manager, vm_layer, num_ffe, ffe_track_info,
+        tmp = self._connect_ffe(tr0, tr_manager, ym_layer, num_ffe, ffe_track_info,
                                 inst_list, show_pins)
         clkp_list, clkn_list, nclkp_list, nclkn_list = tmp
         # connect DFE biases/clks
-        self._connect_dfe(tr0, tr_manager, vm_layer, num_dfe, dfe_track_info, inst_list, clkp_list,
+        self._connect_dfe(tr0, tr_manager, ym_layer, num_dfe, dfe_track_info, inst_list, clkp_list,
                           clkn_list, show_pins)
         # connect divider signals
-        en_list = self._connect_div(tr0, tr_manager, vm_layer, dfe_track_info, inst_list,
-                                    show_pins, export_probe)
+        en_list = self._connect_div(tr0, tr_manager, ym_layer, dfe_track_info, inst_list, div3_inst,
+                                    div2_inst, show_pins, export_probe)
 
         # connect shields
         sh_lower, sh_upper = None, None
         vm_vss_list, vm_vdd_list = [], []
         for tr_idx in chain(ffe_track_info['VSS'], dfe_track_info['VSS']):
             cur_tidx = tr_idx + tr0
-            warr = self.connect_to_tracks(vss_list, TrackID(vm_layer, cur_tidx))
+            warr = self.connect_to_tracks(vss_list, TrackID(ym_layer, cur_tidx))
             if sh_lower is None:
                 sh_lower = warr.lower_unit
                 sh_upper = warr.upper_unit
@@ -1137,9 +1119,9 @@ class TapXColumn(TemplateBase):
 
         bnd_xr = 0
         for tr_idx in chain(ffe_track_info['VDD'], dfe_track_info['VDD']):
-            cur_xr = self.grid.track_to_coord(vm_layer, tr_idx + tr0 + 0.5, unit_mode=True)
+            cur_xr = self.grid.track_to_coord(ym_layer, tr_idx + tr0 + 0.5, unit_mode=True)
             bnd_xr = max(cur_xr, bnd_xr)
-            warr = self.connect_to_tracks(vdd_list, TrackID(vm_layer, tr_idx + tr0),
+            warr = self.connect_to_tracks(vdd_list, TrackID(ym_layer, tr_idx + tr0),
                                           track_lower=sh_lower, track_upper=sh_upper,
                                           unit_mode=True)
             vm_vdd_list.append(warr)
@@ -1147,26 +1129,26 @@ class TapXColumn(TemplateBase):
         self.add_pin('VSS', vm_vss_list, show=show_pins)
 
         # set size
-        blk_w = self.grid.get_block_size(vm_layer, unit_mode=True)[0]
+        blk_w = self.grid.get_block_size(ym_layer, unit_mode=True)[0]
         bnd_box = bot_row.bound_box.merge(top_row.bound_box).extend()
         bnd_xr = -(-max(bnd_box.right_unit, bnd_xr) // blk_w) * blk_w
         bnd_box = bnd_box.extend(x=bnd_xr, unit_mode=True).extend(x=0, unit_mode=True)
-        self.set_size_from_bound_box(vm_layer, bnd_box)
+        self.set_size_from_bound_box(ym_layer, bnd_box)
         self.array_box = bnd_box
         self.add_cell_boundary(bnd_box)
         # add/record blockage
         self._blockage_intvs = []
-        for xbl, xbr in endb_master.blockage_intvs:
+        for xbl, xbr in sum_master.blockage_intvs:
             blk_box = bnd_box.with_interval('x', xbl + x0, xbr + x0, unit_mode=True)
             self._blockage_intvs.append((xbl + x0, xbr + x0))
-            self.mark_bbox_used(vm_layer, blk_box)
+            self.mark_bbox_used(ym_layer, blk_box)
 
         # connect divider column
         clkp_list.extend(nclkp_list)
         clkn_list.extend(nclkn_list)
-        right_vdd_tidx = self.grid.find_next_track(vm_layer, x0, half_track=True,
+        right_vdd_tidx = self.grid.find_next_track(ym_layer, x0, half_track=True,
                                                    mode=-1, unit_mode=True)
-        self._connect_div_column(tr_manager, vm_layer, div_inst, right_vdd_tidx, clkp_list,
+        self._connect_div_column(tr_manager, ym_layer, div_inst, right_vdd_tidx, clkp_list,
                                  clkn_list, en_list, vdd_list, vss_list, inp_warrs, inn_warrs,
                                  sh_lower, sh_upper, inst0, inst2, show_pins)
 
@@ -1175,17 +1157,17 @@ class TapXColumn(TemplateBase):
             div_params=div_col_master.sch_params,
             ffe_params_list=div3_master.sch_params['ffe_params_list'],
             dfe_params_list=div3_master.sch_params['dfe_params_list'],
-            dfe2_params=endb_master.sch_params['dfe2_params'],
+            dfe2_params=sum_master.sch_params['dfe2_params'],
             export_probe=export_probe,
         )
-        self._vss_tids = endb_master.vss_tids
-        self._vdd_tids = endb_master.vdd_tids
-        outp_s = endb_master.get_port('outp_s').get_pins()[0]
-        outn_s = endb_master.get_port('outn_s').get_pins()[0]
+        self._vss_tids = sum_master.vss_tids
+        self._vdd_tids = sum_master.vdd_tids
+        outp_s = sum_master.get_port('outp_s').get_pins()[0]
+        outn_s = sum_master.get_port('outn_s').get_pins()[0]
         self._out_tr_info = (outp_s.track_id.base_index, outn_s.track_id.base_index,
                              outp_s.track_id.width)
-        self._row_heights = endb_master.row_heights
-        self._sup_tids = endb_master.sup_tids
+        self._row_heights = sum_master.row_heights
+        self._sup_tids = sum_master.sup_tids
         self._num_dfe = num_dfe + 1
         self._num_ffe = num_ffe - 1
 
@@ -1369,22 +1351,20 @@ class TapXColumn(TemplateBase):
         self.add_pin('bias_d<1>', wp, show=show_pins, edge_mode=1)
         self.add_pin('bias_d<2>', wn, show=show_pins, edge_mode=1)
 
-    def _connect_div(self, tr0, tr_manager, vm_layer, track_info, inst_list,
+    def _connect_div(self, tr0, tr_manager, vm_layer, track_info, inst_list, div3, div2,
                      show_pins, export_probe):
         vm_w_clk = tr_manager.get_width(vm_layer, 'clk')
 
         # connect scan/enable signals
-        div_warrs = [None, None, None, None]
-        for inst, pidx, mlm in ((inst_list[2], 2, 1), (inst_list[0], 3, -1)):
-            suf = '<%d>' % pidx
-            for name in ('scan_div', 'en_div'):
-                warr = inst.get_pin(name)
-                tr = track_info[name][0] + tr0
-                warr = self.connect_to_tracks(warr, TrackID(vm_layer, tr), min_len_mode=mlm)
-                port_name = name + suf
-                self.add_pin(port_name, warr, label=port_name + ':', show=show_pins)
-            div_warrs[pidx] = inst.get_pin('div')
-            div_warrs[pidx - 2] = inst.get_pin('divb')
+        div_warrs = [div2.get_pin('qb'), div3.get_pin('qb'),
+                     div2.get_pin('q'), div3.get_pin('q')]
+        tr = track_info['scan_div'][0] + tr0
+        warr = self.connect_to_tracks(div3.get_pin('scan_s'), TrackID(vm_layer, tr),
+                                      min_len_mode=-1)
+        self.add_pin('scan_div<3>', warr, label='scan_div<3>:', show=show_pins)
+        warr = self.connect_to_tracks(div2.get_pin('scan_s'), TrackID(vm_layer, tr),
+                                      min_len_mode=-1)
+        self.add_pin('scan_div<2>', warr, label='scan_div<2>:', show=show_pins)
 
         # connect enable clocks
         en_warrs = [[], [], [], []]
@@ -1477,3 +1457,61 @@ class TapXColumn(TemplateBase):
                                              trp, trn, width=vm_width)
 
         return inp_list, inn_list
+
+    def _make_masters(self):
+        # get parameters
+        config = self.params['config']
+        seg_div = self.params['seg_div']
+        tr_widths = self.params['tr_widths']
+        tr_spaces = self.params['tr_spaces']
+        options = self.params['options']
+
+        fg_dig = DividerGroup.get_num_col(seg_div, 1)
+        sum_params = self.params.copy()
+        sum_params['fg_dig'] = fg_dig
+        sum_params['show_pins'] = False
+        sum_master = self.new_template(params=sum_params, temp_cls=TapXSummer)
+        fg_tot_dfe2 = sum_master.fg_tot_dfe2
+        ledge_info, redge_info = sum_master.lr_edge_info
+
+        div_params = dict(
+            config=config,
+            lat_row_info=sum_master.lat_row_info,
+            seg_dict=seg_div,
+            tr_widths=tr_widths,
+            tr_spaces=tr_spaces,
+            div_tr_info=sum_master.div_tr_info,
+            re_out_type='out',
+            re_in_type='foot',
+            laygo_edgel=redge_info,
+            re_dummy=False,
+            fg_min=fg_tot_dfe2,
+            show_pins=False,
+        )
+        div3_master = self.new_template(params=div_params, temp_cls=DividerGroup)
+        div_params['re_dummy'] = True
+        div_params['clk_inverted'] = True
+        div2_master = self.new_template(params=div_params, temp_cls=DividerGroup)
+
+        div_col_params = dict(config=config, sum_row_info=sum_master.sum_row_info,
+                              lat_row_info=sum_master.lat_row_info, seg_dict=seg_div,
+                              tr_widths=tr_widths, tr_spaces=tr_spaces,
+                              div_tr_info=sum_master.div_tr_info,
+                              sup_tids=sum_master.sup_tids, options=options,
+                              right_edge_info=ledge_info, clk_inverted=True, show_pins=False)
+        div_col_master = self.new_template(params=div_col_params, temp_cls=DividerColumn)
+
+        ym_layer = sum_master.top_layer
+        end_row_params = dict(
+            lch=self.params['lch'],
+            fg=sum_master.fg_tot + div_col_master.fg_tot,
+            sub_type='ptap',
+            threshold=self.params['th_lat']['tail'],
+            top_layer=ym_layer,
+            end_mode=0b11,
+            guard_ring_nf=0,
+            options=self.params['options'],
+        )
+        end_row_master = self.new_template(params=end_row_params, temp_cls=AnalogBaseEnd)
+
+        return sum_master, div3_master, div2_master, div_col_master, end_row_master

@@ -1219,6 +1219,7 @@ class DividerGroup(TemplateBase):
             laygo_edger='If not None, abut on right edge.',
             clk_inverted='True if the clock tracks are inverted.',
             re_dummy='True to connect retimer as dummy.',
+            fg_min='Minimum number of fingers.',
             show_pins='True to draw pin geometries.',
         )
 
@@ -1230,6 +1231,7 @@ class DividerGroup(TemplateBase):
             laygo_edger=None,
             clk_inverted=False,
             re_dummy=False,
+            fg_min=None,
             show_pins=True,
         )
 
@@ -1252,6 +1254,7 @@ class DividerGroup(TemplateBase):
         laygo_edger = self.params['laygo_edger']
         clk_inverted = self.params['clk_inverted']
         re_dummy = self.params['re_dummy']
+        fg_min = self.params['fg_min']
         show_pins = self.params['show_pins']
 
         # create masters
@@ -1265,7 +1268,7 @@ class DividerGroup(TemplateBase):
             abut_mode |= 2
 
         params = dict(config=config, row_layout_info=lat_row_info, seg_dict=seg_dict,
-                      tr_widths=tr_widths, tr_spaces=tr_spaces, tr_info=div_tr_info, fg_min=0,
+                      tr_widths=tr_widths, tr_spaces=tr_spaces, tr_info=div_tr_info, fg_min=fg_min,
                       end_mode=end_mode, abut_mode=abut_mode, div_pos_edge=clk_inverted,
                       laygo_edgel=laygo_edgel, laygo_edger=laygo_edger, show_pins=False)
         re_master = self.new_template(params=params, temp_cls=EnableRetimer)
