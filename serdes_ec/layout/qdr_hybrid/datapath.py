@@ -4,6 +4,7 @@
 
 from typing import TYPE_CHECKING, Dict, Any, Set, Tuple, List
 
+from bag.layout.util import BBox
 from bag.layout.template import TemplateBase
 
 from .tapx import TapXColumn
@@ -180,6 +181,8 @@ class RXDatapath(TemplateBase):
 
         self._connect_supplies(tapx, tap1, offset, offlev, samp, show_pins)
 
+        self._do_dummy_fill(top_layer, tapx, tap1, offset, offlev, samp)
+
         self._sch_params = dict(
             tapx_params=master_tapx.sch_params,
             off_params=master_offset.sch_params,
@@ -190,6 +193,26 @@ class RXDatapath(TemplateBase):
         self._num_ffe = master_tapx.num_ffe
         self._num_dfe = master_tapx.num_dfe
         self._sup_y_list = master_tapx.sup_y_list
+
+    def _do_dummy_fill(self, top_layer, tapx, tap1, offset, offlev, samp):
+        res = self.grid.resolution
+
+        tapx_box = tapx.fill_box
+        off_box = offset.fill_box
+        tap1_box = tap1.fill_box
+        lev_box = offlev.fill_box
+        samp_box = samp.fill_box
+        yb = tapx_box.bottom_unit
+        yt = tapx_box.top_unit
+        box1 = BBox(tapx_box.right_unit, yb, off_box.left_unit, yt, res, unit_mode=True)
+        box2 = BBox(tap1_box.right_unit, yb, lev_box.left_unit, yt, res, unit_mode=True)
+
+        hm_layer = top_layer - 1
+        for layer in range(1, hm_layer):
+            self.do_max_space_fill(layer, bound_box=box1)
+            self.do_max_space_fill(layer, bound_box=box2)
+
+        self.fill_box = tapx_box.merge(samp_box)
 
     def _connect_supplies(self, tapx, tap1, offset, offlev, samp, show_pins):
         fill_w = self.params['fill_w']
