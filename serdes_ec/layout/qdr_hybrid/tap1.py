@@ -182,6 +182,10 @@ class Tap1SummerRow(HybridQDRBase):
         self.add_pin('VSS', vss_warrs, show=show_pins)
         self.add_pin('VDD', vdd_warrs, show=show_pins)
 
+        # do max space fill
+        for lay_id in range(1, hm_layer):
+            self.do_max_space_fill(lay_id)
+
         # set properties
         self._sch_params = dict(
             lch=lch,
