@@ -135,10 +135,11 @@ class HighPassColumn(TemplateBase):
             ycur += end_row_box.top_unit
             top_inst = self.add_instance(end_master, 'XROWT', loc=(0, ycur), orient='MX',
                                          unit_mode=True)
+            self.fill_box = inst_list[0].bound_box.merge(inst_list[-1].bound_box)
             bound_box = bot_inst.bound_box.merge(top_inst.bound_box)
         else:
             _, inst_list = self._place_instances(0, master0, master1)
-            bound_box = inst_list[0].bound_box.merge(inst_list[-1].bound_box)
+            self.fill_box = bound_box = inst_list[0].bound_box.merge(inst_list[-1].bound_box)
 
         vdd_list = []
         vss_list = []
