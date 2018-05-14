@@ -316,11 +316,14 @@ class DividerColumn(TemplateBase):
 
         top_layer = div3_master.top_layer
         if draw_end_row:
+            end_sub_type = 'ntap' if add_dummy else 'ptap'
+            end_thres = lat_row_info['row_prop_list'][-1]['threshold'] if add_dummy else \
+                sum_row_info['row_prop_list'][0]['threshold']
             end_row_params = dict(
                 lch=config['lch'],
                 fg=self._fg_tot,
-                sub_type='ptap',
-                threshold=sum_row_info['row_prop_list'][0]['threshold'],
+                sub_type=end_sub_type,
+                threshold=end_thres,
                 top_layer=sum_row_info['top_layer'],
                 end_mode=0b11,
                 guard_ring_nf=0,
