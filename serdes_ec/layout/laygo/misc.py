@@ -117,6 +117,11 @@ class LaygoDummy(LaygoBase):
         self.add_pin('VDD', vdd, show=show_pins)
         self.add_pin('VSS', vss, show=show_pins)
 
+        # do max space fill
+        for lay_id in range(1, xm_layer):
+            self.do_max_space_fill(lay_id)
+        self.fill_box = self.bound_box
+
     def _draw_substrate(self, col_start, col_stop, num_col):
         if col_start > 0:
             self.add_laygo_mos(0, 0, col_start)

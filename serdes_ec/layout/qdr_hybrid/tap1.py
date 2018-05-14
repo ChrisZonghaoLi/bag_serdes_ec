@@ -185,6 +185,7 @@ class Tap1SummerRow(HybridQDRBase):
         # do max space fill
         for lay_id in range(1, hm_layer):
             self.do_max_space_fill(lay_id)
+        self.fill_box = self.bound_box
 
         # set properties
         self._sch_params = dict(
@@ -338,7 +339,7 @@ class Tap1Summer(TemplateBase):
 
         # set size
         self.array_box = m_arr_box.extend(y=l_inst.array_box.top_unit, unit_mode=True)
-        bnd_box = m_bnd_box.extend(y=l_inst.bound_box.top_unit, unit_mode=True)
+        self.fill_box = bnd_box = m_bnd_box.extend(y=l_inst.bound_box.top_unit, unit_mode=True)
         self.set_size_from_bound_box(top_layer, bnd_box)
         self.add_cell_boundary(bnd_box)
 
@@ -591,6 +592,7 @@ class Tap1Column(TemplateBase):
         top_row = self.add_instance(end_row_master, 'XROWT', loc=(0, ycur), orient='MX',
                                     unit_mode=True)
         inst_list = [inst0, inst1, inst2, inst3]
+        self.fill_box = inst1.fill_box.merge(inst3.fill_box)
 
         div_grp_x0, div_grp_y0 = sum_master.div_grp_loc
         div_grp_x = div_grp_x0 - div3_master.array_box.left_unit

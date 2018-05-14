@@ -1359,6 +1359,7 @@ class DividerGroup(TemplateBase):
         # do max space fill
         for lay_id in range(1, top_layer):
             self.do_max_space_fill(lay_id)
+        self.fill_box = self.bound_box
 
         div_sch_params = div_master.sch_params
         self._sch_params = dict(

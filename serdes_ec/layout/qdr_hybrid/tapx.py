@@ -238,7 +238,8 @@ class TapXSummerCell(TemplateBase):
 
         # set size
         self.array_box = s_inst.array_box.merge(d_inst.array_box)
-        self.set_size_from_bound_box(s_master.top_layer, s_inst.bound_box.merge(d_inst.bound_box))
+        self.fill_box = bnd_box = s_inst.bound_box.merge(d_inst.bound_box)
+        self.set_size_from_bound_box(s_master.top_layer, bnd_box)
 
         # export pins in-place
         exp_list = [(s_inst, 'clkp', 'clkn', True), (s_inst, 'clkn', 'clkp', True),
@@ -568,7 +569,7 @@ class TapXSummer(TemplateBase):
         # set size
         inst_first = ffe_insts[-1]
         blk_w = self.grid.get_block_size(ym_layer, unit_mode=True)[0]
-        bnd_box = inst_first.bound_box.merge(gm_inst.bound_box)
+        self.fill_box = bnd_box = inst_first.bound_box.merge(gm_inst.bound_box)
         tot_w = -(-bnd_box.width_unit // blk_w) * blk_w
         bnd_box = bnd_box.extend(x=tot_w, unit_mode=True)
         self.array_box = inst_first.array_box.merge(gm_arr_box)
@@ -1055,6 +1056,7 @@ class TapXColumn(TemplateBase):
         top_row = self.add_instance(end_row_master, 'XROWT', loc=(xdiv, y5), orient='MX',
                                     unit_mode=True)
         inst_list = [inst0, inst1, inst2, inst3]
+        self.fill_box = div_inst.fill_box.merge(inst3.fill_box)
         sup_y_mid = sum_master.sup_y_mid
         self._sup_y_list = [y0, sup_y_mid + y0, y1, y2 - sup_y_mid, y2,
                             y2 + sup_y_mid, y3, y4 - sup_y_mid, y4]

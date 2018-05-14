@@ -343,13 +343,19 @@ class DividerColumn(TemplateBase):
         vss_list = []
         bayt = dums_master.array_box.top_unit
         tayt = div3_master.array_box.top_unit
+        fill_box = BBox.get_invalid_bbox()
         if add_dummy:
             inst = self.add_instance(dums_master, 'XDUM0', loc=(0, ycur), unit_mode=True)
-            bnd_box = bnd_box.merge(inst.bound_box)
+            inst_box = inst.bound_box
+            bnd_box = bnd_box.merge(inst_box)
+            fill_box = fill_box.merge(inst_box)
             vdd_list.extend(inst.port_pins_iter('VDD'))
             vss_list.extend(inst.port_pins_iter('VSS'))
             ycur += bayt
         div3_inst = self.add_instance(div3_master, 'XDIV3', loc=(0, ycur), unit_mode=True)
+        inst_box = div3_inst.bound_box
+        bnd_box = bnd_box.merge(inst_box)
+        fill_box = fill_box.merge(inst_box)
         vdd_list.extend(div3_inst.port_pins_iter('VDD'))
         vss_list.extend(div3_inst.port_pins_iter('VSS'))
         ycur += tayt
@@ -366,13 +372,18 @@ class DividerColumn(TemplateBase):
         ycur += tayt
         div2_inst = self.add_instance(div2_master, 'XDIV2', loc=(0, ycur), orient='MX',
                                       unit_mode=True)
+        inst_box = div2_inst.bound_box
+        bnd_box = bnd_box.merge(inst_box)
+        fill_box = fill_box.merge(inst_box)
         vdd_list.extend(div2_inst.port_pins_iter('VDD'))
         vss_list.extend(div2_inst.port_pins_iter('VSS'))
         if add_dummy:
             ycur += bayt
             inst = self.add_instance(dums_master, 'XDUM3', loc=(0, ycur), orient='MX',
                                      unit_mode=True)
-            bnd_box = bnd_box.merge(inst.bound_box)
+            inst_box = inst.bound_box
+            bnd_box = bnd_box.merge(inst_box)
+            fill_box = fill_box.merge(inst_box)
             vdd_list.extend(inst.port_pins_iter('VDD'))
             vss_list.extend(inst.port_pins_iter('VSS'))
 
@@ -397,6 +408,7 @@ class DividerColumn(TemplateBase):
 
         # set size
         self.array_box = bnd_box
+        self.fill_box = fill_box
         self.set_size_from_bound_box(top_layer, bnd_box)
 
         # export pins
