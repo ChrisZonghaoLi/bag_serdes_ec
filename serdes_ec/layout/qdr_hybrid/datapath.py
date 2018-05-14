@@ -217,6 +217,8 @@ class RXDatapath(TemplateBase):
         vdd, vss = self.do_power_fill(vm_layer, fill_margin, sp_le, vdd_warrs=vdd_hm,
                                       vss_warrs=vss_hm, bound_box=bnd_box, fill_width=fill_w,
                                       fill_space=fill_sp, x_margin=x_margin, unit_mode=True)
+        self.connect_to_track_wires(samp.get_all_port_pins('VDD_o'), vdd)
+        self.connect_to_track_wires(samp.get_all_port_pins('VSS_o'), vss)
         vdd_vm_list.extend(vdd)
         vss_vm_list.extend(vss)
         self.add_pin('VDD', vdd_hm, show=show_pins)

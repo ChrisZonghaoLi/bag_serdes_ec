@@ -317,9 +317,9 @@ class DividerColumn(TemplateBase):
 
         top_layer = div3_master.top_layer
         if draw_end_row:
-            end_sub_type = 'ntap' if add_dummy else 'ptap'
-            end_thres = lat_row_info['row_prop_list'][-1]['threshold'] if add_dummy else \
-                sum_row_info['row_prop_list'][0]['threshold']
+            end_sub_type = 'ptap' if add_dummy else 'ntap'
+            end_thres = sum_row_info['row_prop_list'][0]['threshold'] if add_dummy else \
+                lat_row_info['row_prop_list'][-1]['threshold']
             end_row_params = dict(
                 lch=config['lch'],
                 fg=self._fg_tot,
@@ -1092,6 +1092,8 @@ class SamplerColumn(TemplateBase):
         self.connect_to_track_wires(re_vssl, vsso_list)
         self.add_pin('VDD', vdd_warrs, show=show_pins)
         self.add_pin('VSS', vss_warrs, show=show_pins)
+        self.add_pin('VDD_o', vddo_list, show=False)
+        self.add_pin('VSS_o', vsso_list, show=False)
         re_vddr.extend(re_vddl)
         re_vssr.extend(re_vssl)
         self.add_pin('VDD_re', WireArray.list_to_warr(re_vddr), label='VDD', show=False)
