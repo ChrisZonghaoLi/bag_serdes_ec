@@ -1356,6 +1356,10 @@ class DividerGroup(TemplateBase):
             warrs = list(chain(inst_re.port_pins_iter(name), inst_div.port_pins_iter(name)))
             self.add_pin(name, warrs, label=name + ':', show=show_pins)
 
+        # do max space fill
+        for lay_id in range(1, top_layer):
+            self.do_max_space_fill(lay_id)
+
         div_sch_params = div_master.sch_params
         self._sch_params = dict(
             lch=div_sch_params['lch'],
