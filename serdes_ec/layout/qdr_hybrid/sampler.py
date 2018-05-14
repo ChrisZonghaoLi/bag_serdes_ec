@@ -146,6 +146,7 @@ class SenseAmpColumn(TemplateBase):
         # set size
         self.array_box = bnd_box = bot_row.bound_box.merge(top_row.bound_box)
         self.set_size_from_bound_box(top_layer, bnd_box)
+        self.fill_box = inst_list[0].bound_box.merge(inst_list[-1].bound_box)
         bnd_yc = bnd_box.yc_unit
 
         # reexport pins
@@ -1035,6 +1036,7 @@ class SamplerColumn(TemplateBase):
         self.array_box = bnd_box = sa_inst.bound_box.extend(x=xr, unit_mode=True)
         self.set_size_from_bound_box(top_layer, bnd_box)
         self.add_cell_boundary(bnd_box)
+        self.fill_box = sa_inst.fill_box.merge(div_inst.fill_box)
 
         # connect senseamp outputs
         tr_w = tr_manager.get_width(vm_layer, 'out')

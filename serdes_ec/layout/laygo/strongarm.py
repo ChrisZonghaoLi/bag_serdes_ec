@@ -524,6 +524,11 @@ class SenseAmpStrongArm(LaygoBase):
                                                             width=tr_w_out_xm))
         self.add_pin('out', out_warr, show=show_pins)
 
+        # do max space fill
+        for lay_id in range(1, xm_layer):
+            self.do_max_space_fill(lay_id)
+        self.fill_box = self.bound_box
+
         # set schematic parameters
         self._sch_params = dict(
             lch=lch,
