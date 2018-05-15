@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Dict, Any, Set, Tuple, Union, List
 
 from itertools import chain
 
+from bag.layout.util import BBox
 from bag.layout.template import TemplateBase
 from bag.layout.routing.base import TrackManager, TrackID
 
@@ -567,10 +568,16 @@ class TapXSummer(TemplateBase):
         self._blockage_intvs.sort()
 
         # set size
+        res = self.grid.resolution
         inst_first = ffe_insts[-1]
         blk_w = self.grid.get_block_size(ym_layer, unit_mode=True)[0]
-        self.fill_box = bnd_box = inst_first.bound_box.merge(gm_inst.bound_box)
+        gm_bnd_box = gm_inst.bound_box
+        self.fill_box = bnd_box = inst_first.bound_box.merge(gm_bnd_box)
         tot_w = -(-bnd_box.width_unit // blk_w) * blk_w
+        top_box = BBox(bnd_box.left_unit, gm_bnd_box.top_unit, gm_bnd_box.left_unit,
+                       bnd_box.top_unit, res, unit_mode=True)
+        bot_box = BBox(bnd_box.left_unit, bnd_box.bottom_unit, bnd_box.right_unit,
+                       gm_bnd_box.top_unit, res, unit_mode=True)
         bnd_box = bnd_box.extend(x=tot_w, unit_mode=True)
         self.array_box = inst_first.array_box.merge(gm_arr_box)
         self.set_size_from_bound_box(ym_layer, bnd_box)
@@ -702,6 +709,10 @@ class TapXSummer(TemplateBase):
         if gm_inst.has_port('casc<0>'):
             self.reexport(gm_inst.get_port('casc<0>'), net_name='sgnp<2>', show=show_pins)
             self.reexport(gm_inst.get_port('casc<1>'), net_name='sgnn<2>', show=show_pins)
+
+        for lay_id in range(1, hm_layer):
+            self.do_max_space_fill(lay_id, bound_box=bot_box)
+            self.do_max_space_fill(lay_id, bound_box=top_box)
 
         dfe2_params = gm_master.sch_params.copy()
         dfe2_params['flip_sign'] = fs_last
@@ -1056,7 +1067,8 @@ class TapXColumn(TemplateBase):
         top_row = self.add_instance(end_row_master, 'XROWT', loc=(xdiv, y5), orient='MX',
                                     unit_mode=True)
         inst_list = [inst0, inst1, inst2, inst3]
-        self.fill_box = div_inst.fill_box.merge(inst3.fill_box)
+        sum_fill_box = inst0.fill_box.merge(inst3.fill_box)
+        self.fill_box = div_inst.fill_box.merge(sum_fill_box)
         sup_y_mid = sum_master.sup_y_mid
         self._sup_y_list = [y0, sup_y_mid + y0, y1, y2 - sup_y_mid, y2,
                             y2 + sup_y_mid, y3, y4 - sup_y_mid, y4]

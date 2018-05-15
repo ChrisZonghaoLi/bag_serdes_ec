@@ -271,9 +271,6 @@ class IntegAmp(HybridQDRBase):
                     lower = min(lower, warr.lower_unit)
                     upper = max(upper, warr.upper_unit)
 
-        # do max space fill
-        for lay_id in range(1, hm_layer):
-            self.do_max_space_fill(lay_id)
         self.fill_box = self.bound_box
 
         # set schematic parameters and other properties
