@@ -122,7 +122,7 @@ class BufferRow(StdDigitalTemplate):
             cur_in = self.connect_to_tracks(cur_inst.get_pin('in'), TrackID(vm_layer, cur_mid - 1),
                                             min_len_mode=0)
             cur_in = self.connect_to_tracks(cur_in, TrackID(hm_layer, in_idx0 + idx),
-                                            min_len_mode=0)
+                                            min_len_mode=None)
             self.add_pin('in<%d>' % idx, cur_in, show=show_pins)
             self.add_pin('out<%d>' % idx, cur_inst.get_pin('out'), show=show_pins)
         self.fill_space()
@@ -187,6 +187,7 @@ class BufferArray(StdDigitalTemplate):
             seg_list='number of segments for each inverter in the buffer.',
             tr_widths='Track width dictionary.',
             tr_spaces='Track spacing dictionary.',
+            out_vertical='True if the output is vertical.',
             ncol_min='Minimum number of columns.',
             wp_list='list of PMOS widths.',
             wn_list='list of NMOS widths.',
@@ -198,6 +199,7 @@ class BufferArray(StdDigitalTemplate):
     def get_default_param_values(cls):
         # type: () -> Dict[str, Any]
         return dict(
+            out_vertical=True,
             ncol_min=0,
             wp_list=None,
             wn_list=None,
@@ -208,6 +210,7 @@ class BufferArray(StdDigitalTemplate):
     def draw_layout(self):
         nbuf_list = self.params['nbuf_list']
         seg_list = self.params['seg_list']
+        out_vertical = self.params['out_vertical']
         ncol_min = self.params['ncol_min']
         row_layout_info = self.params['row_layout_info']
         show_pins = self.params['show_pins']
@@ -231,10 +234,16 @@ class BufferArray(StdDigitalTemplate):
         buf_params = None
         idx0 = 0
         nbuf_tot = 0
+        vm_layer = self.conn_layer + 2
+        hm_layer = vm_layer + 1
+        delta_le = self.grid.get_line_end_space_tracks(hm_layer, vm_layer, 1, half_space=True)
         for ridx, nbuf in enumerate(nbuf_list):
             nbuf_tot += nbuf
             params['nbuf'] = nbuf
-            params['out_delta'] = ridx + 1
+            if out_vertical:
+                params['out_delta'] = ridx + 1
+            else:
+                params['out_delta'] = delta_le
             master = self.new_template(params=params, temp_cls=BufferRow)
             if row_layout_info is None:
                 buf_params = master.sch_params['buf_params']
@@ -242,10 +251,13 @@ class BufferArray(StdDigitalTemplate):
                 self.initialize(row_layout_info, nrow, ncol, draw_boundaries=True, end_mode=15)
             inst = self.add_digital_block(master, (0, ridx))
             for idx in range(nbuf):
-                self.reexport(inst.get_port('in<%d>' % idx), net_name='in<%d>' % (idx + idx0),
-                              show=show_pins)
-                self.reexport(inst.get_port('out<%d>' % idx), net_name='out<%d>' % (idx + idx0),
-                              show=show_pins)
+                in_pin = inst.get_pin('in<%d>' % idx)
+                out_pin = inst.get_pin('out<%d>' % idx)
+                self.add_pin('in<%d>' % (idx + idx0), in_pin, show=show_pins)
+                if not out_vertical:
+                    out_pin = self.connect_to_tracks(out_pin, in_pin.track_id)
+                self.add_pin('out<%d>' % (idx + idx0), out_pin, show=show_pins)
+
             idx0 += nbuf
             vdd_list.append(inst.get_pin('VDD'))
             vss_list.append(inst.get_pin('VSS'))
