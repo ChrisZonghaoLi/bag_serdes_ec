@@ -185,7 +185,7 @@ class Tap1SummerRow(HybridQDRBase):
         # do max space fill
         bnd_box = self.bound_box
         for lay_id in range(1, hm_layer):
-            self.do_max_space_fill(lay_id, bound_box=bnd_box, fill_pitch=2)
+            self.do_max_space_fill(lay_id, bound_box=bnd_box, fill_pitch=1.5)
         self.fill_box = bnd_box
 
         # set properties
@@ -371,7 +371,7 @@ class Tap1Summer(TemplateBase):
         self._en_locs = self._get_en_locs(l_inst, tr_manager)
 
         for lay_id in range(1, top_layer - 1):
-            self.do_max_space_fill(lay_id, bound_box=l_bnd_box, fill_pitch=2)
+            self.do_max_space_fill(lay_id, bound_box=l_bnd_box, fill_pitch=1.5)
 
         # set schematic parameters
         l_outp_tid = l_inst.get_pin('outp').track_id
