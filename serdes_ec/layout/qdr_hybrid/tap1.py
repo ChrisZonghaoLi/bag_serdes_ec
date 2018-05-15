@@ -183,9 +183,10 @@ class Tap1SummerRow(HybridQDRBase):
         self.add_pin('VDD', vdd_warrs, show=show_pins)
 
         # do max space fill
+        bnd_box = self.bound_box
         for lay_id in range(1, hm_layer):
-            self.do_max_space_fill(lay_id)
-        self.fill_box = self.bound_box
+            self.do_max_space_fill(lay_id, bound_box=bnd_box, fill_pitch=2)
+        self.fill_box = bnd_box
 
         # set properties
         self._sch_params = dict(
@@ -338,8 +339,9 @@ class Tap1Summer(TemplateBase):
         self._div_grp_loc = (ml_margin, m_arr_box.top_unit)
 
         # set size
+        l_bnd_box = l_inst.bound_box
         self.array_box = m_arr_box.extend(y=l_inst.array_box.top_unit, unit_mode=True)
-        self.fill_box = bnd_box = m_bnd_box.extend(y=l_inst.bound_box.top_unit, unit_mode=True)
+        self.fill_box = bnd_box = m_bnd_box.extend(y=l_bnd_box.top_unit, unit_mode=True)
         self.set_size_from_bound_box(top_layer, bnd_box)
         self.add_cell_boundary(bnd_box)
 
@@ -367,6 +369,9 @@ class Tap1Summer(TemplateBase):
                 self.reexport(port, net_name=port_name + '_main', show=False)
 
         self._en_locs = self._get_en_locs(l_inst, tr_manager)
+
+        for lay_id in range(1, top_layer - 1):
+            self.do_max_space_fill(lay_id, bound_box=l_bnd_box, fill_pitch=2)
 
         # set schematic parameters
         l_outp_tid = l_inst.get_pin('outp').track_id

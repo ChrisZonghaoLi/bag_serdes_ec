@@ -711,8 +711,8 @@ class TapXSummer(TemplateBase):
             self.reexport(gm_inst.get_port('casc<1>'), net_name='sgnn<2>', show=show_pins)
 
         for lay_id in range(1, hm_layer):
-            self.do_max_space_fill(lay_id, bound_box=bot_box)
-            self.do_max_space_fill(lay_id, bound_box=top_box)
+            self.do_max_space_fill(lay_id, bound_box=bot_box, fill_pitch=2)
+            self.do_max_space_fill(lay_id, bound_box=top_box, fill_pitch=2)
 
         dfe2_params = gm_master.sch_params.copy()
         dfe2_params['flip_sign'] = fs_last
