@@ -7,6 +7,8 @@ from typing import TYPE_CHECKING, Dict, Any, Set, Tuple, List
 from bag.layout.util import BBox
 from bag.layout.template import TemplateBase
 
+from abs_templates_ec.analog_mos.mos import DummyFillActive
+
 from .tapx import TapXColumn
 from .offset import HighPassColumn
 from .tap1 import Tap1Column
@@ -206,6 +208,19 @@ class RXDatapath(TemplateBase):
         yt = tapx_box.top_unit
         box1 = BBox(tapx_box.right_unit, yb, off_box.left_unit, yt, res, unit_mode=True)
         box2 = BBox(tap1_box.right_unit, yb, lev_box.left_unit, yt, res, unit_mode=True)
+
+        params = dict(
+            mos_type='nch',
+            threshold='standard',
+            width=box1.width_unit,
+            height=box1.height_unit,
+        )
+        dum1 = self.new_template(params=params, temp_cls=DummyFillActive)
+        params['width'] = box2.width_unit
+        params['height'] = box2.height_unit
+        dum2 = self.new_template(params=params, temp_cls=DummyFillActive)
+        self.add_instance(dum1, 'XDUM1', loc=(box1.left_unit, box1.bottom_unit), unit_mode=True)
+        self.add_instance(dum2, 'XDUM2', loc=(box2.left_unit, box2.bottom_unit), unit_mode=True)
 
         hm_layer = top_layer - 1
         for layer in range(1, hm_layer):
