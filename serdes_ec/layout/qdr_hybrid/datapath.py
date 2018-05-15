@@ -213,6 +213,8 @@ class RXDatapath(TemplateBase):
             self.do_max_space_fill(layer, bound_box=box2)
 
         self.fill_box = tapx_box.merge(samp_box)
+        for layer in range(hm_layer, hm_layer + 2):
+            self.do_max_space_fill(layer, self.fill_box)
 
     def _connect_supplies(self, tapx, tap1, offset, offlev, samp, show_pins):
         fill_w = self.params['fill_w']
