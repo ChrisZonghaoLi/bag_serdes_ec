@@ -306,8 +306,9 @@ class PassiveCTLECore(ResArrayBase):
         hm_layer = bot_warrs[0].layer_id + 1
         hm_pitch = self.grid.get_track_pitch(hm_layer, unit_mode=True)
         num_hm_tracks = self.array_box.height_unit // hm_pitch
-        btr = self.connect_to_tracks(bot_warrs, TrackID(hm_layer, 0))
-        ttr = self.connect_to_tracks(top_warrs, TrackID(hm_layer, num_hm_tracks - 1))
+        btr = self.connect_to_tracks(bot_warrs, TrackID(hm_layer, 0), track_lower=0)
+        ttr = self.connect_to_tracks(top_warrs, TrackID(hm_layer, num_hm_tracks - 1),
+                                     track_lower=0)
 
         return ttr, btr
 
@@ -381,5 +382,11 @@ class PassiveCTLE(SubstrateWrapper):
         show_pins = self.params['show_pins']
 
         params = self.params.copy()
-        self.draw_layout_helper(PassiveCTLECore, params, sub_lch, sub_w, sub_tr_w, sub_type,
-                                threshold, show_pins, is_passive=True, res_type=res_type)
+        _, sub_list = self.draw_layout_helper(PassiveCTLECore, params, sub_lch, sub_w, sub_tr_w,
+                                              sub_type, threshold, show_pins, is_passive=True,
+                                              res_type=res_type)
+        self.extend_wires(sub_list, lower=0, unit_mode=True)
+
+        self.fill_box = bnd_box = self.bound_box
+        for lay in range(1, self.top_layer):
+            self.do_max_space_fill(lay, bnd_box, fill_pitch=1.5)
