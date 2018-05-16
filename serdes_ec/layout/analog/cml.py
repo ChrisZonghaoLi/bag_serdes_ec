@@ -463,8 +463,8 @@ class CMLAmpPMOS(TemplateBase):
             self.reexport(gm.get_port(name), show=show_pins)
 
         # connect outputs and supplies to upper layer
-        outp_list = list(chain(res_top.port_pins_iter('out'), gm.port_pins_iter('outp')))
-        outn_list = list(chain(res_bot.port_pins_iter('out'), gm.port_pins_iter('outn')))
+        outp_list = list(chain(res_top.port_pins_iter('out'), gm.port_pins_iter('ioutp')))
+        outn_list = list(chain(res_bot.port_pins_iter('out'), gm.port_pins_iter('ioutn')))
         outp_list = self.connect_wires(outp_list)[0].to_warr_list()
         outn_list = self.connect_wires(outn_list)[0].to_warr_list()
         vdd_list = gm.get_all_port_pins('VDD')
