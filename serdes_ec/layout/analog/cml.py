@@ -299,8 +299,8 @@ class CMLGmPMOS(AnalogBase):
         outp_list = []
         outn_list = []
         layout_info = self.layout_info
+        num_out = len(output_tracks)
         for idx, ym_idx in enumerate(output_tracks):
-            # TODO: add check that fg + fg_ref is less than or equal to output pitch?
             vtid = TrackID(ym_layer, ym_idx, width=ym_tr_w)
             # find column index that centers on given track index
             x_coord = self.grid.track_to_coord(ym_layer, ym_idx, unit_mode=True)
@@ -309,17 +309,17 @@ class CMLGmPMOS(AnalogBase):
             # draw transistors
             if idx == 0:
                 mref = self.draw_mos_conn('pch', 1, col_idx - fg_ref, fg_ref, 2, 0,
-                                          diode_conn=True, gate_pref_loc='d')
+                                          d_net='ibias', diode_conn=True, gate_pref_loc='d')
                 bias_list.append(mref['g'])
                 bias_list.append(mref['d'])
                 vdd_m_list.append(mref['s'])
 
-            mtop = self.draw_mos_conn('pch', 2, col_idx, fg, 2, 0, s_net='outp', d_net='tail')
-            mbot = self.draw_mos_conn('pch', 0, col_idx, fg, 0, 2, s_net='outn', d_net='tail')
+            mtop = self.draw_mos_conn('pch', 2, col_idx, fg, 2, 0, s_net='ioutp', d_net='tail')
+            mbot = self.draw_mos_conn('pch', 0, col_idx, fg, 0, 2, s_net='ioutn', d_net='tail')
             mtail = self.draw_mos_conn('pch', 1, col_idx, fg, 2, 0, gate_pref_loc='s',
                                        s_net='', d_net='tail')
             mref = self.draw_mos_conn('pch', 1, col_idx + fg, fg_ref, 2, 0, gate_pref_loc='d',
-                                      diode_conn=True, s_net='', d_net='tail')
+                                      diode_conn=True, d_net='ibias')
             # connect
             inp_list.append(mbot['g'])
             inn_list.append(mtop['g'])
@@ -334,10 +334,10 @@ class CMLGmPMOS(AnalogBase):
 
             outp_h = self.connect_to_tracks(mtop['s'], outp_tid)
             outp_list.append(outp_h)
-            self.add_pin('outp', self.connect_to_tracks(outp_h, vtid), show=show_pins)
+            self.add_pin('ioutp', self.connect_to_tracks(outp_h, vtid), show=show_pins)
             outn_h = self.connect_to_tracks(mbot['s'], outn_tid)
             outn_list.append(outn_h)
-            self.add_pin('outn', self.connect_to_tracks(outn_h, vtid), show=show_pins)
+            self.add_pin('ioutn', self.connect_to_tracks(outn_h, vtid), show=show_pins)
 
         self.connect_wires(outp_list)
         self.connect_wires(outn_list)
@@ -365,6 +365,14 @@ class CMLGmPMOS(AnalogBase):
         self.fill_box = bnd_box = self.bound_box
         for lay in range(1, self.top_layer):
             self.do_max_space_fill(lay, bnd_box, fill_pitch=3)
+
+        self._sch_params = dict(
+            lch=lch,
+            w_dict={'in': w, 'tail': w},
+            th_dict={'in': threshold, 'tail': threshold},
+            seg_dict={'in': fg * num_out, 'tail': fg * num_out, 'ref': fg_ref * (num_out + 1)},
+            dum_info=self.get_sch_dummy_info(),
+        )
 
 
 class CMLAmpPMOS(TemplateBase):
@@ -470,6 +478,12 @@ class CMLAmpPMOS(TemplateBase):
         ym_layer = vdd_list[0].layer_id
         for lay in range(ym_layer, top_layer + 1):
             self.do_max_space_fill(lay, fill_box, fill_pitch=3)
+
+        # schematic parameters
+        self._sch_params = dict(
+            res_params=master_res.sch_params,
+            gm_params=master_gm.sch_params,
+        )
 
     def _connect_to_top(self, name, warrs, em_specs, top_layer, show_pins):
         num_seg = len(warrs)

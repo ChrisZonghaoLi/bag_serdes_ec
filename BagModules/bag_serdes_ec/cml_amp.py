@@ -24,30 +24,12 @@ class bag_serdes_ec__cml_amp(Module):
     @classmethod
     def get_params_info(cls):
         # type: () -> Dict[str, str]
-        """Returns a dictionary from parameter names to descriptions.
-
-        Returns
-        -------
-        param_info : Optional[Dict[str, str]]
-            dictionary from parameter names to descriptions.
-        """
         return dict(
+            res_params='resistor parameters.',
+            gm_params='gm parameters.',
         )
 
-    def design(self):
-        """To be overridden by subclasses to design this module.
-
-        This method should fill in values for all parameters in
-        self.parameters.  To design instances of this module, you can
-        call their design() method or any other ways you coded.
-
-        To modify schematic structure, call:
-
-        rename_pin()
-        delete_instance()
-        replace_instance_master()
-        reconnect_instance_terminal()
-        restore_instance()
-        array_instance()
-        """
-        pass
+    def design(self, res_params, gm_params):
+        self.instances['XRP'].design(**res_params)
+        self.instances['XRN'].design(**res_params)
+        self.instances['XGM'].design(**gm_params)

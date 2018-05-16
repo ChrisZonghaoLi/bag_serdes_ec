@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from typing import Dict
+from typing import Dict, Any
 
 import os
 import pkg_resources
@@ -24,30 +24,31 @@ class bag_serdes_ec__cml_gm(Module):
     @classmethod
     def get_params_info(cls):
         # type: () -> Dict[str, str]
-        """Returns a dictionary from parameter names to descriptions.
-
-        Returns
-        -------
-        param_info : Optional[Dict[str, str]]
-            dictionary from parameter names to descriptions.
-        """
         return dict(
+            lch='channel length, in meters.',
+            w_dict='NMOS/PMOS width dictionary.',
+            th_dict='NMOS/PMOS threshold flavor dictionary.',
+            seg_dict='number of segments dictionary.',
+            dum_info='Dummy information data structure.',
         )
 
-    def design(self):
-        """To be overridden by subclasses to design this module.
+    @classmethod
+    def get_default_param_values(cls):
+        # type: () -> Dict[str, Any]
+        return dict(
+            dum_info=None,
+        )
 
-        This method should fill in values for all parameters in
-        self.parameters.  To design instances of this module, you can
-        call their design() method or any other ways you coded.
+    def design(self, lch, w_dict, th_dict, seg_dict, dum_info):
+        tran_info_list = [('XTAIL', 'tail', 'tail'), ('XREF', 'tail', 'ref'),
+                          ('XINP', 'in', 'in'), ('XINN', 'in', 'in'),
+                          ]
 
-        To modify schematic structure, call:
+        for inst_info in tran_info_list:
+            inst_name, inst_type, seg_type = inst_info
+            w = w_dict[inst_type]
+            th = th_dict[inst_type]
+            seg = seg_dict[seg_type]
+            self.instances[inst_name].design(w=w, l=lch, nf=seg, intent=th)
 
-        rename_pin()
-        delete_instance()
-        replace_instance_master()
-        reconnect_instance_terminal()
-        restore_instance()
-        array_instance()
-        """
-        pass
+        self.design_dummy_transistors(dum_info, 'XDUM', 'VDD', 'VSS')
