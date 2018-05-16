@@ -7,7 +7,7 @@ import yaml
 from bag.core import BagProject
 
 from serdes_ec.layout.analog.passives import CMLResLoad
-from serdes_ec.layout.analog.cml import CMLCorePMOS
+from serdes_ec.layout.analog.cml import CMLGmPMOS
 
 
 def run_main(prj):
@@ -36,7 +36,7 @@ def run_main(prj):
         specs = yaml.load(f)
 
     specs['params'].update(save_info)
-    prj.generate_cell(specs, CMLCorePMOS, debug=True)
+    prj.generate_cell(specs, CMLGmPMOS, debug=True)
     # prj.generate_cell(div_specs, CMLCorePMOS, gen_sch=True, debug=True)
 
 

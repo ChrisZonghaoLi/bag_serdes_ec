@@ -6,13 +6,16 @@
 from typing import Dict, Set, Any
 
 from bag.util.search import BinaryIterator
+from bag.layout.util import BBox
 from bag.layout.routing.base import TrackID, TrackManager
 from bag.layout.template import TemplateBase, TemplateDB
 
 from abs_templates_ec.analog_core.base import AnalogBaseInfo, AnalogBase
 
+from .passives import CMLResLoad
 
-class CMLCorePMOS(AnalogBase):
+
+class CMLGmPMOS(AnalogBase):
     """PMOS gm cell for a CML driver.
 
     Parameters
@@ -169,7 +172,6 @@ class CMLCorePMOS(AnalogBase):
         vdd_m_list = []
         outp_list = []
         outn_list = []
-        col_first = col_last = None
         layout_info = self.layout_info
         for idx, ym_idx in enumerate(output_tracks):
             # TODO: add check that fg + fg_ref is less than or equal to output pitch?
@@ -180,7 +182,6 @@ class CMLCorePMOS(AnalogBase):
             col_idx = col_center - (fg // 2)
             # draw transistors
             if idx == 0:
-                col_first = col_idx - fg_ref
                 mref = self.draw_mos_conn('pch', 1, col_idx - fg_ref, fg_ref, 2, 0,
                                           diode_conn=True, gate_pref_loc='d')
                 bias_list.append(mref['g'])
@@ -193,7 +194,6 @@ class CMLCorePMOS(AnalogBase):
                                        s_net='', d_net='tail')
             mref = self.draw_mos_conn('pch', 1, col_idx + fg, fg_ref, 2, 0, gate_pref_loc='d',
                                       diode_conn=True, s_net='', d_net='tail')
-            col_last = col_idx + fg + fg_ref
             # connect
             inp_list.append(mbot['g'])
             inn_list.append(mtop['g'])
@@ -226,19 +226,23 @@ class CMLCorePMOS(AnalogBase):
         self.add_pin('VSS', ptap_warrs, show=show_pins)
         self.add_pin('VDD', ntap_warrs, show=show_pins)
 
+        self.fill_box = bnd_box = self.bound_box
+        for lay in range(1, self.top_layer):
+            self.do_max_space_fill(lay, bnd_box, fill_pitch=1.5)
 
-class CMLDriverPMOS(TemplateBase):
-    """An template for creating high pass filter.
+
+class CMLAmpPMOS(TemplateBase):
+    """A PMOS CML driver.
 
     Parameters
     ----------
     temp_db : :class:`bag.layout.template.TemplateDB`
-            the template database.
+        the template database.
     lib_name : str
         the layout library name.
-    params : dict[str, any]
+    params : Dict[str, Any]
         the parameter values.
-    used_names : set[str]
+    used_names : Set[str]
         a set of already used cell names.
     **kwargs :
         dictionary of optional parameters.  See documentation of
@@ -246,133 +250,71 @@ class CMLDriverPMOS(TemplateBase):
     """
 
     def __init__(self, temp_db, lib_name, params, used_names, **kwargs):
-        # type: (TemplateDB, str, Dict[str, Any], Set[str], **Any) -> None
-        super(CMLDriverPMOS, self).__init__(temp_db, lib_name, params, used_names, **kwargs)
+        # type: (TemplateDB, str, Dict[str, Any], Set[str], **kwargs) -> None
+        TemplateBase.__init__(self, temp_db, lib_name, params, used_names, **kwargs)
+        self._sch_params = None
         self._num_fingers = None
+
+    @property
+    def sch_params(self):
+        # type: () -> Dict[str, Any]
+        return self._sch_params
 
     @property
     def num_fingers(self):
         return self._num_fingers
 
     @classmethod
-    def get_default_param_values(cls):
-        # type: () -> Dict[str, Any]
-        """Returns a dictionary containing default parameter values.
-
-        Override this method to define default parameter values.  As good practice,
-        you should avoid defining default values for technology-dependent parameters
-        (such as channel length, transistor width, etc.), but only define default
-        values for technology-independent parameters (such as number of tracks).
-
-        Returns
-        -------
-        default_params : Dict[str, Any]
-            dictionary of default parameter values.
-        """
-        return dict(
-            show_pins=True,
-        )
-
-    @classmethod
     def get_params_info(cls):
         # type: () -> Dict[str, str]
-        """Returns a dictionary containing parameter descriptions.
-
-        Override this method to return a dictionary from parameter names to descriptions.
-
-        Returns
-        -------
-        param_info : Dict[str, str]
-            dictionary from parameter name to description.
-        """
         return dict(
             res_params='load resistor parameters.',
-            lch='channel length, in meters.',
-            w='pmos width, in meters/number of fins.',
-            fg='number of fingers per segment.',
-            fg_ref='number of current mirror reference fingers per segment.',
-            threshold='transistor threshold flavor.',
-            input_width='input track width',
-            input_space='input track space',
-            ntap_w='PMOS substrate width, in meters/number of fins.',
-            guard_ring_nf='Guard ring width in number of fingers.  0 for no guard ring.',
+            gm_params='gm parameters.',
+            em_specs='EM specs per segment.',
+            tr_widths='Track width dictionary.',
+            tr_spaces='Track spacing dictionary.',
             top_layer='top level layer',
             show_pins='True to draw pins.',
         )
 
+    @classmethod
+    def get_default_param_values(cls):
+        # type: () -> Dict[str, Any]
+        return dict(
+            show_pins=True,
+        )
+
     def draw_layout(self):
         # type: () -> None
-        self._draw_layout_helper(**self.params)
+        top_layer = self.params['top_layer']
 
-    def _draw_layout_helper(self, res_params, lch, w, fg, fg_ref, threshold, input_width,
-                            input_space, ntap_w, guard_ring_nf, show_pins, top_layer):
-
-        sub_params = dict(
-            lch=lch,
-            w=ntap_w,
-        )
-
-        load_params = dict(
-            res_params=res_params.copy(),
-            sub_params=sub_params,
-            show_pins=False,
-        )
-
-        load_master = self.new_template(params=load_params, temp_cls=CMLLoadSingle)
-
-        core_params = dict(
-            lch=lch,
-            w=w,
-            fg=fg,
-            fg_ref=fg_ref,
-            output_tracks=load_master.output_tracks,
-            em_specs=res_params['em_specs'].copy(),
-            threshold=threshold,
-            input_width=input_width,
-            input_space=input_space,
-            ntap_w=ntap_w,
-            guard_ring_nf=guard_ring_nf,
-            tot_width=load_master.array_box.width,
-            show_pins=False,
-        )
-
-        core_master = self.new_template(params=core_params, temp_cls=CMLCorePMOS)
-        self._num_fingers = core_master.num_fingers
+        master_res, master_gm = self._make_masters()
 
         # place instances
-        _, load_height = self.grid.get_size_dimension(load_master.size, unit_mode=True)
-        _, core_height = self.grid.get_size_dimension(core_master.size, unit_mode=True)
-        loadn = self.add_instance(load_master, 'XLOADN', (0, load_height), orient='MX',
-                                  unit_mode=True)
-        core = self.add_instance(core_master, 'XCORE', (0, load_height), unit_mode=True)
-        loadp = self.add_instance(load_master, 'XLOADP', (0, load_height + core_height),
-                                  unit_mode=True)
+        res_box = master_res.bound_box
+        gm_box = master_gm.bound_box
+        ycur = res_box.height_unit
 
-        self.array_box = loadn.array_box.merge(loadp.array_box)
-        self.size = self.grid.get_size_tuple(top_layer, self.array_box.width_unit,
-                                             self.array_box.height_unit,
-                                             round_up=True, unit_mode=True)
+        # get quantization
+        blk_w, blk_h = self.grid.get_block_size(top_layer, unit_mode=True)
+        res_h = res_box.height_unit
+        gm_h = gm_box.height_unit
+        core_w = res_box.width_unit
+        core_h = 2 * res_h + gm_h
+        tot_w = -(-core_w // blk_w) * blk_w
+        tot_h = -(-core_h // blk_h) * blk_h
+        dx = (tot_w - core_w) // 2
+        dy = (tot_h - core_h) // 2
 
-        for name in ['inp', 'inn', 'ibias', 'VDD']:
-            label = name + ':' if name == 'VDD' else name
-            self.reexport(core.get_port(name), label=label, show=show_pins)
+        loc = (dx, dy + res_h)
+        res_bot = self.add_instance(master_res, 'XRB', loc, orient='MX', unit_mode=True)
+        gm = self.add_instance(master_gm, 'XGM', loc, unit_mode=True)
+        res_top = self.add_instance(master_res, 'XRT', (dx, dy + res_h + gm_h), unit_mode=True)
 
-        # connect outputs
-        outp_list = self.connect_wires(
-            loadp.get_all_port_pins('out') + core.get_all_port_pins('outp'))
-        outn_list = self.connect_wires(
-            loadn.get_all_port_pins('out') + core.get_all_port_pins('outn'))
-        outp_list = outp_list[0].to_warr_list()
-        outn_list = outn_list[0].to_warr_list()
-        vddm = core.get_all_port_pins('VDDM')
-        vsst = loadp.get_all_port_pins('VSS')
-        vssb = loadn.get_all_port_pins('VSS')
-
-        em_specs = res_params['em_specs']
-
-        for warrs, name in [(outp_list, 'outp'), (outn_list, 'outn'),
-                            (vddm, 'VDD'), (vsst, 'VSS'), (vssb, 'VSS')]:
-            self._connect_to_top(name, warrs, em_specs, top_layer, show_pins)
+        bnd_box = BBox(0, 0, tot_w, tot_h, self.grid.resolution, unit_mode=True)
+        self.array_box = self.fill_box = bnd_box
+        self.set_size_from_bound_box(top_layer, bnd_box)
+        self.add_cell_boundary(bnd_box)
 
     def _connect_to_top(self, name, warrs, em_specs, top_layer, show_pins):
         num_seg = len(warrs)
@@ -414,3 +356,37 @@ class CMLDriverPMOS(TemplateBase):
         warr = self.connect_to_tracks(warrs, tid)
         label = name + ':' if name == 'VDD' or name == 'VSS' else name
         self.add_pin(name, warr, label=label, show=show_pins)
+
+    def _make_masters(self):
+        res_params = self.params['res_params']
+        gm_params = self.params['gm_params']
+        em_specs = self.params['em_specs']
+        tr_widths = self.params['tr_widths']
+        tr_spaces = self.params['tr_spaces']
+
+        gm_params = gm_params.copy()
+        res_params = res_params.copy()
+
+        tr_manager = TrackManager(self.grid, tr_widths, tr_spaces, half_space=True)
+
+        hm_layer = AnalogBase.get_mos_conn_layer(self.grid.tech_info) + 1
+        sub_tr_w = tr_manager.get_width(hm_layer, 'sup')
+        res_params['sub_lch'] = gm_params['lch']
+        res_params['sub_type'] = 'ntap'
+        res_params['threshold'] = gm_params['threshold']
+        res_params['em_specs'] = em_specs
+        res_params['sub_tr_w'] = sub_tr_w
+        res_params['show_pins'] = False
+
+        master_res = self.new_template(params=res_params, temp_cls=CMLResLoad)
+
+        gm_params['output_tracks'] = master_res.output_tracks
+        gm_params['em_specs'] = em_specs
+        gm_params['tr_widths'] = tr_widths
+        gm_params['tr_spaces'] = tr_spaces
+        gm_params['tot_width'] = master_res.bound_box.width_unit
+        gm_params['show_pins'] = False
+
+        master_gm = self.new_template(params=gm_params, temp_cls=CMLGmPMOS)
+
+        return master_res, master_gm

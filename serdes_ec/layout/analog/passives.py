@@ -556,7 +556,6 @@ class CMLResLoad(SubstrateWrapper):
             res_type='the resistor type.',
             res_options='Configuration dictionary for ResArrayBase.',
             em_specs='EM specifications for the termination network.',
-            half_blk_x='True to allow for half horizontal blocks.',
             sub_tr_w='substrate track width in number of tracks.  None for default.',
             show_pins='True to show pins.',
         )
@@ -568,7 +567,6 @@ class CMLResLoad(SubstrateWrapper):
             res_type='standard',
             res_options=None,
             em_specs=None,
-            half_blk_x=True,
             sub_tr_w=None,
             show_pins=True,
         )
