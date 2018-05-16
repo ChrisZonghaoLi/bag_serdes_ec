@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 
-from typing import TYPE_CHECKING, Dict, Set, Any
+from typing import TYPE_CHECKING, Dict, Set, Any, List, Union
 
 from bag.layout.routing.base import TrackID, TrackManager
 from bag.layout.util import BBox
@@ -39,6 +39,7 @@ class PassiveCTLECore(ResArrayBase):
 
     @property
     def sch_params(self):
+        # type: () -> Dict[str, Any]
         return self._sch_params
 
     @classmethod
@@ -532,11 +533,12 @@ class CMLResLoad(SubstrateWrapper):
     def __init__(self, temp_db, lib_name, params, used_names, **kwargs):
         # type: (TemplateDB, str, Dict[str, Any], Set[str], **Any) -> None
         SubstrateWrapper.__init__(self, temp_db, lib_name, params, used_names, **kwargs)
-        self._tot_width = None
         self._output_tracks = None
+
 
     @property
     def output_tracks(self):
+        # type: () -> List[Union[float, int]]
         return self._output_tracks
 
     @classmethod
