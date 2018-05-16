@@ -534,12 +534,17 @@ class CMLResLoad(SubstrateWrapper):
         # type: (TemplateDB, str, Dict[str, Any], Set[str], **Any) -> None
         SubstrateWrapper.__init__(self, temp_db, lib_name, params, used_names, **kwargs)
         self._output_tracks = None
-
+        self._sup_tracks = None
 
     @property
     def output_tracks(self):
         # type: () -> List[Union[float, int]]
         return self._output_tracks
+
+    @property
+    def sup_tracks(self):
+        # type: () -> List[Union[float, int]]
+        return self._sup_tracks
 
     @classmethod
     def get_params_info(cls):
@@ -592,9 +597,13 @@ class CMLResLoad(SubstrateWrapper):
         for lay in range(1, self.top_layer):
             self.do_max_space_fill(lay, bnd_box, fill_pitch=1.5)
 
+        self._sup_tracks = []
         sub_list = [pin for inst in sub_insts for pin in inst.port_pins_iter(sub_port_name)]
         warrs = self.connect_to_track_wires(sub_list, inst.get_all_port_pins('dummy'))
-        self.add_pin(sub_port_name, warrs, show=show_pins)
+        for warr in warrs:
+            for tidx in warr.track_id:
+                self._sup_tracks.append(tidx)
+        self._sup_tracks.sort()
 
         self._output_tracks = []
         for idx in range(nx):

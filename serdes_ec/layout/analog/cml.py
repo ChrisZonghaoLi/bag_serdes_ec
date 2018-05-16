@@ -3,16 +3,21 @@
 """This package defines various passives template classes.
 """
 
-from typing import Dict, Set, Any
+from typing import TYPE_CHECKING, Dict, Set, Any
+
+from itertools import chain
 
 from bag.util.search import BinaryIterator
 from bag.layout.util import BBox
 from bag.layout.routing.base import TrackID, TrackManager
-from bag.layout.template import TemplateBase, TemplateDB
+from bag.layout.template import TemplateBase
 
 from abs_templates_ec.analog_core.base import AnalogBaseInfo, AnalogBase
 
 from .passives import CMLResLoad
+
+if TYPE_CHECKING:
+    from bag.layout.template import TemplateDB
 
 
 class CMLGmPMOS(AnalogBase):
@@ -58,7 +63,8 @@ class CMLGmPMOS(AnalogBase):
             w='pmos width, in meters/number of fins.',
             fg_ref='number of current mirror reference fingers per segment.',
             threshold='transistor threshold flavor.',
-            output_tracks='output track indices on vm layer.',
+            output_tracks='output track indices on ym layer.',
+            supply_tracks='supply track indices on ym layer.',
             em_specs='EM specs per segment.',
             tr_widths='Track width dictionary.',
             tr_spaces='Track spacing dictionary.',
@@ -81,6 +87,7 @@ class CMLGmPMOS(AnalogBase):
         fg_ref = self.params['fg_ref']
         threshold = self.params['threshold']
         output_tracks = self.params['output_tracks']
+        supply_tracks = self.params['supply_tracks']
         em_specs = self.params['em_specs']
         tr_widths = self.params['tr_widths']
         tr_spaces = self.params['tr_spaces']
@@ -215,16 +222,22 @@ class CMLGmPMOS(AnalogBase):
 
         self.connect_wires(outp_list)
         self.connect_wires(outn_list)
-        self.add_pin('inp', self.connect_to_tracks(inp_list, inp_tid), show=show_pins)
-        self.add_pin('inn', self.connect_to_tracks(inn_list, inn_tid), show=show_pins)
+        self.add_pin('inp', self.connect_to_tracks(inp_list, inp_tid,
+                                                   track_lower=0, unit_mode=True), show=show_pins)
+        self.add_pin('inn', self.connect_to_tracks(inn_list, inn_tid,
+                                                   track_lower=0, unit_mode=True), show=show_pins)
         self.connect_to_tracks(tail_list, tail_tid)
         self.add_pin('ibias', self.connect_to_tracks(bias_list, bias_tid), show=show_pins)
-        self.add_pin('VDD_mid', self.connect_to_tracks(vdd_m_list, vdd_tid),
-                     label='VDD', show=show_pins)
+        vdd_m = self.connect_to_tracks(vdd_m_list, vdd_tid)
 
-        ptap_warrs, ntap_warrs = self.fill_dummy()
-        self.add_pin('VSS', ptap_warrs, show=show_pins)
-        self.add_pin('VDD', ntap_warrs, show=show_pins)
+        _, vdd_warrs = self.fill_dummy()
+        vdd_warrs.append(vdd_m)
+        for tidx in supply_tracks:
+            vtid = TrackID(ym_layer, tidx, width=ym_tr_w)
+            self.add_pin('VDD', self.connect_to_tracks(vdd_warrs, vtid), show=show_pins)
+        for tidx in output_tracks:
+            vtid = TrackID(ym_layer, tidx, width=ym_tr_w)
+            self.add_pin('VDD', self.connect_to_tracks(vdd_m, vtid), show=show_pins)
 
         self.fill_box = bnd_box = self.bound_box
         for lay in range(1, self.top_layer):
@@ -287,15 +300,17 @@ class CMLAmpPMOS(TemplateBase):
     def draw_layout(self):
         # type: () -> None
         top_layer = self.params['top_layer']
+        em_specs = self.params['em_specs']
+        show_pins = self.params['show_pins']
+
+        if self.grid.get_direction(top_layer) != 'x':
+            raise ValueError('This generator only works for horizontal top level layer.')
 
         master_res, master_gm = self._make_masters()
 
-        # place instances
         res_box = master_res.bound_box
         gm_box = master_gm.bound_box
-        ycur = res_box.height_unit
-
-        # get quantization
+        # get location/bounding box quantization
         blk_w, blk_h = self.grid.get_block_size(top_layer, unit_mode=True)
         res_h = res_box.height_unit
         gm_h = gm_box.height_unit
@@ -305,56 +320,78 @@ class CMLAmpPMOS(TemplateBase):
         tot_h = -(-core_h // blk_h) * blk_h
         dx = (tot_w - core_w) // 2
         dy = (tot_h - core_h) // 2
-
+        # place instances
         loc = (dx, dy + res_h)
         res_bot = self.add_instance(master_res, 'XRB', loc, orient='MX', unit_mode=True)
         gm = self.add_instance(master_gm, 'XGM', loc, unit_mode=True)
         res_top = self.add_instance(master_res, 'XRT', (dx, dy + res_h + gm_h), unit_mode=True)
 
+        # set size
         bnd_box = BBox(0, 0, tot_w, tot_h, self.grid.resolution, unit_mode=True)
         self.array_box = self.fill_box = bnd_box
         self.set_size_from_bound_box(top_layer, bnd_box)
         self.add_cell_boundary(bnd_box)
 
+        # re-export pins
+        for name in ['inp', 'inn', 'ibias']:
+            self.reexport(gm.get_port(name), show=show_pins)
+
+        # connect outputs and supplies to upper layer
+        outp_list = list(chain(res_top.port_pins_iter('out'), gm.port_pins_iter('outp')))
+        outn_list = list(chain(res_bot.port_pins_iter('out'), gm.port_pins_iter('outn')))
+        outp_list = self.connect_wires(outp_list)[0].to_warr_list()
+        outn_list = self.connect_wires(outn_list)[0].to_warr_list()
+        vdd_list = gm.get_all_port_pins('VDD')
+        vsst_list = res_top.get_all_port_pins('VSS')
+        vssb_list = res_bot.get_all_port_pins('VSS')
+        for warrs, name in [(outp_list, 'outp'), (outn_list, 'outn'),
+                            (vdd_list, 'VDD'), (vsst_list, 'VSS'), (vssb_list, 'VSS')]:
+            self._connect_to_top(name, warrs, em_specs, top_layer, show_pins)
+
     def _connect_to_top(self, name, warrs, em_specs, top_layer, show_pins):
         num_seg = len(warrs)
-        prev_layer = warrs[0].track_id.layer_id
-        prev_width_layout = self.grid.get_track_width(prev_layer, warrs[0].track_id.width)
+        prev_layer = warrs[0].layer_id
+        prev_w = self.grid.get_track_width(prev_layer, warrs[0].track_id.width, unit_mode=True)
+        xc = self.bound_box.xc_unit
+        yc = self.bound_box.yc_unit
         for cur_layer in range(prev_layer + 1, top_layer):
-            cur_width = self.grid.get_min_track_width(cur_layer, **em_specs,
-                                                      bot_w=prev_width_layout)
-
-            # make sure we can draw via to next layer up
-            good = False
-            while not good:
-                try:
-                    self.grid.get_via_extensions(cur_layer, cur_width, 1)
-                    good = True
-                except ValueError:
-                    cur_width += 1
+            is_horiz = self.grid.get_direction(cur_layer) == 'x'
+            next_tr_w = self.grid.get_min_track_width(cur_layer + 1, **em_specs)
+            next_w = self.grid.get_track_width(cur_layer + 1, next_tr_w, unit_mode=True)
+            cur_tr_w = self.grid.get_min_track_width(cur_layer, bot_w=prev_w, top_w=next_w,
+                                                     unit_mode=True, **em_specs)
 
             cur_warrs = []
             for warr in warrs:
-                tr = self.grid.coord_to_nearest_track(cur_layer, warr.middle)
-                tid = TrackID(cur_layer, tr, width=cur_width)
+                mid = warr.middle_unit
+                if is_horiz:
+                    mode = -1 if mid < yc else 1
+                else:
+                    mode = -1 if mid < xc else 1
+                tr = self.grid.coord_to_nearest_track(cur_layer, mid, half_track=True,
+                                                      mode=mode, unit_mode=True)
+                tid = TrackID(cur_layer, tr, width=cur_tr_w)
                 cur_warrs.append(self.connect_to_tracks(warr, tid, min_len_mode=0))
 
-            if self.grid.get_direction(cur_layer) == 'x':
+            if is_horiz:
                 self.connect_wires(cur_warrs)
 
             warrs = cur_warrs
-            prev_width_layout = self.grid.get_track_width(cur_layer, cur_width)
+            prev_w = self.grid.get_track_width(cur_layer, cur_tr_w, unit_mode=True)
 
         new_em_specs = em_specs.copy()
         for key in ['idc', 'iac_rms', 'iac_peak']:
             if key in new_em_specs:
                 new_em_specs[key] *= num_seg
 
-        top_width = self.grid.get_min_track_width(top_layer, **new_em_specs)
-        tr = self.grid.coord_to_nearest_track(top_layer, warrs[0].middle)
-        tid = TrackID(top_layer, tr, width=top_width)
+        top_tr_w = self.grid.get_min_track_width(top_layer, unit_mode=True, **new_em_specs)
+        mid = warrs[0].middle_unit
+        mode = -1 if mid < yc else 1
+        tr = self.grid.coord_to_nearest_track(top_layer, mid, half_track=True, mode=mode,
+                                              unit_mode=True)
+        tid = TrackID(top_layer, tr, width=top_tr_w)
         warr = self.connect_to_tracks(warrs, tid)
-        label = name + ':' if name == 'VDD' or name == 'VSS' else name
+        label = 'VSS:' if name == 'VSS' else name
         self.add_pin(name, warr, label=label, show=show_pins)
 
     def _make_masters(self):
@@ -372,7 +409,7 @@ class CMLAmpPMOS(TemplateBase):
         hm_layer = AnalogBase.get_mos_conn_layer(self.grid.tech_info) + 1
         sub_tr_w = tr_manager.get_width(hm_layer, 'sup')
         res_params['sub_lch'] = gm_params['lch']
-        res_params['sub_type'] = 'ntap'
+        res_params['sub_type'] = 'ptap'
         res_params['threshold'] = gm_params['threshold']
         res_params['em_specs'] = em_specs
         res_params['sub_tr_w'] = sub_tr_w
@@ -381,6 +418,7 @@ class CMLAmpPMOS(TemplateBase):
         master_res = self.new_template(params=res_params, temp_cls=CMLResLoad)
 
         gm_params['output_tracks'] = master_res.output_tracks
+        gm_params['supply_tracks'] = master_res.sup_tracks
         gm_params['em_specs'] = em_specs
         gm_params['tr_widths'] = tr_widths
         gm_params['tr_spaces'] = tr_spaces
