@@ -595,7 +595,7 @@ class CMLResLoad(SubstrateWrapper):
 
         self.fill_box = bnd_box = self.bound_box
         for lay in range(1, self.top_layer):
-            self.do_max_space_fill(lay, bnd_box, fill_pitch=1.5)
+            self.do_max_space_fill(lay, bnd_box, fill_pitch=3)
 
         self._sup_tracks = []
         sub_list = [pin for inst in sub_insts for pin in inst.port_pins_iter(sub_port_name)]

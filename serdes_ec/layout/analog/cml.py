@@ -217,7 +217,8 @@ class CMLGmPMOS(AnalogBase):
         # get AnalogBaseInfo
         hm_layer = self.mos_conn_layer + 1
         ym_layer = hm_layer + 1
-        layout_info = AnalogBaseInfo(self.grid, lch, guard_ring_nf, top_layer=ym_layer)
+        layout_info = AnalogBaseInfo(self.grid, lch, guard_ring_nf, top_layer=ym_layer,
+                                     half_blk_y=False)
 
         # compute total number of fingers to achieve target width.
         bin_iter = BinaryIterator(2, None, step=2)
@@ -272,7 +273,7 @@ class CMLGmPMOS(AnalogBase):
         self.draw_base(lch, fg_tot, ntap_w, ntap_w, [], [], pw_list, pth_list,
                        tr_manager=tr_manager, wire_names=wire_names,
                        p_orientations=['MX', 'R0', 'R0'], guard_ring_nf=guard_ring_nf,
-                       pgr_w=ntap_w, ngr_w=ntap_w, top_layer=ym_layer)
+                       pgr_w=ntap_w, ngr_w=ntap_w, top_layer=ym_layer, half_blk_y=False)
 
         outn_tid = self.get_wire_id('pch', 0, 'ds', wire_name='out')
         inp_tid = self.get_wire_id('pch', 0, 'g', wire_name='in')
@@ -363,7 +364,7 @@ class CMLGmPMOS(AnalogBase):
 
         self.fill_box = bnd_box = self.bound_box
         for lay in range(1, self.top_layer):
-            self.do_max_space_fill(lay, bnd_box, fill_pitch=1.5)
+            self.do_max_space_fill(lay, bnd_box, fill_pitch=3)
 
 
 class CMLAmpPMOS(TemplateBase):
@@ -428,7 +429,7 @@ class CMLAmpPMOS(TemplateBase):
         res_box = master_res.bound_box
         gm_box = master_gm.bound_box
         # get location/bounding box quantization
-        blk_w, blk_h = self.grid.get_block_size(top_layer, unit_mode=True)
+        blk_w, blk_h = self.grid.get_block_size(top_layer, unit_mode=True, half_blk_y=False)
         res_h = res_box.height_unit
         gm_h = gm_box.height_unit
         core_w = res_box.width_unit
@@ -468,7 +469,7 @@ class CMLAmpPMOS(TemplateBase):
         # do fill
         ym_layer = vdd_list[0].layer_id
         for lay in range(ym_layer, top_layer + 1):
-            self.do_max_space_fill(lay, fill_box, fill_pitch=1.5)
+            self.do_max_space_fill(lay, fill_box, fill_pitch=3)
 
     def _connect_to_top(self, name, warrs, em_specs, top_layer, show_pins):
         num_seg = len(warrs)
