@@ -390,3 +390,216 @@ class PassiveCTLE(SubstrateWrapper):
         self.fill_box = bnd_box = self.bound_box
         for lay in range(1, self.top_layer):
             self.do_max_space_fill(lay, bnd_box, fill_pitch=1.5)
+
+
+class CMLResLoadCore(ResArrayBase):
+    """load resistor for CML driver.
+
+    Parameters
+    ----------
+    temp_db : :class:`bag.layout.template.TemplateDB`
+        the template database.
+    lib_name : str
+        the layout library name.
+    params : Dict[str, Any]
+        the parameter values.
+    used_names : Set[str]
+        a set of already used cell names.
+    **kwargs :
+        dictionary of optional parameters.  See documentation of
+        :class:`bag.layout.template.TemplateBase` for details.
+    """
+
+    def __init__(self, temp_db, lib_name, params, used_names, **kwargs):
+        # type: (TemplateDB, str, Dict[str, Any], Set[str], **kwargs) -> None
+        ResArrayBase.__init__(self, temp_db, lib_name, params, used_names, **kwargs)
+        self._sch_params = None
+
+    @property
+    def sch_params(self):
+        return self._sch_params
+
+    @classmethod
+    def get_params_info(cls):
+        # type: () -> Dict[str, str]
+        return dict(
+            l='unit resistor length, in meters.',
+            w='unit resistor width, in meters.',
+            nx='number of columns.',
+            ndum='number of dummies.',
+            sub_type='the substrate type.',
+            threshold='the substrate threshold flavor.',
+            res_type='the resistor type.',
+            res_options='Configuration dictionary for ResArrayBase.',
+            em_specs='EM specifications for the termination network.',
+            half_blk_x='True to allow for half horizontal blocks.',
+            show_pins='True to show pins.',
+        )
+
+    @classmethod
+    def get_default_param_values(cls):
+        # type: () -> Dict[str, Any]
+        return dict(
+            res_type='standard',
+            res_options=None,
+            em_specs=None,
+            half_blk_x=True,
+            show_pins=True,
+        )
+
+    def draw_layout(self):
+        # type: () -> None
+        l = self.params['l']
+        w = self.params['w']
+        nx = self.params['nx']
+        ndum = self.params['ndum']
+        sub_type = self.params['sub_type']
+        threshold = self.params['threshold']
+        res_type = self.params['res_type']
+        res_options = self.params['res_options']
+        em_specs = self.params['em_specs']
+        half_blk_x = self.params['half_blk_x']
+        show_pins = self.params['show_pins']
+
+        if res_options is None:
+            my_options = dict(well_end_mode=2)
+        else:
+            my_options = res_options.copy()
+            my_options['well_end_mode'] = 2
+        if em_specs is None:
+            em_specs = {}
+
+        bot_layer = self.bot_layer_id
+        top_layer = bot_layer + 3
+        # draw array
+        nx_tot = nx + 2 * ndum
+        min_tracks = [2, 1, 1, 1]
+        self.draw_array(l, w, sub_type, threshold, nx=nx_tot, ny=1, min_tracks=min_tracks,
+                        em_specs=em_specs, top_layer=top_layer, res_type=res_type,
+                        options=my_options, connect_up=True, half_blk_x=half_blk_x)
+
+        # for each resistor, bring it to ym_layer
+        for idx in range(nx_tot):
+            bot, top = self.get_res_ports(0, idx)
+            bot = self._export_to_ym(bot, bot_layer)
+            top = self._export_to_ym(top, bot_layer)
+            if ndum <= idx < nx_tot - ndum:
+                self.add_pin('bot<%d>' % (idx - ndum), bot, show=show_pins)
+                self.add_pin('top<%d>' % (idx - ndum), top, show=show_pins)
+            else:
+                self.add_pin('dummy', self.connect_wires([bot, top]), show=show_pins)
+
+        self._sch_params = dict(
+            l=l,
+            w=w,
+            intent=res_type,
+            npar=nx,
+            ndum=2 * ndum,
+            sub_name='VSS',
+        )
+
+    def _export_to_ym(self, port, bot_layer):
+        warr = port
+        for off in range(1, 4):
+            next_layer = bot_layer + off
+            next_width = self.w_tracks[off]
+            next_tr = self.grid.coord_to_nearest_track(next_layer, warr.middle_unit,
+                                                       half_track=True, mode=0, unit_mode=True)
+            tid = TrackID(next_layer, next_tr, width=next_width)
+            warr = self.connect_to_tracks(warr, tid, min_len_mode=0)
+
+        return warr
+
+
+class CMLResLoad(SubstrateWrapper):
+    """A wrapper with substrate contact around CMLResLoadCore
+
+    Parameters
+    ----------
+    temp_db : :class:`bag.layout.template.TemplateDB`
+            the template database.
+    lib_name : str
+        the layout library name.
+    params : dict[str, any]
+        the parameter values.
+    used_names : set[str]
+        a set of already used cell names.
+    **kwargs :
+        dictionary of optional parameters.  See documentation of
+        :class:`bag.layout.template.TemplateBase` for details.
+    """
+
+    def __init__(self, temp_db, lib_name, params, used_names, **kwargs):
+        # type: (TemplateDB, str, Dict[str, Any], Set[str], **Any) -> None
+        SubstrateWrapper.__init__(self, temp_db, lib_name, params, used_names, **kwargs)
+        self._tot_width = None
+        self._output_tracks = None
+
+    @property
+    def output_tracks(self):
+        return self._output_tracks
+
+    @classmethod
+    def get_params_info(cls):
+        # type: () -> Dict[str, str]
+        return dict(
+            l='unit resistor length, in meters.',
+            w='unit resistor width, in meters.',
+            nx='number of columns.',
+            ndum='number of dummies.',
+            sub_w='Substrate width.',
+            sub_lch='Substrate channel length.',
+            sub_type='the substrate type.',
+            threshold='the substrate threshold flavor.',
+            res_type='the resistor type.',
+            res_options='Configuration dictionary for ResArrayBase.',
+            em_specs='EM specifications for the termination network.',
+            half_blk_x='True to allow for half horizontal blocks.',
+            sub_tr_w='substrate track width in number of tracks.  None for default.',
+            show_pins='True to show pins.',
+        )
+
+    @classmethod
+    def get_default_param_values(cls):
+        # type: () -> Dict[str, Any]
+        return dict(
+            res_type='standard',
+            res_options=None,
+            em_specs=None,
+            half_blk_x=True,
+            sub_tr_w=None,
+            show_pins=True,
+        )
+
+    def draw_layout(self):
+        # type: () -> None
+        nx = self.params['nx']
+        sub_w = self.params['sub_w']
+        sub_lch = self.params['sub_lch']
+        sub_type = self.params['sub_type']
+        threshold = self.params['threshold']
+        res_type = self.params['res_type']
+        sub_tr_w = self.params['sub_tr_w']
+        show_pins = self.params['show_pins']
+
+        params = self.params.copy()
+        tmp = self.place_instances(CMLResLoadCore, params, sub_lch, sub_w, sub_tr_w,
+                                   sub_type, threshold, res_type=res_type, is_passive=True)
+        inst, sub_insts, sub_port_name = tmp
+        top_sub_warrs = sub_insts[1].get_all_port_pins(sub_port_name)
+
+        self.fill_box = bnd_box = self.bound_box
+        for lay in range(1, self.top_layer):
+            self.do_max_space_fill(lay, bnd_box, fill_pitch=1.5)
+
+        sub_list = [pin for inst in sub_insts for pin in inst.port_pins_iter(sub_port_name)]
+        warrs = self.connect_to_track_wires(sub_list, inst.get_all_port_pins('dummy'))
+        self.add_pin(sub_port_name, warrs, show=show_pins)
+
+        self._output_tracks = []
+        for idx in range(nx):
+            top = inst.get_pin('top<%d>' % idx)
+            self._output_tracks.append(top.track_id.base_index)
+            warrs = self.connect_to_track_wires(top_sub_warrs, top)
+            self.add_pin(sub_port_name, warrs, show=show_pins)
+            self.reexport(inst.get_port('bot<%d>' % idx), net_name='out', show=show_pins)
