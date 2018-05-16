@@ -1,0 +1,92 @@
+lib_name: bag_serdes_ec
+cell_name: cml_amp
+pins: [ "VDD", "VSS", "inp", "inn", "ibias", "outp", "outn" ]
+instances:
+  XGM:
+    lib_name: bag_serdes_ec
+    cell_name: cml_gm
+    instpins:
+      inp:
+        direction: input
+        net_name: "inp"
+        num_bits: 1
+      VDD:
+        direction: inputOutput
+        net_name: "VDD"
+        num_bits: 1
+      ibias:
+        direction: input
+        net_name: "ibias"
+        num_bits: 1
+      ioutp:
+        direction: output
+        net_name: "ioutp"
+        num_bits: 1
+      inn:
+        direction: input
+        net_name: "inn"
+        num_bits: 1
+      ioutn:
+        direction: output
+        net_name: "ioutn"
+        num_bits: 1
+  XRN:
+    lib_name: bag_serdes_ec
+    cell_name: cml_res_load
+    instpins:
+      VSS:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      iin:
+        direction: input
+        net_name: "ioutn"
+        num_bits: 1
+      out:
+        direction: output
+        net_name: "outn"
+        num_bits: 1
+  XRP:
+    lib_name: bag_serdes_ec
+    cell_name: cml_res_load
+    instpins:
+      VSS:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      iin:
+        direction: input
+        net_name: "ioutp"
+        num_bits: 1
+      out:
+        direction: output
+        net_name: "outp"
+        num_bits: 1
+  PIN1:
+    lib_name: basic
+    cell_name: iopin
+    instpins: {}
+  PIN0:
+    lib_name: basic
+    cell_name: iopin
+    instpins: {}
+  PIN4:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN3:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN2:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN6:
+    lib_name: basic
+    cell_name: opin
+    instpins: {}
+  PIN5:
+    lib_name: basic
+    cell_name: opin
+    instpins: {}

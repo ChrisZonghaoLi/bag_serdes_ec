@@ -1,0 +1,60 @@
+lib_name: bag_serdes_ec
+cell_name: cml_res_load
+pins: [ "out", "iin", "VSS" ]
+instances:
+  XRDUM:
+    lib_name: BAG_prim
+    cell_name: res_standard
+    instpins:
+      PLUS:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      MINUS:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      BULK:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+  XR:
+    lib_name: BAG_prim
+    cell_name: res_standard
+    instpins:
+      PLUS:
+        direction: inputOutput
+        net_name: "out"
+        num_bits: 1
+      MINUS:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      BULK:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+  PIN3:
+    lib_name: basic
+    cell_name: iopin
+    instpins: {}
+  PIN1:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  XTHRU:
+    lib_name: basic
+    cell_name: cds_thru
+    instpins:
+      src:
+        direction: inputOutput
+        net_name: "iin"
+        num_bits: 1
+      dst:
+        direction: inputOutput
+        net_name: "out"
+        num_bits: 1
+  PIN0:
+    lib_name: basic
+    cell_name: opin
+    instpins: {}
