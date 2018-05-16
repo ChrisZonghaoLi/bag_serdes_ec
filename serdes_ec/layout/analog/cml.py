@@ -226,14 +226,18 @@ class CMLGmPMOS(AnalogBase):
                                                    track_lower=0, unit_mode=True), show=show_pins)
         self.add_pin('inn', self.connect_to_tracks(inn_list, inn_tid,
                                                    track_lower=0, unit_mode=True), show=show_pins)
-        self.connect_to_tracks(tail_list, tail_tid)
-        self.add_pin('ibias', self.connect_to_tracks(bias_list, bias_tid), show=show_pins)
+        ibias = self.connect_to_tracks(bias_list, bias_tid, track_lower=0, unit_mode=True)
+        self.add_pin('ibias', ibias, show=show_pins)
+        self.connect_to_tracks(tail_list, tail_tid, track_lower=ibias.lower_unit,
+                               track_upper=ibias.upper_unit, unit_mode=True)
         vdd_m = self.connect_to_tracks(vdd_m_list, vdd_tid)
 
         _, vdd_warrs = self.fill_dummy()
         vdd_warrs.append(vdd_m)
+        right_tidx = 0
         for tidx in supply_tracks:
             vtid = TrackID(ym_layer, tidx, width=ym_tr_w)
+            right_tidx = max(right_tidx, tidx)
             self.add_pin('VDD', self.connect_to_tracks(vdd_warrs, vtid), show=show_pins)
         for tidx in output_tracks:
             vtid = TrackID(ym_layer, tidx, width=ym_tr_w)
@@ -327,8 +331,8 @@ class CMLAmpPMOS(TemplateBase):
         res_top = self.add_instance(master_res, 'XRT', (dx, dy + res_h + gm_h), unit_mode=True)
 
         # set size
-        bnd_box = BBox(0, 0, tot_w, tot_h, self.grid.resolution, unit_mode=True)
-        self.array_box = self.fill_box = bnd_box
+        self.fill_box = fill_box = res_bot.fill_box.merge(res_top.fill_box)
+        self.array_box = bnd_box = BBox(0, 0, tot_w, tot_h, self.grid.resolution, unit_mode=True)
         self.set_size_from_bound_box(top_layer, bnd_box)
         self.add_cell_boundary(bnd_box)
 
@@ -347,6 +351,11 @@ class CMLAmpPMOS(TemplateBase):
         for warrs, name in [(outp_list, 'outp'), (outn_list, 'outn'),
                             (vdd_list, 'VDD'), (vsst_list, 'VSS'), (vssb_list, 'VSS')]:
             self._connect_to_top(name, warrs, em_specs, top_layer, show_pins)
+
+        # do fill
+        ym_layer = vdd_list[0].layer_id
+        for lay in range(ym_layer, top_layer + 1):
+            self.do_max_space_fill(lay, fill_box, fill_pitch=1.5)
 
     def _connect_to_top(self, name, warrs, em_specs, top_layer, show_pins):
         num_seg = len(warrs)
