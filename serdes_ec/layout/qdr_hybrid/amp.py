@@ -87,7 +87,7 @@ class IntegAmp(HybridQDRBase):
 
     @classmethod
     def get_amp_fg_info(cls, grid, lch, seg_dict):
-        qdr_info = HybridQDRBaseInfo(grid, lch, 0)
+        qdr_info = HybridQDRBaseInfo(grid, lch, 0, do_correct_v_pitch=True)
         fg_sep_hm = qdr_info.get_fg_sep_from_hm_space(1, round_even=True)
         fg_sep_hm = max(0, fg_sep_hm)
 

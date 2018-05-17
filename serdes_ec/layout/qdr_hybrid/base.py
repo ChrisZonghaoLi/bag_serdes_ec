@@ -388,7 +388,7 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
 
         # make layout information object
         self.set_layout_info(HybridQDRBaseInfo(self.grid, lch, guard_ring_nf, fg_tot=fg_tot,
-                                               **kwargs))
+                                               do_correct_v_pitch=True, **kwargs))
 
         self._row_lookup = {}
         nw_list, nth_list, n_wires = [], [], []
@@ -413,7 +413,8 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
         self.draw_base(lch, fg_tot, ptap_w, ntap_w, nw_list, nth_list, pw_list, pth_list,
                        n_orientations=n_orient, p_orientations=p_orient,
                        guard_ring_nf=guard_ring_nf, tr_manager=tr_manager,
-                       wire_names=dict(nch=n_wires, pch=p_wires), **kwargs)
+                       wire_names=dict(nch=n_wires, pch=p_wires),
+                       do_correct_v_pitch=True, **kwargs)
 
     def _draw_integ_amp_mos(self,  # type: HybridQDRBase
                             col_idx,  # type: int

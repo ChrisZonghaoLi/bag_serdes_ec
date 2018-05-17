@@ -240,7 +240,8 @@ class TapXSummerCell(TemplateBase):
         # set size
         self.array_box = s_inst.array_box.merge(d_inst.array_box)
         self.fill_box = bnd_box = s_inst.bound_box.merge(d_inst.bound_box)
-        self.set_size_from_bound_box(s_master.top_layer, bnd_box)
+        self.prim_top_layer = s_master.top_layer
+        self.prim_bound_box = bnd_box
 
         # export pins in-place
         exp_list = [(s_inst, 'clkp', 'clkn', True), (s_inst, 'clkn', 'clkp', True),
