@@ -16,7 +16,6 @@ from .base import HybridQDRBaseInfo, HybridQDRBase
 from .amp import IntegAmp
 from ..laygo.divider import DividerGroup
 
-
 if TYPE_CHECKING:
     from bag.layout.template import TemplateDB
 
@@ -598,6 +597,7 @@ class Tap1Column(TemplateBase):
                                     unit_mode=True)
         inst_list = [inst0, inst1, inst2, inst3]
         self.fill_box = inst1.fill_box.merge(inst3.fill_box)
+        blockage_y = [0, top_row.bound_box.top_unit]
 
         div_grp_x0, div_grp_y0 = sum_master.div_grp_loc
         div_grp_x = div_grp_x0 - div3_master.array_box.left_unit
@@ -699,7 +699,9 @@ class Tap1Column(TemplateBase):
         self.add_pin('clkp', clkp, show=show_pins)
         self.add_pin('clkn', clkn, show=show_pins)
         self.add_pin('bias_f<0>', bf0, show=show_pins, edge_mode=1)
+        blockage_y[1] = min(blockage_y[1], bf0.lower_unit)
         self.add_pin('bias_f<1>', bf1, show=show_pins, edge_mode=-1)
+        blockage_y[0] = max(blockage_y[0], bf1.upper_unit)
         self.add_pin('bias_f<2>', bf2, show=show_pins, edge_mode=-1)
         self.add_pin('bias_f<3>', bf3, show=show_pins, edge_mode=1)
 
@@ -742,12 +744,16 @@ class Tap1Column(TemplateBase):
         bd0, bd1 = self.connect_differential_tracks(biasd_warrs[0], biasd_warrs[1], vm_layer,
                                                     bias_locs[1], bias_locs[2], width=vm_w_clk)
         self.add_pin('bias_m<0>', bm0, show=show_pins, edge_mode=1)
+        blockage_y[1] = min(blockage_y[1], bm0.lower_unit)
         self.add_pin('bias_m<1>', bm1, show=show_pins, edge_mode=-1)
+        blockage_y[0] = max(blockage_y[0], bm1.upper_unit)
         self.add_pin('bias_m<2>', bm2, show=show_pins, edge_mode=-1)
         self.add_pin('bias_m<3>', bm3, show=show_pins, edge_mode=1)
         self.add_pin('bias_d<0>', bd0, show=show_pins, edge_mode=-1)
         self.add_pin('bias_d<1>', bd1, show=show_pins, edge_mode=-1)
+        blockage_y[0] = max(blockage_y[0], bd1.upper_unit)
         self.add_pin('bias_d<2>', bd2, show=show_pins, edge_mode=1)
+        blockage_y[1] = min(blockage_y[1], bd2.lower_unit)
         self.add_pin('bias_d<3>', bd3, show=show_pins, edge_mode=1)
 
         # set size
@@ -762,9 +768,10 @@ class Tap1Column(TemplateBase):
         # mark blockages
         res = self.grid.resolution
         for xl, xu in self._blockage_intvs:
-            self.mark_bbox_used(vm_layer, BBox(xl, bnd_box.bottom_unit, xu, bnd_box.top_unit,
+            self.mark_bbox_used(vm_layer, BBox(xl, bnd_box.bottom_unit, xu, blockage_y[0],
                                                res, unit_mode=True))
-
+            self.mark_bbox_used(vm_layer, BBox(xl, blockage_y[1], xu, bnd_box.top_unit,
+                                               res, unit_mode=True))
         # draw en_div/scan wires
         tr_scan = shield_tidl - 1
         tr_en2 = tr_scan - sp_clk_shield

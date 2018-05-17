@@ -184,7 +184,11 @@ class RXFrontend(TemplateBase):
         yt = tot_h - yoff - hp_h
         res = self.grid.resolution
         for xl, xu in master_dp.blockage_intvs:
-            self.mark_bbox_used(ym_layer, BBox(xl + x_dp, yb, xu + x_dp, yt, res, unit_mode=True))
+            xl += x_dp
+            xu += x_dp
+            self.mark_bbox_used(ym_layer, BBox(xl, yb, xu, y_dp, res, unit_mode=True))
+            self.mark_bbox_used(ym_layer, BBox(xl, y_dp + dp_box.height_unit, xu, yt,
+                                               res, unit_mode=True))
 
         # export pins
         self._reexport_dp_pins(dp_inst, show_pins, export_probe)
@@ -251,12 +255,19 @@ class RXFrontend(TemplateBase):
         self._extend_bias_routes(hm_layer, bias_config, vdd_pins, vss_pins, y_route,
                                  vdd_x[0], vss_x[0], show_pins)
 
-        # connect supplies
+        # connect supplies and clock
         vdd_wires.extend(vdd_bias)
         vss_wires.extend(vss_bias)
         fill_box = BBox(route_w, y_dp, x_dp, y_tvdd, res, unit_mode=True)
         self._connect_supplies(tr_manager, top_layer, dp_inst, sup_yc_list, vdd_wires,
                                vss_wires, biasl_vdd, ctle_vss, fill_box, fill_config, show_pins)
+
+        # do fill
+        core_fill_box = ctle_inst.fill_box.merge(dp_inst.fill_box)
+        for layer in range(ym_layer, ym_layer + 2):
+            self.do_max_space_fill(layer, bound_box=core_fill_box, fill_pitch=2)
+            for inst in (hpxb_inst, hpxt_inst, hp1b_inst, hp1t_inst):
+                self.do_max_space_fill(layer, bound_box=inst.fill_box, fill_pitch=2)
 
         self._sch_params = master_dp.sch_params.copy()
         self._sch_params['ctle_params'] = master_ctle.sch_params
@@ -338,9 +349,9 @@ class RXFrontend(TemplateBase):
                                         dp_inst.get_pin('inn'), unit_mode=True)
 
         inp = self.connect_to_tracks(ctle_inst.get_pin('inp'), TrackID(xm_layer, pidx, width=tr_w),
-                                     min_len_mode=-1)
+                                     min_len_mode=-1, track_lower=0, unit_mode=True)
         inn = self.connect_to_tracks(ctle_inst.get_pin('inn'), TrackID(xm_layer, nidx, width=tr_w),
-                                     min_len_mode=-1)
+                                     min_len_mode=-1, track_lower=0, unit_mode=True)
 
         self.add_pin('inp', inp, show=show_pins)
         self.add_pin('inn', inn, show=show_pins)
@@ -381,19 +392,23 @@ class RXFrontend(TemplateBase):
         clkn = dp_inst.get_all_port_pins('clkn')
         clkp, clkn = self.connect_differential_tracks(clkp, clkn, xm_layer, pidx, nidx,
                                                       width=tr_w_clk)
-        self.add_pin('clkp', clkp, label='clkp:', show=show_pins)
-        self.add_pin('clkn', clkn, label='clkn:', show=show_pins)
 
+        pidx = self.grid.coord_to_nearest_track(xm_layer, ent_y, half_track=True, mode=1,
+                                                unit_mode=True)
         nidx = self.grid.coord_to_nearest_track(xm_layer, enb_y, half_track=True, mode=-1,
                                                 unit_mode=True)
         tid = TrackID(xm_layer, nidx, width=tr_w_div)
-        en = self.connect_to_tracks(dp_inst.get_all_port_pins('en_div'), tid)
+        en = self.connect_to_tracks(dp_inst.get_all_port_pins('en_div'), tid,
+                                    track_upper=self.bound_box.right_unit, unit_mode=True)
+        # add matching dummy divider wire
+        self.add_wires(xm_layer, pidx, en.lower_unit, en.upper_unit,
+                       width=tr_w_div, unit_mode=True)
         self.add_pin('enable_divider', en, show=show_pins)
 
         return clkp, clkn
 
-    def _connect_supplies(self, tr_manager, xm_layer, dp_inst, sup_yc_list, vdd_wires, vss_wires,
-                          hm_vdd, hm_vss, fill_box, fill_config, show_pins):
+    def _connect_supplies(self, tr_manager, xm_layer, dp_inst, sup_yc_list, vdd_wires,
+                          vss_wires, hm_vdd, hm_vss, fill_box, fill_config, show_pins):
         # do power fill on CTLE region
         ym_layer = xm_layer - 1
         fw, fsp, sp, sple = fill_config[ym_layer]

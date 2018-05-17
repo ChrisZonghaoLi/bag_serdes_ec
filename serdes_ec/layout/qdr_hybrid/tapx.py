@@ -946,6 +946,7 @@ class TapXColumn(TemplateBase):
         self._num_dfe = None
         self._num_ffe = None
         self._blockage_intvs = None
+        self._blockage_y = None
         self._sup_y_list = None
 
     @property
@@ -1072,6 +1073,7 @@ class TapXColumn(TemplateBase):
         inst_list = [inst0, inst1, inst2, inst3]
         sum_fill_box = inst0.fill_box.merge(inst3.fill_box)
         self.fill_box = div_inst.fill_box.merge(sum_fill_box)
+        self._blockage_y = [0, top_row.bound_box.top_unit]
         sup_y_mid = sum_master.sup_y_mid
         self._sup_y_list = [y0, sup_y_mid + y0, y1, y2 - sup_y_mid, y2,
                             y2 + sup_y_mid, y3, y4 - sup_y_mid, y4]
@@ -1173,9 +1175,13 @@ class TapXColumn(TemplateBase):
         # add/record blockage
         self._blockage_intvs = []
         for xbl, xbr in sum_master.blockage_intvs:
-            blk_box = bnd_box.with_interval('x', xbl + x0, xbr + x0, unit_mode=True)
-            self._blockage_intvs.append((xbl + x0, xbr + x0))
-            self.mark_bbox_used(ym_layer, blk_box)
+            xbl += x0
+            xbr += x0
+            self._blockage_intvs.append((xbl, xbr))
+            self.mark_bbox_used(ym_layer, BBox(xbl, bnd_box.bottom_unit, xbr, self._blockage_y[0],
+                                               bnd_box.resolution, unit_mode=True))
+            self.mark_bbox_used(ym_layer, BBox(xbl, self._blockage_y[1], xbr, bnd_box.top_unit,
+                                               bnd_box.resolution, unit_mode=True))
 
         # connect divider column
         clkp_list.extend(nclkp_list)
@@ -1305,10 +1311,12 @@ class TapXColumn(TemplateBase):
                                                   width=vm_w_clk)
         self.add_pin('bias_a<3>', wp, show=show_pins, edge_mode=-1)
         self.add_pin('bias_a<0>', wn, show=show_pins, edge_mode=-1)
+        self._blockage_y[0] = max(self._blockage_y[0], wp.upper_unit)
         wp, wn = self.connect_differential_tracks(a_list[1], a_list[2], vm_layer, trp, trn,
                                                   width=vm_w_clk)
         self.add_pin('bias_a<1>', wp, show=show_pins, edge_mode=1)
         self.add_pin('bias_a<2>', wn, show=show_pins, edge_mode=1)
+        self._blockage_y[1] = min(self._blockage_y[1], wp.lower_unit)
         # connect main tap biases
         trp = track_info['biasp_m'][0] + tr0
         trn = track_info['biasn_m'][0] + tr0
@@ -1316,10 +1324,12 @@ class TapXColumn(TemplateBase):
                                                   width=vm_w_clk)
         self.add_pin('bias_m<1>', wp, show=show_pins, edge_mode=1)
         self.add_pin('bias_m<0>', wn, show=show_pins, edge_mode=1)
+        self._blockage_y[1] = min(self._blockage_y[1], wp.lower_unit)
         wp, wn = self.connect_differential_tracks(m_list[3], m_list[2], vm_layer, trp, trn,
                                                   width=vm_w_clk)
         self.add_pin('bias_m<3>', wp, show=show_pins, edge_mode=-1)
         self.add_pin('bias_m<2>', wn, show=show_pins, edge_mode=-1)
+        self._blockage_y[0] = max(self._blockage_y[0], wp.upper_unit)
 
         return clkp_list, clkn_list, nclkp_list, nclkn_list
 
@@ -1341,6 +1351,10 @@ class TapXColumn(TemplateBase):
                 wn = inst_list[cidx].get_pin('biasn_s' + suf)
                 wp, wn = self.connect_differential_tracks(wp, wn, vm_layer, ctrp, ctrn,
                                                           width=vm_w_clk)
+                if cidx == 1:
+                    self._blockage_y[1] = min(self._blockage_y[1], wp.lower_unit)
+                else:
+                    self._blockage_y[0] = max(self._blockage_y[0], wp.upper_unit)
                 self.add_pin('bias_s<%d>' % (cidx + sig_idx * 4), wp, show=show_pins)
                 self.add_pin('bias_s<%d>' % (cidx - 1 + sig_idx * 4), wn, show=show_pins)
                 wp = inst_list[cidx].get_pin('sgnp' + suf)
@@ -1372,10 +1386,12 @@ class TapXColumn(TemplateBase):
                                                   width=vm_w_clk)
         self.add_pin('bias_d<3>', wp, show=show_pins, edge_mode=-1)
         self.add_pin('bias_d<0>', wn, show=show_pins, edge_mode=-1)
+        self._blockage_y[0] = max(self._blockage_y[0], wp.upper_unit)
         wp, wn = self.connect_differential_tracks(d_list[1], d_list[2], vm_layer, trp, trn,
                                                   width=vm_w_clk)
         self.add_pin('bias_d<1>', wp, show=show_pins, edge_mode=1)
         self.add_pin('bias_d<2>', wn, show=show_pins, edge_mode=1)
+        self._blockage_y[1] = min(self._blockage_y[1], wp.lower_unit)
 
     def _connect_div(self, tr0, tr_manager, ym_layer, track_info, inst_list, div3, div2,
                      show_pins, export_probe):
