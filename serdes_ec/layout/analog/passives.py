@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Dict, Set, Any, List, Union
 
 from bag.layout.routing.base import TrackID, TrackManager
 from bag.layout.util import BBox
+from bag.layout.template import TemplateBase, BlackBoxTemplate
 
 from abs_templates_ec.resistor.core import ResArrayBase
 
@@ -612,3 +613,272 @@ class CMLResLoad(SubstrateWrapper):
             warrs = self.connect_to_track_wires(top_sub_warrs, top)
             self.add_pin(sub_port_name, warrs, show=show_pins)
             self.reexport(inst.get_port('bot<%d>' % idx), net_name='out', show=show_pins)
+
+
+class MOMCapAC(TemplateBase):
+    """A metal-on-metal AC coupling cap.
+
+    inputs/outputs are on top_layer + 1
+
+
+    Parameters
+    ----------
+    temp_db : :class:`bag.layout.template.TemplateDB`
+        the template database.
+    lib_name : str
+        the layout library name.
+    params : dict[str, any]
+        the parameter values.
+    used_names : set[str]
+        a set of already used cell names.
+    **kwargs :
+        dictionary of optional parameters.  See documentation of
+        :class:`bag.layout.template.TemplateBase` for details.
+    """
+
+    def __init__(self, temp_db, lib_name, params, used_names, **kwargs):
+        # type: (TemplateDB, str, Dict[str, Any], Set[str], **kwargs) -> None
+        TemplateBase.__init__(self, temp_db, lib_name, params, used_names, **kwargs)
+        self._sch_params = None
+
+    @property
+    def sch_params(self):
+        # type: () -> Dict[str, Any]
+        return self._sch_params
+
+    @classmethod
+    def get_params_info(cls):
+        # type: () -> Dict[str, str]
+        return dict(
+            bot_layer='MOM cap bottom layer.',
+            top_layer='MOM cap top layer.',
+            width='MOM cap width, in resolution units.',
+            height='MOM cap height, in resolution units.',
+            margin='margin between cap and boundary, in resolution units.',
+            in_tid='Input TrackID information.',
+            out_tid='Output TrackID information.',
+            port_tr_w='MOM cap port track width, in number of tracks.',
+            options='MOM cap layout options.',
+            show_pins='True to show pin labels.',
+        )
+
+    @classmethod
+    def get_default_param_values(cls):
+        # type: () -> Dict[str, Any]
+        return dict(
+            in_tid=None,
+            out_tid=None,
+            port_tr_w=1,
+            options=None,
+            show_pins=True,
+        )
+
+    def draw_layout(self):
+        # type: () -> None
+        bot_layer = self.params['bot_layer']
+        top_layer = self.params['top_layer']
+        width = self.params['width']
+        height = self.params['height']
+        margin = self.params['margin']
+        in_tid = self.params['in_tid']
+        out_tid = self.params['out_tid']
+        port_tr_w = self.params['port_tr_w']
+        options = self.params['options']
+        show_pins = self.params['show_pins']
+
+        res = self.grid.resolution
+
+        # set size
+        io_layer = top_layer + 1
+        bnd_box = BBox(0, 0, width, height, res, unit_mode=True)
+        self.set_size_from_bound_box(io_layer, bnd_box, round_up=True)
+        self.array_box = bnd_box = self.bound_box
+
+        # get input/output track location
+        io_tidx = self.grid.coord_to_nearest_track(io_layer, bnd_box.yc_unit, half_track=True,
+                                                   mode=0, unit_mode=True)
+        if in_tid is None:
+            in_tidx = io_tidx
+            in_tr_w = 2
+        else:
+            in_tidx, in_tr_w = in_tid
+        if out_tid is None:
+            out_tidx = io_tidx
+            out_tr_w = 2
+        else:
+            out_tidx, out_tr_w = out_tid
+
+        # setup capacitor options
+        # get port width dictionary.  Make sure we can via up to top_layer + 1
+        in_w = self.grid.get_track_width(io_layer, in_tr_w, unit_mode=True)
+        out_w = self.grid.get_track_width(io_layer, out_tr_w, unit_mode=True)
+        top_port_tr_w = self.grid.get_min_track_width(top_layer, top_w=max(in_w, out_w),
+                                                      unit_mode=True)
+        top_port_tr_w = max(top_port_tr_w, port_tr_w)
+        port_tr_w_dict = {lay: port_tr_w for lay in range(bot_layer, top_layer + 1)}
+        port_tr_w_dict[top_layer] = top_port_tr_w
+        if options is None:
+            options = dict(port_widths=port_tr_w_dict)
+        else:
+            options = options.copy()
+            options['port_widths'] = port_tr_w_dict
+
+        # draw cap
+        cap_width = bnd_box.width_unit - 2 * margin
+        cap_height = bnd_box.height_unit - 2 * margin
+        cap_xl = bnd_box.xc_unit - cap_width // 2
+        cap_yb = bnd_box.yc_unit - cap_height // 2
+        cap_box = BBox(cap_xl, cap_yb, cap_xl + cap_width, cap_yb + cap_height, res, unit_mode=True)
+        num_layer = top_layer - bot_layer + 1
+        cap_ports = self.add_mom_cap(cap_box, bot_layer, num_layer, **options)
+
+        # connect input/output, draw metal resistors
+        cin, cout = cap_ports[top_layer]
+        cin = cin[0]
+        cout = cout[0]
+        in_min_len = self.grid.get_min_length(io_layer, in_tr_w, unit_mode=True)
+        res_xr = cin.track_id.get_bounds(self.grid, unit_mode=True)[0]
+        res_xl = res_xr - in_min_len
+        in_xl = res_xl - in_min_len
+        in_tid = TrackID(io_layer, in_tidx, width=in_tr_w)
+        self.connect_to_tracks(cin, in_tid, track_lower=in_xl)
+        self.add_res_metal_warr(io_layer, in_tidx, res_xl, res_xr, width=in_tr_w, unit_mode=True)
+        in_warr = self.add_wires(io_layer, in_tidx, in_xl, res_xl, width=in_tr_w, unit_mode=True)
+
+        out_min_len = self.grid.get_min_length(io_layer, out_tr_w, unit_mode=True)
+        res_xl = cout.track_id.get_bounds(self.grid, unit_mode=True)[1]
+        res_xr = res_xl + out_min_len
+        out_xr = res_xr + out_min_len
+        self.connect_to_tracks(cout, out_tid, track_upper=out_xr)
+        self.add_res_metal_warr(io_layer, out_tidx, res_xl, res_xr, width=out_tr_w, unit_mode=True)
+        out_warr = self.add_wires(io_layer, out_tidx, res_xr, out_xr, width=out_tr_w,
+                                  unit_mode=True)
+
+        self.add_pin('in', in_warr, show=show_pins)
+        self.add_pin('out', out_warr, show=show_pins)
+
+        lay_unit = self.grid.layout_unit
+        self._sch_params = dict(
+            res_in_info=(io_layer, in_w * res * lay_unit, in_min_len * res * lay_unit),
+            res_out_info=(io_layer, out_w * res * lay_unit, out_min_len * res * lay_unit),
+        )
+
+
+class TermRXSingle(TemplateBase):
+    """A single-ended termination block for RX.
+
+    Parameters
+    ----------
+    temp_db : :class:`bag.layout.template.TemplateDB`
+        the template database.
+    lib_name : str
+        the layout library name.
+    params : Dict[str, Any]
+        the parameter values.
+    used_names : Set[str]
+        a set of already used cell names.
+    **kwargs :
+        dictionary of optional parameters.  See documentation of
+        :class:`bag.layout.template.TemplateBase` for details.
+    """
+
+    def __init__(self, temp_db, lib_name, params, used_names, **kwargs):
+        # type: (TemplateDB, str, Dict[str, Any], Set[str], **kwargs) -> None
+        TemplateBase.__init__(self, temp_db, lib_name, params, used_names, **kwargs)
+        self._sch_params = None
+
+    @property
+    def sch_params(self):
+        # type: () -> Dict[str, Any]
+        return self._sch_params
+
+    @classmethod
+    def get_params_info(cls):
+        # type: () -> Dict[str, str]
+        return dict(
+            res_params='load resistor parameters.',
+            esd_params='ESD black-box parameters.',
+            cap_params='MOM cap parameters.',
+            cap_out_tid='Capacitor output track ID.',
+            tr_widths='Track width dictionary.',
+            tr_spaces='Track spacing dictionary.',
+            top_layer='top level layer',
+            fill_config='fill configuration dictionary.',
+            show_pins='True to draw pins.',
+        )
+
+    @classmethod
+    def get_default_param_values(cls):
+        # type: () -> Dict[str, Any]
+        return dict(
+            cap_out_tid=None,
+            show_pins=True,
+        )
+
+    def draw_layout(self):
+        # type: () -> None
+        top_layer = self.params['top_layer']
+        fill_config = self.params['fill_config']
+        show_pins = self.params['show_pins']
+
+        res = self.grid.resolution
+
+        master_res, master_esd, master_cap = self._make_masters()
+
+        box_res = master_res.bound_box
+        box_esd = master_esd.bound_box
+        box_cap = master_cap.bound_box
+        w_res = box_res.width_unit
+        w_esd = box_esd.width_unit
+        w_cap = box_cap.width_unit
+        h_res = box_res.height_unit
+
+        w_tot = w_res + w_esd + w_cap
+        h_tot = max(box_esd.height_unit, h_res, box_cap.height_unit)
+        w_blk, h_blk = self.grid.get_fill_size(top_layer, fill_config, unit_mode=True)
+        w_tot = -(-w_tot // w_blk) * w_blk
+        h_tot = -(-h_tot // h_blk) * h_blk
+
+        x_cap = w_tot - w_cap
+        x_res = x_cap - w_res
+        x_esd = x_res - w_esd
+        y_res = h_res
+
+        inst_esd = self.add_instance(master_esd, 'XESD', (x_esd, 0), unit_mode=True)
+        inst_res = self.add_instance(master_res, 'XRES', (x_res, y_res),
+                                     orient='MX', unit_mode=True)
+        inst_cap = self.add_instance(master_cap, 'XCAP', (x_cap, 0), unit_mode=True)
+
+        self.array_box = tot_box = BBox(0, 0, w_tot, h_tot, res, unit_mode=True)
+        self.set_size_from_bound_box(top_layer, tot_box, round_up=True)
+        self.add_cell_boundary(tot_box)
+
+        self._sch_params = dict(
+            esd_params=master_esd.sch_params,
+            res_params=master_res.sch_params,
+            cap_params=master_cap.sch_params,
+        )
+
+    def _make_masters(self):
+        res_params = self.params['res_params']
+        esd_params = self.params['esd_params']
+        cap_params = self.params['cap_params']
+        cap_out_tid = self.params['cap_out_tid']
+
+        res_params = res_params.copy()
+        esd_params = esd_params.copy()
+        cap_params = cap_params.copy()
+
+        res_params['sub_type'] = 'ptap'
+        res_params['show_pins'] = False
+        master_res = self.new_template(params=res_params, temp_cls=CMLResLoad)
+
+        esd_params['show_pins'] = False
+        master_esd = self.new_template(params=esd_params, temp_cls=BlackBoxTemplate)
+
+        cap_params['out_tid'] = cap_out_tid
+        cap_params['top_layer'] = master_res.top_layer
+        cap_params['show_pins'] = False
+        master_cap = self.new_template(params=cap_params, temp_cls=MOMCapAC)
+
+        return master_res, master_esd, master_cap
