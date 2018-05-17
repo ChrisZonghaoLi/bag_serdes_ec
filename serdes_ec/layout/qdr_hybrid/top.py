@@ -174,10 +174,9 @@ class RXFrontend(TemplateBase):
         hp1t_inst = self.add_instance(master_hp1, 'XHP1B', loc=(x_hp1, tot_h - yoff),
                                       orient='MX', unit_mode=True)
 
-        dp_box = BBox(0, 0, tot_w, tot_h, self.grid.resolution, unit_mode=True)
-        self.set_size_from_bound_box(top_layer, dp_box)
-        self.array_box = dp_box
-        self.add_cell_boundary(dp_box)
+        self.array_box = tot_box = BBox(0, 0, tot_w, tot_h, self.grid.resolution, unit_mode=True)
+        self.set_size_from_bound_box(top_layer, tot_box)
+        self.add_cell_boundary(tot_box)
 
         # mark blockages
         yb = yoff + hp_h
