@@ -733,7 +733,7 @@ class MOMCapAC(TemplateBase):
         cap_ports = self.add_mom_cap(cap_box, bot_layer, num_layer, **options)
 
         # connect input/output, draw metal resistors
-        cin, cout = cap_ports[top_layer]
+        cout, cin = cap_ports[top_layer]
         cin = cin[0]
         cout = cout[0]
         in_min_len = self.grid.get_min_length(io_layer, in_tr_w, unit_mode=True)
@@ -749,7 +749,8 @@ class MOMCapAC(TemplateBase):
         res_xl = cout.track_id.get_bounds(self.grid, unit_mode=True)[1]
         res_xr = res_xl + out_min_len
         out_xr = res_xr + out_min_len
-        self.connect_to_tracks(cout, out_tid, track_upper=out_xr)
+        out_tid = TrackID(io_layer, out_tidx, width=out_tr_w)
+        self.connect_to_tracks(cout, out_tid, track_upper=out_xr, unit_mode=True)
         self.add_res_metal_warr(io_layer, out_tidx, res_xl, res_xr, width=out_tr_w, unit_mode=True)
         out_warr = self.add_wires(io_layer, out_tidx, res_xr, out_xr, width=out_tr_w,
                                   unit_mode=True)
@@ -800,8 +801,6 @@ class TermRXSingle(TemplateBase):
             esd_params='ESD black-box parameters.',
             cap_params='MOM cap parameters.',
             cap_out_tid='Capacitor output track ID.',
-            tr_widths='Track width dictionary.',
-            tr_spaces='Track spacing dictionary.',
             top_layer='top level layer',
             fill_config='fill configuration dictionary.',
             show_pins='True to draw pins.',
