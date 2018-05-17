@@ -40,6 +40,10 @@ class bag_serdes_ec__integ_load(Module):
             dum_info=None,
         )
 
+    @classmethod
+    def is_empty(cls, seg_dict, dum_info):
+        return (not dum_info) and seg_dict.get('load', 0) <= 0
+
     def design(self, lch, w_dict, th_dict, seg_dict, dum_info):
         tran_info_list = [('XPENP0', 'pen'), ('XPENP1', 'pen'),
                           ('XPENN0', 'pen'), ('XPENN1', 'pen'),

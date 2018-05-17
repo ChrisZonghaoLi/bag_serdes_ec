@@ -612,7 +612,9 @@ class TapXSummer(TemplateBase):
         en_warrs = [[], [], [], []]
         for fidx, inst in enumerate(ffe_insts):
             if inst.has_port('casc'):
-                self.reexport(inst.get_port('casc'), net_name='casc<%d>' % fidx, show=show_pins)
+                net_name = 'casc<%d>' % fidx
+                lbl = 'casc' if num_ffe == 2 else net_name
+                self.reexport(inst.get_port('casc'), net_name=net_name, label=lbl, show=show_pins)
             if inst.has_port('nclkn'):
                 self.add_pin('nclkn', inst.get_pin('nclkn'), label='clkn:', show=show_pins)
             biasm_list.append(inst.get_pin('biasn_s'))
