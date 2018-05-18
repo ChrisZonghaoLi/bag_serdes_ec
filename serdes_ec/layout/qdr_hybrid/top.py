@@ -1073,7 +1073,7 @@ class RXTop(TemplateBase):
                 self.connect_to_track_wires(pin_dac, pin_fe)
 
     def _connect_fe(self, top_layer, inst_fe, clk_tr_info, show_pins):
-        for name in ['des_clk', 'des_clkb', 'VDD', 'VSS', 'enable_divider']:
+        for name in ['des_clk', 'des_clkb', 'enable_divider']:
             self.reexport(inst_fe.get_port(name), show=show_pins)
 
         clkp = inst_fe.get_all_port_pins('clkp')
