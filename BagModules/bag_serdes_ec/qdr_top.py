@@ -25,17 +25,19 @@ class bag_serdes_ec__qdr_top(Module):
     def get_params_info(cls):
         # type: () -> Dict[str, str]
         return dict(
+            term_params='termination parameters.',
             fe_params='frontend parameters.',
             dac_params='dac parameters.',
             buf_params='scan buffer parameters.',
         )
 
-    def design(self, fe_params, dac_params, buf_params):
+    def design(self, term_params, fe_params, dac_params, buf_params):
         # design instances
         self.instances['XFE'].design(**fe_params)
         self.instances['XDAC'].design(**dac_params)
         self.instances['XBUFB'].design(**buf_params)
         self.instances['XBUFT'].design(**buf_params)
+        self.instances['XTERM'].design(**term_params)
         pin_list = self.instances['XDAC'].master.pin_list
 
         # connect DAC/FE bias signals

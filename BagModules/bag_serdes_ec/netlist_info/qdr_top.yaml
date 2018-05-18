@@ -64,11 +64,11 @@ instances:
         num_bits: 1
       inn:
         direction: input
-        net_name: "inn"
+        net_name: "inn_fe"
         num_bits: 1
       inp:
         direction: input
-        net_name: "inp"
+        net_name: "inp_fe"
         num_bits: 1
       scan_divider_clkn:
         direction: input
@@ -449,6 +449,34 @@ instances:
       code:
         direction: input
         net_name: "bias_vincm<0>"
+        num_bits: 1
+  XTERM:
+    lib_name: bag_serdes_ec
+    cell_name: term_rx
+    instpins:
+      VSS:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      VDD:
+        direction: inputOutput
+        net_name: "VDD"
+        num_bits: 1
+      outp:
+        direction: output
+        net_name: "inp_fe"
+        num_bits: 1
+      outn:
+        direction: output
+        net_name: "inn_fe"
+        num_bits: 1
+      inp:
+        direction: input
+        net_name: "inp"
+        num_bits: 1
+      inn:
+        direction: input
+        net_name: "inn"
         num_bits: 1
   XBUFB:
     lib_name: bag_digital_ec

@@ -10,6 +10,7 @@ from bag.layout.util import BBox
 from bag.layout.routing.base import TrackID, TrackManager
 from bag.layout.template import TemplateBase
 
+from abs_templates_ec.analog_mos.mos import DummyFillActive
 from abs_templates_ec.routing.bias import BiasShield, BiasShieldJoin, \
     compute_vroute_width, join_bias_vroutes
 from abs_templates_ec.routing.fill import PowerFill
@@ -176,7 +177,8 @@ class RXFrontend(TemplateBase):
         self._buf_locs = ((dbuf_locs[0][0] + x_dp, dbuf_locs[0][1] + y_dp),
                           (dbuf_locs[1][0] + x_dp, dbuf_locs[1][1] + y_dp))
         x_hpx = x_dp + master_dp.x_tapx[1] - hpx_w
-        x_hp1 = max(x_hpx + hpx_w, x_dp + master_dp.x_tap1[1] - hp1_w)
+        xr_hpx = x_hpx + hpx_w
+        x_hp1 = max(xr_hpx, x_dp + master_dp.x_tap1[1] - hp1_w)
         hpxb_inst = self.add_instance(master_hpx, 'XHPXB', loc=(x_hpx, yoff), unit_mode=True)
         hp1b_inst = self.add_instance(master_hp1, 'XHP1B', loc=(x_hp1, yoff), unit_mode=True)
         hpxt_inst = self.add_instance(master_hpx, 'XHPXB', loc=(x_hpx, tot_h - yoff),
@@ -187,6 +189,18 @@ class RXFrontend(TemplateBase):
         self.array_box = tot_box = BBox(0, 0, tot_w, tot_h, self.grid.resolution, unit_mode=True)
         self.set_size_from_bound_box(top_layer, tot_box)
         self.add_cell_boundary(tot_box)
+
+        # fill between high-pass filters
+        if x_hp1 > xr_hpx:
+            dum_params = dict(
+                mos_type='nch',
+                threshold=master_hpx.params['threshold'],
+            )
+            res = self.grid.resolution
+            box = BBox(xr_hpx, yoff, x_hp1, yoff + hp_h, res, unit_mode=True)
+            self._fill_active(box, dum_params)
+            box = BBox(xr_hpx, tot_h - yoff - hp_h, x_hp1, tot_h - yoff, res, unit_mode=True)
+            self._fill_active(box, dum_params)
 
         # mark blockages
         yb = yoff + hp_h
@@ -285,6 +299,12 @@ class RXFrontend(TemplateBase):
         self._sch_params['hp_params'] = master_hpx.sch_params['hp_params']
         self._sch_params['ndum_res'] = master_hpx.sch_params['ndum'] * 4
         self._sch_params['export_probe'] = export_probe
+
+    def _fill_active(self, box, dum_params):
+        dum_params['width'] = box.width_unit
+        dum_params['height'] = box.height_unit
+        master_dum = self.new_template(params=dum_params, temp_cls=DummyFillActive)
+        self.add_instance(master_dum, loc=(box.left_unit, box.bottom_unit), unit_mode=True)
 
     def _extend_bias_routes(self, hm_layer, bias_config, vdd_pins, vss_pins, y_route,
                             x_vdd, x_vss, show_pins):
@@ -937,6 +957,7 @@ class RXTop(TemplateBase):
         self._power_fill(fill_config, top_layer, xm_layer, inst_fe, inst_term, inst_dac, show_pins)
 
         self._sch_params = dict(
+            term_params=master_term.sch_params,
             fe_params=master_fe.sch_params,
             dac_params=master_dac.sch_params,
             buf_params=master_buf.sch_params,
@@ -980,8 +1001,8 @@ class RXTop(TemplateBase):
             vdd.extend(inst_dac.port_pins_iter('VDD'))
             vss.extend(inst_dac.port_pins_iter('VSS'))
 
-        self.add_pin('VDD', vdd, show=show_pins)
-        self.add_pin('VSS', vss, show=show_pins)
+        self.add_pin('VDD', vdd, label='VDD:', show=show_pins)
+        self.add_pin('VSS', vss, label='VSS:', show=show_pins)
 
     def _connect_term(self, inst_term, inst_fe, show_pins):
         self.reexport(inst_term.get_port('inp'), show=show_pins)
@@ -1086,7 +1107,9 @@ class RXTop(TemplateBase):
             for idx, name in enumerate(names):
                 pin = inst_fe.get_pin(name)
                 self.connect_to_track_wires(inst.get_pin('out<%d>' % idx), pin)
-                self.add_pin(name, inst.get_pin('in<%d>' % idx), show=show_pins)
+                cur_pin = self.extend_wires(inst.get_pin('in<%d>' % idx),
+                                            unit_mode=True, min_len_mode=1)
+                self.add_pin(name, cur_pin, show=show_pins)
 
     def _make_masters(self):
         term_params = self.params['term_params'].copy()
