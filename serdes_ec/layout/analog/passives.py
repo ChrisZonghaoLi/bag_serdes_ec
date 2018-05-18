@@ -8,6 +8,7 @@ from bag.layout.util import BBox
 from bag.layout.template import TemplateBase, BlackBoxTemplate
 
 from abs_templates_ec.resistor.core import ResArrayBase
+from abs_templates_ec.analog_mos.mos import DummyFillActive
 
 from analog_ec.layout.passives.capacitor.momcap import MOMCapCore
 from analog_ec.layout.passives.substrate import SubstrateWrapper
@@ -722,7 +723,7 @@ class TermRXSingle(TemplateBase):
 
         res = self.grid.resolution
 
-        master_res, master_esd, master_cap = self._make_masters()
+        master_res, master_esd, master_cap, dum_params = self._make_masters()
 
         # compute placement
         box_res = master_res.bound_box
@@ -759,11 +760,53 @@ class TermRXSingle(TemplateBase):
         xc_list = [xc + x_res for xc in master_res.out_xc_list]
         self._connect_input(top_layer, xc_list, inst_esd, inst_res, inst_cap, em_specs, show_pins)
 
+        # get supplies
+        vss_res = inst_res.get_all_port_pins('VSS')
+        self.extend_wires(vss_res, lower=0, unit_mode=True)
+        vss = inst_esd.get_all_port_pins('VSS')
+        vss.append(self.connect_to_track_wires(vss_res, inst_esd.get_pin('VSS_out')))
+        vdd = inst_esd.get_all_port_pins('VDD')
+
+        # draw dummy fill
+        fill_top_layer = vdd[0].layer_id
+        self._fill_dummy(top_layer, fill_top_layer, tot_box, inst_res, inst_cap, dum_params)
+
         self._sch_params = dict(
             esd_params=master_esd.sch_params,
             res_params=master_res.sch_params,
             cap_params=master_cap.sch_params,
         )
+
+    def _fill_dummy(self, top_layer, fill_top_layer, tot_box, inst_res, inst_cap, dum_params):
+        res = self.grid.resolution
+
+        box_res = inst_res.bound_box
+        box_cap = inst_cap.bound_box
+
+        # fill empty space
+        yt = tot_box.top_unit
+        for box in (box_res, box_cap):
+            if box.top_unit < yt:
+                cur_box = BBox(box.left_unit, box.top_unit, box.right_unit, yt, res, unit_mode=True)
+                self._fill_space(cur_box, dum_params, fill_top_layer)
+
+        # fill resistor
+        for lay in range(inst_res.master.top_layer, fill_top_layer + 1):
+            self.do_max_space_fill(lay, box_res, fill_pitch=2)
+
+        # fill capacitor
+        for lay in range(inst_cap.master.top_layer, top_layer):
+            self.do_max_space_fill(lay, box_cap, fill_pitch=2)
+
+    def _fill_space(self, fill_box, dum_params, fill_top_layer):
+        dum_params['width'] = fill_box.width_unit
+        dum_params['height'] = fill_box.height_unit
+
+        master_dum = self.new_template(params=dum_params, temp_cls=DummyFillActive)
+        self.add_instance(master_dum, loc=(fill_box.left_unit, fill_box.bottom_unit),
+                          unit_mode=True)
+        for lay_id in range(1, fill_top_layer + 1):
+            self.do_max_space_fill(lay_id, fill_box, fill_pitch=2)
 
     def _connect_input(self, top_layer, xc_list, inst_esd, inst_res, inst_cap, em_specs, show_pins):
         cur_warrs = self.connect_wires([inst_esd.get_pin('in'), inst_cap.get_pin('plus')])
@@ -807,4 +850,9 @@ class TermRXSingle(TemplateBase):
         cap_params['show_pins'] = False
         master_cap = self.new_template(params=cap_params, temp_cls=MOMCapCore)
 
-        return master_res, master_esd, master_cap
+        dum_params = dict(
+            mos_type=cap_params['mos_type'],
+            threshold=cap_params['threshold'],
+        )
+
+        return master_res, master_esd, master_cap, dum_params
