@@ -92,6 +92,7 @@ class RXFrontend(TemplateBase):
     def get_params_info(cls):
         # type: () -> Dict[str, str]
         return dict(
+            top_layer='The top routing layer.',
             ctle_params='CTLE parameters.',
             dp_params='datapath parameters.',
             hp_params='high-pass filter array parameters.',
@@ -116,6 +117,7 @@ class RXFrontend(TemplateBase):
         )
 
     def draw_layout(self):
+        top_layer = self.params['top_layer']
         tr_widths = self.params['tr_widths']
         tr_spaces = self.params['tr_spaces']
         fill_config = self.params['fill_config']
@@ -136,9 +138,9 @@ class RXFrontend(TemplateBase):
 
         # compute vertical placement
         ym_layer = master_dp.top_layer
-        top_layer = ym_layer + 1
+        xm_layer = ym_layer + 1
         vm_layer = ym_layer - 2
-        blk_h = self.grid.get_block_size(top_layer, unit_mode=True, half_blk_y=False)[1]
+        blk_h = self.grid.get_block_size(xm_layer, unit_mode=True, half_blk_y=False)[1]
         fill_w, fill_h = self.grid.get_fill_size(top_layer, fill_config, unit_mode=True)
         tr_manager = TrackManager(self.grid, tr_widths, tr_spaces, half_space=True)
         tmp = self._compute_route_height(ym_layer - 1, blk_h, tr_manager, master_dp.num_ffe,
@@ -194,7 +196,8 @@ class RXFrontend(TemplateBase):
 
         # connect clocks and enables
         sup_yc_list = master_dp.sup_y_list
-        clkp, clkn = self._connect_clk_en(tr_manager, top_layer, dp_inst, sup_yc_list, show_pins)
+        clkp, clkn = self._connect_clk_en(tr_manager, top_layer, xm_layer, dp_inst,
+                                          sup_yc_list, fill_config, show_pins)
 
         # connect CTLE
         tmp = self._connect_ctle(tr_manager, ctle_inst, dp_inst, clkp.track_id,
@@ -211,15 +214,16 @@ class RXFrontend(TemplateBase):
         hm_bias_info_list = [None, None, None, None]
         vdd_wires = dp_inst.get_all_port_pins('VDD', layer=ym_layer)
         vss_wires = dp_inst.get_all_port_pins('VSS', layer=ym_layer)
-        bi = self._connect_clk_vss_bias(hm_layer, vss_wires, x_ctle_route, yoff, ytop, dp_inst,
-                                        hpxb_inst, hp1b_inst, num_dfe, hp_h, clk_locs, clk_tr_w,
-                                        clk_h, vss_h, bias_config, show_pins, vss_pins, is_bot=True)
+        bi = self._connect_clk_vss_bias(tr_manager, hm_layer, vss_wires, x_ctle_route, yoff, ytop,
+                                        dp_inst, hpxb_inst, hp1b_inst, num_dfe, hp_h, clk_locs,
+                                        clk_tr_w, clk_h, vss_h, bias_config, show_pins, vss_pins,
+                                        top_layer, fill_config, is_bot=True)
         hm_bias_info_list[0] = bi
 
-        bi = self._connect_clk_vss_bias(hm_layer, vss_wires, x_ctle_route, yoff, ytop, dp_inst,
-                                        hpxt_inst, hp1t_inst, num_dfe, hp_h, clk_locs, clk_tr_w,
-                                        clk_h, vss_h, bias_config, show_pins, vss_pins,
-                                        is_bot=False)
+        bi = self._connect_clk_vss_bias(tr_manager, hm_layer, vss_wires, x_ctle_route, yoff, ytop,
+                                        dp_inst, hpxt_inst, hp1t_inst, num_dfe, hp_h, clk_locs,
+                                        clk_tr_w, clk_h, vss_h, bias_config, show_pins, vss_pins,
+                                        top_layer, fill_config, is_bot=False)
         hm_bias_info_list[3] = bi
 
         # gather VDD-referenced wires
@@ -258,7 +262,7 @@ class RXFrontend(TemplateBase):
         vdd_wires.extend(vdd_bias)
         vss_wires.extend(vss_bias)
         fill_box = BBox(route_w, y_dp, x_dp, y_tvdd, res, unit_mode=True)
-        self._connect_supplies(tr_manager, top_layer, dp_inst, sup_yc_list, vdd_wires,
+        self._connect_supplies(tr_manager, xm_layer, dp_inst, sup_yc_list, vdd_wires,
                                vss_wires, biasl_vdd, ctle_vss, fill_box, fill_config, show_pins)
 
         # do fill
@@ -372,8 +376,9 @@ class RXFrontend(TemplateBase):
 
         return ctle_inst.get_pin('outcm'), ctle_vss, biasl_vss, biasl_vdd
 
-    def _connect_clk_en(self, tr_manager, xm_layer, dp_inst, sup_yc_list, show_pins):
-        tr_w_clk = tr_manager.get_width(xm_layer, 'clk')
+    def _connect_clk_en(self, tr_manager, top_layer, xm_layer, dp_inst, sup_yc_list,
+                        fill_config, show_pins):
+        xm_tr_w_clk = tr_manager.get_width(xm_layer, 'clk')
         tr_w_div = tr_manager.get_width(xm_layer, 'en_div')
         dp_box = dp_inst.bound_box
         y0 = dp_box.bottom_unit
@@ -390,7 +395,33 @@ class RXFrontend(TemplateBase):
         clkp = dp_inst.get_all_port_pins('clkp')
         clkn = dp_inst.get_all_port_pins('clkn')
         clkp, clkn = self.connect_differential_tracks(clkp, clkn, xm_layer, pidx, nidx,
-                                                      width=tr_w_clk)
+                                                      width=xm_tr_w_clk)
+
+        # connect up to top layer
+        clkp_cur = clkp
+        clkn_cur = clkn
+        for lay in range(xm_layer + 1, top_layer + 1):
+            tr_w_clk = tr_manager.get_width(lay, 'clk')
+            coordp = clkp_cur.middle_unit
+            if (lay - xm_layer) % 2 == 1:
+                # vertical layer
+                tr_idx = self.grid.coord_to_nearest_fill_track(lay, coordp, fill_config,
+                                                               mode=0, unit_mode=True)
+                tid = TrackID(lay, tr_idx, width=tr_w_clk)
+                clkp_cur = self.connect_to_tracks(clkp_cur, tid, min_len_mode=0)
+                clkn_cur = self.connect_to_tracks(clkn_cur, tid, min_len_mode=0)
+            else:
+                coordn = clkn_cur.middle_unit
+                pidx = self.grid.coord_to_nearest_fill_track(lay, coordp, fill_config, mode=1,
+                                                             unit_mode=True)
+                nidx = self.grid.coord_to_nearest_fill_track(lay, coordn, fill_config, mode=-1,
+                                                             unit_mode=True)
+                clkp_cur = self.connect_to_tracks(clkp_cur, TrackID(lay, pidx, width=tr_w_clk),
+                                                  min_len_mode=0)
+                clkn_cur = self.connect_to_tracks(clkn_cur, TrackID(lay, nidx, width=tr_w_clk),
+                                                  min_len_mode=0)
+        self.add_pin('clkp', clkp_cur, label='clkp:', show=show_pins)
+        self.add_pin('clkn', clkn_cur, label='clkn:', show=show_pins)
 
         pidx = self.grid.coord_to_nearest_track(xm_layer, ent_y, half_track=True, mode=1,
                                                 unit_mode=True)
@@ -490,9 +521,10 @@ class RXFrontend(TemplateBase):
 
         return 1, len(wire_list), bias_info.p0[1]
 
-    def _connect_clk_vss_bias(self, hm_layer, vss_wires, x0, ybot, ytop, dp_inst, hpx_inst,
-                              hp1_inst, num_dfe, hp_h, clk_locs, clk_tr_w, clk_h, vss_h,
-                              bias_config, show_pins, pin_list, is_bot=True):
+    def _connect_clk_vss_bias(self, tr_manager, hm_layer, vss_wires, x0, ybot, ytop, dp_inst,
+                              hpx_inst, hp1_inst, num_dfe, hp_h, clk_locs, clk_tr_w, clk_h, vss_h,
+                              bias_config, show_pins, pin_list, top_layer, fill_config,
+                              is_bot=True):
         ntr_tot = len(clk_locs)
         num_pair = (ntr_tot - 2) // 2
         vss_idx_lookup = {}
@@ -573,8 +605,27 @@ class RXFrontend(TemplateBase):
                 pin_list.append((name, tr))
 
         # export clks
-        clkp = self.connect_wires([hpx_inst.get_pin('clkp'), hp1_inst.get_pin('clkp')])
-        clkn = self.connect_wires([hpx_inst.get_pin('clkn'), hp1_inst.get_pin('clkn')])
+        clkp = self.connect_wires([hpx_inst.get_pin('clkp'), hp1_inst.get_pin('clkp')])[0]
+        clkn = self.connect_wires([hpx_inst.get_pin('clkn'), hp1_inst.get_pin('clkn')])[0]
+        xm_layer = clkp.layer_id
+        h_mode = 1 if is_bot else -1
+        for lay in range(xm_layer + 1, top_layer + 1):
+            tr_w_clk = tr_manager.get_width(lay, 'clk')
+            fill_tr_w, fill_tr_sp, _, _ = fill_config[lay]
+            fill_pitch = fill_tr_w + fill_tr_sp
+            coord = clkp.middle_unit
+            if (lay - xm_layer) % 2 == 1:
+                # vertical layer
+                midx = self.grid.coord_to_nearest_fill_track(lay, coord, fill_config,
+                                                             mode=1, unit_mode=True)
+            else:
+                midx = self.grid.coord_to_nearest_fill_track(lay, coord, fill_config,
+                                                             mode=h_mode, unit_mode=True)
+            pidx = midx - fill_pitch
+            nidx = midx + fill_pitch
+            clkp, clkn = self.connect_differential_tracks(clkp, clkn, lay, pidx, nidx,
+                                                          width=tr_w_clk)
+
         self.add_pin('clkp', clkp, label='clkp:', show=show_pins)
         self.add_pin('clkn', clkn, label='clkn:', show=show_pins)
 
