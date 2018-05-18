@@ -535,13 +535,13 @@ class CMLResLoad(SubstrateWrapper):
     def __init__(self, temp_db, lib_name, params, used_names, **kwargs):
         # type: (TemplateDB, str, Dict[str, Any], Set[str], **Any) -> None
         SubstrateWrapper.__init__(self, temp_db, lib_name, params, used_names, **kwargs)
-        self._output_tracks = None
+        self._out_xc_list = None
         self._sup_tracks = None
 
     @property
-    def output_tracks(self):
-        # type: () -> List[Union[float, int]]
-        return self._output_tracks
+    def out_xc_list(self):
+        # type: () -> List[int]
+        return self._out_xc_list
 
     @property
     def sup_tracks(self):
@@ -607,13 +607,59 @@ class CMLResLoad(SubstrateWrapper):
                 self._sup_tracks.append(tidx)
         self._sup_tracks.sort()
 
-        self._output_tracks = []
+        self._out_xc_list = []
         for idx in range(nx):
             top = inst.get_pin('top<%d>' % idx)
-            self._output_tracks.append(top.track_id.base_index)
+            xc = self.grid.track_to_coord(top.layer_id, top.track_id.base_index, unit_mode=True)
+            self._out_xc_list.append(xc)
             warrs = self.connect_to_track_wires(top_sub_warrs, top)
             self.add_pin(sub_port_name, warrs, show=show_pins)
             self.reexport(inst.get_port('bot<%d>' % idx), net_name='out', show=show_pins)
+
+    @classmethod
+    def connect_up_layers(cls, template, cur_layer, cur_warrs, xc_list, top_layer, em_specs):
+        """Connect up layers while satisfying EM specs"""
+        grid = template.grid
+
+        cur_tr_w = cur_warrs[0].width
+        cur_w = grid.get_track_width(cur_layer, cur_tr_w, unit_mode=True)
+        nout = len(xc_list)
+        mid_idx = nout // 2
+        for next_layer in range(cur_layer + 1, top_layer + 1):
+            if next_layer == top_layer:
+                next_em_specs = em_specs.copy()
+                for key in ['idc', 'iac_rms', 'iac_peak']:
+                    if key in next_em_specs:
+                        next_em_specs[key] *= nout
+                bot_w = top_w = -1
+            else:
+                next_em_specs = em_specs
+                top_tr_w = grid.get_min_track_width(next_layer + 1, **next_em_specs)
+                top_w = grid.get_track_width(next_layer + 1, top_tr_w, unit_mode=True)
+                bot_w = cur_w
+
+            next_tr_w = grid.get_min_track_width(next_layer, bot_w=bot_w, top_w=top_w,
+                                                 unit_mode=True, **next_em_specs)
+            print(next_em_specs, next_tr_w)
+            next_warrs = []
+            if len(cur_warrs) == 1:
+                for idx, xc in enumerate(xc_list):
+                    mode = -1 if idx < mid_idx else 1
+                    tr = grid.coord_to_nearest_track(next_layer, xc, half_track=True,
+                                                     mode=mode, unit_mode=True)
+                    tid = TrackID(next_layer, tr, width=next_tr_w)
+                    next_warrs.append(template.connect_to_tracks(cur_warrs[0], tid, min_len_mode=0))
+            else:
+                yc = cur_warrs[0].middle_unit
+                tr = grid.coord_to_nearest_track(next_layer, yc, half_track=True,
+                                                 mode=1, unit_mode=True)
+                tid = TrackID(next_layer, tr, width=next_tr_w)
+                next_warrs.append(template.connect_to_tracks(cur_warrs, tid, min_len_mode=0))
+
+            cur_warrs = next_warrs
+            cur_w = grid.get_track_width(next_layer, next_tr_w, unit_mode=True)
+
+        return cur_warrs
 
 
 class TermRXSingle(TemplateBase):
@@ -652,6 +698,7 @@ class TermRXSingle(TemplateBase):
             esd_params='ESD black-box parameters.',
             cap_params='MOM cap parameters.',
             cap_out_tid='Capacitor output track ID.',
+            em_specs='electro-migration specs.',
             top_layer='top level layer',
             fill_config='fill configuration dictionary.',
             show_pins='True to draw pins.',
@@ -662,19 +709,22 @@ class TermRXSingle(TemplateBase):
         # type: () -> Dict[str, Any]
         return dict(
             cap_out_tid=None,
+            em_specs=None,
             show_pins=True,
         )
 
     def draw_layout(self):
         # type: () -> None
+        em_specs = self.params['em_specs']
         top_layer = self.params['top_layer']
         fill_config = self.params['fill_config']
         show_pins = self.params['show_pins']
 
         res = self.grid.resolution
 
-        master_res, master_esd, master_cap, in_warr = self._make_masters()
+        master_res, master_esd, master_cap = self._make_masters()
 
+        # compute placement
         box_res = master_res.bound_box
         box_esd = master_esd.bound_box
         box_cap = master_cap.bound_box
@@ -694,14 +744,20 @@ class TermRXSingle(TemplateBase):
         x_esd = x_res - w_esd
         y_res = h_res
 
+        # add instances
         inst_esd = self.add_instance(master_esd, 'XESD', (x_esd, 0), unit_mode=True)
         inst_res = self.add_instance(master_res, 'XRES', (x_res, y_res),
                                      orient='MX', unit_mode=True)
         inst_cap = self.add_instance(master_cap, 'XCAP', (x_cap, 0), unit_mode=True)
 
+        # set size
         self.array_box = tot_box = BBox(0, 0, w_tot, h_tot, res, unit_mode=True)
         self.set_size_from_bound_box(top_layer, tot_box, round_up=True)
         self.add_cell_boundary(tot_box)
+
+        # connect input
+        xc_list = [xc + x_res for xc in master_res.out_xc_list]
+        self._connect_input(top_layer, xc_list, inst_esd, inst_res, inst_cap, em_specs, show_pins)
 
         self._sch_params = dict(
             esd_params=master_esd.sch_params,
@@ -709,11 +765,26 @@ class TermRXSingle(TemplateBase):
             cap_params=master_cap.sch_params,
         )
 
+    def _connect_input(self, top_layer, xc_list, inst_esd, inst_res, inst_cap, em_specs, show_pins):
+        cur_warrs = self.connect_wires([inst_esd.get_pin('in'), inst_cap.get_pin('plus')])
+        in_warr = cur_warrs[0]
+        res_pins = inst_res.get_all_port_pins('out')
+        self.connect_to_track_wires(res_pins, in_warr)
+
+        cur_layer = in_warr.layer_id
+        if in_warr.layer_id < top_layer:
+            # connect up layers.
+            cur_warrs = CMLResLoad.connect_up_layers(self, cur_layer, cur_warrs, xc_list,
+                                                     top_layer, em_specs)
+
+        self.add_pin('in', cur_warrs[0], show=show_pins)
+
     def _make_masters(self):
         res_params = self.params['res_params']
         esd_params = self.params['esd_params']
         cap_params = self.params['cap_params']
         cap_out_tid = self.params['cap_out_tid']
+        em_specs = self.params['em_specs']
         fill_config = self.params['fill_config']
 
         res_params = res_params.copy()
@@ -721,18 +792,19 @@ class TermRXSingle(TemplateBase):
         cap_params = cap_params.copy()
 
         res_params['sub_type'] = 'ptap'
+        res_params['em_specs'] = em_specs
         res_params['show_pins'] = False
         master_res = self.new_template(params=res_params, temp_cls=CMLResLoad)
 
         esd_params['show_pins'] = False
         master_esd = self.new_template(params=esd_params, temp_cls=BlackBoxTemplate)
-        in_pin = master_esd.get_port('in').get_pins()[0]
+        in_tid = master_esd.get_port('in').get_pins()[0].track_id
 
-        cap_params['in_tid'] = (in_pin.track_id.base_index, in_pin.track_id.width)
+        cap_params['in_tid'] = (in_tid.base_index, in_tid.width)
         cap_params['out_tid'] = cap_out_tid
         cap_params['top_layer'] = master_res.top_layer
         cap_params['fill_config'] = fill_config
         cap_params['show_pins'] = False
         master_cap = self.new_template(params=cap_params, temp_cls=MOMCapCore)
 
-        return master_res, master_esd, master_cap, in_pin
+        return master_res, master_esd, master_cap

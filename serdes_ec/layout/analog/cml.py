@@ -57,7 +57,7 @@ class CMLGmPMOS(AnalogBase):
             w='pmos width, in meters/number of fins.',
             fg_ref='number of current mirror reference fingers per segment.',
             threshold='transistor threshold flavor.',
-            output_tracks='output track indices on ym layer.',
+            out_xc_list='output coordinates on ym layer.',
             supply_tracks='supply track indices on ym layer.',
             em_specs='EM specs per segment.',
             tr_widths='Track width dictionary.',
@@ -80,7 +80,7 @@ class CMLGmPMOS(AnalogBase):
         w = self.params['w']
         fg_ref = self.params['fg_ref']
         threshold = self.params['threshold']
-        output_tracks = self.params['output_tracks']
+        out_xc_list = self.params['out_xc_list']
         supply_tracks = self.params['supply_tracks']
         em_specs = self.params['em_specs']
         tr_widths = self.params['tr_widths']
@@ -158,8 +158,7 @@ class CMLGmPMOS(AnalogBase):
         inn_tid = self.get_wire_id('pch', 2, 'g', wire_name='in')
         outp_tid = self.get_wire_id('pch', 2, 'ds', wire_name='out')
 
-        out_delta = int(round(2 * (output_tracks[1] - output_tracks[0])))
-        out_pitch = self.grid.get_track_pitch(ym_layer, unit_mode=True) // 2 * out_delta
+        out_pitch = out_xc_list[1] - out_xc_list[0]
         sd_pitch = layout_info.sd_pitch_unit
         if out_pitch % sd_pitch != 0:
             raise ValueError('Oops')
@@ -174,8 +173,9 @@ class CMLGmPMOS(AnalogBase):
         outp_list = []
         outn_list = []
         layout_info = self.layout_info
-        num_out = len(output_tracks)
-        for idx, ym_idx in enumerate(output_tracks):
+        num_out = len(out_xc_list)
+        for idx, xc in enumerate(out_xc_list):
+            ym_idx = self.grid.coord_to_track(ym_layer, xc, unit_mode=True)
             vtid = TrackID(ym_layer, ym_idx, width=ym_tr_w)
             # find column index that centers on given track index
             x_coord = self.grid.track_to_coord(ym_layer, ym_idx, unit_mode=True)
@@ -233,7 +233,8 @@ class CMLGmPMOS(AnalogBase):
             vtid = TrackID(ym_layer, tidx, width=ym_tr_w)
             right_tidx = max(right_tidx, tidx)
             self.add_pin('VDD', self.connect_to_tracks(vdd_warrs, vtid), show=show_pins)
-        for tidx in output_tracks:
+        for xc in out_xc_list:
+            tidx = self.grid.coord_to_track(ym_layer, xc, unit_mode=True)
             vtid = TrackID(ym_layer, tidx, width=ym_tr_w)
             self.add_pin('VDD', self.connect_to_tracks(vdd_m, vtid), show=show_pins)
 
@@ -429,7 +430,7 @@ class CMLAmpPMOS(TemplateBase):
 
         master_res = self.new_template(params=res_params, temp_cls=CMLResLoad)
 
-        gm_params['output_tracks'] = master_res.output_tracks
+        gm_params['out_xc_list'] = master_res.out_xc_list
         gm_params['supply_tracks'] = master_res.sup_tracks
         gm_params['em_specs'] = em_specs
         gm_params['tr_widths'] = tr_widths
