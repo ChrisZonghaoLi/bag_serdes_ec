@@ -24,30 +24,25 @@ class bag_serdes_ec__term_rx(Module):
     @classmethod
     def get_params_info(cls):
         # type: () -> Dict[str, str]
-        """Returns a dictionary from parameter names to descriptions.
-
-        Returns
-        -------
-        param_info : Optional[Dict[str, str]]
-            dictionary from parameter names to descriptions.
-        """
         return dict(
+            esd_params='ESD parameters.',
+            res_params='resistor parameters.',
+            cap_params='MOM cap parameters.',
         )
 
-    def design(self):
-        """To be overridden by subclasses to design this module.
+    def design(self, esd_params, res_params, cap_params):
+        self.instances['XRP'].design(**res_params)
+        self.instances['XRN'].design(**res_params)
+        self.instances('XCP').design(**cap_params)
+        self.instances('XCN').design(**cap_params)
 
-        This method should fill in values for all parameters in
-        self.parameters.  To design instances of this module, you can
-        call their design() method or any other ways you coded.
-
-        To modify schematic structure, call:
-
-        rename_pin()
-        delete_instance()
-        replace_instance_master()
-        reconnect_instance_terminal()
-        restore_instance()
-        array_instance()
-        """
-        pass
+        lib_name = esd_params['lib_name']
+        cell_name = esd_params['cell_name']
+        self.replace_instance_master('XESDP', lib_name, cell_name, static=True)
+        self.replace_instance_master('XESDN', lib_name, cell_name, static=True)
+        self.reconnect_instance_terminal('XESDP', 'in', 'inp')
+        self.reconnect_instance_terminal('XESDP', 'VDD', 'VDD')
+        self.reconnect_instance_terminal('XESDP', 'VSS', 'VSS')
+        self.reconnect_instance_terminal('XESDN', 'in', 'inn')
+        self.reconnect_instance_terminal('XESDN', 'VDD', 'VDD')
+        self.reconnect_instance_terminal('XESDN', 'VSS', 'VSS')
