@@ -1005,8 +1005,12 @@ class RXTop(TemplateBase):
         self.add_pin('VSS', vss, label='VSS:', show=show_pins)
 
     def _connect_term(self, inst_term, inst_fe, show_pins):
-        self.reexport(inst_term.get_port('inp'), show=show_pins)
-        self.reexport(inst_term.get_port('inn'), show=show_pins)
+        inp = inst_term.get_pin('inp')
+        inn = inst_term.get_pin('inn')
+        inp = self.extend_wires(inp, lower=0, unit_mode=True)
+        inn = self.extend_wires(inn, lower=0, unit_mode=True)
+        self.add_pin('inp', inp, show=show_pins)
+        self.add_pin('inn', inn, show=show_pins)
         self.connect_wires([inst_term.get_pin('outp'), inst_fe.get_pin('inp')])
         self.connect_wires([inst_term.get_pin('outn'), inst_fe.get_pin('inn')])
 
