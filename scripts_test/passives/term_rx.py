@@ -6,7 +6,7 @@ import yaml
 
 from bag.core import BagProject
 
-from serdes_ec.layout.analog.passives import TermRXSingle
+from serdes_ec.layout.analog.passives import TermRX
 
 
 def run_main(prj):
@@ -22,8 +22,8 @@ def run_main(prj):
 
     specs['params']['esd_params'] = esd_params
 
-    prj.generate_cell(specs, TermRXSingle, debug=True)
-    # prj.generate_cell(block_specs, TermRXSingle, gen_sch=True, debug=True)
+    # prj.generate_cell(specs, TermRX, debug=True)
+    prj.generate_cell(specs, TermRX, gen_sch=True, debug=True)
 
 
 if __name__ == '__main__':

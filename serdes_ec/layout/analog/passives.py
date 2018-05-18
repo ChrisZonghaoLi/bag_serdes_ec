@@ -823,6 +823,7 @@ class TermRXSingle(TemplateBase):
                                                      top_layer, em_specs)
 
         self.add_pin('in', cur_warrs[0], show=show_pins)
+        self.add_pin('out', inst_cap.get_pin('minus'), show=show_pins)
 
     def _make_masters(self):
         res_params = self.params['res_params']
@@ -858,3 +859,82 @@ class TermRXSingle(TemplateBase):
         )
 
         return master_res, master_esd, master_cap, dum_params
+
+
+class TermRX(TemplateBase):
+    """A termination block for RX.
+
+    Parameters
+    ----------
+    temp_db : :class:`bag.layout.template.TemplateDB`
+        the template database.
+    lib_name : str
+        the layout library name.
+    params : Dict[str, Any]
+        the parameter values.
+    used_names : Set[str]
+        a set of already used cell names.
+    **kwargs :
+        dictionary of optional parameters.  See documentation of
+        :class:`bag.layout.template.TemplateBase` for details.
+    """
+
+    def __init__(self, temp_db, lib_name, params, used_names, **kwargs):
+        # type: (TemplateDB, str, Dict[str, Any], Set[str], **kwargs) -> None
+        TemplateBase.__init__(self, temp_db, lib_name, params, used_names, **kwargs)
+        self._sch_params = None
+
+    @property
+    def sch_params(self):
+        # type: () -> Dict[str, Any]
+        return self._sch_params
+
+    @classmethod
+    def get_params_info(cls):
+        # type: () -> Dict[str, str]
+        return dict(
+            res_params='load resistor parameters.',
+            esd_params='ESD black-box parameters.',
+            cap_params='MOM cap parameters.',
+            cap_out_tid='Capacitor output track ID.',
+            em_specs='electro-migration specs.',
+            top_layer='top level layer',
+            fill_config='fill configuration dictionary.',
+            show_pins='True to draw pins.',
+        )
+
+    @classmethod
+    def get_default_param_values(cls):
+        # type: () -> Dict[str, Any]
+        return dict(
+            cap_out_tid=None,
+            em_specs=None,
+            show_pins=True,
+        )
+
+    def draw_layout(self):
+        # type: () -> None
+        show_pins = self.params['show_pins']
+
+        params = self.params.copy()
+        params['show_pins'] = False
+        master = self.new_template(params=params, temp_cls=TermRXSingle)
+
+        bnd_box = master.bound_box
+        y0 = bnd_box.height_unit
+        instn = self.add_instance(master, 'XN', loc=(0, y0), orient='MX', unit_mode=True)
+        instp = self.add_instance(master, 'XP', loc=(0, y0), unit_mode=True)
+
+        self.array_box = tot_box = bnd_box.merge(instp.bound_box)
+        self.set_size_from_bound_box(master.top_layer, tot_box)
+
+        self.reexport(instp.get_port('in'), net_name='inp', show=show_pins)
+        self.reexport(instn.get_port('in'), net_name='inn', show=show_pins)
+        self.reexport(instp.get_port('out'), net_name='outp', show=show_pins)
+        self.reexport(instn.get_port('out'), net_name='outn', show=show_pins)
+        for name in ('VDD', 'VSS'):
+            label = name + ':'
+            self.reexport(instp.get_port(name), label=label, show=show_pins)
+            self.reexport(instn.get_port(name), label=label, show=show_pins)
+
+        self._sch_params = master.sch_params

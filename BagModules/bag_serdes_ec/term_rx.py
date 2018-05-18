@@ -33,8 +33,8 @@ class bag_serdes_ec__term_rx(Module):
     def design(self, esd_params, res_params, cap_params):
         self.instances['XRP'].design(**res_params)
         self.instances['XRN'].design(**res_params)
-        self.instances('XCP').design(**cap_params)
-        self.instances('XCN').design(**cap_params)
+        self.instances['XCP'].design(**cap_params)
+        self.instances['XCN'].design(**cap_params)
 
         lib_name = esd_params['lib_name']
         cell_name = esd_params['cell_name']
