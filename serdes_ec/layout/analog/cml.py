@@ -346,9 +346,16 @@ class CMLAmpPMOS(TemplateBase):
         vdd_list = gm.get_all_port_pins('VDD')
         vsst_list = res_top.get_all_port_pins('VSS')
         vssb_list = res_bot.get_all_port_pins('VSS')
-        for warrs, name in [(outp_list, 'outp'), (outn_list, 'outn'),
-                            (vdd_list, 'VDD'), (vsst_list, 'VSS'), (vssb_list, 'VSS')]:
-            self._connect_to_top(name, warrs, em_specs, top_layer, show_pins)
+        for warrs, name, v_mode in [(outp_list, 'outp', 1), (outn_list, 'outn', -1),
+                                    (vdd_list, 'VDD', 0), (vsst_list, 'VSS', 1),
+                                    (vssb_list, 'VSS', -1)]:
+            lay_id = warrs[0].layer_id
+            xc_list = sorted((self.grid.track_to_coord(lay_id, w.track_id.base_index,
+                                                       unit_mode=True) for w in warrs))
+            warrs = CMLResLoad.connect_up_layers(self, lay_id, warrs, xc_list, top_layer, em_specs,
+                                                 v_mode=v_mode)
+            lbl = 'VSS:' if name == 'VSS' else name
+            self.add_pin(name, warrs, label=lbl, show=show_pins)
 
         # do fill
         ym_layer = vdd_list[0].layer_id
@@ -360,52 +367,6 @@ class CMLAmpPMOS(TemplateBase):
             res_params=master_res.sch_params,
             gm_params=master_gm.sch_params,
         )
-
-    def _connect_to_top(self, name, warrs, em_specs, top_layer, show_pins):
-        num_seg = len(warrs)
-        prev_layer = warrs[0].layer_id
-        prev_w = self.grid.get_track_width(prev_layer, warrs[0].track_id.width, unit_mode=True)
-        xc = self.bound_box.xc_unit
-        yc = self.bound_box.yc_unit
-        for cur_layer in range(prev_layer + 1, top_layer):
-            is_horiz = self.grid.get_direction(cur_layer) == 'x'
-            next_tr_w = self.grid.get_min_track_width(cur_layer + 1, **em_specs)
-            next_w = self.grid.get_track_width(cur_layer + 1, next_tr_w, unit_mode=True)
-            cur_tr_w = self.grid.get_min_track_width(cur_layer, bot_w=prev_w, top_w=next_w,
-                                                     unit_mode=True, **em_specs)
-
-            cur_warrs = []
-            for warr in warrs:
-                mid = warr.middle_unit
-                if is_horiz:
-                    mode = -1 if mid < yc else 1
-                else:
-                    mode = -1 if mid < xc else 1
-                tr = self.grid.coord_to_nearest_track(cur_layer, mid, half_track=True,
-                                                      mode=mode, unit_mode=True)
-                tid = TrackID(cur_layer, tr, width=cur_tr_w)
-                cur_warrs.append(self.connect_to_tracks(warr, tid, min_len_mode=0))
-
-            if is_horiz:
-                self.connect_wires(cur_warrs)
-
-            warrs = cur_warrs
-            prev_w = self.grid.get_track_width(cur_layer, cur_tr_w, unit_mode=True)
-
-        new_em_specs = em_specs.copy()
-        for key in ['idc', 'iac_rms', 'iac_peak']:
-            if key in new_em_specs:
-                new_em_specs[key] *= num_seg
-
-        top_tr_w = self.grid.get_min_track_width(top_layer, unit_mode=True, **new_em_specs)
-        mid = warrs[0].middle_unit
-        mode = -1 if mid < yc else 1
-        tr = self.grid.coord_to_nearest_track(top_layer, mid, half_track=True, mode=mode,
-                                              unit_mode=True)
-        tid = TrackID(top_layer, tr, width=top_tr_w)
-        warr = self.connect_to_tracks(warrs, tid)
-        label = 'VSS:' if name == 'VSS' else name
-        self.add_pin(name, warr, label=label, show=show_pins)
 
     def _make_masters(self):
         res_params = self.params['res_params']

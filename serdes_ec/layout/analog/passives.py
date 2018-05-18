@@ -617,7 +617,8 @@ class CMLResLoad(SubstrateWrapper):
             self.reexport(inst.get_port('bot<%d>' % idx), net_name='out', show=show_pins)
 
     @classmethod
-    def connect_up_layers(cls, template, cur_layer, cur_warrs, xc_list, top_layer, em_specs):
+    def connect_up_layers(cls, template, cur_layer, cur_warrs, xc_list, top_layer, em_specs,
+                          v_mode=1):
         """Connect up layers while satisfying EM specs"""
         grid = template.grid
 
@@ -640,7 +641,6 @@ class CMLResLoad(SubstrateWrapper):
 
             next_tr_w = grid.get_min_track_width(next_layer, bot_w=bot_w, top_w=top_w,
                                                  unit_mode=True, **next_em_specs)
-            print(next_em_specs, next_tr_w)
             next_warrs = []
             if len(cur_warrs) == 1:
                 for idx, xc in enumerate(xc_list):
@@ -652,7 +652,7 @@ class CMLResLoad(SubstrateWrapper):
             else:
                 yc = cur_warrs[0].middle_unit
                 tr = grid.coord_to_nearest_track(next_layer, yc, half_track=True,
-                                                 mode=1, unit_mode=True)
+                                                 mode=v_mode, unit_mode=True)
                 tid = TrackID(next_layer, tr, width=next_tr_w)
                 next_warrs.append(template.connect_to_tracks(cur_warrs, tid, min_len_mode=0))
 
