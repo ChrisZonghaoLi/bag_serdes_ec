@@ -16,7 +16,7 @@ from abs_templates_ec.routing.bias import BiasShield, BiasShieldJoin, \
 from analog_ec.layout.dac.rladder.top import RDACArray
 from analog_ec.layout.passives.filter.highpass import HighPassArrayClk
 
-from ..analog.passives import PassiveCTLE
+from ..analog.passives import PassiveCTLE, TermRX
 from ..digital.buffer import BufferArray
 from .datapath import RXDatapath
 
@@ -51,6 +51,7 @@ class RXFrontend(TemplateBase):
         self._bot_scan_names = None
         self._top_scan_names = None
         self._bias_info_list = None
+        self._xm_layer = None
 
     @property
     def sch_params(self):
@@ -82,11 +83,17 @@ class RXFrontend(TemplateBase):
         # type: () -> List[Tuple[int, int, int]]
         return self._bias_info_list
 
+    @property
+    def xm_layer(self):
+        # type: () -> int
+        return self._xm_layer
+
     @classmethod
     def get_cache_properties(cls):
         # type: () -> List[str]
         """Returns a list of properties to cache."""
-        return ['sch_params', 'buf_locs', 'retime_ncol', 'bot_scan_names', 'top_scan_names']
+        return ['sch_params', 'buf_locs', 'retime_ncol', 'bot_scan_names', 'top_scan_names',
+                'xm_layer']
 
     @classmethod
     def get_params_info(cls):
@@ -138,7 +145,7 @@ class RXFrontend(TemplateBase):
 
         # compute vertical placement
         ym_layer = master_dp.top_layer
-        xm_layer = ym_layer + 1
+        self._xm_layer = xm_layer = ym_layer + 1
         vm_layer = ym_layer - 2
         blk_h = self.grid.get_block_size(xm_layer, unit_mode=True, half_blk_y=False)[1]
         fill_w, fill_h = self.grid.get_fill_size(top_layer, fill_config, unit_mode=True)
@@ -850,6 +857,7 @@ class RXTop(TemplateBase):
     def get_params_info(cls):
         # type: () -> Dict[str, str]
         return dict(
+            term_params='Termination parameters.',
             fe_params='RX frontend parameters.',
             dac_params='RX DAC parameters.',
             top_layer='Top routing layer.',
@@ -872,21 +880,27 @@ class RXTop(TemplateBase):
         bias_config = self.params['bias_config']
         show_pins = self.params['show_pins']
 
-        master_fe, master_dac, master_buf = self._make_masters()
+        master_term, master_fe, master_dac, master_buf = self._make_masters()
+        box_term = master_term.bound_box
         box_fe = master_fe.bound_box
         box_dac = master_dac.bound_box
 
-        xm_layer = master_fe.top_layer
+        xm_layer = master_fe.xm_layer
         hm_layer = xm_layer - 2
+        w_term = box_term.width_unit
+        h_term = box_term.height_unit
         w_fe = box_fe.width_unit
         h_fe = box_fe.height_unit
         w_dac = box_dac.width_unit
         h_dac = box_dac.height_unit
-        w_tot = max(w_fe, w_dac)
+        w_tot = max(w_term + w_fe, w_dac)
         x_fe = w_tot - w_fe
+        x_term = x_fe - w_term
         x_dac = w_tot - w_dac
         h_tot = h_fe + h_dac
+        y_term = (h_fe - h_term) // 2
 
+        inst_term = self.add_instance(master_term, 'XTERM', loc=(x_term, y_term), unit_mode=True)
         inst_fe = self.add_instance(master_fe, 'XFE', loc=(x_fe, 0), unit_mode=True)
         inst_dac = self.add_instance(master_dac, 'XDAC', loc=(x_dac, h_tot), orient='MX',
                                      unit_mode=True)
@@ -901,6 +915,7 @@ class RXTop(TemplateBase):
         self.add_cell_boundary(bnd_box)
 
         self._reexport_fe_pins(inst_fe, show_pins)
+        self._connect_term(inst_term, inst_fe, show_pins)
 
         bot_scan_names = master_fe.bot_scan_names
         top_scan_names = master_fe.top_scan_names
@@ -919,6 +934,12 @@ class RXTop(TemplateBase):
             dac_params=master_dac.sch_params,
             buf_params=master_buf.sch_params,
         )
+
+    def _connect_term(self, inst_term, inst_fe, show_pins):
+        self.reexport(inst_term.get_port('inp'), show=show_pins)
+        self.reexport(inst_term.get_port('inn'), show=show_pins)
+        self.connect_wires([inst_term.get_pin('outp'), inst_fe.get_pin('inp')])
+        self.connect_wires([inst_term.get_pin('outn'), inst_fe.get_pin('inn')])
 
     def _connect_bias_routes(self, hm_layer, inst_fe, inst_dac, y_dac, bias_config):
         x_fe = inst_fe.location_unit[0]
@@ -983,7 +1004,7 @@ class RXTop(TemplateBase):
                 self.connect_to_track_wires(pin_dac, pin_fe)
 
     def _reexport_fe_pins(self, inst_fe, show_pins):
-        for name in ['inp', 'inn', 'des_clk', 'des_clkb', 'clkp', 'clkn', 'VDD', 'VSS',
+        for name in ['des_clk', 'des_clkb', 'clkp', 'clkn', 'VDD', 'VSS',
                      'enable_divider']:
             self.reexport(inst_fe.get_port(name), show=show_pins)
 
@@ -1009,21 +1030,28 @@ class RXTop(TemplateBase):
                 self.add_pin(name, inst.get_pin('in<%d>' % idx), show=show_pins)
 
     def _make_masters(self):
+        term_params = self.params['term_params'].copy()
         fe_params = self.params['fe_params'].copy()
         dac_params = self.params['dac_params'].copy()
         top_layer = self.params['top_layer']
-        fill_config = self.params['fill_config']
+        fconf = self.params['fill_config']
         bias_config = self.params['bias_config']
         fill_orient_mode = self.params['fill_orient_mode']
 
-        fe_params['fill_config'] = dac_params['fill_config'] = fill_config
+        term_params['fill_config'] = fe_params['fill_config'] = dac_params['fill_config'] = fconf
         fe_params['bias_config'] = dac_params['bias_config'] = bias_config
         dac_params['fill_orient_mode'] = fill_orient_mode ^ 2
-        fe_params['show_pins'] = dac_params['show_pins'] = False
-        dac_params['top_layer'] = top_layer
+        term_params['show_pins'] = fe_params['show_pins'] = dac_params['show_pins'] = False
+        term_params['top_layer'] = fe_params['top_layer'] = dac_params['top_layer'] = top_layer
 
         master_fe = self.new_template(params=fe_params, temp_cls=RXFrontend)
         master_dac = self.new_template(params=dac_params, temp_cls=RDACArray)
+
+        in_tid = master_fe.get_port('inp').get_pins()[0].track_id
+        tr_off = self.grid.coord_to_track(in_tid.layer_id, master_fe.bound_box.height_unit // 2,
+                                          unit_mode=True)
+        term_params['cap_out_tid'] = (in_tid.base_index - tr_off - 0.5, in_tid.width)
+        master_term = self.new_template(params=term_params, temp_cls=TermRX)
 
         buf_params = fe_params['scan_buf_params'].copy()
         buf_params['config'] = fe_params['dp_params']['config']
@@ -1033,4 +1061,4 @@ class RXTop(TemplateBase):
         buf_params['show_pins'] = False
         master_buf = self.new_template(params=buf_params, temp_cls=BufferArray)
 
-        return master_fe, master_dac, master_buf
+        return master_term, master_fe, master_dac, master_buf
