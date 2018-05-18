@@ -742,11 +742,10 @@ class TermRXSingle(TemplateBase):
 
         x_cap = w_tot - w_cap
         x_res = x_cap - w_res
-        x_esd = x_res - w_esd
         y_res = h_res
 
         # add instances
-        inst_esd = self.add_instance(master_esd, 'XESD', (x_esd, 0), unit_mode=True)
+        inst_esd = self.add_instance(master_esd, 'XESD', (0, 0), unit_mode=True)
         inst_res = self.add_instance(master_res, 'XRES', (x_res, y_res),
                                      orient='MX', unit_mode=True)
         inst_cap = self.add_instance(master_cap, 'XCAP', (x_cap, 0), unit_mode=True)
