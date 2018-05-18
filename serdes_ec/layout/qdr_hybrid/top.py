@@ -12,6 +12,7 @@ from bag.layout.template import TemplateBase
 
 from abs_templates_ec.routing.bias import BiasShield, BiasShieldJoin, \
     compute_vroute_width, join_bias_vroutes
+from abs_templates_ec.routing.fill import PowerFill
 
 from analog_ec.layout.dac.rladder.top import RDACArray
 from analog_ec.layout.passives.filter.highpass import HighPassArrayClk
@@ -861,6 +862,7 @@ class RXTop(TemplateBase):
             fe_params='RX frontend parameters.',
             dac_params='RX DAC parameters.',
             top_layer='Top routing layer.',
+            clk_tr_info='clock track information.',
             fill_config='fill configuration dictionary.',
             bias_config='bias configuration dictionary.',
             fill_orient_mode='fill orientation mode.',
@@ -871,12 +873,15 @@ class RXTop(TemplateBase):
     def get_default_param_values(cls):
         # type: () -> Dict[str, Any]
         return dict(
+            clk_tr_info=None,
             fill_orient_mode=0,
             show_pins=True,
         )
 
     def draw_layout(self):
         top_layer = self.params['top_layer']
+        clk_tr_info = self.params['clk_tr_info']
+        fill_config = self.params['fill_config']
         bias_config = self.params['bias_config']
         show_pins = self.params['show_pins']
 
@@ -914,7 +919,7 @@ class RXTop(TemplateBase):
         self.array_box = bnd_box
         self.add_cell_boundary(bnd_box)
 
-        self._reexport_fe_pins(inst_fe, show_pins)
+        self._connect_fe(top_layer, inst_fe, clk_tr_info, show_pins)
         self._connect_term(inst_term, inst_fe, show_pins)
 
         bot_scan_names = master_fe.bot_scan_names
@@ -926,14 +931,57 @@ class RXTop(TemplateBase):
 
         # re-export DAC pins
         for name in inst_dac.port_names_iter():
-            if name.startswith('bias_') or name == 'VDD' or name == 'VSS':
+            if name.startswith('bias_'):
                 self.reexport(inst_dac.get_port(name), show=show_pins)
+
+        self._power_fill(fill_config, top_layer, xm_layer, inst_fe, inst_term, inst_dac, show_pins)
 
         self._sch_params = dict(
             fe_params=master_fe.sch_params,
             dac_params=master_dac.sch_params,
             buf_params=master_buf.sch_params,
         )
+
+    def _power_fill(self, fill_config, top_layer, xm_layer, inst_fe, inst_term,
+                    inst_dac, show_pins):
+        vdd = list(chain(inst_fe.port_pins_iter('VDD'), inst_term.port_pins_iter('VDD')))
+        vss = list(chain(inst_fe.port_pins_iter('VSS'), inst_term.port_pins_iter('VSS')))
+        bnd_box = inst_fe.bound_box.merge(inst_term.bound_box)
+
+        if top_layer > xm_layer:
+            sp = 800
+            vdd, vss = self.do_power_fill(xm_layer + 1, sp, sp, vdd_warrs=vdd, vss_warrs=vss,
+                                          bound_box=bnd_box, fill_width=3, fill_space=3,
+                                          unit_mode=True)
+            bnd_box = bnd_box.extend(x=0, unit_mode=True)
+            for lay in range(xm_layer + 2, top_layer + 1):
+                tr_w, tr_sp, sp, sp_le = fill_config[lay]
+                vdd, vss = self.do_power_fill(lay, sp, sp_le, vdd_warrs=vdd, vss_warrs=vss,
+                                              bound_box=bnd_box, fill_width=tr_w,
+                                              fill_space=tr_sp, unit_mode=True)
+
+        if inst_dac.master.top_layer < top_layer:
+            params = dict(fill_config=fill_config, bot_layer=top_layer - 1, show_pins=False)
+            fill_master = self.new_template(params=params, temp_cls=PowerFill)
+            fill_box = fill_master.bound_box
+            dac_box = inst_dac.bound_box
+            loc = (0, dac_box.bottom_unit)
+            blk_w = fill_box.width_unit
+            blk_h = fill_box.height_unit
+            nx = dac_box.right_unit // blk_w
+            ny = dac_box.height_unit // blk_h
+            inst = self.add_instance(fill_master, loc=loc, nx=nx, ny=ny, spx=blk_w, spy=blk_h,
+                                     unit_mode=True)
+            vdd_dac = self.connect_wires(inst.get_all_port_pins('VDD'))
+            vss_dac = self.connect_wires(inst.get_all_port_pins('VSS'))
+            vdd.extend(vdd_dac)
+            vss.extend(vss_dac)
+        else:
+            vdd.extend(inst_dac.port_pins_iter('VDD'))
+            vss.extend(inst_dac.port_pins_iter('VSS'))
+
+        self.add_pin('VDD', vdd, show=show_pins)
+        self.add_pin('VSS', vss, show=show_pins)
 
     def _connect_term(self, inst_term, inst_fe, show_pins):
         self.reexport(inst_term.get_port('inp'), show=show_pins)
@@ -1003,10 +1051,21 @@ class RXTop(TemplateBase):
                 pin_fe = inst_fe.get_pin(name)
                 self.connect_to_track_wires(pin_dac, pin_fe)
 
-    def _reexport_fe_pins(self, inst_fe, show_pins):
-        for name in ['des_clk', 'des_clkb', 'clkp', 'clkn', 'VDD', 'VSS',
-                     'enable_divider']:
+    def _connect_fe(self, top_layer, inst_fe, clk_tr_info, show_pins):
+        for name in ['des_clk', 'des_clkb', 'VDD', 'VSS', 'enable_divider']:
             self.reexport(inst_fe.get_port(name), show=show_pins)
+
+        clkp = inst_fe.get_all_port_pins('clkp')
+        clkn = inst_fe.get_all_port_pins('clkn')
+        if clk_tr_info is None:
+            self.add_pin('clkp', clkp, label='clkp:', show=show_pins)
+            self.add_pin('clkn', clkn, label='clkn:', show=show_pins)
+        else:
+            pidx, nidx, tr_w = clk_tr_info
+            clkp, clkn = self.connect_differential_tracks(clkp, clkn, top_layer + 1, pidx, nidx,
+                                                          width=tr_w)
+            self.add_pin('clkp', clkp, show=show_pins)
+            self.add_pin('clkn', clkn, show=show_pins)
 
         for idx in range(4):
             suf = '<%d>' % idx
@@ -1042,9 +1101,14 @@ class RXTop(TemplateBase):
         fe_params['bias_config'] = dac_params['bias_config'] = bias_config
         dac_params['fill_orient_mode'] = fill_orient_mode ^ 2
         term_params['show_pins'] = fe_params['show_pins'] = dac_params['show_pins'] = False
-        term_params['top_layer'] = fe_params['top_layer'] = dac_params['top_layer'] = top_layer
+        term_params['top_layer'] = fe_params['top_layer'] = top_layer
 
         master_fe = self.new_template(params=fe_params, temp_cls=RXFrontend)
+
+        if top_layer == master_fe.xm_layer:
+            dac_params['top_layer'] = top_layer
+        else:
+            dac_params['top_layer'] = top_layer - 1
         master_dac = self.new_template(params=dac_params, temp_cls=RDACArray)
 
         in_tid = master_fe.get_port('inp').get_pins()[0].track_id
