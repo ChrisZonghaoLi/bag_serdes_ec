@@ -1,0 +1,124 @@
+lib_name: bag_serdes_ec
+cell_name: term_rx
+pins: [ "inp", "inn", "VDD", "VSS", "outp", "outn" ]
+instances:
+  XRN:
+    lib_name: bag_serdes_ec
+    cell_name: cml_res_load
+    instpins:
+      VSS:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      iin:
+        direction: input
+        net_name: "inn"
+        num_bits: 1
+      out:
+        direction: output
+        net_name: "midn"
+        num_bits: 1
+  XRP:
+    lib_name: bag_serdes_ec
+    cell_name: cml_res_load
+    instpins:
+      VSS:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      iin:
+        direction: input
+        net_name: "inp"
+        num_bits: 1
+      out:
+        direction: output
+        net_name: "midp"
+        num_bits: 1
+  PIN1:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN0:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN3:
+    lib_name: basic
+    cell_name: iopin
+    instpins: {}
+  PIN2:
+    lib_name: basic
+    cell_name: iopin
+    instpins: {}
+  XCN:
+    lib_name: bag_analog_ec
+    cell_name: cap_mom
+    instpins:
+      minus:
+        direction: inputOutput
+        net_name: "outn"
+        num_bits: 1
+      plus:
+        direction: inputOutput
+        net_name: "midn"
+        num_bits: 1
+      VSS:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+  XCP:
+    lib_name: bag_analog_ec
+    cell_name: cap_mom
+    instpins:
+      minus:
+        direction: inputOutput
+        net_name: "outp"
+        num_bits: 1
+      plus:
+        direction: inputOutput
+        net_name: "midp"
+        num_bits: 1
+      VSS:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+  PIN5:
+    lib_name: basic
+    cell_name: opin
+    instpins: {}
+  PIN4:
+    lib_name: basic
+    cell_name: opin
+    instpins: {}
+  XESDN:
+    lib_name: bag_analog_ec
+    cell_name: esd_diode
+    instpins:
+      VSS:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      VDD:
+        direction: inputOutput
+        net_name: "VDD"
+        num_bits: 1
+      in:
+        direction: input
+        net_name: "inn"
+        num_bits: 1
+  XESDP:
+    lib_name: bag_analog_ec
+    cell_name: esd_diode
+    instpins:
+      VSS:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      VDD:
+        direction: inputOutput
+        net_name: "VDD"
+        num_bits: 1
+      in:
+        direction: input
+        net_name: "inp"
+        num_bits: 1

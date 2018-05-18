@@ -30,22 +30,6 @@ instances:
         direction: output
         net_name: "ioutn"
         num_bits: 1
-  XRN:
-    lib_name: bag_serdes_ec
-    cell_name: cml_res_load
-    instpins:
-      VSS:
-        direction: inputOutput
-        net_name: "VSS"
-        num_bits: 1
-      iin:
-        direction: input
-        net_name: "ioutn"
-        num_bits: 1
-      out:
-        direction: output
-        net_name: "outn"
-        num_bits: 1
   XRP:
     lib_name: bag_serdes_ec
     cell_name: cml_res_load
@@ -61,6 +45,22 @@ instances:
       out:
         direction: output
         net_name: "outp"
+        num_bits: 1
+  XRN:
+    lib_name: bag_serdes_ec
+    cell_name: cml_res_load
+    instpins:
+      VSS:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      iin:
+        direction: input
+        net_name: "ioutn"
+        num_bits: 1
+      out:
+        direction: output
+        net_name: "outn"
         num_bits: 1
   PIN1:
     lib_name: basic

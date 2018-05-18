@@ -766,6 +766,9 @@ class TermRXSingle(TemplateBase):
         vss.append(self.connect_to_track_wires(vss_res, inst_esd.get_pin('VSS_out')))
         vdd = inst_esd.get_all_port_pins('VDD')
 
+        self.add_pin('VSS', vss, show=show_pins)
+        self.add_pin('VDD', vdd, show=show_pins)
+
         # draw dummy fill
         fill_top_layer = vdd[0].layer_id
         self._fill_dummy(top_layer, fill_top_layer, tot_box, inst_res, inst_cap, dum_params)
