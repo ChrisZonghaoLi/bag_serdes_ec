@@ -98,7 +98,9 @@ class TXDatapath(TemplateBase):
         x_ser = 0
         x_route = x_ser + box_ser.width_unit
         x_amp = -(-(x_route + w_route) // w_blk) * w_blk
-        x_esd = x_amp + box_amp.width_unit
+        # TODO: hack space between CML amplifier and diode so PO can
+        # fill in middle
+        x_esd = x_amp + box_amp.width_unit - (-500 // w_blk) * w_blk
         w_tot = -(-(x_esd + box_esd.width_unit) // w_blk) * w_blk
 
         # compute vertical placement
@@ -196,6 +198,7 @@ class TXDatapath(TemplateBase):
 
         amp_params['tr_widths'] = tr_widths
         amp_params['tr_spaces'] = tr_spaces
+        amp_params['ext_mode'] = 1
         amp_params['show_pins'] = False
         master_amp = self.new_template(params=amp_params, temp_cls=CMLAmpPMOS)
 

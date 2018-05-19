@@ -312,7 +312,8 @@ class CMLAmpPMOS(TemplateBase):
             em_specs='EM specs per segment.',
             tr_widths='Track width dictionary.',
             tr_spaces='Track spacing dictionary.',
-            top_layer='top level layer',
+            top_layer='top level layer.',
+            ext_mode='output extension mode.',
             show_pins='True to draw pins.',
         )
 
@@ -320,6 +321,7 @@ class CMLAmpPMOS(TemplateBase):
     def get_default_param_values(cls):
         # type: () -> Dict[str, Any]
         return dict(
+            ext_mode=0,
             show_pins=True,
         )
 
@@ -327,6 +329,7 @@ class CMLAmpPMOS(TemplateBase):
         # type: () -> None
         top_layer = self.params['top_layer']
         em_specs = self.params['em_specs']
+        ext_mode = self.params['ext_mode']
         show_pins = self.params['show_pins']
 
         if self.grid.get_direction(top_layer) != 'x':
@@ -379,6 +382,12 @@ class CMLAmpPMOS(TemplateBase):
             warrs = CMLResLoad.connect_up_layers(self, lay_id, warrs, xc_list, top_layer, em_specs,
                                                  v_mode=v_mode)
             lbl = 'VSS:' if name == 'VSS' else name
+            if ext_mode > 0:
+                warrs = self.extend_wires(warrs, upper=self.bound_box.right_unit,
+                                          unit_mode=True)
+            elif ext_mode < 0:
+                warrs = self.extend_wires(warrs, lower=self.bound_box.left_unit,
+                                          unit_mode=True)
             self.add_pin(name, warrs, label=lbl, show=show_pins)
 
         # do fill
