@@ -107,9 +107,51 @@ class Serializer32(TemplateBase):
         self.set_size_from_bound_box(top_layer, bnd_box)
         self.add_cell_boundary(bnd_box)
 
-        self._sch_params = dict(
+        self._connect_ser(inst_serb, inst_sert, show_pins)
 
+        self._connect_ser_div(tr_manager, inst_serb, inst_sert, inst_div, x_route, clk_locs,
+                              show_pins)
+
+        self._connect_ser_mux(tr_manager, inst_serb, inst_sert, inst_mux, show_pins)
+
+        self._connect_supply(inst_serb, inst_sert, inst_div, inst_mux, show_pins)
+
+        self._sch_params = dict(
+            ser_params=master_ser.sch_params,
+            mux_params=master_mux.sch_params,
+            div_params=master_div.sch_params,
         )
+
+    def _connect_supply(self, serb, sert, div, mux, show_pins):
+        pass
+
+    def _connect_ser_mux(self, tr_manager, serb, sert, mux, show_pins):
+        pass
+
+    def _connect_ser_div(self, tr_manager, serb, sert, div, x0, clk_locs, show_pins):
+        pass
+
+    def _connect_ser(self, serb, sert, show_pins):
+        # connect reset
+        if serb.has_port('rst_vm'):
+            self.connect_wires([serb.get_pin('rst_vm'), sert.get_pin('rst_vm')])
+        else:
+            portb = serb.get_port('rst_vm')
+            layer = portb.get_single_layer()
+            box1 = portb.get_pins(layer)[0]
+            box2 = sert.get_pin('rst_vm')
+            self.add_rect(layer, box1.merge(box2))
+
+        # export reset/divclk/inputs
+        self.reexport(serb.get_port('rst'), net_name='ser_reset', show=show_pins)
+        self.reexport(serb.get_port('divclk'), net_name='clock_tx_div', show=show_pins)
+
+        for idx in range(16):
+            port_name = 'in<%d>' % idx
+            self.reexport(serb.get_port(port_name), net_name='data_tx<%d>' % (idx * 2),
+                          show=show_pins)
+            self.reexport(sert.get_port(port_name), net_name='data_tx<%d>' % (idx * 2 + 1),
+                          show=show_pins)
 
     def _make_masters(self):
         ser16_fname = self.params['ser16_fname']
