@@ -4,10 +4,12 @@
 
 from typing import TYPE_CHECKING, Dict, Set, Any
 
+from itertools import chain
+
 import yaml
 
 from bag.layout.util import BBox
-from bag.layout.routing.base import TrackManager
+from bag.layout.routing.base import TrackID, TrackManager
 from bag.layout.template import TemplateBase, BlackBoxTemplate
 
 from ..analog.cml import CMLAmpPMOS
@@ -65,7 +67,6 @@ class TXDatapath(TemplateBase):
     def draw_layout(self):
         tr_widths = self.params['tr_widths']
         tr_spaces = self.params['tr_spaces']
-        fill_config = self.params['fill_config']
         show_pins = self.params['show_pins']
 
         tr_manager = TrackManager(self.grid, tr_widths, tr_spaces, half_space=True)
@@ -119,11 +120,68 @@ class TXDatapath(TemplateBase):
         self.set_size_from_bound_box(top_layer, bnd_box)
         self.add_cell_boundary(bnd_box)
 
+        # draw connections
+        sh_warrs = self._connect_ser_amp(ym_layer, tr_manager, ser, amp, x_route, ibias_locs,
+                                         ym_tr_w_ibias, show_pins)
+
+        vdd, vss = self._connect_ser_esd(amp, esdb, esdt, show_pins)
+
+        self.add_pin('VDD', vdd, label='VDD:', show=show_pins)
+        self.add_pin('VSS', vss, label='VSS:', show=show_pins)
+        self.add_pin('VDD', sh_warrs, label='VDD:', show=show_pins)
+
+        # schematic parameters
         self._sch_params = dict(
             ser_params=master_ser.sch_params,
             amp_params=master_amp.sch_params,
             esd_params=master_esd.sch_params,
         )
+
+    def _connect_ser_esd(self, amp, esdb, esdt, show_pins):
+        vdd = self.connect_wires(list(chain(esdb.port_pins_iter('VDD'),
+                                            esdt.port_pins_iter('VDD'))))
+        vss = self.connect_wires(list(chain(esdb.port_pins_iter('VSS'),
+                                            esdt.port_pins_iter('VSS'))))
+        outp = self.connect_to_track_wires(esdt.get_pin('in'), amp.get_pin('outp'))
+        outn = self.connect_to_track_wires(esdb.get_pin('in'), amp.get_pin('outn'))
+        self.add_pin('outp', outp, show=show_pins)
+        self.add_pin('outn', outn, show=show_pins)
+
+        vdd = self.connect_to_track_wires(vdd, amp.get_all_port_pins('VDD'))
+        vss = self.connect_to_track_wires(vss, amp.get_all_port_pins('VSS'))
+
+        return vdd, vss
+
+    def _connect_ser_amp(self, ym_layer, tr_manager, ser, amp, x_route, ibias_locs,
+                         ym_tr_w_ibias, show_pins):
+        wp = self.connect_wires([ser.get_pin('outp'), amp.get_pin('inp')])[0]
+        wn = self.connect_wires([ser.get_pin('outn'), amp.get_pin('inn')])[0]
+
+        lower = min(wp.track_id.get_bounds(self.grid, unit_mode=True)[0],
+                    wn.track_id.get_bounds(self.grid, unit_mode=True)[0])
+        upper = amp.bound_box.top_unit
+
+        ym_tr_w_sh = tr_manager.get_width(ym_layer, 'sh')
+        tr0 = self.grid.find_next_track(ym_layer, x_route, mode=1, half_track=True,
+                                        unit_mode=True)
+
+        sh = self.add_wires(ym_layer, tr0 + ibias_locs[0], lower, upper, width=ym_tr_w_sh,
+                            num=2, pitch=ibias_locs[2] - ibias_locs[0], unit_mode=True)
+        ibias_tid = TrackID(ym_layer, tr0 + ibias_locs[1], width=ym_tr_w_ibias)
+
+        self.add_pin('ibias', self.connect_to_tracks(amp.get_pin('ibias'), ibias_tid,
+                                                     track_lower=lower, track_upper=upper,
+                                                     unit_mode=True), show=show_pins)
+
+        for name in ('ser_reset', 'div_en', 'clock_tx_div', 'clkp', 'clkn'):
+            self.reexport(ser.get_port(name), show=show_pins)
+        for idx in range(32):
+            self.reexport(ser.get_port('data_tx<%d>' % idx), show=show_pins)
+
+        self.reexport(ser.get_port('VDD'), label='VDD:', show=show_pins)
+        self.reexport(ser.get_port('VSS'), label='VSS:', show=show_pins)
+
+        return sh
 
     def _make_masters(self):
         esd_fname = self.params['esd_fname']
