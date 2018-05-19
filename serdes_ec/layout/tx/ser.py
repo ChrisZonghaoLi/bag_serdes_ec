@@ -12,6 +12,8 @@ from bag.layout.util import BBox
 from bag.layout.routing.base import TrackID, TrackManager
 from bag.layout.template import TemplateBase, BlackBoxTemplate
 
+from digital_ec.layout.analog.inv import AnaInvChain
+
 from ..qdr_hybrid.sampler import DividerColumn
 
 if TYPE_CHECKING:
@@ -51,6 +53,7 @@ class Serializer32(TemplateBase):
             ser16_fname='16-to-1 serializer configuration file.',
             mux_fname='2-to-1 mux configuration file.',
             div_params='divider parameters.',
+            buf_params='buffer parameters.',
             tr_widths='Track width dictionary.',
             tr_spaces='Track spacing dictionary.',
             fill_config='fill configuration dictionary.',
@@ -61,7 +64,7 @@ class Serializer32(TemplateBase):
     @classmethod
     def get_default_param_values(cls):
         return dict(
-            sup_margin=200,
+            sup_margin=100,
             show_pins=True,
         )
 
@@ -75,15 +78,17 @@ class Serializer32(TemplateBase):
         tr_manager = TrackManager(self.grid, tr_widths, tr_spaces, half_space=True)
 
         # make masters and get information
-        master_ser, master_mux, master_div = self._make_masters()
+        master_ser, master_mux, master_div, master_buf = self._make_masters()
         hm_layer = master_ser.top_layer
         top_layer = ym_layer = hm_layer + 1
         box_ser = master_ser.bound_box
         box_mux = master_mux.bound_box
         box_div = master_div.bound_box
+        box_buf = master_buf.bound_box
         h_ser = box_ser.height_unit
         h_div = box_div.height_unit
         h_mux = box_mux.height_unit
+        h_buf = box_buf.height_unit
 
         # compute horizontal placement
         w_blk, h_blk = self.grid.get_block_size(top_layer, unit_mode=True)
@@ -98,20 +103,26 @@ class Serializer32(TemplateBase):
         x_div = -(-(x_en + w_en) // w_blk) * w_blk
         x_clk = x_div + box_div.width_unit
         x_mux = -(-(x_clk + w_clk) // w_blk) * w_blk
-        w_tot = x_mux + box_mux.width_unit
-        w_tot = -(-w_tot // w_blk) * w_blk
+        x_buf = -(-(x_mux + box_mux.width_unit) // w_blk) * w_blk
+        w_tot = -(-(x_buf + box_buf.width_unit) // w_blk) * w_blk
 
         # compute vertical placement
-        h_tot = max(2 * h_ser, h_div, h_mux)
+        h_tot = max(2 * h_ser, h_div, h_mux, 2 * h_buf)
+        y_serb = (h_tot - 2 * h_ser) // 2
+        y_sert = y_serb + 2 * h_ser
         y_div = (h_tot - h_div) // 2
         y_mux = (h_tot - h_mux) // 2
+        y_buf = h_tot // 2
 
         # place masters
-        inst_serb = self.add_instance(master_ser, 'XSERB', loc=(x_ser, 0), unit_mode=True)
-        inst_sert = self.add_instance(master_ser, 'XSERT', loc=(x_ser, h_tot), orient='MX',
+        inst_serb = self.add_instance(master_ser, 'XSERB', loc=(x_ser, y_serb), unit_mode=True)
+        inst_sert = self.add_instance(master_ser, 'XSERT', loc=(x_ser, y_sert), orient='MX',
                                       unit_mode=True)
         inst_div = self.add_instance(master_div, 'XDIV', loc=(x_div, y_div), unit_mode=True)
         inst_mux = self.add_instance(master_mux, 'XMUX', loc=(x_mux, y_mux), unit_mode=True)
+        inst_buft = self.add_instance(master_buf, 'XBUFB', loc=(x_buf, y_buf), unit_mode=True)
+        inst_bufb = self.add_instance(master_buf, 'XBUFT', loc=(x_buf, y_buf), orient='MX',
+                                      unit_mode=True)
 
         # set size
         res = self.grid.resolution
@@ -119,14 +130,24 @@ class Serializer32(TemplateBase):
         self.set_size_from_bound_box(top_layer, bnd_box)
         self.add_cell_boundary(bnd_box)
 
+        # get supply test bounding box
+        test_box0 = inst_buft.bound_box.merge(inst_bufb.bound_box)
+        test_box1 = inst_mux.bound_box.merge(test_box0)
+        test_box2 = inst_div.bound_box.merge(test_box1)
+
+        # connect blocks
         self._connect_ser(inst_serb, inst_sert, show_pins)
 
         tmp = self._connect_ser_div(ym_layer, tr_manager, inst_serb, inst_sert,
-                                    inst_div, x_en, en_locs, show_pins)
+                                    inst_div, x_en, en_locs, test_box2, sup_margin, show_pins)
         vddo_list, vsso_list, vddi_list, vssi_list = tmp
+
         self._connect_ser_div_mux(ym_layer, tr_manager, inst_serb, inst_sert, inst_div, inst_mux,
                                   x_clk, clk_locs, vddo_list, vsso_list, vddi_list, vssi_list,
-                                  show_pins)
+                                  test_box1, show_pins)
+
+        self._connect_mux_buf(ym_layer, tr_manager, inst_mux, inst_bufb, inst_buft, vddo_list,
+                              vsso_list, vddi_list, vssi_list, test_box0, show_pins)
 
         self._connect_supplies(ym_layer, vddo_list, vsso_list, vddi_list, vssi_list, sup_margin,
                                fill_config, show_pins)
@@ -135,7 +156,42 @@ class Serializer32(TemplateBase):
             ser_params=master_ser.sch_params,
             mux_params=master_mux.sch_params,
             div_params=master_div.sch_params,
+            buf_params=master_buf.sch_params,
         )
+
+    def _connect_mux_buf(self, ym_layer, tr_manager, mux, bufb, buft, vddo_list, vsso_list,
+                         vddi_list, vssi_list, test_box, show_pins):
+
+        # gather supplies
+        xl = 0
+        test_yb, test_yt = test_box.get_interval('y', unit_mode=True)
+        for name, o_list, i_list in (('VDD', vddo_list, vddi_list), ('VSS', vsso_list, vssi_list)):
+            for warr in mux.port_pins_iter(name):
+                xl = max(xl, warr.upper_unit)
+                yb, yt = warr.track_id.get_bounds(self.grid, unit_mode=True)
+                if yt < test_yb or yb > test_yt:
+                    o_list.append(warr)
+                else:
+                    i_list.append(warr)
+
+        vddi_list.extend(bufb.port_pins_iter('VDD'))
+        vddi_list.extend(buft.port_pins_iter('VDD'))
+        vssi_list.extend(bufb.port_pins_iter('VSS'))
+        vssi_list.extend(buft.port_pins_iter('VSS'))
+
+        # connect wires
+        ym_w_sig = tr_manager.get_width(ym_layer, 'sig')
+        xr = min(vddi_list[-1].lower_unit, vssi_list[-1].lower_unit)
+        ym_tidx = self.grid.coord_to_nearest_track(ym_layer, (xl + xr) // 2, mode=0,
+                                                   unit_mode=True)
+        warrs = [mux.get_pin('outp'), bufb.get_pin('in')]
+        self.connect_to_tracks(warrs, TrackID(ym_layer, ym_tidx, width=ym_w_sig))
+        warrs = [mux.get_pin('outn'), buft.get_pin('in')]
+        self.connect_to_tracks(warrs, TrackID(ym_layer, ym_tidx, width=ym_w_sig))
+
+        # export mux
+        self.add_pin('outp', bufb.get_pin('out'), show=show_pins)
+        self.add_pin('outn', buft.get_pin('out'), show=show_pins)
 
     def _connect_supplies(self, ym_layer, vddo_list, vsso_list, vddi_list, vssi_list, sup_margin,
                           fill_config, show_pins):
@@ -150,11 +206,16 @@ class Serializer32(TemplateBase):
         vdd, vss = self.do_power_fill(ym_layer, sp, sp_le, vdd_warrs=vddo_list, vss_warrs=vsso_list,
                                       fill_width=tr_w, fill_space=tr_sp, x_margin=sup_margin,
                                       y_margin=sup_margin, unit_mode=True)
-        self.add_pin('VDD', vdd, show=show_pins)
-        self.add_pin('VSS', vss, show=show_pins)
+        yb = sup_margin
+        yt = self.bound_box.top_unit - sup_margin
+
+        self.add_pin('VDD', [w for w in vdd if w.lower_unit == yb or w.upper_unit == yt],
+                     show=show_pins)
+        self.add_pin('VSS', [w for w in vss if w.lower_unit == yb or w.upper_unit == yt],
+                     show=show_pins)
 
     def _connect_ser_div_mux(self, ym_layer, tr_manager, serb, sert, div, mux, x0, clk_locs,
-                             vddo_list, vsso_list, vddi_list, vssi_list, show_pins):
+                             vddo_list, vsso_list, vddi_list, vssi_list, test_box, show_pins):
         # get track locations
         ym_w_clk = tr_manager.get_width(ym_layer, 'clk')
         ym_w_sh = tr_manager.get_width(ym_layer, 'sh')
@@ -177,7 +238,7 @@ class Serializer32(TemplateBase):
         self.add_pin('clkn', clkn, show=show_pins)
 
         # draw shield connections
-        mux_yb, mux_yt = mux.bound_box.get_interval('y', unit_mode=True)
+        mux_yb, mux_yt = test_box.get_interval('y', unit_mode=True)
         for name, o_list, i_list in (('VDD', vddo_list, vddi_list), ('VSS', vsso_list, vssi_list)):
             for warr in div.port_pins_iter(name):
                 yb, yt = warr.track_id.get_bounds(self.grid, unit_mode=True)
@@ -190,14 +251,6 @@ class Serializer32(TemplateBase):
         self.connect_to_tracks([serb.get_pin('out'), mux.get_pin('data0')], out0_tid)
         self.connect_to_tracks([sert.get_pin('out'), mux.get_pin('data1')], out1_tid)
 
-        # export mux
-        self.reexport(mux.get_port('outp'), show=show_pins)
-        self.reexport(mux.get_port('outn'), show=show_pins)
-
-        # gather mux supplies
-        vddi_list.extend(mux.port_pins_iter('VDD'))
-        vssi_list.extend(mux.port_pins_iter('VSS'))
-
         scan_list = [div.get_pin('scan_div<3>'), div.get_pin('scan_div<2>')]
         self.connect_to_tracks(scan_list, sh_tid)
         self.connect_to_tracks(vsso_list, sh_tid)
@@ -205,7 +258,8 @@ class Serializer32(TemplateBase):
         # draw en2 connections
         self.connect_to_tracks(div.get_all_port_pins('en2'), en2_tid)
 
-    def _connect_ser_div(self, ym_layer, tr_manager, serb, sert, div, x0, clk_locs, show_pins):
+    def _connect_ser_div(self, ym_layer, tr_manager, serb, sert, div, x0, clk_locs,
+                         test_box, sup_margin, show_pins):
         # get track locations
         ym_w_clk = tr_manager.get_width(ym_layer, 'clk')
         ym_w_sh = tr_manager.get_width(ym_layer, 'sh')
@@ -222,7 +276,7 @@ class Serializer32(TemplateBase):
         self.connect_differential_tracks(pwarrs, nwarrs, ym_layer, pidx, nidx, width=ym_w_clk)
 
         # draw shield connections
-        div_yb, div_yt = div.bound_box.get_interval('y', unit_mode=True)
+        div_yb, div_yt = test_box.get_interval('y', unit_mode=True)
         vddo_list = []
         vsso_list = []
         vddi_list = []
@@ -231,6 +285,7 @@ class Serializer32(TemplateBase):
             for warr in chain(serb.port_pins_iter(name), sert.port_pins_iter(name)):
                 yb, yt = warr.track_id.get_bounds(self.grid, unit_mode=True)
                 if yt < div_yb or yb > div_yt:
+                    warr = self.extend_wires(warr, lower=sup_margin, unit_mode=True)[0]
                     o_list.append(warr)
                 else:
                     i_list.append(warr)
@@ -268,7 +323,8 @@ class Serializer32(TemplateBase):
     def _make_masters(self):
         ser16_fname = self.params['ser16_fname']
         mux_fname = self.params['mux_fname']
-        div_params = self.params['div_params']
+        div_params = self.params['div_params'].copy()
+        buf_params = self.params['buf_params'].copy()
         tr_widths = self.params['tr_widths']
         tr_spaces = self.params['tr_spaces']
 
@@ -283,9 +339,14 @@ class Serializer32(TemplateBase):
         mux_params['show_pins'] = False
         master_mux = self.new_template(params=mux_params, temp_cls=BlackBoxTemplate)
 
-        div_params['show_pins'] = False
         div_params['tr_widths'] = tr_widths
         div_params['tr_spaces'] = tr_spaces
+        div_params['show_pins'] = False
         master_div = self.new_template(params=div_params, temp_cls=DividerColumn)
 
-        return master_ser, master_mux, master_div
+        buf_params['tr_widths'] = tr_widths
+        buf_params['tr_spaces'] = tr_spaces
+        buf_params['show_pins'] = False
+        master_buf = self.new_template(params=buf_params, temp_cls=AnaInvChain)
+
+        return master_ser, master_mux, master_div, master_buf

@@ -28,9 +28,10 @@ class bag_serdes_ec__ser_32(Module):
             ser_params='serializer parameters.',
             mux_params='mux parameters.',
             div_params='divider parameters.',
+            buf_params='buffer parameters.',
         )
 
-    def design(self, ser_params, mux_params, div_params):
+    def design(self, ser_params, mux_params, div_params, buf_params):
         lib_name = ser_params['lib_name']
         cell_name = ser_params['cell_name']
         self.replace_instance_master('XSERB', lib_name, cell_name, static=True)
@@ -40,3 +41,5 @@ class bag_serdes_ec__ser_32(Module):
         self.replace_instance_master('XMUX', lib_name, cell_name, static=True)
 
         self.instances['XDIV'].design(**div_params)
+        self.instances['XBUFP'].design(**buf_params)
+        self.instances['XBUFN'].design(**buf_params)

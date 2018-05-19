@@ -88,11 +88,11 @@ instances:
         num_bits: 1
       outp:
         direction: output
-        net_name: "outp"
+        net_name: "midp"
         num_bits: 1
       outn:
         direction: output
-        net_name: "outn"
+        net_name: "midn"
         num_bits: 1
       clkp:
         direction: input
@@ -190,3 +190,43 @@ instances:
         direction: inputOutput
         net_name: "clock_tx_div2,en3,en1"
         num_bits: 3
+  XBUFN:
+    lib_name: bag_digital_ec
+    cell_name: inv_chain
+    instpins:
+      VSS:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      VDD:
+        direction: inputOutput
+        net_name: "VDD"
+        num_bits: 1
+      out:
+        direction: output
+        net_name: "outn"
+        num_bits: 1
+      in:
+        direction: input
+        net_name: "midn"
+        num_bits: 1
+  XBUFP:
+    lib_name: bag_digital_ec
+    cell_name: inv_chain
+    instpins:
+      VSS:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      VDD:
+        direction: inputOutput
+        net_name: "VDD"
+        num_bits: 1
+      out:
+        direction: output
+        net_name: "outp"
+        num_bits: 1
+      in:
+        direction: input
+        net_name: "midp"
+        num_bits: 1

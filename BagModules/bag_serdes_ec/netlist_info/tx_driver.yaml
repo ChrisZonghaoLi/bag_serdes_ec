@@ -68,11 +68,11 @@ instances:
         num_bits: 1
       inp:
         direction: input
-        net_name: "bufp"
+        net_name: "midp"
         num_bits: 1
       inn:
         direction: input
-        net_name: "bufn"
+        net_name: "midn"
         num_bits: 1
       ibias:
         direction: input
@@ -109,46 +109,6 @@ instances:
       in:
         direction: input
         net_name: "outp"
-        num_bits: 1
-  XBUFN:
-    lib_name: bag_digital_ec
-    cell_name: inv_chain
-    instpins:
-      VSS:
-        direction: inputOutput
-        net_name: "VSS"
-        num_bits: 1
-      VDD:
-        direction: inputOutput
-        net_name: "VDD"
-        num_bits: 1
-      out:
-        direction: output
-        net_name: "bufn"
-        num_bits: 1
-      in:
-        direction: input
-        net_name: "midn"
-        num_bits: 1
-  XBUFP:
-    lib_name: bag_digital_ec
-    cell_name: inv_chain
-    instpins:
-      VSS:
-        direction: inputOutput
-        net_name: "VSS"
-        num_bits: 1
-      VDD:
-        direction: inputOutput
-        net_name: "VDD"
-        num_bits: 1
-      out:
-        direction: output
-        net_name: "bufp"
-        num_bits: 1
-      in:
-        direction: input
-        net_name: "midp"
         num_bits: 1
   PIN10:
     lib_name: basic
