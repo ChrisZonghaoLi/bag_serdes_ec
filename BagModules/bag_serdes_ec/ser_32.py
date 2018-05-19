@@ -24,30 +24,19 @@ class bag_serdes_ec__ser_32(Module):
     @classmethod
     def get_params_info(cls):
         # type: () -> Dict[str, str]
-        """Returns a dictionary from parameter names to descriptions.
-
-        Returns
-        -------
-        param_info : Optional[Dict[str, str]]
-            dictionary from parameter names to descriptions.
-        """
         return dict(
+            ser_params='serializer parameters.',
+            mux_params='mux parameters.',
+            div_params='divider parameters.',
         )
 
-    def design(self):
-        """To be overridden by subclasses to design this module.
+    def design(self, ser_params, mux_params, div_params):
+        lib_name = ser_params['lib_name']
+        cell_name = ser_params['cell_name']
+        self.replace_instance_master('XSERB', lib_name, cell_name, static=True)
+        self.replace_instance_master('XSERT', lib_name, cell_name, static=True)
+        lib_name = mux_params['lib_name']
+        cell_name = mux_params['cell_name']
+        self.replace_instance_master('XMUX', lib_name, cell_name, static=True)
 
-        This method should fill in values for all parameters in
-        self.parameters.  To design instances of this module, you can
-        call their design() method or any other ways you coded.
-
-        To modify schematic structure, call:
-
-        rename_pin()
-        delete_instance()
-        replace_instance_master()
-        reconnect_instance_terminal()
-        restore_instance()
-        array_instance()
-        """
-        pass
+        self.instances['XDIV'].design(**div_params)

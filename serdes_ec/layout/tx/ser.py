@@ -88,7 +88,7 @@ class Serializer32(TemplateBase):
         # compute horizontal placement
         w_blk, h_blk = self.grid.get_block_size(top_layer, unit_mode=True)
         ym_pitch = self.grid.get_track_pitch(ym_layer, unit_mode=True)
-        ntr, en_locs = tr_manager.place_wires(ym_layer, ['sh', 'clk', 'clk', 'sh'])
+        ntr, en_locs = tr_manager.place_wires(ym_layer, ['sh', 'clk', 'clk', 'sh', 1])
         w_en = ntr * ym_pitch
         ntr, clk_locs = tr_manager.place_wires(ym_layer, ['clk', 'sh', 'clk', 'clk', 'sh',
                                                           'sig', 'sig'])
@@ -122,7 +122,7 @@ class Serializer32(TemplateBase):
         self._connect_ser(inst_serb, inst_sert, show_pins)
 
         tmp = self._connect_ser_div(ym_layer, tr_manager, inst_serb, inst_sert,
-                                    inst_div, x_en, en_locs)
+                                    inst_div, x_en, en_locs, show_pins)
         vddo_list, vsso_list, vddi_list, vssi_list = tmp
         self._connect_ser_div_mux(ym_layer, tr_manager, inst_serb, inst_sert, inst_div, inst_mux,
                                   x_clk, clk_locs, vddo_list, vsso_list, vddi_list, vssi_list,
@@ -205,13 +205,14 @@ class Serializer32(TemplateBase):
         # draw en2 connections
         self.connect_to_tracks(div.get_all_port_pins('en2'), en2_tid)
 
-    def _connect_ser_div(self, ym_layer, tr_manager, serb, sert, div, x0, clk_locs):
+    def _connect_ser_div(self, ym_layer, tr_manager, serb, sert, div, x0, clk_locs, show_pins):
         # get track locations
         ym_w_clk = tr_manager.get_width(ym_layer, 'clk')
         ym_w_sh = tr_manager.get_width(ym_layer, 'sh')
         tr0 = self.grid.find_next_track(ym_layer, x0, half_track=True, unit_mode=True)
         sh_tid = TrackID(ym_layer, tr0 + clk_locs[0], width=ym_w_sh, num=2,
                          pitch=clk_locs[3] - clk_locs[0])
+        en_tid = TrackID(ym_layer, tr0 + clk_locs[4])
         pidx = tr0 + clk_locs[1]
         nidx = tr0 + clk_locs[2]
 
@@ -233,6 +234,10 @@ class Serializer32(TemplateBase):
                     o_list.append(warr)
                 else:
                     i_list.append(warr)
+
+        # draw divider enable
+        en = self.connect_to_tracks(div.get_pin('en_div'), en_tid, min_len_mode=0)
+        self.add_pin('div_en', en, show=show_pins)
 
         self.connect_to_tracks(vsso_list, sh_tid)
 
