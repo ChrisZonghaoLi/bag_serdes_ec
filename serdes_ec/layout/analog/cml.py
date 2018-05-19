@@ -3,7 +3,7 @@
 """This package defines various passives template classes.
 """
 
-from typing import TYPE_CHECKING, Dict, Set, Any
+from typing import TYPE_CHECKING, Dict, Set, Any, Tuple, Union
 
 from itertools import chain
 
@@ -42,11 +42,17 @@ class CMLGmPMOS(AnalogBase):
         # type: (TemplateDB, str, Dict[str, Any], Set[str], **kwargs) -> None
         AnalogBase.__init__(self, temp_db, lib_name, params, used_names, **kwargs)
         self._sch_params = None
+        self._ibias_em_specs = None
 
     @property
     def sch_params(self):
         # type: () -> Dict[str, Any]
         return self._sch_params
+
+    @property
+    def ibias_em_specs(self):
+        # type: () -> Dict[str, Any]
+        return self._ibias_em_specs
 
     @classmethod
     def get_params_info(cls):
@@ -249,6 +255,12 @@ class CMLGmPMOS(AnalogBase):
             seg_dict={'in': fg * num_out, 'tail': fg * num_out, 'ref': fg_ref * (num_out + 1)},
             dum_info=self.get_sch_dummy_info(),
         )
+        ratio = fg * num_out / (fg_ref * (num_out + 1))
+        scale = num_out / ratio
+        self._ibias_em_specs = em_specs.copy()
+        for key in ['idc', 'iac_rms', 'iac_peak']:
+            if key in em_specs:
+                self._ibias_em_specs[key] *= scale
 
 
 class CMLAmpPMOS(TemplateBase):
@@ -273,11 +285,23 @@ class CMLAmpPMOS(TemplateBase):
         # type: (TemplateDB, str, Dict[str, Any], Set[str], **kwargs) -> None
         TemplateBase.__init__(self, temp_db, lib_name, params, used_names, **kwargs)
         self._sch_params = None
+        self._ibias_em_specs = None
+        self._in_tid = None
 
     @property
     def sch_params(self):
         # type: () -> Dict[str, Any]
         return self._sch_params
+
+    @property
+    def ibias_em_specs(self):
+        # type: () -> Dict[str, Any]
+        return self._ibias_em_specs
+
+    @property
+    def in_tid(self):
+        # type: () -> Tuple[Union[float, int], int]
+        return self._in_tid
 
     @classmethod
     def get_params_info(cls):
@@ -367,6 +391,13 @@ class CMLAmpPMOS(TemplateBase):
             res_params=master_res.sch_params,
             gm_params=master_gm.sch_params,
         )
+        # properties
+        self._ibias_em_specs = master_gm.ibias_em_specs
+        inn = gm.get_pin('inn')
+        hm_layer = inn.layer_id
+        tr0 = self.grid.find_next_track(hm_layer, self.bound_box.yc_unit, half_track=True,
+                                        mode=1, unit_mode=True)
+        self._in_tid = (inn.track_id.base_index - tr0, inn.width)
 
     def _make_masters(self):
         res_params = self.params['res_params']

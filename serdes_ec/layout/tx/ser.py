@@ -57,6 +57,7 @@ class Serializer32(TemplateBase):
             tr_widths='Track width dictionary.',
             tr_spaces='Track spacing dictionary.',
             fill_config='fill configuration dictionary.',
+            out_tid='Buffer output track ID information.',
             sup_margin='supply margin, in resolution units.',
             show_pins='True to draw pin layouts.',
         )
@@ -64,6 +65,7 @@ class Serializer32(TemplateBase):
     @classmethod
     def get_default_param_values(cls):
         return dict(
+            out_tid=None,
             sup_margin=100,
             show_pins=True,
         )
@@ -327,6 +329,7 @@ class Serializer32(TemplateBase):
         buf_params = self.params['buf_params'].copy()
         tr_widths = self.params['tr_widths']
         tr_spaces = self.params['tr_spaces']
+        out_tid = self.params['out_tid']
 
         with open(ser16_fname, 'r') as f:
             ser_params = yaml.load(f)
@@ -346,6 +349,7 @@ class Serializer32(TemplateBase):
 
         buf_params['tr_widths'] = tr_widths
         buf_params['tr_spaces'] = tr_spaces
+        buf_params['out_tid'] = out_tid
         buf_params['show_pins'] = False
         master_buf = self.new_template(params=buf_params, temp_cls=AnaInvChain)
 

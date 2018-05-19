@@ -73,6 +73,7 @@ class TXDatapath(TemplateBase):
         # make masters and get information
         master_ser, master_amp, master_esd = self._make_masters()
         ym_layer = master_ser.top_layer
+        hm_layer = ym_layer - 1
         top_layer = master_amp.top_layer
         box_ser = master_ser.bound_box
         box_amp = master_amp.bound_box
@@ -81,10 +82,21 @@ class TXDatapath(TemplateBase):
         h_amp = box_amp.height_unit
         h_esd = box_esd.height_unit
 
+        # allocate space for ibias routing
+        em_specs = master_amp.ibias_em_specs
+        hm_tr_w_ibias = master_amp.get_port('ibias').get_pins()[0].width
+        bot_w = self.grid.get_track_width(hm_layer, hm_tr_w_ibias, unit_mode=True)
+        ym_tr_w_ibias = self.grid.get_min_track_width(ym_layer, bot_w=bot_w, unit_mode=True,
+                                                      **em_specs)
+        ntr, ibias_locs = tr_manager.place_wires(ym_layer, ['sh', ym_tr_w_ibias, 'sh'])
+        ym_pitch = self.grid.get_track_pitch(ym_layer, unit_mode=True)
+        w_route = ym_pitch * ntr
+
         # compute horizontal placement
         w_blk, h_blk = self.grid.get_block_size(top_layer, unit_mode=True)
         x_ser = 0
-        x_amp = -(-(x_ser + box_ser.width_unit) // w_blk) * w_blk
+        x_route = x_ser + box_ser.width_unit
+        x_amp = -(-(x_route + w_route) // w_blk) * w_blk
         x_esd = x_amp + box_amp.width_unit
         w_tot = -(-(x_esd + box_esd.width_unit) // w_blk) * w_blk
 
@@ -96,7 +108,7 @@ class TXDatapath(TemplateBase):
 
         # place masters
         ser = self.add_instance(master_ser, 'XSER', loc=(x_ser, y_ser), unit_mode=True)
-        amp = self.add_instance(master_amp, 'XAMP', loc=(x_ser, y_amp), unit_mode=True)
+        amp = self.add_instance(master_amp, 'XAMP', loc=(x_amp, y_amp), unit_mode=True)
         esdt = self.add_instance(master_esd, 'XESDT', loc=(x_esd, y_esd), unit_mode=True)
         esdb = self.add_instance(master_esd, 'XESDB', loc=(x_esd, y_esd), orient='MX',
                                  unit_mode=True)
@@ -124,16 +136,17 @@ class TXDatapath(TemplateBase):
         with open(esd_fname, 'r') as f:
             esd_params = yaml.load(f)
 
-        ser_params['tr_widths'] = tr_widths
-        ser_params['tr_spaces'] = tr_spaces
-        ser_params['fill_config'] = fill_config
-        ser_params['show_pins'] = False
-        master_ser = self.new_template(params=ser_params, temp_cls=Serializer32)
-
         amp_params['tr_widths'] = tr_widths
         amp_params['tr_spaces'] = tr_spaces
         amp_params['show_pins'] = False
         master_amp = self.new_template(params=amp_params, temp_cls=CMLAmpPMOS)
+
+        ser_params['tr_widths'] = tr_widths
+        ser_params['tr_spaces'] = tr_spaces
+        ser_params['fill_config'] = fill_config
+        ser_params['out_tid'] = master_amp.in_tid
+        ser_params['show_pins'] = False
+        master_ser = self.new_template(params=ser_params, temp_cls=Serializer32)
 
         esd_params['show_pins'] = False
         master_esd = self.new_template(params=esd_params, temp_cls=BlackBoxTemplate)

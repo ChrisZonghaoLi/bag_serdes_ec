@@ -8,7 +8,8 @@ import pkg_resources
 from bag.design import Module
 
 
-yaml_file = pkg_resources.resource_filename(__name__, os.path.join('netlist_info', 'tx_datapath.yaml'))
+yaml_file = pkg_resources.resource_filename(__name__, os.path.join('netlist_info',
+                                                                   'tx_datapath.yaml'))
 
 
 # noinspection PyPep8Naming
@@ -24,30 +25,17 @@ class bag_serdes_ec__tx_datapath(Module):
     @classmethod
     def get_params_info(cls):
         # type: () -> Dict[str, str]
-        """Returns a dictionary from parameter names to descriptions.
-
-        Returns
-        -------
-        param_info : Optional[Dict[str, str]]
-            dictionary from parameter names to descriptions.
-        """
         return dict(
+            ser_params='serializer parameters.',
+            amp_params='CML driver parameters.',
+            esd_params='ESD diode parameters.',
         )
 
-    def design(self):
-        """To be overridden by subclasses to design this module.
+    def design(self, ser_params, amp_params, esd_params):
+        lib_name = esd_params['lib_name']
+        cell_name = esd_params['cell_name']
+        self.replace_instance_master('XESDP', lib_name, cell_name, static=True)
+        self.replace_instance_master('XESDN', lib_name, cell_name, static=True)
 
-        This method should fill in values for all parameters in
-        self.parameters.  To design instances of this module, you can
-        call their design() method or any other ways you coded.
-
-        To modify schematic structure, call:
-
-        rename_pin()
-        delete_instance()
-        replace_instance_master()
-        reconnect_instance_terminal()
-        restore_instance()
-        array_instance()
-        """
-        pass
+        self.instances['XAMP'].design(**amp_params)
+        self.instances['XSER'].design(**ser_params)
