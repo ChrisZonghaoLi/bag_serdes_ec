@@ -8,12 +8,12 @@ import pkg_resources
 from bag.design import Module
 
 
-yaml_file = pkg_resources.resource_filename(__name__, os.path.join('netlist_info', 'tx_driver.yaml'))
+yaml_file = pkg_resources.resource_filename(__name__, os.path.join('netlist_info', 'tx_datapath.yaml'))
 
 
 # noinspection PyPep8Naming
-class bag_serdes_ec__tx_driver(Module):
-    """Module for library bag_serdes_ec cell tx_driver.
+class bag_serdes_ec__tx_datapath(Module):
+    """Module for library bag_serdes_ec cell tx_datapath.
 
     Fill in high level description here.
     """

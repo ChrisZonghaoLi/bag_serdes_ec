@@ -120,8 +120,8 @@ class Serializer32(TemplateBase):
                                       unit_mode=True)
         inst_div = self.add_instance(master_div, 'XDIV', loc=(x_div, y_div), unit_mode=True)
         inst_mux = self.add_instance(master_mux, 'XMUX', loc=(x_mux, y_mux), unit_mode=True)
-        inst_buft = self.add_instance(master_buf, 'XBUFB', loc=(x_buf, y_buf), unit_mode=True)
-        inst_bufb = self.add_instance(master_buf, 'XBUFT', loc=(x_buf, y_buf), orient='MX',
+        inst_buft = self.add_instance(master_buf, 'XBUFT', loc=(x_buf, y_buf), unit_mode=True)
+        inst_bufb = self.add_instance(master_buf, 'XBUFB', loc=(x_buf, y_buf), orient='MX',
                                       unit_mode=True)
 
         # set size

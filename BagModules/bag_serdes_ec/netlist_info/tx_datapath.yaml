@@ -1,5 +1,5 @@
 lib_name: bag_serdes_ec
-cell_name: tx_driver
+cell_name: tx_datapath
 pins: [ "div_en", "ser_reset", "clock_tx_div", "clkn", "clkp", "outn", "data_tx<31:0>", "outp", "VSS", "VDD", "ibias" ]
 instances:
   XSER:
