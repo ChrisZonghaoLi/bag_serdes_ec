@@ -1,0 +1,192 @@
+lib_name: bag_serdes_ec
+cell_name: ser_32
+pins: [ "VDD", "VSS", "data_tx<31:0>", "ser_reset", "clock_tx_div", "div_en", "clkp", "clkn", "outp", "outn" ]
+instances:
+  XSERB:
+    lib_name: bag_serdes_ec
+    cell_name: ser_16
+    instpins:
+      in<15:0>:
+        direction: input
+        net_name: "data_tx<30:0:2>"
+        num_bits: 16
+      divclk:
+        direction: output
+        net_name: "clock_tx_div"
+        num_bits: 1
+      VDD:
+        direction: inputOutput
+        net_name: "VDD"
+        num_bits: 1
+      VSS:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      out:
+        direction: output
+        net_name: "data0"
+        num_bits: 1
+      rst:
+        direction: input
+        net_name: "ser_reset"
+        num_bits: 1
+      clkb:
+        direction: input
+        net_name: "en0"
+        num_bits: 1
+      clk:
+        direction: input
+        net_name: "en2"
+        num_bits: 1
+  XSERT:
+    lib_name: bag_serdes_ec
+    cell_name: ser_16
+    instpins:
+      in<15:0>:
+        direction: input
+        net_name: "data_tx<31:1:2>"
+        num_bits: 16
+      divclk:
+        direction: output
+        net_name: "clock_tx_div2"
+        num_bits: 1
+      VDD:
+        direction: inputOutput
+        net_name: "VDD"
+        num_bits: 1
+      VSS:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      out:
+        direction: output
+        net_name: "data1"
+        num_bits: 1
+      rst:
+        direction: input
+        net_name: "ser_reset"
+        num_bits: 1
+      clkb:
+        direction: input
+        net_name: "en0"
+        num_bits: 1
+      clk:
+        direction: input
+        net_name: "en2"
+        num_bits: 1
+  XMUX:
+    lib_name: bag_serdes_ec
+    cell_name: mux_2to1
+    instpins:
+      VSS:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      VDD:
+        direction: inputOutput
+        net_name: "VDD"
+        num_bits: 1
+      outp:
+        direction: output
+        net_name: "outp"
+        num_bits: 1
+      outn:
+        direction: output
+        net_name: "outn"
+        num_bits: 1
+      clkp:
+        direction: input
+        net_name: "clkp"
+        num_bits: 1
+      data0:
+        direction: input
+        net_name: "data0"
+        num_bits: 1
+      data1:
+        direction: input
+        net_name: "data1"
+        num_bits: 1
+      clkn:
+        direction: input
+        net_name: "clkn"
+        num_bits: 1
+  XDIV:
+    lib_name: bag_serdes_ec
+    cell_name: qdr_divider_column
+    instpins:
+      VSS:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      VDD:
+        direction: inputOutput
+        net_name: "VDD"
+        num_bits: 1
+      en<3:0>:
+        direction: output
+        net_name: "en3,en2,en1,en0"
+        num_bits: 4
+      clkn:
+        direction: input
+        net_name: "clkn"
+        num_bits: 1
+      clkp:
+        direction: input
+        net_name: "clkp"
+        num_bits: 1
+      en_div:
+        direction: input
+        net_name: "div_en"
+        num_bits: 1
+      scan_div<3:2>:
+        direction: input
+        net_name: "<*2>VSS"
+        num_bits: 2
+  PIN1:
+    lib_name: basic
+    cell_name: iopin
+    instpins: {}
+  PIN0:
+    lib_name: basic
+    cell_name: iopin
+    instpins: {}
+  PIN7:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN6:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN5:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN3:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN2:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN9:
+    lib_name: basic
+    cell_name: opin
+    instpins: {}
+  PIN8:
+    lib_name: basic
+    cell_name: opin
+    instpins: {}
+  PIN4:
+    lib_name: basic
+    cell_name: opin
+    instpins: {}
+  XNC<2:0>:
+    lib_name: basic
+    cell_name: noConn
+    instpins:
+      noConn:
+        direction: inputOutput
+        net_name: "clock_tx_div2,en3,en1"
+        num_bits: 3
