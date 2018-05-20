@@ -543,7 +543,7 @@ class TapXSummer(TemplateBase):
         seg_last = seg_sum_list[num_ffe]
         fs_last = flip_sign_list[num_ffe]
         vm_w_out = tr_manager.get_width(ym_layer, 'out')
-        fg_amp = IntegAmp.get_amp_fg_info(self.grid, lch, seg_last)[0]
+        fg_amp = IntegAmp.get_amp_fg_info(self.grid, lch, seg_last, stack_in=1)[0]
         if fg_amp + 2 * fg_dum < fg_dig:
             fg_duml = fg_dig - fg_dum - fg_amp
         else:

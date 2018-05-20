@@ -44,14 +44,16 @@ class HybridQDRBaseInfo(AnalogBaseInfo):
         AnalogBaseInfo.__init__(self, grid, lch, guard_ring_nf, top_layer=top_layer,
                                 end_mode=end_mode, min_fg_sep=min_fg_sep, fg_tot=fg_tot, **kwargs)
 
-    def get_integ_amp_info(self, seg_dict, fg_min=0, fg_dum=0, fg_sep_hm=0):
-        # type: (Dict[str, int], int, int, int) -> Dict[str, Any]
+    def get_integ_amp_info(self, seg_dict, stack_in=1, fg_min=0, fg_dum=0, fg_sep_hm=0):
+        # type: (Dict[str, int], int, int, int, int) -> Dict[str, Any]
         """Compute placement of transistors in the given integrating amplifier.
 
         Parameters
         ----------
         seg_dict : Dict[str, int]
             a dictionary containing number of segments per transistor type.
+        stack_in : int
+            number of stacks for input pair.
         fg_min : int
             minimum number of fingers.
         fg_dum : int
@@ -84,21 +86,24 @@ class HybridQDRBaseInfo(AnalogBaseInfo):
         seg_nen = seg_dict['nen']
         seg_tail = seg_dict['tail']
 
+        fg_in = seg_in * stack_in
+
         if seg_casc > 0 < seg_but:
             raise ValueError('Cannot have both cascode transistor and butterfly switch.')
         if seg_load > 0 and seg_but > 0:
             raise ValueError('Cannot have both butterfly switch and load.')
+        if seg_load > 0 < seg_pen != seg_load:
+            raise ValueError('Must have seg_load = seg_pen if both > 0')
 
         # calculate PMOS center transistor number of fingers
-        seg_ps = max(seg_pen, seg_load)
-        if seg_load == 0:
-            seg_pc = 0
+        if seg_pen == 0:
+            seg_pmos = 0
         else:
             if not self.abut_analog_mos or fg_sep_load > 0 or seg_load > seg_pen:
                 fg_sep_load = max(fg_sep_load, fg_sep_min)
             else:
                 fg_sep_load = 0
-            seg_pc = seg_ps * 2 + fg_sep_load
+            seg_pmos = seg_pen * 2 + fg_sep_load
 
         if seg_casc > 0 or seg_but > 0:
             fg_sep = max(fg_sep, fg_sep_hm)
@@ -111,72 +116,36 @@ class HybridQDRBaseInfo(AnalogBaseInfo):
                 seg_but_tot = 2 * seg_but + fg_sep
         else:
             seg_but_tot = 0
-        seg_nc = max(seg_casc, seg_in, seg_but_tot)
 
         # calculate number of center fingers and total size
         fg_sep_amp = fg_sep if seg_tsw == 0 else max(fg_sep, 2 * fg_sep_min + seg_tsw)
-        seg_center = max(seg_nc, seg_pc)
-        seg_single = max(seg_center, seg_nen, seg_tail)
+        seg_single = max(seg_pmos, seg_casc, fg_in, seg_but_tot, seg_nen, seg_tail)
         seg_tot = 2 * seg_single + fg_sep_amp
         fg_dum = max(fg_dum, -(-(fg_min - seg_tot) // 2))
         fg_tot = seg_tot + 2 * fg_dum
 
-        # if center PMOS transistors and center NMOS transistors differs by 2 mod 4,
-        # shift column by one so we don't end up with odd number of dummies on the edge.
-        # odd number of dummies on the edge is bad because this breaks abutting in
-        # some technologies.
-        if abs(seg_pc - seg_nc) % 4 == 2:
-            if seg_pc < seg_nc:
-                pcol_delta = 1
-                incol_delta = ncol_delta = 0
-            else:
-                pcol_delta = 0
-                incol_delta = ncol_delta = 1
-        else:
-            incol_delta = pcol_delta = ncol_delta = 0
-        # same story with input transistor and cascode/butterfly transistors
-        if abs(seg_nc - seg_in) % 4 == 2:
-            if seg_in < seg_nc:
-                incol_delta += 1
-            else:
-                ncol_delta += 1
-                pcol_delta += 1
-
         # compute column index of each transistor
+        col_lc = fg_dum + seg_single
         col_dict = {}
-        center_off = (seg_single - seg_center) // 2
-        if seg_load > 0:
-            pc_off = fg_dum + center_off + (seg_center - seg_pc) // 2
-            load_off = (seg_ps - seg_load) // 2
-            pen_off = (seg_ps - seg_pen) // 2
-            col_dict['load0'] = pc_off + load_off + pcol_delta
-            col_dict['load1'] = pc_off + seg_pc - load_off - seg_load + pcol_delta
-            col_dict['pen0'] = pc_off + pen_off + pcol_delta
-            col_dict['pen1'] = pc_off + seg_pc - pen_off - seg_pen + pcol_delta
+        if seg_pen > 0:
+            col_dict['load0'] = col_dict['pen0'] = col_lc - seg_pmos
+            col_dict['load1'] = col_dict['pen1'] = col_lc - seg_pen
 
-        nc_off = fg_dum + center_off + (seg_center - seg_nc) // 2
         if seg_casc > 0:
-            col_dict['casc'] = nc_off + (seg_nc - seg_casc) // 2 + ncol_delta
+            col_dict['casc'] = col_lc - seg_casc
         elif seg_but > 0:
-            col_dict['but0'] = nc_off + ncol_delta
-            col_dict['but1'] = nc_off + seg_nc - seg_but + ncol_delta
+            col_dict['but0'] = col_lc - seg_but_tot
+            col_dict['but1'] = col_lc - seg_but
 
-        col_in = nc_off + (seg_nc - seg_in) // 2 + incol_delta
-        col_dict['in'] = col_in
-        col_nen = fg_dum + col_in + seg_in - seg_nen
-        if col_nen < col_in:
-            col_nen = fg_dum + min(seg_single - seg_nen, col_in)
-        col_dict['nen'] = col_nen
-        col_dict['tsw'] = fg_dum + seg_single + (fg_sep_amp - seg_tsw) // 2
-        col_tail = fg_dum + col_nen + seg_nen - seg_tail
-        if col_tail < col_nen:
-            col_tail = fg_dum + min(seg_single - seg_tail, col_nen)
-        col_dict['tail'] = col_tail
+        col_dict['in'] = col_lc - fg_in
+        col_dict['nen'] = col_lc - seg_nen
+        col_dict['tsw'] = col_lc + (fg_sep_amp - seg_tsw) // 2
+        col_dict['tail'] = col_lc - seg_tail
 
         # compute source-drain junction type for each net
         s_up = (2, 0)
         d_up = (0, 2)
-        if seg_load > 0:
+        if seg_pen > 0:
             sd_dict = {('load0', 's'): 'VDD', ('load1', 's'): 'VDD',
                        ('load0', 'd'): 'pm0', ('load1', 'd'): 'pm1', }
             sd_dir_dict = {'load0': s_up, 'load1': s_up, }
@@ -423,6 +392,7 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
                             col_dict,  # type: Dict[str, int]
                             sd_dict,  # type: Dict[Tuple[str, str], str]
                             sd_dir_dict,  # type: Dict[str, Tuple[int, int]]
+                            stack_in,  # type: int
                             net_prefix='',  # type: str
                             net_suffix='',  # type: str
                             ):
@@ -443,14 +413,15 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
             ports['nvdd'] = [ntsw['d']]
 
         for tran_name, tran_row in self.tran_list:
-            seg = seg_dict.get(tran_row, 0)
-            if seg > 0:
+            stack = stack_in if tran_name == 'in' else 1
+            fg = seg_dict.get(tran_row, 0) * stack
+            if fg > 0:
                 # get transistor info
                 mos_type, row_idx = self.get_row_index(tran_row)
                 col = col_dict[tran_name]
                 sdir, ddir = sd_dir_dict[tran_name]
                 colp = col_idx + col
-                coln = col_idx + (fg_tot - col - seg)
+                coln = col_idx + (fg_tot - col - fg)
                 snet = sd_dict[(tran_name, 's')]
                 dnet = sd_dict[(tran_name, 'd')]
                 if snet != 'VDD' and snet != 'VSS':
@@ -491,10 +462,11 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
                     dnetnl = dnetn
 
                 # draw transistors
-                mp = self.draw_mos_conn(mos_type, row_idx, colp, seg, sdir, ddir,
+                mp = self.draw_mos_conn(mos_type, row_idx, colp, fg, sdir, ddir, stack=stack,
                                         s_net=s_pre + snetpl + s_suf, d_net=d_pre + dnetpl + d_suf)
-                mn = self.draw_mos_conn(mos_type, row_idx, coln, seg, sdir, ddir,
-                                        s_net=s_pre + snetnl + s_suf, d_net=d_pre + dnetnl + d_suf)
+                mn = self.draw_mos_conn(mos_type, row_idx, coln, fg, sdir, ddir, stack=stack,
+                                        s_net=s_pre + snetnl + s_suf, d_net=d_pre + dnetnl + d_suf,
+                                        flip_lr=True)
                 gnet = self.gate_dict[tran_name]
                 # save gate port
                 if tran_name == 'in':
@@ -517,6 +489,7 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
     def draw_integ_amp(self,  # type: HybridQDRBase
                        col_idx,  # type: int
                        seg_dict,  # type: Dict[str, int]
+                       stack_in=1,  # type: int
                        invert=False,  # type: bool
                        fg_min=0,  # type: int
                        fg_dum=0,  # type: int
@@ -534,6 +507,8 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
             the left-most transistor index.  0 is the left-most transistor.
         seg_dict : Dict[str, int]
             a dictionary containing number of segments per transistor type.
+        stack_in : int
+            number of stacks for input pair.
         invert : bool
             True to flip output sign.
         fg_min : int
@@ -560,8 +535,8 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
             idx_dict = {}
 
         # get layout information
-        amp_info = self.qdr_info.get_integ_amp_info(seg_dict, fg_min=fg_min, fg_dum=fg_dum,
-                                                    fg_sep_hm=fg_sep_hm)
+        amp_info = self.qdr_info.get_integ_amp_info(seg_dict, stack_in=stack_in, fg_min=fg_min,
+                                                    fg_dum=fg_dum, fg_sep_hm=fg_sep_hm)
         seg_load = seg_dict.get('load', 0)
         seg_casc = seg_dict.get('casc', 0)
         seg_but = seg_dict.get('but', 0)
@@ -572,7 +547,7 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
         sd_dir_dict = amp_info['sd_dir_dict']
 
         ports = self._draw_integ_amp_mos(col_idx, fg_tot, seg_dict, col_dict, sd_dict, sd_dir_dict,
-                                         net_prefix=net_prefix, net_suffix=net_suffix)
+                                         stack_in, net_prefix=net_prefix, net_suffix=net_suffix)
 
         # connect wires
         self.connect_to_substrate('ptap', ports['VSS'])

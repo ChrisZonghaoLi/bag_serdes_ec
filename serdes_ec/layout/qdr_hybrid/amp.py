@@ -86,12 +86,13 @@ class IntegAmp(HybridQDRBase):
         return coord + sgn * (sple + extx)
 
     @classmethod
-    def get_amp_fg_info(cls, grid, lch, seg_dict):
+    def get_amp_fg_info(cls, grid, lch, seg_dict, stack_in=1):
         qdr_info = HybridQDRBaseInfo(grid, lch, 0, do_correct_v_pitch=True)
         fg_sep_hm = qdr_info.get_fg_sep_from_hm_space(1, round_even=True)
         fg_sep_hm = max(0, fg_sep_hm)
 
-        amp_info = qdr_info.get_integ_amp_info(seg_dict, fg_dum=0, fg_sep_hm=fg_sep_hm)
+        amp_info = qdr_info.get_integ_amp_info(seg_dict, stack_in=stack_in,
+                                               fg_dum=0, fg_sep_hm=fg_sep_hm)
 
         return amp_info['fg_tot'], fg_sep_hm
 
@@ -109,6 +110,7 @@ class IntegAmp(HybridQDRBase):
             fg_dumr='Number of right edge dummy fingers.',
             tr_widths='Track width dictionary.',
             tr_spaces='Track spacing dictionary.',
+            stack_in='number of stacks for input pair.',
             flip_sign='True to flip summer output sign.',
             but_sw='True to reserve space for butterfly switch.',
             top_layer='Top layer ID',
@@ -126,6 +128,7 @@ class IntegAmp(HybridQDRBase):
     def get_default_param_values(cls):
         # type: () -> Dict[str, Any]
         return dict(
+            stack_in=1,
             flip_sign=False,
             but_sw=False,
             top_layer=None,
@@ -146,6 +149,7 @@ class IntegAmp(HybridQDRBase):
         w_dict = self.params['w_dict']
         th_dict = self.params['th_dict']
         seg_dict = self.params['seg_dict']
+        stack_in = self.params['stack_in']
         fg_duml = self.params['fg_duml']
         fg_dumr = self.params['fg_dumr']
         tr_widths = self.params['tr_widths']
@@ -187,13 +191,13 @@ class IntegAmp(HybridQDRBase):
         if top_layer is None:
             top_layer = hm_layer
 
-        fg_amp, fg_sep_hm = self.get_amp_fg_info(self.grid, lch, seg_dict)
+        fg_amp, fg_sep_hm = self.get_amp_fg_info(self.grid, lch, seg_dict, stack_in=stack_in)
         fg_tot = fg_amp + fg_duml + fg_dumr
         self.draw_rows(lch, fg_tot, ptap_w, ntap_w, w_dict, th_dict, tr_manager, wire_names,
                        top_layer=top_layer, end_mode=end_mode, min_height=min_height, **options)
 
         # draw amplifier
-        ports, _ = self.draw_integ_amp(fg_duml, seg_dict, invert=flip_sign,
+        ports, _ = self.draw_integ_amp(fg_duml, seg_dict, stack_in=stack_in, invert=flip_sign,
                                        fg_dum=0, fg_sep_hm=fg_sep_hm)
 
         if seg_dict.get('tsw', 0) > 0:
@@ -275,7 +279,7 @@ class IntegAmp(HybridQDRBase):
 
         # set schematic parameters and other properties
         self._sch_params = self._get_sch_params(lch, w_dict, th_dict, seg_dict, sch_hp_params,
-                                                flip_sign, export_probe)
+                                                stack_in, flip_sign, export_probe)
         self._fg_tot = fg_tot
         self._hm_widths = (tr_manager.get_width(hm_layer, 'in'),
                            tr_manager.get_width(hm_layer, 'out'))
@@ -284,7 +288,7 @@ class IntegAmp(HybridQDRBase):
                           (ports['outp'].lower_unit, ports['outp'].upper_unit))
 
     def _get_sch_params(self, lch, w_dict, th_dict, seg_dict, sch_hp_params,
-                        flip_sign, export_probe):
+                        stack_in, flip_sign, export_probe):
         ndum_info = []
         pdum_info = []
         for info in self.get_sch_dummy_info():
@@ -313,6 +317,7 @@ class IntegAmp(HybridQDRBase):
                 w_dict=nw_dict,
                 th_dict=nth_dict,
                 seg_dict=nseg_dict,
+                stack_in=stack_in,
                 dum_info=ndum_info,
                 hp_params=sch_hp_params,
                 export_probe=export_probe,
