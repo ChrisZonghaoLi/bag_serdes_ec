@@ -13,7 +13,73 @@ from matplotlib import cm
 from matplotlib import ticker
 
 from bag.core import BagProject
+from bag.util.search import FloatBinaryIterator
 from bag.io.sim_data import load_sim_results, save_sim_results, load_sim_file
+
+
+def plot_vstar(result, tper, vdd, voutcm, bias_vec, ck_amp, rel_err, dc_params, vstar_params):
+    npts = bias_vec.size
+    vstar_vec = np.empty(npts)
+    err_vec = np.empty(npts)
+    gain_vec = np.empty(npts)
+    offset_vec = np.empty(npts)
+    cload_vec = np.empty(npts)
+    dv = vdd - voutcm
+    for idx, ck_bias in enumerate(bias_vec):
+        in_vec, out_vec, cm_vec = get_dc_tf(result, tper, ck_amp, ck_bias, **dc_params)
+        vstar, err, gain, offset = get_vstar(in_vec, out_vec, rel_err, **vstar_params)
+        cload_vec[idx] = cload = cm_vec[cm_vec.size // 2] / dv
+        vstar_vec[idx] = vstar
+        err_vec[idx] = err
+        gain_vec[idx] = gain / cload
+        offset_vec[idx] = offset / cload
+
+    bias_vec *= 1e3
+    vstar_vec *= 1e3
+    offset_vec *= 1e3
+    cload_vec *= 1e15
+
+    plt.figure(1)
+    ax = plt.subplot(411)
+    ax.plot(bias_vec, vstar_vec, 'b')
+    ax.set_ylabel('V* (mV)')
+    ax = plt.subplot(412, sharex=ax)
+    ax.plot(bias_vec, cload_vec, 'g')
+    ax.set_ylabel('Load Cap (fF)')
+    ax = plt.subplot(413, sharex=ax)
+    ax.plot(bias_vec, gain_vec, 'm')
+    ax.set_ylabel('Gain (V/V)')
+    ax = plt.subplot(414, sharex=ax)
+    ax.plot(bias_vec, offset_vec, 'r')
+    ax.set_ylabel('Output offset (mV)')
+    ax.set_xlabel('Vbias (mV)')
+    plt.show()
+
+
+def get_vstar(in_vec, out_vec, rel_err, tol=1e-3, num=21, method='cubic'):
+    fun = interp.interp1d(in_vec, out_vec, kind=method, copy=False, fill_value='extrapolate',
+                          assume_sorted=True)
+    mid_idx = in_vec.size // 2
+    vmin = in_vec[mid_idx + 1]
+    vmax = in_vec[-1]
+
+    bin_iter = FloatBinaryIterator(vmin, vmax, tol=tol)
+    while bin_iter.has_next():
+        vtest = bin_iter.get_next()
+
+        x_vec = np.linspace(-vtest, vtest, num, endpoint=True)
+        b_vec = fun(x_vec)
+        a_mat = np.column_stack((x_vec, np.ones(num)))
+        x, _, _, _ = np.linalg.lstsq(a_mat, b_vec)
+        rel_err_cur = np.amax(np.abs(np.dot(a_mat, x) - b_vec)) / (x[0] * vtest)
+
+        if rel_err_cur <= rel_err:
+            bin_iter.save_info((vtest, rel_err_cur, x[0], x[1]))
+            bin_iter.up()
+        else:
+            bin_iter.down()
+
+    return bin_iter.get_last_save_info()
 
 
 def get_dc_tf(result, tper, ck_amp, ck_bias, num_k=7, sim_env='tt', method='linear', plot=False):
@@ -31,9 +97,14 @@ def get_dc_tf(result, tper, ck_amp, ck_bias, num_k=7, sim_env='tt', method='line
         cm_vec[idx] = (n_charge + p_charge) / 2
 
     if plot:
+        vstar, _, gain, offset = get_vstar(indm_vec, dm_vec, 0.05)
+        x_vec = np.linspace(-vstar, vstar, 21, endpoint=True)
+        y_vec = gain * x_vec + offset
+
         plt.figure(1)
         ax = plt.subplot(211)
         ax.plot(indm_vec, dm_vec, 'b')
+        ax.plot(x_vec, y_vec, 'g')
         ax.set_ylabel('Qdm (Coulomb)')
         ax = plt.subplot(212, sharex=ax)
         ax.plot(indm_vec, cm_vec, 'g')
@@ -41,7 +112,7 @@ def get_dc_tf(result, tper, ck_amp, ck_bias, num_k=7, sim_env='tt', method='line
         ax.set_xlabel('Vindm (V)')
         plt.show()
 
-    return dm_vec, cm_vec
+    return indm_vec, dm_vec, cm_vec
 
 
 def get_transient(result, in_idx, tper, ck_amp, ck_bias, num_k=7, sim_env='tt', method='linear',
@@ -77,7 +148,7 @@ def get_transient(result, in_idx, tper, ck_amp, ck_bias, num_k=7, sim_env='tt', 
     fun_in = interp.interp1d(bias, ioutn, kind=method, copy=False, fill_value='extrapolate',
                              assume_sorted=True)
 
-    num = 2**num_k + 1
+    num = 2 ** num_k + 1
     tvec, tstep = np.linspace(0, tper, num, endpoint=False, retstep=True)
     tail_wv = np.maximum(bias[0], ck_bias - ck_amp * np.cos(tvec * (2 * np.pi / tper)))
     ip_wv = fun_ip(tail_wv)
@@ -184,20 +255,31 @@ def simulate(prj, save_fname):
 def run_main(prj):
     save_fname = 'blocks_ec_tsmcN16/data/gm_char_dc/linearity.hdf5'
     sim_env = 'tt'
+    vdd = 0.9
+    voutcm = 0.7
     tper = 70e-12
     ck_amp = 0.3
-    ck_bias = 0.1
-    num_k = 7
-    method = 'linear'
-
-    kwargs = dict(num_k=num_k, sim_env=sim_env, method=method, plot=True)
+    ck_bias = 0.05
+    rel_err = 0.07
+    bias_vec = np.linspace(0, 0.15, 16, endpoint=True)
+    dc_params = dict(
+        num_k=7,
+        sim_env=sim_env,
+        method='linear',
+    )
+    vstar_params = dict(
+        tol=1e-3,
+        num=21,
+        method='cubic',
+    )
 
     # simulate(prj, save_fname)
 
     result = load_sim_file(save_fname)
     # plot_data_2d(result, 'ioutp', sim_env='tt')
     # get_transient(result, 15, tper, ck_amp, ck_bias, **kwargs)
-    get_dc_tf(result, tper, ck_amp, ck_bias, **kwargs)
+    # get_dc_tf(result, tper, ck_amp, ck_bias, plot=True, **dc_params)
+    plot_vstar(result, tper, vdd, voutcm, bias_vec, ck_amp, rel_err, dc_params, vstar_params)
 
 
 if __name__ == '__main__':
