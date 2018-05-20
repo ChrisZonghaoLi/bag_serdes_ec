@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 
+from typing import List
+
 import numpy as np
+import scipy.interpolate as interp
 
 import matplotlib.pyplot as plt
 # noinspection PyUnresolvedReferences
@@ -10,6 +13,91 @@ from matplotlib import ticker
 
 from bag.core import BagProject
 from bag.io.sim_data import load_sim_results, save_sim_results, load_sim_file
+
+
+def get_transient(result, in_idx, tper, ck_amp, ck_bias, num=201, sim_env='tt', method='linear',
+                  plot=False):
+    ioutp = result['ioutp']  # type: np.ndarray
+    ioutn = result['ioutn']  # type: np.ndarray
+    swp_pars = result['sweep_params']['ioutp']  # type: List
+
+    if 'corner' in result:
+        corners = result['corner']
+        corner_idx = swp_pars.index('corner')
+        env_idx = np.argwhere(corners == sim_env)[0][0]
+        var0 = swp_pars[1] if corner_idx == 0 else swp_pars[0]
+        ioutp = np.take(ioutp, env_idx, axis=corner_idx)
+        ioutn = np.take(ioutn, env_idx, axis=corner_idx)
+    else:
+        var0 = swp_pars[0]
+
+    if var0 != 'indm':
+        ioutp = ioutp.transpose()
+        ioutn = ioutn.transpose()
+
+    bias = result['bias']
+    ioutp = ioutp[in_idx, :]
+    ioutn = ioutn[in_idx, :]
+    vmin = ck_bias - ck_amp
+    vmax = ck_bias + ck_amp
+    if vmin < bias[0] or vmax > bias[-1]:
+        print('WARNING: clock waveform exceed simulation range.')
+
+    fun_ip = interp.interp1d(bias, ioutp, kind=method, copy=False, fill_value='extrapolate',
+                             assume_sorted=True)
+    fun_in = interp.interp1d(bias, ioutn, kind=method, copy=False, fill_value='extrapolate',
+                             assume_sorted=True)
+
+    tvec = np.linspace(0, tper, num, endpoint=False)
+    tail_wv = np.maximum(bias[0], ck_bias - ck_amp * np.cos(tvec * (2 * np.pi / tper)))
+    ip_wv = fun_ip(tail_wv)
+    in_wv = fun_in(tail_wv)
+
+    if plot:
+        plt.figure(1)
+        tplt = tvec * 1e12
+        plt.plot(tplt, ip_wv * 1e6, 'b', label='ioutp')
+        plt.plot(tplt, in_wv * 1e6, 'g', label='ioutn')
+        plt.legend()
+        plt.xlabel('Time (ps)')
+        plt.ylabel('Iout (uA)')
+        plt.show()
+
+    return ip_wv, in_wv
+
+
+def plot_data_2d(result, name, sim_env=None):
+    """Get interpolation function and plot/query."""
+
+    swp_pars = result['sweep_params'][name]
+    data = result[name]
+
+    if sim_env is not None:
+        corners = result['corner']
+        corner_idx = swp_pars.index('corner')
+        env_idx = np.argwhere(corners == sim_env)[0][0]
+        data = np.take(data, env_idx, axis=corner_idx)
+        swp_pars = swp_pars[:]
+        del swp_pars[corner_idx]
+
+    xvec = result[swp_pars[0]]
+    yvec = result[swp_pars[1]]
+
+    xmat, ymat = np.meshgrid(xvec, yvec, indexing='ij', copy=False)
+
+    formatter = ticker.ScalarFormatter(useMathText=True)
+    formatter.set_scientific(True)
+    formatter.set_powerlimits((-2, 3))
+
+    fig = plt.figure(1)
+    ax = fig.add_subplot(111, projection='3d')
+    ax.plot_surface(xmat, ymat, data, rstride=1, cstride=1, linewidth=0, cmap=cm.cubehelix)
+    ax.set_xlabel(swp_pars[0])
+    ax.set_ylabel(swp_pars[1])
+    ax.set_zlabel(name)
+    ax.w_zaxis.set_major_formatter(formatter)
+
+    plt.show()
 
 
 def simulate(prj, save_fname):
@@ -63,50 +151,14 @@ def simulate(prj, save_fname):
     save_sim_results(data, save_fname)
 
 
-def get_data(save_fname):
-    result = load_sim_file(save_fname)
-    return result
-
-
-def plot_data_2d(result, name, sim_env=None):
-    """Get interpolation function and plot/query."""
-
-    swp_pars = result['sweep_params'][name]
-    data = result[name]
-
-    if sim_env is not None:
-        corners = result['corner']
-        corner_idx = swp_pars.index('corner')
-        env_idx = np.argwhere(corners == sim_env)[0][0]
-        data = np.take(data, env_idx, axis=corner_idx)
-        swp_pars = swp_pars[:corner_idx] + swp_pars[corner_idx + 1:]
-
-    xvec = result[swp_pars[0]]
-    yvec = result[swp_pars[1]]
-
-    xmat, ymat = np.meshgrid(xvec, yvec, indexing='ij', copy=False)
-
-    formatter = ticker.ScalarFormatter(useMathText=True)
-    formatter.set_scientific(True)
-    formatter.set_powerlimits((-2, 3))
-
-    fig = plt.figure(1)
-    ax = fig.add_subplot(111, projection='3d')
-    ax.plot_surface(xmat, ymat, data, rstride=1, cstride=1, linewidth=0, cmap=cm.cubehelix)
-    ax.set_xlabel(swp_pars[0])
-    ax.set_ylabel(swp_pars[1])
-    ax.set_zlabel(name)
-    ax.w_zaxis.set_major_formatter(formatter)
-
-    plt.show()
-
-
 def run_main(prj):
     save_fname = 'blocks_ec_tsmcN16/data/gm_char_dc/linearity.hdf5'
 
     # simulate(prj, save_fname)
-    data = get_data(save_fname)
-    plot_data_2d(data, 'ioutp', sim_env='tt')
+
+    result = load_sim_file(save_fname)
+    # plot_data_2d(result, 'ioutp', sim_env='tt')
+    get_transient(result, 15, 70e-12, 0.3, 0.1, num=201, sim_env='tt', method='linear', plot=True)
 
 
 if __name__ == '__main__':
