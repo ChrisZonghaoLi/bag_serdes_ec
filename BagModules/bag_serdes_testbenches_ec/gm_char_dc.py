@@ -26,9 +26,9 @@ class bag_serdes_testbenches_ec__gm_char_dc(Module):
     def get_params_info(cls):
         # type: () -> Dict[str, str]
         return dict(
-            lib_name='DUT library name.',
-            cell_name='DUT cell name.',
+            dut_lib='DUT library name.',
+            dut_cell='DUT cell name.',
         )
 
-    def design(self, lib_name, cell_name):
-        self.replace_instance_master('XDUT', lib_name, cell_name, static=True)
+    def design(self, dut_lib, dut_cell):
+        self.replace_instance_master('XDUT', dut_lib, dut_cell, static=True)
