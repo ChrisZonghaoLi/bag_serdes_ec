@@ -33,6 +33,7 @@ class bag_serdes_ec__integ_gm(Module):
             w_dict='NMOS/PMOS width dictionary.',
             th_dict='NMOS/PMOS threshold flavor dictionary.',
             seg_dict='number of segments dictionary.',
+            stack_in='Number of stacks in input pair.',
             hp_params='high-pass parameters.  If None, delete it.',
             dum_info='Dummy information data structure.',
             export_probe='True to export probe ports.',
@@ -42,6 +43,7 @@ class bag_serdes_ec__integ_gm(Module):
     def get_default_param_values(cls):
         # type: () -> Dict[str, Any]
         return dict(
+            stack_in=1,
             hp_params=None,
             dum_info=None,
             export_probe=False,
@@ -63,7 +65,7 @@ class bag_serdes_ec__integ_gm(Module):
             name += '_hp'
         return name
 
-    def design(self, lch, w_dict, th_dict, seg_dict, hp_params, dum_info, export_probe):
+    def design(self, lch, w_dict, th_dict, seg_dict, stack_in, hp_params, dum_info, export_probe):
         seg_set = seg_dict.get('set', 0)
         seg_sen = seg_dict.get('sen', 0)
         seg_casc = seg_dict.get('casc', 0)
@@ -76,7 +78,6 @@ class bag_serdes_ec__integ_gm(Module):
         seg_casc0 = max(seg_casc, seg_casc1)
         tran_info_list = [('XTAILP', 'tail'), ('XTAILN', 'tail'),
                           ('XNENP', 'nen'), ('XNENN', 'nen'),
-                          ('XINP', 'in'), ('XINN', 'in'),
                           ('XCASP0', 'casc', seg_casc0), ('XCASN0', 'casc', seg_casc0),
                           ('XCASP1', 'casc', seg_casc1), ('XCASN1', 'casc', seg_casc1),
                           ('XSETP', 'in', seg_set), ('XSETN', 'in', seg_set),
@@ -96,6 +97,12 @@ class bag_serdes_ec__integ_gm(Module):
                 self.delete_instance(inst_name)
             else:
                 self.instances[inst_name].design(w=w, l=lch, nf=seg, intent=th)
+
+        seg_in = seg_dict['in']
+        w_in = w_dict['in']
+        th_in = th_dict['in']
+        self.instances['XINP'].design(w=w_in, l=lch, seg=seg_in, intent=th_in, stack=stack_in)
+        self.instances['XINN'].design(w=w_in, l=lch, seg=seg_in, intent=th_in, stack=stack_in)
 
         if seg_casc > 0:
             self.has_casc = True
