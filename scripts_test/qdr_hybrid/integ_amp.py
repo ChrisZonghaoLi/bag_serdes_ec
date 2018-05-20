@@ -20,5 +20,5 @@ if __name__ == '__main__':
         print('loading BAG project')
         bprj = local_dict['bprj']
 
-    bprj.generate_cell(block_specs, IntegAmp, debug=True)
-    # bprj.generate_cell(block_specs, IntegAmp, gen_sch=True, debug=True)
+    # bprj.generate_cell(block_specs, IntegAmp, debug=True)
+    bprj.generate_cell(block_specs, IntegAmp, gen_sch=True, debug=True)
