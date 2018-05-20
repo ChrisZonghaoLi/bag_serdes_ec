@@ -50,8 +50,8 @@ def plot_vstar(result, tper, vdd, voutcm, bias_vec, ck_amp, rel_err, dc_params, 
     ax.plot(bias_vec, gain_vec, 'm')
     ax.set_ylabel('Gain (V/V)')
     ax = plt.subplot(414, sharex=ax)
-    ax.plot(bias_vec, offset_vec, 'r')
-    ax.set_ylabel('Output offset (mV)')
+    ax.plot(bias_vec, vstar_vec * gain_vec, 'r')
+    ax.set_ylabel('Gain * V* (mV)')
     ax.set_xlabel('Vbias (mV)')
     plt.show()
 
@@ -201,16 +201,8 @@ def plot_data_2d(result, name, sim_env=None):
     plt.show()
 
 
-def simulate(prj, save_fname):
-    tb_lib = 'bag_serdes_testbenches_ec'
-    tb_cell = 'gm_char_dc'
-    dut_lib = 'CHAR_INTEG_AMP_FG4'
-    dut_cell = 'INTEG_AMP'
-    impl_lib = 'CHAR_INTEG_AMP_FG4_TB'
-    impl_cell = tb_cell
-    env_list = ['tt', 'ff_hot', 'ss_cold']
-    sim_view = 'av_extracted'
-
+def simulate(prj, save_fname, tb_lib, tb_cell, dut_lib, dut_cell, impl_lib, impl_cell, env_list,
+             sim_view):
     vck_amp = 0.4
     vdd = 0.9
     vstar_max = 0.3
@@ -253,14 +245,16 @@ def simulate(prj, save_fname):
 
 
 def run_main(prj):
-    save_fname = 'blocks_ec_tsmcN16/data/gm_char_dc/linearity.hdf5'
+    # save_fname = 'blocks_ec_tsmcN16/data/gm_char_dc/linearity_stack.hdf5'
+    save_fname = 'blocks_ec_tsmcN16/data/gm_char_dc/linearity_stack_tsw.hdf5'
+
     sim_env = 'tt'
     vdd = 0.9
     voutcm = 0.7
     tper = 70e-12
     ck_amp = 0.3
     ck_bias = 0.05
-    rel_err = 0.07
+    rel_err = 0.05
     bias_vec = np.linspace(0, 0.15, 16, endpoint=True)
     dc_params = dict(
         num_k=7,
@@ -273,7 +267,19 @@ def run_main(prj):
         method='cubic',
     )
 
-    # simulate(prj, save_fname)
+    sim_params = dict(
+        dut_lib='CHAR_INTEG_AMP_STACK_TSW',
+        impl_lib='CHAR_INTEG_AMP_STACK_TSW_TB',
+        impl_cell='gm_char_dc',
+        save_fname=save_fname,
+        tb_lib='bag_serdes_testbenches_ec',
+        tb_cell='gm_char_dc',
+        dut_cell='INTEG_AMP',
+        env_list=['tt', 'ff_hot', 'ss_cold'],
+        sim_view='av_extracted',
+    )
+
+    # simulate(prj, **sim_params)
 
     result = load_sim_file(save_fname)
     # plot_data_2d(result, 'ioutp', sim_env='tt')
