@@ -19,8 +19,13 @@ class bag_serdes_ec__integ_load(Module):
     Fill in high level description here.
     """
 
+    load_names = ('XLOADP0', 'XLOADP1', 'XLOADN0', 'XLOADN1')
+    en_names = ('XPENP0', 'XPENP1', 'XPENN0', 'XPENN1')
+
     def __init__(self, bag_config, parent=None, prj=None, **kwargs):
         Module.__init__(self, bag_config, yaml_file, parent=parent, prj=prj, **kwargs)
+        self.has_clk = False
+        self.has_en = False
 
     @classmethod
     def get_params_info(cls):
@@ -42,28 +47,38 @@ class bag_serdes_ec__integ_load(Module):
 
     @classmethod
     def is_empty(cls, seg_dict, dum_info):
-        return (not dum_info) and seg_dict.get('load', 0) <= 0
+        return (not dum_info) and seg_dict.get('load', 0) <= 0 and seg_dict.get('pen', 0) <= 0
 
     def design(self, lch, w_dict, th_dict, seg_dict, dum_info):
-        tran_info_list = [('XPENP0', 'pen'), ('XPENP1', 'pen'),
-                          ('XPENN0', 'pen'), ('XPENN1', 'pen'),
-                          ('XLOADP0', 'load'), ('XLOADP1', 'load'),
-                          ('XLOADN0', 'load'), ('XLOADN1', 'load'),
-                          ]
-
-        for inst_info in tran_info_list:
-            inst_name, inst_type = inst_info
-            seg = seg_dict.get(inst_type, 0)
-            w = w_dict.get(inst_type, 0)
-            th = th_dict.get(inst_type, 'standard')
-            if seg <= 0:
-                self.delete_instance(inst_name)
-            else:
-                self.instances[inst_name].design(w=w, l=lch, nf=seg, intent=th)
-
         seg_load = seg_dict.get('load', 0)
+        w_load = w_dict.get('load', 0)
+        th_load = th_dict.get('load', 'standard')
+        seg_en = seg_dict.get('pen', 0)
+        w_en = w_dict.get('pen', 0)
+        th_en = th_dict.get('pen', 'standard')
         if seg_load <= 0:
-            for name in ('clkp', 'clkn', 'en<3:2>', 'outp', 'outn'):
+            self.has_clk = False
+            for name in self.load_names:
+                self.delete_instance(name)
+            for name in ('clkp', 'clkn'):
                 self.remove_pin(name)
+            if seg_en <= 0:
+                self.has_en = False
+                for name in ('en<3:2>', 'outp', 'outn'):
+                    self.remove_pin(name)
+                for name in self.en_names:
+                    self.delete_instance(name)
+            else:
+                self.delete_instance('XPENP1')
+                self.delete_instance('XPENN1')
+                self.instances['XPENP0'].design(w=w_en, l=lch, nf=seg_en, intent=th_en)
+                self.instances['XPENN0'].design(w=w_en, l=lch, nf=seg_en, intent=th_en)
+                self.reconnect_instance_terminal('XPENP0', 'S', 'VDD')
+                self.reconnect_instance_terminal('XPENN0', 'S', 'VDD')
+        else:
+            for name in self.load_names:
+                self.instances[name].design(w=w_load, l=lch, nf=seg_load, intent=th_load)
+            for name in self.en_names:
+                self.instances[name].design(w=w_en, l=lch, nf=seg_en, intent=th_en)
 
         self.design_dummy_transistors(dum_info, 'XDUM', 'VDD', 'VSS')

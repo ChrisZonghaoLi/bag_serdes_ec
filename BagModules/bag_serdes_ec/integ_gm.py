@@ -23,6 +23,7 @@ class bag_serdes_ec__integ_gm(Module):
         self.has_set = False
         self.has_casc = False
         self.has_but = False
+        self.has_tsw = False
 
     @classmethod
     def get_params_info(cls):
@@ -117,6 +118,8 @@ class bag_serdes_ec__integ_gm(Module):
         if seg_tsw <= 0:
             self.remove_pin('clkn')
             self.remove_pin('VDD')
+        else:
+            self.has_tsw = True
 
         self.design_dummy_transistors(dum_info, 'XDUM', 'VDD', 'VSS')
         if not export_probe:

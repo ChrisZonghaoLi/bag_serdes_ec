@@ -24,6 +24,9 @@ class bag_serdes_ec__integ_amp(Module):
         self.has_set = False
         self.has_casc = False
         self.has_but = False
+        self.has_clkp = False
+        self.has_clkn = False
+        self.has_en2 = False
 
     @classmethod
     def get_params_info(cls):
@@ -42,8 +45,10 @@ class bag_serdes_ec__integ_amp(Module):
         )
 
     def design(self, gm_params, load_params, flip_sign):
-        self.instances['XGM'].design(**gm_params)
-        self.instances['XLOAD'].design(load_params_list=[load_params], nin=1)
+        gm = self.instances['XGM']
+        load = self.instances['XLOAD']
+        gm.design(**gm_params)
+        load.design(load_params_list=[load_params], nin=1)
 
         if flip_sign:
             self.reconnect_instance_terminal('XGM', 'outp', 'iin')
@@ -53,7 +58,7 @@ class bag_serdes_ec__integ_amp(Module):
             self.remove_pin('tail')
             self.remove_pin('foot')
 
-        master = self.instances['XGM'].master
+        master = gm.master
         if master.has_casc:
             self.has_casc = True
             self.rename_pin('casc<1:0>', 'casc')
@@ -68,3 +73,18 @@ class bag_serdes_ec__integ_amp(Module):
             self.remove_pin('setp')
             self.remove_pin('setn')
             self.remove_pin('pulse')
+        if master.has_tsw:
+            self.has_clkn = True
+
+        master = load.master
+        if master.has_clk:
+            self.has_clkp = self.has_clkn = True
+        if master.has_en:
+            self.has_en2 = True
+
+        if not self.has_clkp:
+            self.remove_pin('clkp')
+        if not self.has_clkn:
+            self.remove_pin('clkn')
+        if not self.has_en2:
+            self.rename_pin('en<3:2>', 'en<3>')
