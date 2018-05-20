@@ -12,6 +12,8 @@ from bag.layout.util import BBox
 from bag.layout.routing.base import TrackID, TrackManager
 from bag.layout.template import TemplateBase, BlackBoxTemplate
 
+from abs_templates_ec.analog_mos.mos import DummyFillActive
+
 from ..analog.cml import CMLAmpPMOS
 from .ser import Serializer32
 
@@ -83,6 +85,20 @@ class TXDatapath(TemplateBase):
         h_amp = box_amp.height_unit
         h_esd = box_esd.height_unit
 
+        # draw fill between CML amplifier and diode so we meet DRC rule
+        mos_type = 'nch'
+        threshold = master_amp.params['gm_params']['threshold']
+        fill_space = DummyFillActive.get_min_fill_dim(self.grid.tech_info, mos_type, threshold)[0]
+        w_blk, h_blk = self.grid.get_block_size(top_layer, unit_mode=True)
+        w_fill = -(-fill_space // w_blk) * w_blk
+        dum_params = dict(
+            mos_type=mos_type,
+            threshold=threshold,
+            width=w_fill,
+            height=h_amp,
+        )
+        master_fill = self.new_template(params=dum_params, temp_cls=DummyFillActive)
+
         # allocate space for ibias routing
         em_specs = master_amp.ibias_em_specs
         hm_tr_w_ibias = master_amp.get_port('ibias').get_pins()[0].width
@@ -94,13 +110,11 @@ class TXDatapath(TemplateBase):
         w_route = ym_pitch * ntr
 
         # compute horizontal placement
-        w_blk, h_blk = self.grid.get_block_size(top_layer, unit_mode=True)
         x_ser = 0
         x_route = x_ser + box_ser.width_unit
         x_amp = -(-(x_route + w_route) // w_blk) * w_blk
-        # TODO: hack space between CML amplifier and diode so PO can
-        # fill in middle
-        x_esd = x_amp + box_amp.width_unit - (-500 // w_blk) * w_blk
+        x_fill = x_amp + box_amp.width_unit
+        x_esd = x_amp + box_amp.width_unit + w_fill
         w_tot = -(-(x_esd + box_esd.width_unit) // w_blk) * w_blk
 
         # compute vertical placement
@@ -115,6 +129,7 @@ class TXDatapath(TemplateBase):
         esdt = self.add_instance(master_esd, 'XESDT', loc=(x_esd, y_esd), unit_mode=True)
         esdb = self.add_instance(master_esd, 'XESDB', loc=(x_esd, y_esd), orient='MX',
                                  unit_mode=True)
+        self.add_instance(master_fill, 'XFILL', loc=(x_fill, y_amp), unit_mode=True)
 
         # set size
         res = self.grid.resolution
