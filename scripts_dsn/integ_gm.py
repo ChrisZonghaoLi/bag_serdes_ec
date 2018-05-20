@@ -4,6 +4,7 @@ from typing import List
 
 import numpy as np
 import scipy.interpolate as interp
+import scipy.integrate as integ
 
 import matplotlib.pyplot as plt
 # noinspection PyUnresolvedReferences
@@ -15,7 +16,35 @@ from bag.core import BagProject
 from bag.io.sim_data import load_sim_results, save_sim_results, load_sim_file
 
 
-def get_transient(result, in_idx, tper, ck_amp, ck_bias, num=201, sim_env='tt', method='linear',
+def get_dc_tf(result, tper, ck_amp, ck_bias, num_k=7, sim_env='tt', method='linear', plot=False):
+    indm_vec = result['indm']
+
+    n = indm_vec.size
+    dm_vec = np.empty(n)
+    cm_vec = np.empty(n)
+    for idx, indm in enumerate(indm_vec):
+        ip_wv, in_wv, tstep = get_transient(result, idx, tper, ck_amp, ck_bias, num_k=num_k,
+                                            sim_env=sim_env, method=method, plot=False)
+        p_charge = integ.romb(ip_wv, dx=tstep)
+        n_charge = integ.romb(in_wv, dx=tstep)
+        dm_vec[idx] = n_charge - p_charge
+        cm_vec[idx] = (n_charge + p_charge) / 2
+
+    if plot:
+        plt.figure(1)
+        ax = plt.subplot(211)
+        ax.plot(indm_vec, dm_vec, 'b')
+        ax.set_ylabel('Qdm (Coulomb)')
+        ax = plt.subplot(212, sharex=ax)
+        ax.plot(indm_vec, cm_vec, 'g')
+        ax.set_ylabel('Qcm (Coulomb)')
+        ax.set_xlabel('Vindm (V)')
+        plt.show()
+
+    return dm_vec, cm_vec
+
+
+def get_transient(result, in_idx, tper, ck_amp, ck_bias, num_k=7, sim_env='tt', method='linear',
                   plot=False):
     ioutp = result['ioutp']  # type: np.ndarray
     ioutn = result['ioutn']  # type: np.ndarray
@@ -48,7 +77,8 @@ def get_transient(result, in_idx, tper, ck_amp, ck_bias, num=201, sim_env='tt', 
     fun_in = interp.interp1d(bias, ioutn, kind=method, copy=False, fill_value='extrapolate',
                              assume_sorted=True)
 
-    tvec = np.linspace(0, tper, num, endpoint=False)
+    num = 2**num_k + 1
+    tvec, tstep = np.linspace(0, tper, num, endpoint=False, retstep=True)
     tail_wv = np.maximum(bias[0], ck_bias - ck_amp * np.cos(tvec * (2 * np.pi / tper)))
     ip_wv = fun_ip(tail_wv)
     in_wv = fun_in(tail_wv)
@@ -63,7 +93,7 @@ def get_transient(result, in_idx, tper, ck_amp, ck_bias, num=201, sim_env='tt', 
         plt.ylabel('Iout (uA)')
         plt.show()
 
-    return ip_wv, in_wv
+    return ip_wv, in_wv, tstep
 
 
 def plot_data_2d(result, name, sim_env=None):
@@ -153,12 +183,21 @@ def simulate(prj, save_fname):
 
 def run_main(prj):
     save_fname = 'blocks_ec_tsmcN16/data/gm_char_dc/linearity.hdf5'
+    sim_env = 'tt'
+    tper = 70e-12
+    ck_amp = 0.3
+    ck_bias = 0.1
+    num_k = 7
+    method = 'linear'
+
+    kwargs = dict(num_k=num_k, sim_env=sim_env, method=method, plot=True)
 
     # simulate(prj, save_fname)
 
     result = load_sim_file(save_fname)
     # plot_data_2d(result, 'ioutp', sim_env='tt')
-    get_transient(result, 15, 70e-12, 0.3, 0.1, num=201, sim_env='tt', method='linear', plot=True)
+    # get_transient(result, 15, tper, ck_amp, ck_bias, **kwargs)
+    get_dc_tf(result, tper, ck_amp, ck_bias, **kwargs)
 
 
 if __name__ == '__main__':
