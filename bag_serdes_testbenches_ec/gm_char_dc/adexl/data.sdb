@@ -1,0 +1,101 @@
+<?xml version="1.0"?>
+<setupdb version="5">data
+	<active>Active Setup
+		<corners>
+			<corner enabled="1">_default</corner>
+		</corners>
+		<extensions>
+			<extension>Parasitics
+				<callback>_parSetupDBExtensionCB</callback>
+				<iconvalue></iconvalue>
+				<icontype></icontype>
+			</extension>
+		</extensions>
+		<currentmode>Single Run, Sweeps and Corners</currentmode>
+		<overwritehistory>0</overwritehistory>
+		<tests>
+			<test>dc
+				<tool>ADE</tool>
+				<tooloptions>
+					<option>cell
+						<value>gm_char_dc</value>
+					</option>
+					<option>lib
+						<value>bag_serdes_testbenches_ec</value>
+					</option>
+					<option>sim
+						<value>spectre</value>
+					</option>
+					<option>view
+						<value>schematic</value>
+					</option>
+					<option>path
+						<value>$AXL_SETUPDB_DIR/test_states</value>
+					</option>
+					<option>state
+						<value>dc_active</value>
+					</option>
+				</tooloptions>
+				<origoptions>
+					<option>cell
+						<value>gm_char_dc</value>
+					</option>
+					<option>lib
+						<value>bag_serdes_testbenches_ec</value>
+					</option>
+					<option>sim
+						<value>spectre</value>
+					</option>
+					<option>view
+						<value>schematic</value>
+					</option>
+				</origoptions>
+			</test>
+		</tests>
+		<vars>
+			<var>bias
+				<value>0.5</value>
+				<dependentTests>
+					<dependentTest enabled="1">dc</dependentTest>
+				</dependentTests>
+			</var>
+			<var>incm
+				<value>0.7</value>
+				<dependentTests>
+					<dependentTest enabled="1">dc</dependentTest>
+				</dependentTests>
+			</var>
+			<var>indm
+				<value>0</value>
+				<dependentTests>
+					<dependentTest enabled="1">dc</dependentTest>
+				</dependentTests>
+			</var>
+			<var>outcm
+				<value>0.8</value>
+				<dependentTests>
+					<dependentTest enabled="1">dc</dependentTest>
+				</dependentTests>
+			</var>
+			<var>vdd
+				<value>0.9</value>
+				<dependentTests>
+					<dependentTest enabled="1">dc</dependentTest>
+				</dependentTests>
+			</var>
+			<var>vb0
+				<value>0</value>
+				<dependentTests>
+					<dependentTest enabled="1">dc</dependentTest>
+				</dependentTests>
+			</var>
+			<var>vb1
+				<value>0.9</value>
+				<dependentTests>
+					<dependentTest enabled="1">dc</dependentTest>
+				</dependentTests>
+			</var>
+		</vars>
+	</active>
+	<history>History</history>
+</setupdb>
