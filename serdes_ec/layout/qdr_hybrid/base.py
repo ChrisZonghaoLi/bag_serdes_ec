@@ -72,8 +72,9 @@ class HybridQDRBaseInfo(AnalogBaseInfo):
                 a dictionary from net name/transistor tuple to source-drain junction type.
         """
         fg_sep_min = self.min_fg_sep
-        fg_sep = fg_sep_min
         fg_sep_load = max(0, fg_sep_hm - 2)
+        fg_sep_pmos = seg_dict.get('psep', fg_sep_min)
+        fg_sep_nmos = seg_dict.get('nsep', fg_sep_min)
 
         seg_load = seg_dict.get('load', 0)
         seg_pen = seg_dict.get('pen', 0)
@@ -99,25 +100,25 @@ class HybridQDRBaseInfo(AnalogBaseInfo):
             seg_pmos = 0
         else:
             if not self.abut_analog_mos or fg_sep_load > 0 or seg_load > seg_pen:
-                fg_sep_load = max(fg_sep_load, fg_sep_min)
+                fg_sep_load = max(fg_sep_load, fg_sep_pmos)
             else:
                 fg_sep_load = 0
             seg_pmos = seg_pen * 2 + fg_sep_load
 
         if seg_casc > 0 or seg_but > 0:
-            fg_sep = max(fg_sep, fg_sep_hm)
+            fg_sep_nmos = max(fg_sep_nmos, fg_sep_hm)
 
         # calculate NMOS center transistor number of fingers
         if seg_but > 0:
             if self.abut_analog_mos:
                 seg_but_tot = 2 * seg_but
             else:
-                seg_but_tot = 2 * seg_but + fg_sep
+                seg_but_tot = 2 * seg_but + fg_sep_nmos
         else:
             seg_but_tot = 0
 
         # calculate number of center fingers and total size
-        fg_sep_amp = fg_sep if seg_tsw == 0 else max(fg_sep, 2 * fg_sep_min + seg_tsw)
+        fg_sep_amp = fg_sep_nmos if seg_tsw == 0 else 2 * fg_sep_nmos + seg_tsw
         seg_single = max(seg_pmos, seg_casc, fg_in, seg_but_tot, seg_nen, seg_tail)
         seg_tot = 2 * seg_single + fg_sep_amp
         fg_dum = max(fg_dum, -(-(fg_min - seg_tot) // 2))
@@ -219,6 +220,8 @@ class HybridQDRBaseInfo(AnalogBaseInfo):
 
         if (col_dict['nen'] - col_dict['in']) % 2 == 1:
             sd_name = 'd' if sd_name == 's' else 's'
+        if stack_in % 2 == 0:
+            sd_name = 's'
         sd_dict[('nen', sd_name)] = 'tail'
         if sd_name == 'd':
             sd_dir = d_up
