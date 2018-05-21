@@ -2,7 +2,7 @@ lib_name: bag_serdes_ec
 cell_name: qdr_retimer_column
 pins: [ "VDD", "VSS", "sa_data<3:0>", "sa_dlev<3:0>", "des_clkb", "data<3:0>", "en<3:0>", "des_clk", "dlev<3:0>" ]
 instances:
-  XBUF3:
+  XBUF:
     lib_name: bag_digital_ec
     cell_name: inv_chain
     instpins:
@@ -20,9 +20,9 @@ instances:
         num_bits: 1
       in:
         direction: input
-        net_name: "en<3>"
+        net_name: "en<0>"
         num_bits: 1
-  XBUF1:
+  XBUFB:
     lib_name: bag_digital_ec
     cell_name: inv_chain
     instpins:
@@ -40,7 +40,7 @@ instances:
         num_bits: 1
       in:
         direction: input
-        net_name: "en<1>"
+        net_name: "en<2>"
         num_bits: 1
   PIN1:
     lib_name: basic
@@ -82,6 +82,14 @@ instances:
     lib_name: bag_serdes_ec
     cell_name: qdr_retimer
     instpins:
+      clk_rt:
+        direction: input
+        net_name: "clk_rt"
+        num_bits: 1
+      clkb_rt:
+        direction: input
+        net_name: "clkb_rt"
+        num_bits: 1
       VSS:
         direction: inputOutput
         net_name: "VSS"
@@ -106,6 +114,14 @@ instances:
     lib_name: bag_serdes_ec
     cell_name: qdr_retimer
     instpins:
+      clk_rt:
+        direction: input
+        net_name: "clk_rt"
+        num_bits: 1
+      clkb_rt:
+        direction: input
+        net_name: "clkb_rt"
+        num_bits: 1
       VSS:
         direction: inputOutput
         net_name: "VSS"
@@ -126,3 +142,43 @@ instances:
         direction: input
         net_name: "en<3:0>"
         num_bits: 4
+  XCKINV1:
+    lib_name: bag_digital_ec
+    cell_name: inv
+    instpins:
+      VSS:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      VDD:
+        direction: inputOutput
+        net_name: "VDD"
+        num_bits: 1
+      out:
+        direction: output
+        net_name: "clkb_rt"
+        num_bits: 1
+      in:
+        direction: input
+        net_name: "en<3>"
+        num_bits: 1
+  XCKINV3:
+    lib_name: bag_digital_ec
+    cell_name: inv
+    instpins:
+      VSS:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      VDD:
+        direction: inputOutput
+        net_name: "VDD"
+        num_bits: 1
+      out:
+        direction: output
+        net_name: "clk_rt"
+        num_bits: 1
+      in:
+        direction: input
+        net_name: "en<1>"
+        num_bits: 1

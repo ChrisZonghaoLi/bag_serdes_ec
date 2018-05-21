@@ -1,6 +1,6 @@
 lib_name: bag_serdes_ec
 cell_name: qdr_retimer
-pins: [ "in<3:0>", "clk<3:0>", "out<3:0>", "VDD", "VSS" ]
+pins: [ "in<3:0>", "clk<3:0>", "out<3:0>", "VDD", "VSS", "clk_rt", "clkb_rt" ]
 instances:
   XLAT0:
     lib_name: bag_digital_ec
@@ -16,7 +16,7 @@ instances:
         num_bits: 1
       out:
         direction: output
-        net_name: "out<0>"
+        net_name: "mid<0>"
         num_bits: 1
       in:
         direction: input
@@ -44,7 +44,7 @@ instances:
         num_bits: 1
       out:
         direction: output
-        net_name: "mid<1>"
+        net_name: "mid0<1>"
         num_bits: 1
       in:
         direction: input
@@ -58,6 +58,34 @@ instances:
         direction: input
         net_name: "clk<1>"
         num_bits: 1
+  XRT<3:0>:
+    lib_name: bag_digital_ec
+    cell_name: dff_ck2
+    instpins:
+      VSS:
+        direction: inputOutput
+        net_name: "<*4>VSS"
+        num_bits: 4
+      VDD:
+        direction: inputOutput
+        net_name: "<*4>VDD"
+        num_bits: 4
+      out:
+        direction: output
+        net_name: "out0<3:0>"
+        num_bits: 4
+      in:
+        direction: input
+        net_name: "mid<3:0>"
+        num_bits: 4
+      clk:
+        direction: input
+        net_name: "<*4>clk_rt"
+        num_bits: 4
+      clkb:
+        direction: input
+        net_name: "<*4>clkb_rt"
+        num_bits: 4
   XFF2:
     lib_name: bag_digital_ec
     cell_name: dff_ck2
@@ -72,7 +100,7 @@ instances:
         num_bits: 1
       out:
         direction: output
-        net_name: "out<2>"
+        net_name: "mid<2>"
         num_bits: 1
       in:
         direction: input
@@ -100,7 +128,7 @@ instances:
         num_bits: 1
       out:
         direction: output
-        net_name: "out<3>"
+        net_name: "mid0<3>"
         num_bits: 1
       in:
         direction: input
@@ -128,12 +156,32 @@ instances:
         num_bits: 1
       out:
         direction: output
-        net_name: "out<3>"
+        net_name: "mid<3>"
         num_bits: 1
       in:
         direction: input
         net_name: "in<3>"
         num_bits: 1
+  XDELAY<3:0>:
+    lib_name: bag_digital_ec
+    cell_name: inv_chain
+    instpins:
+      VSS:
+        direction: inputOutput
+        net_name: "<*4>VSS"
+        num_bits: 4
+      VDD:
+        direction: inputOutput
+        net_name: "<*4>VDD"
+        num_bits: 4
+      out:
+        direction: output
+        net_name: "out<3:0>"
+        num_bits: 4
+      in:
+        direction: input
+        net_name: "out0<3:0>"
+        num_bits: 4
   XBUF1:
     lib_name: bag_digital_ec
     cell_name: inv_chain
@@ -148,17 +196,25 @@ instances:
         num_bits: 1
       out:
         direction: output
-        net_name: "out<1>"
+        net_name: "mid<1>"
         num_bits: 1
       in:
         direction: input
-        net_name: "mid<1>"
+        net_name: "mid0<1>"
         num_bits: 1
+  PIN6:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
   PIN2:
     lib_name: basic
     cell_name: ipin
     instpins: {}
   PIN0:
+    lib_name: basic
+    cell_name: ipin
+    instpins: {}
+  PIN5:
     lib_name: basic
     cell_name: ipin
     instpins: {}

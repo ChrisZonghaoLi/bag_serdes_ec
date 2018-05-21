@@ -29,18 +29,21 @@ class bag_serdes_ec__qdr_retimer(Module):
             ff_params='flip-flop parameters.',
             lat_params='latch parameters.',
             buf_params='inverter chain parameters.',
+            delay_params='delay chain parameters.',
             delay_ck3='True to delay phase 3',
         )
 
-    def design(self, ff_params, lat_params, buf_params, delay_ck3):
+    def design(self, ff_params, lat_params, buf_params, delay_params, delay_ck3):
+        self.instances['XBUF3'].design(**buf_params)
         if delay_ck3:
-            self.delete_instance('XBUF3')
+            self.reconnect_instance_terminal('XBUF3', 'in', 'mid0<3>')
             self.instances['XFF3'].design(**ff_params)
         else:
             self.delete_instance('XFF3')
-            self.instances['XBUF3'].design(**buf_params)
 
         self.instances['XFF2'].design(**ff_params)
         self.instances['XLAT1'].design(**lat_params)
         self.instances['XLAT0'].design(**lat_params)
         self.instances['XBUF1'].design(**buf_params)
+        self.instances['XRT<3:0>'].design(**ff_params)
+        self.instances['XDELAY<3:0>'].design(**delay_params)
