@@ -127,6 +127,9 @@ class Tap1SummerRow(HybridQDRBase):
                                      end_mode=end_mode, **options)
         fg_sep_out = qdr_info.get_fg_sep_from_hm_space(tr_manager.get_width(hm_layer, 'out'),
                                                        round_even=True)
+        # TODO: find this properly.  We need to check if there are fg=2, gate on source
+        # TODO: transistors, and if they need larger spacing
+        fg_sep_out = 4
         fg_sep_hm = qdr_info.get_fg_sep_from_hm_space(tr_manager.get_width(hm_layer, 1),
                                                       round_even=True)
         fg_sep_hm = max(0, fg_sep_hm)
