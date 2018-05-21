@@ -397,7 +397,6 @@ class DividerColumn(TemplateBase):
         # connect en2
         en2_warrs = [div3_inst.get_pin('en2'), div2_inst.get_pin('en2')]
         if en2_tr_idx is None:
-            en2_warrs = self.extend_wires(en2_warrs, unit_mode=True, min_len_mode=0)
             self.add_pin('en2', en2_warrs, show=show_pins)
         else:
             top_layer += 1

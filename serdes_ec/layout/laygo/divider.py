@@ -1342,7 +1342,7 @@ class DividerGroup(TemplateBase):
             out_idx2 = inst_re.translate_master_track(top_layer, out_idx2)
             out_idx = self.grid.get_middle_track(out_idx1, out_idx2)
             en2 = self.connect_to_tracks(inst_re.get_pin('en2'),
-                                         TrackID(top_layer, out_idx, width=clk_w))
+                                         TrackID(top_layer, out_idx, width=clk_w), min_len_mode=0)
             self.add_pin('en2', en2, show=show_pins)
 
             in_idx = inst_re.translate_master_track(top_layer, div_tr_info[re_in_type][0])
