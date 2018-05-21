@@ -146,12 +146,18 @@ class HybridQDRBaseInfo(AnalogBaseInfo):
         s_up = (2, 0)
         d_up = (0, 2)
         if seg_pen > 0:
-            sd_dict = {('load0', 's'): 'VDD', ('load1', 's'): 'VDD',
-                       ('load0', 'd'): 'pm0', ('load1', 'd'): 'pm1', }
-            sd_dir_dict = {'load0': s_up, 'load1': s_up, }
-            sd_name = 'd'
-            if (col_dict['pen0'] - col_dict['load0']) % 2 == 1:
-                sd_name = 'd' if sd_name == 's' else 's'
+            if stack_in % 2 == 1 or (seg_casc <= 0 and seg_but <= 0):
+                sd_dict = {('load0', 's'): 'VDD', ('load1', 's'): 'VDD',
+                           ('load0', 'd'): 'pm0', ('load1', 'd'): 'pm1', }
+                sd_dir_dict = {'load0': s_up, 'load1': s_up, }
+                sd_name = 'd'
+            else:
+                # switch source/drain direction if input has even stack number,
+                # and we have cascode/butterfly devices
+                sd_dict = {('load0', 'd'): 'VDD', ('load1', 'd'): 'VDD',
+                           ('load0', 's'): 'pm0', ('load1', 's'): 'pm1', }
+                sd_dir_dict = {'load0': d_up, 'load1': d_up, }
+                sd_name = 's'
 
             sd_dict[('pen0', sd_name)] = 'pm0'
             sd_dict[('pen1', sd_name)] = 'pm1'
@@ -163,15 +169,11 @@ class HybridQDRBaseInfo(AnalogBaseInfo):
                 sd_name = 'd'
             sd_dict[('pen0', sd_name)] = sd_dict[('pen1', sd_name)] = 'out'
             sd_dir_dict['pen0'] = sd_dir_dict['pen1'] = sd_dir
-            prev_col = col_dict['pen0']
         else:
             sd_dict = {}
             sd_dir_dict = {}
             sd_name = 'd'
-            prev_col = None
         if seg_casc > 0:
-            if prev_col is not None and (col_dict['casc'] - prev_col) % 2 == 1:
-                sd_name = 'd' if sd_name == 's' else 's'
 
             sd_dict[('casc', sd_name)] = 'out'
             if sd_name == 'd':
@@ -183,8 +185,6 @@ class HybridQDRBaseInfo(AnalogBaseInfo):
             sd_dict[('casc', sd_name)] = 'nm'
             sd_dir_dict['casc'] = sd_dir
 
-            if (col_dict['in'] - col_dict['casc']) % 2 == 1:
-                sd_name = 'd' if sd_name == 's' else 's'
             sd_dict[('in', sd_name)] = 'nm'
             if sd_name == 'd':
                 sd_dir = d_up
@@ -201,13 +201,10 @@ class HybridQDRBaseInfo(AnalogBaseInfo):
                 sd_name = 's'
                 sd_dict[('but0', sd_name)] = sd_dict[('but1', sd_name)] = 'nm'
                 sd_dir_dict['but0'] = sd_dir_dict['but1'] = sd_dir
-                prev_col = col_dict['but0']
                 in_sd = 'nm'
             else:
                 in_sd = 'out'
 
-            if prev_col is not None and (col_dict['in'] - prev_col) % 2 == 1:
-                sd_name = 'd' if sd_name == 's' else 's'
             sd_dict[('in', sd_name)] = in_sd
             if sd_name == 'd':
                 sd_dir = d_up
@@ -218,8 +215,6 @@ class HybridQDRBaseInfo(AnalogBaseInfo):
             sd_dict[('in', sd_name)] = 'tail'
             sd_dir_dict['in'] = sd_dir
 
-        if (col_dict['nen'] - col_dict['in']) % 2 == 1:
-            sd_name = 'd' if sd_name == 's' else 's'
         if stack_in % 2 == 0:
             sd_name = 's'
         sd_dict[('nen', sd_name)] = 'tail'
@@ -232,8 +227,6 @@ class HybridQDRBaseInfo(AnalogBaseInfo):
         sd_dict[('nen', sd_name)] = 'foot'
         sd_dir_dict['nen'] = sd_dir
 
-        if (col_dict['tail'] - col_dict['nen']) % 2 == 1:
-            sd_name = 'd' if sd_name == 's' else 's'
         sd_dict[('tail', sd_name)] = 'foot'
         if sd_name == 'd':
             sd_dir = d_up
