@@ -62,6 +62,7 @@ class bag_serdes_ec__integ_amp(Module):
         if master.has_casc:
             self.has_casc = True
             self.rename_pin('casc<1:0>', 'casc')
+            self.reconnect_instance_terminal('XGM', 'casc', 'casc')
         elif master.has_but:
             self.has_but = True
         else:

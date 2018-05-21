@@ -72,19 +72,30 @@ class HybridQDRBaseInfo(AnalogBaseInfo):
                 a dictionary from net name/transistor tuple to source-drain junction type.
         """
         fg_sep_min = self.min_fg_sep
-        fg_sep_load = max(0, fg_sep_hm - 2)
         fg_sep_pmos = seg_dict.get('psep', fg_sep_min)
+
         fg_sep_nmos = seg_dict.get('nsep', fg_sep_min)
+        seg_casc = seg_dict.get('casc', 0)
+        seg_but = seg_dict.get('but', 0)
+        stack_in = seg_dict.get('stack_in', 1)
+
+        if stack_in % 2 == 0 and (seg_casc > 0 or seg_but > 0):
+            # switch source/drain direction if input has even stack number,
+            # and we have cascode/butterfly devices.
+            # in this case, we have to worry about hm line-end rule.
+            flip_load_sd = True
+            fg_sep_load = max(0, fg_sep_hm)
+        else:
+            flip_load_sd = False
+            fg_sep_load = max(0, fg_sep_hm - 2)
+
 
         seg_load = seg_dict.get('load', 0)
         seg_pen = seg_dict.get('pen', 0)
-        seg_casc = seg_dict.get('casc', 0)
-        seg_but = seg_dict.get('but', 0)
         seg_tsw = seg_dict.get('tsw', 0)
         seg_in = seg_dict['in']
         seg_nen = seg_dict['nen']
         seg_tail = seg_dict['tail']
-        stack_in = seg_dict.get('stack_in', 1)
 
         fg_in = seg_in * stack_in
 
@@ -146,18 +157,16 @@ class HybridQDRBaseInfo(AnalogBaseInfo):
         s_up = (2, 0)
         d_up = (0, 2)
         if seg_pen > 0:
-            if stack_in % 2 == 1 or (seg_casc <= 0 and seg_but <= 0):
-                sd_dict = {('load0', 's'): 'VDD', ('load1', 's'): 'VDD',
-                           ('load0', 'd'): 'pm0', ('load1', 'd'): 'pm1', }
-                sd_dir_dict = {'load0': s_up, 'load1': s_up, }
-                sd_name = 'd'
-            else:
-                # switch source/drain direction if input has even stack number,
-                # and we have cascode/butterfly devices
+            if flip_load_sd:
                 sd_dict = {('load0', 'd'): 'VDD', ('load1', 'd'): 'VDD',
                            ('load0', 's'): 'pm0', ('load1', 's'): 'pm1', }
                 sd_dir_dict = {'load0': d_up, 'load1': d_up, }
                 sd_name = 's'
+            else:
+                sd_dict = {('load0', 's'): 'VDD', ('load1', 's'): 'VDD',
+                           ('load0', 'd'): 'pm0', ('load1', 'd'): 'pm1', }
+                sd_dir_dict = {'load0': s_up, 'load1': s_up, }
+                sd_name = 'd'
 
             sd_dict[('pen0', sd_name)] = 'pm0'
             sd_dict[('pen1', sd_name)] = 'pm1'
