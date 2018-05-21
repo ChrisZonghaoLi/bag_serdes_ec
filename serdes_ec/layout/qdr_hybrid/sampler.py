@@ -454,6 +454,8 @@ class Retimer(StdDigitalTemplate):
         self._sch_params = None
         self._ncol = None
         self._lr_vm_tidx = None
+        self._rt_col = None
+        self._rt_clk_tids = None
 
     @property
     def sch_params(self):
@@ -469,6 +471,16 @@ class Retimer(StdDigitalTemplate):
     def lr_vm_tidx(self):
         # type: () -> Tuple[Union[float, int], Union[float, int]]
         return self._lr_vm_tidx
+
+    @property
+    def rt_col(self):
+        # type: () -> int
+        return self._rt_col
+
+    @property
+    def rt_clk_tids(self):
+        # type: () -> Tuple[Union[int, float], Union[int, float]]
+        return self._rt_clk_tids
 
     @classmethod
     def get_params_info(cls):
@@ -542,6 +554,8 @@ class Retimer(StdDigitalTemplate):
         base_params['seg'] = seg_dict['dff']
         base_params['sig_locs'] = {'clk': clk2_tidx}
         ff2_master = self.new_template(params=base_params, temp_cls=DFlipFlopCK2)
+        self._rt_clk_tids = (ff2_master.get_port('clk').get_pins()[0].track_id.base_index,
+                             ff2_master.get_port('clkb').get_pins()[0].track_id.base_index)
         if delay_ck3:
             base_params['sig_locs'] = {'clk': clk3_tidx}
             ff3_master = self.new_template(params=base_params, temp_cls=DFlipFlopCK2)
@@ -589,7 +603,7 @@ class Retimer(StdDigitalTemplate):
         vss = self.connect_wires(vss_list)
 
         # draw instances
-        col_ff_rt = ncol - tap_ncol - blk_sp - rt_ncol
+        self._rt_col = col_ff_rt = ncol - tap_ncol - blk_sp - rt_ncol
         col_delay = col_ff_rt + ff_ncol + blk_sp
         if col_delay % 2 == 1:
             col_delay += 1
@@ -599,10 +613,13 @@ class Retimer(StdDigitalTemplate):
             col_buf3 = cidx + ff_ncol + blk_sp
             if col_buf3 % 2 == 1:
                 col_buf3 += 1
-            buf3 = self.add_digital_block(buf_master, (cidx + ff_ncol + blk_sp, 3))
+            buf3 = self.add_digital_block(buf_master, (col_buf3, 3))
             self.connect_wires([inst3.get_pin('out_hm'), buf3.get_pin('in')])
         else:
-            inst3 = buf3 = self.add_digital_block(buf_master, (cidx, 3))
+            col_buf3 = cidx + ff_ncol - buf_ncol
+            if col_buf3 % 2 == 1:
+                col_buf3 += 1
+            inst3 = buf3 = self.add_digital_block(buf_master, (col_buf3, 3))
         ff2 = self.add_digital_block(ff2_master, (cidx, 2))
         lat1 = self.add_digital_block(lat1_master, (cidx, 1))
         col_buf1 = cidx + lat_ncol + blk_sp
@@ -734,6 +751,8 @@ class RetimerClkBuffer(StdDigitalTemplate):
             seg_dict='clock buffer segments dictionary.',
             tr_widths='Track width dictionary.',
             tr_spaces='Track spacing dictionary.',
+            inv_col='inverter column index.',
+            inv_clk_tids='inverter clock track index.',
             ncol_min='Minimum number of columns.',
             show_pins='True to draw pin geometries.',
         )
@@ -750,6 +769,8 @@ class RetimerClkBuffer(StdDigitalTemplate):
         blk_sp = 2
 
         seg_dict = self.params['seg_dict']
+        inv_col = self.params['inv_col']
+        inv_clk_tids = self.params['inv_clk_tids']
         ncol_min = self.params['ncol_min']
         show_pins = self.params['show_pins']
 
@@ -758,11 +779,15 @@ class RetimerClkBuffer(StdDigitalTemplate):
         base_params['show_pins'] = False
         buf_master = self.new_template(params=base_params, temp_cls=InvChain)
         base_params['seg'] = seg_dict['ck_inv']
-        inv_master = self.new_template(params=base_params, temp_cls=Inverter)
+        in_tidx = buf_master.get_track_index(1, 'g', 0)
+        base_params['sig_locs'] = {'out': inv_clk_tids[0], 'in': in_tidx}
+        inv0_master = self.new_template(params=base_params, temp_cls=Inverter)
+        base_params['sig_locs'] = {'out': inv_clk_tids[1], 'in': in_tidx}
+        inv1_master = self.new_template(params=base_params, temp_cls=Inverter)
 
         tap_ncol = self.sub_columns
         buf_ncol = buf_master.num_cols
-        inv_ncol = inv_master.num_cols
+        inv_ncol = inv0_master.num_cols
         ncol = max(ncol_min, 2 * tap_ncol + 3 * blk_sp + buf_ncol + inv_ncol)
         self.initialize(buf_master.row_layout_info, 2, ncol)
 
@@ -780,12 +805,17 @@ class RetimerClkBuffer(StdDigitalTemplate):
 
         # draw instances
         buf_col = ncol - tap_ncol - blk_sp - buf_ncol
-        inv_col = buf_col - blk_sp - inv_ncol
+        inv_col = min(inv_col, buf_col - blk_sp - inv_ncol)
         buf0 = self.add_digital_block(buf_master, (buf_col, 0))
         buf1 = self.add_digital_block(buf_master, (buf_col, 1))
-        inv0 = self.add_digital_block(inv_master, (inv_col, 0))
-        inv1 = self.add_digital_block(inv_master, (inv_col, 1))
+        inv0 = self.add_digital_block(inv0_master, (inv_col, 0))
+        inv1 = self.add_digital_block(inv1_master, (inv_col, 1))
         self.fill_space()
+
+        self.add_pin('en<1>', inv0.get_pin('in'), show=show_pins)
+        self.add_pin('en<3>', inv1.get_pin('in'), show=show_pins)
+        self.add_pin('clk_rt', inv0.get_pin('out'), show=show_pins)
+        self.add_pin('clkb_rt', inv0.get_pin('out'), show=show_pins)
 
         # export output
         xm_layer = self.conn_layer + 3
@@ -800,7 +830,10 @@ class RetimerClkBuffer(StdDigitalTemplate):
             self.add_pin(out_name, warr, show=show_pins)
             self.add_pin(in_name, inst.get_pin('in'), show=show_pins)
 
-        self._sch_params = buf_master.sch_params
+        self._sch_params = dict(
+            clk_buf_params=buf_master.sch_params,
+            clk_inv_params=inv0_master.sch_params,
+        )
         self._ncol = ncol
 
 
@@ -880,6 +913,8 @@ class RetimerColumn(StdDigitalTemplate):
         blk_params['delay_ck3'] = True
         blk_params['show_pins'] = False
         dlev_master = self.new_template(params=blk_params, temp_cls=Retimer)
+        blk_params['inv_col'] = dlev_master.rt_col
+        blk_params['inv_clk_tids'] = dlev_master.rt_clk_tids
         blk_params['ncol_min'] = ncol_min = dlev_master.num_cols
         blk_params['seg_dict'] = dict(ck_out=seg_dict['ck_out'], ck_inv=seg_dict['ck_inv'])
         buf_master = self.new_template(params=blk_params, temp_cls=RetimerClkBuffer)
@@ -892,10 +927,6 @@ class RetimerColumn(StdDigitalTemplate):
         blk_params['ncol_min'] = ncol_min
         blk_params['seg_dict'] = seg_dict
         data_master = self.new_template(params=blk_params, temp_cls=Retimer)
-        if data_master.num_cols > ncol_min:
-            ncol_min = data_master.num_cols
-            dlev_master = dlev_master.new_template_with(ncol_min=ncol_min)
-            buf_master = buf_master.new_template_with(ncol_min=ncol_min)
 
         ncol, nrow_retime = data_master.digital_size
         nrow_buf = buf_master.digital_size[1]
@@ -936,6 +967,11 @@ class RetimerColumn(StdDigitalTemplate):
             en = self.connect_to_track_wires(hm_en_warrs, vm_en_warrs)[0]
             self.add_pin(en_name, en, show=show_pins)
 
+        for name in ('clk_rt', 'clkb_rt'):
+            self.connect_wires(list(chain(data_inst.port_pins_iter(name),
+                                          dlev_inst.port_pins_iter(name),
+                                          buf_inst.port_pins_iter(name))))
+
         # compute routing/supply tracks
         l_vm_tidx = min(data_inst.translate_master_track(vm_layer, data_master.lr_vm_tidx[0]),
                         dlev_inst.translate_master_track(vm_layer, dlev_master.lr_vm_tidx[0]))
@@ -945,16 +981,18 @@ class RetimerColumn(StdDigitalTemplate):
 
         tr_manager = TrackManager(self.grid, tr_widths, tr_spaces, half_space=True)
         sup_w = tr_manager.get_width(vm_layer, 'sup')
-        _, r_locs = tr_manager.place_wires(vm_layer, ['sig', 'sup', 'sup'])
+        _, r_locs = tr_manager.place_wires(vm_layer, ['sig', 'sup', 'sup', 'sup', 'sup'])
         deltar = r_vm_tidx - r_locs[0]
         _, l_locs = tr_manager.place_wires(vm_layer, ['sup'] + ['sig'] * 8 + ['sup', 'clk'])
         deltal = l_vm_tidx - l_locs[-1]
         self._sig_locs = tuple((l_locs[idx] + deltal for idx in range(1, 9)))
         vdd_tid = [TrackID(vm_layer, l_locs[-2] + deltal, width=sup_w),
-                   TrackID(vm_layer, r_locs[1] + deltar, width=sup_w)]
+                   TrackID(vm_layer, r_locs[1] + deltar, width=sup_w),
+                   TrackID(vm_layer, r_locs[3] + deltar, width=sup_w)]
         vssl_tidx = l_locs[0] + deltal
         vss_tid = [TrackID(vm_layer, vssl_tidx, width=sup_w),
-                   TrackID(vm_layer, r_locs[-1] + deltar, width=sup_w)]
+                   TrackID(vm_layer, r_locs[2] + deltar, width=sup_w),
+                   TrackID(vm_layer, r_locs[4] + deltar, width=sup_w), ]
 
         self._xsup = self.grid.track_to_coord(vm_layer, vssl_tidx, unit_mode=True)
 
@@ -964,10 +1002,10 @@ class RetimerColumn(StdDigitalTemplate):
             vdd_list.extend(inst.port_pins_iter('VDD'))
             vss_list.extend(inst.port_pins_iter('VSS'))
 
-        for idx in range(2):
+        for idx in range(len(vdd_tid)):
             vdd_warr = self.connect_to_tracks(vdd_list, vdd_tid[idx])
             vss_warr = self.connect_to_tracks(vss_list, vss_tid[idx])
-            if idx == 1:
+            if idx > 1:
                 self.add_pin('VDDR', vdd_warr, label='VDD', show=show_pins)
                 self.add_pin('VSSR', vss_warr, label='VSS', show=show_pins)
             else:
@@ -976,7 +1014,7 @@ class RetimerColumn(StdDigitalTemplate):
 
         self._sch_params = data_master.sch_params.copy()
         del self._sch_params['delay_ck3']
-        self._sch_params['clk_params'] = buf_master.sch_params
+        self._sch_params.update(buf_master.sch_params)
 
 
 class SamplerColumn(TemplateBase):

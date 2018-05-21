@@ -7,7 +7,6 @@ import pkg_resources
 
 from bag.design import Module
 
-
 yaml_file = pkg_resources.resource_filename(__name__, os.path.join('netlist_info',
                                                                    'qdr_retimer_column.yaml'))
 
@@ -29,19 +28,20 @@ class bag_serdes_ec__qdr_retimer_column(Module):
             ff_params='flip-flop parameters.',
             lat_params='latch parameters.',
             buf_params='inverter chain parameters.',
-            clk_params='clock buffer parameters.',
+            delay_params='delay chain parameters.',
+            clk_buf_params='clock buffer parameters.',
+            clk_inv_params='clock inverter parameters.',
         )
 
-    def design(self, ff_params, lat_params, buf_params, clk_params):
+    def design(self, ff_params, lat_params, buf_params, delay_params,
+               clk_buf_params, clk_inv_params):
         self.instances['XRTD'].design(ff_params=ff_params, lat_params=lat_params,
-                                      buf_params=buf_params, delay_ck3=False)
+                                      buf_params=buf_params, delay_params=delay_params,
+                                      delay_ck3=False)
         self.instances['XRTL'].design(ff_params=ff_params, lat_params=lat_params,
-                                      buf_params=buf_params, delay_ck3=True)
-        self.instances['XBUF3'].design(**clk_params)
-        self.instances['XBUF1'].design(**clk_params)
-
-        # reconnect outputs if necessary
-        nck_inv = len(clk_params['wp_list'])
-        if nck_inv % 2 == 1:
-            self.reconnect_instance_terminal('XBUF3', 'out', 'des_clkb')
-            self.reconnect_instance_terminal('XBUF1', 'out', 'des_clk')
+                                      buf_params=buf_params, delay_params=delay_params,
+                                      delay_ck3=True)
+        self.instances['XBUF'].design(**clk_buf_params)
+        self.instances['XBUFB'].design(**clk_buf_params)
+        self.instances['XCKINV1'].design(**clk_inv_params)
+        self.instances['XCKINV3'].design(**clk_inv_params)
