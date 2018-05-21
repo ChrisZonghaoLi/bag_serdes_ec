@@ -69,6 +69,7 @@ class bag_serdes_ec__integ_load(Module):
                 for name in self.en_names:
                     self.delete_instance(name)
             else:
+                self.has_en = True
                 self.delete_instance('XPENP1')
                 self.delete_instance('XPENN1')
                 self.instances['XPENP0'].design(w=w_en, l=lch, nf=seg_en, intent=th_en)
@@ -76,6 +77,7 @@ class bag_serdes_ec__integ_load(Module):
                 self.reconnect_instance_terminal('XPENP0', 'S', 'VDD')
                 self.reconnect_instance_terminal('XPENN0', 'S', 'VDD')
         else:
+            self.has_clk = self.has_en = True
             for name in self.load_names:
                 self.instances[name].design(w=w_load, l=lch, nf=seg_load, intent=th_load)
             for name in self.en_names:
