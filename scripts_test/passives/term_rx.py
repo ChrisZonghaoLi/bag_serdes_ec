@@ -11,19 +11,13 @@ from serdes_ec.layout.analog.passives import TermRX
 
 def run_main(prj):
     root_dir = 'specs_test/serdes_ec/passives'
-    esd_fname = 'esd_params.yaml'
     spec_fname = 'term_rx.yaml'
-
-    with open(os.path.join(root_dir, esd_fname), 'r') as f:
-        esd_params = yaml.load(f)
 
     with open(os.path.join(root_dir, spec_fname), 'r') as f:
         specs = yaml.load(f)
 
-    specs['params']['esd_params'] = esd_params
-
-    # prj.generate_cell(specs, TermRX, debug=True)
-    prj.generate_cell(specs, TermRX, gen_sch=True, debug=True)
+    prj.generate_cell(specs, TermRX, debug=True)
+    # prj.generate_cell(specs, TermRX, gen_sch=True, debug=True)
 
 
 if __name__ == '__main__':
