@@ -552,7 +552,7 @@ class Tap1Column(TemplateBase):
             seg_main='number of segments dictionary for main tap.',
             seg_fb='number of segments dictionary for tap1 feedback.',
             seg_lat='number of segments dictionary for digital latch.',
-            seg_div='number of segments dictionary for clock divider.',
+            seg_div_tap1='number of segments dictionary for clock divider.',
             fg_dum='Number of single-sided edge dummy fingers.',
             tr_widths='Track width dictionary.',
             tr_spaces='Track spacing dictionary.',
@@ -811,7 +811,7 @@ class Tap1Column(TemplateBase):
         # get parameters
         config = self.params['config']
         lch = self.params['lch']
-        seg_div = self.params['seg_div']
+        seg_div = self.params['seg_div_tap1']
         tr_widths = self.params['tr_widths']
         tr_spaces = self.params['tr_spaces']
         options = self.params['options']

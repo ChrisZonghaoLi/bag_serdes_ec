@@ -1015,7 +1015,7 @@ class TapXColumn(TemplateBase):
             seg_ffe_list='list of segment dictionaries for FFE latches.',
             seg_dfe_list='list of segment dictionaries for DFE latches.',
             flip_sign_list='list of flip_sign values for summer taps.',
-            seg_div='number of segments dictionary for clock divider.',
+            seg_div_tapx='number of segments dictionary for clock divider.',
             fg_dum='Number of single-sided edge dummy fingers.',
             tr_widths='Track width dictionary.',
             tr_spaces='Track spacing dictionary.',
@@ -1510,7 +1510,7 @@ class TapXColumn(TemplateBase):
     def _make_masters(self):
         # get parameters
         config = self.params['config']
-        seg_div = self.params['seg_div']
+        seg_div = self.params['seg_div_tapx']
         tr_widths = self.params['tr_widths']
         tr_spaces = self.params['tr_spaces']
         options = self.params['options']

@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Dict, Any, Set, Tuple, Union
 from itertools import chain
 
 from bag.layout.util import BBox
-from bag.layout.routing.base import TrackManager, TrackID, WireArray
+from bag.layout.routing.base import TrackManager, TrackID
 from bag.layout.template import TemplateBase
 
 from abs_templates_ec.analog_core.base import AnalogBase, AnalogBaseEnd
@@ -1005,7 +1005,7 @@ class RetimerColumn(StdDigitalTemplate):
         for idx in range(len(vdd_tid)):
             vdd_warr = self.connect_to_tracks(vdd_list, vdd_tid[idx])
             vss_warr = self.connect_to_tracks(vss_list, vss_tid[idx])
-            if idx > 1:
+            if idx > 0:
                 self.add_pin('VDDR', vdd_warr, label='VDD', show=show_pins)
                 self.add_pin('VSSR', vss_warr, label='VSS', show=show_pins)
             else:
@@ -1187,8 +1187,8 @@ class SamplerColumn(TemplateBase):
         self.add_pin('VSS_o', vsso_list, show=False)
         re_vddr.extend(re_vddl)
         re_vssr.extend(re_vssl)
-        self.add_pin('VDD_re', WireArray.list_to_warr(re_vddr), label='VDD', show=False)
-        self.add_pin('VSS_re', WireArray.list_to_warr(re_vssr), label='VSS', show=False)
+        self.add_pin('VDD_re', re_vddr, label='VDD', show=False)
+        self.add_pin('VSS_re', re_vssr, label='VSS', show=False)
         return vdd_warrs
 
     def _connect_clk(self, ym_layer, tr_manager, vdd_list, sa_inst, div_inst, re_inst, show_pins):
