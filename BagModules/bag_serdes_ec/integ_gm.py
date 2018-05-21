@@ -33,7 +33,6 @@ class bag_serdes_ec__integ_gm(Module):
             w_dict='NMOS/PMOS width dictionary.',
             th_dict='NMOS/PMOS threshold flavor dictionary.',
             seg_dict='number of segments dictionary.',
-            stack_in='Number of stacks in input pair.',
             hp_params='high-pass parameters.  If None, delete it.',
             dum_info='Dummy information data structure.',
             export_probe='True to export probe ports.',
@@ -43,7 +42,6 @@ class bag_serdes_ec__integ_gm(Module):
     def get_default_param_values(cls):
         # type: () -> Dict[str, Any]
         return dict(
-            stack_in=1,
             hp_params=None,
             dum_info=None,
             export_probe=False,
@@ -65,12 +63,13 @@ class bag_serdes_ec__integ_gm(Module):
             name += '_hp'
         return name
 
-    def design(self, lch, w_dict, th_dict, seg_dict, stack_in, hp_params, dum_info, export_probe):
+    def design(self, lch, w_dict, th_dict, seg_dict, hp_params, dum_info, export_probe):
         seg_set = seg_dict.get('set', 0)
         seg_sen = seg_dict.get('sen', 0)
         seg_casc = seg_dict.get('casc', 0)
         seg_casc1 = seg_dict.get('but', 0)
         seg_tsw = seg_dict.get('tsw', 0)
+        stack_in = seg_dict.get('stack_in', 1)
 
         if seg_casc > 0 and seg_casc1 > 0:
             raise ValueError('Cannot have both cascode transistor and butterfly switch.')

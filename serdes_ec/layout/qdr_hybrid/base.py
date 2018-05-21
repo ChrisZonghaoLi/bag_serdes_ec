@@ -44,16 +44,14 @@ class HybridQDRBaseInfo(AnalogBaseInfo):
         AnalogBaseInfo.__init__(self, grid, lch, guard_ring_nf, top_layer=top_layer,
                                 end_mode=end_mode, min_fg_sep=min_fg_sep, fg_tot=fg_tot, **kwargs)
 
-    def get_integ_amp_info(self, seg_dict, stack_in=1, fg_min=0, fg_dum=0, fg_sep_hm=0):
-        # type: (Dict[str, int], int, int, int, int) -> Dict[str, Any]
+    def get_integ_amp_info(self, seg_dict, fg_min=0, fg_dum=0, fg_sep_hm=0):
+        # type: (Dict[str, int], int, int, int) -> Dict[str, Any]
         """Compute placement of transistors in the given integrating amplifier.
 
         Parameters
         ----------
         seg_dict : Dict[str, int]
             a dictionary containing number of segments per transistor type.
-        stack_in : int
-            number of stacks for input pair.
         fg_min : int
             minimum number of fingers.
         fg_dum : int
@@ -85,6 +83,7 @@ class HybridQDRBaseInfo(AnalogBaseInfo):
         seg_in = seg_dict['in']
         seg_nen = seg_dict['nen']
         seg_tail = seg_dict['tail']
+        stack_in = seg_dict.get('stack_in', 1)
 
         fg_in = seg_in * stack_in
 
@@ -392,7 +391,6 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
                             col_dict,  # type: Dict[str, int]
                             sd_dict,  # type: Dict[Tuple[str, str], str]
                             sd_dir_dict,  # type: Dict[str, Tuple[int, int]]
-                            stack_in,  # type: int
                             net_prefix='',  # type: str
                             net_suffix='',  # type: str
                             ):
@@ -412,6 +410,7 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
             ports['tail'] = [ntsw['s']]
             ports['nvdd'] = [ntsw['d']]
 
+        stack_in = seg_dict.get('stack_in', 1)
         for tran_name, tran_row in self.tran_list:
             stack = stack_in if tran_name == 'in' else 1
             fg = seg_dict.get(tran_row, 0) * stack
@@ -489,7 +488,6 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
     def draw_integ_amp(self,  # type: HybridQDRBase
                        col_idx,  # type: int
                        seg_dict,  # type: Dict[str, int]
-                       stack_in=1,  # type: int
                        invert=False,  # type: bool
                        fg_min=0,  # type: int
                        fg_dum=0,  # type: int
@@ -507,8 +505,6 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
             the left-most transistor index.  0 is the left-most transistor.
         seg_dict : Dict[str, int]
             a dictionary containing number of segments per transistor type.
-        stack_in : int
-            number of stacks for input pair.
         invert : bool
             True to flip output sign.
         fg_min : int
@@ -535,7 +531,7 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
             idx_dict = {}
 
         # get layout information
-        amp_info = self.qdr_info.get_integ_amp_info(seg_dict, stack_in=stack_in, fg_min=fg_min,
+        amp_info = self.qdr_info.get_integ_amp_info(seg_dict, fg_min=fg_min,
                                                     fg_dum=fg_dum, fg_sep_hm=fg_sep_hm)
         seg_load = seg_dict.get('load', 0)
         seg_casc = seg_dict.get('casc', 0)
@@ -547,7 +543,7 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
         sd_dir_dict = amp_info['sd_dir_dict']
 
         ports = self._draw_integ_amp_mos(col_idx, fg_tot, seg_dict, col_dict, sd_dict, sd_dir_dict,
-                                         stack_in, net_prefix=net_prefix, net_suffix=net_suffix)
+                                         net_prefix=net_prefix, net_suffix=net_suffix)
 
         # connect wires
         self.connect_to_substrate('ptap', ports['VSS'])
