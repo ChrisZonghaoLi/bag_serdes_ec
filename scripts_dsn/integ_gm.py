@@ -17,35 +17,32 @@ from bag.util.search import FloatBinaryIterator
 from bag.io.sim_data import load_sim_results, save_sim_results, load_sim_file
 
 
-def plot_vstar(result, tper, vdd, voutcm, bias_vec, ck_amp, rel_err, dc_params, vstar_params):
+def plot_vstar(result, tper, vdd, cload, bias_vec, ck_amp, rel_err, dc_params, vstar_params):
     npts = bias_vec.size
     vstar_vec = np.empty(npts)
-    err_vec = np.empty(npts)
     gain_vec = np.empty(npts)
     offset_vec = np.empty(npts)
-    cload_vec = np.empty(npts)
-    dv = vdd - voutcm
+    voutcm_vec = np.empty(npts)
     for idx, ck_bias in enumerate(bias_vec):
         in_vec, out_vec, cm_vec = get_dc_tf(result, tper, ck_amp, ck_bias, **dc_params)
         vstar, err, gain, offset = get_vstar(in_vec, out_vec, rel_err, **vstar_params)
-        cload_vec[idx] = cload = cm_vec[cm_vec.size // 2] / dv
+        voutcm_vec[idx] = vdd - (cm_vec[cm_vec.size // 2] / cload)
         vstar_vec[idx] = vstar
-        err_vec[idx] = err
         gain_vec[idx] = gain / cload
         offset_vec[idx] = offset / cload
 
     bias_vec *= 1e3
     vstar_vec *= 1e3
     offset_vec *= 1e3
-    cload_vec *= 1e15
+    voutcm_vec *= 1e3
 
     plt.figure(1)
     ax = plt.subplot(411)
     ax.plot(bias_vec, vstar_vec, 'b')
     ax.set_ylabel('V* (mV)')
     ax = plt.subplot(412, sharex=ax)
-    ax.plot(bias_vec, cload_vec, 'g')
-    ax.set_ylabel('Load Cap (fF)')
+    ax.plot(bias_vec, voutcm_vec, 'g')
+    ax.set_ylabel('Voutcm (mV)')
     ax = plt.subplot(413, sharex=ax)
     ax.plot(bias_vec, gain_vec, 'm')
     ax.set_ylabel('Gain (V/V)')
@@ -246,7 +243,7 @@ def simulate(prj, save_fname, tb_lib, tb_cell, dut_lib, dut_cell, impl_lib, impl
 
 def run_main(prj):
     # save_fname = 'blocks_ec_tsmcN16/data/gm_char_dc/linearity_stack.hdf5'
-    save_fname = 'blocks_ec_tsmcN16/data/gm_char_dc/linearity_stack_tsw.hdf5'
+    save_fname = 'blocks_ec_tsmcN16/data/gm_char_dc/linearity_stack.hdf5'
 
     sim_env = 'tt'
     vdd = 0.9
@@ -255,6 +252,7 @@ def run_main(prj):
     ck_amp = 0.3
     ck_bias = 0.05
     rel_err = 0.05
+    cload = 5e-15
     bias_vec = np.linspace(0, 0.15, 16, endpoint=True)
     dc_params = dict(
         num_k=7,
@@ -285,7 +283,7 @@ def run_main(prj):
     # plot_data_2d(result, 'ioutp', sim_env='tt')
     # get_transient(result, 15, tper, ck_amp, ck_bias, **kwargs)
     # get_dc_tf(result, tper, ck_amp, ck_bias, plot=True, **dc_params)
-    plot_vstar(result, tper, vdd, voutcm, bias_vec, ck_amp, rel_err, dc_params, vstar_params)
+    plot_vstar(result, tper, vdd, cload, bias_vec, ck_amp, rel_err, dc_params, vstar_params)
 
 
 if __name__ == '__main__':
