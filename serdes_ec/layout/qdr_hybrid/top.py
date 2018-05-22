@@ -218,12 +218,11 @@ class RXFrontend(TemplateBase):
 
         # connect clocks and enables
         sup_yc_list = master_dp.sup_y_list
-        clkp, clkn = self._connect_clk_en(tr_manager, top_layer, xm_layer, dp_inst,
-                                          sup_yc_list, fill_config, show_pins)
+        clkp_tid, clkn_tid = self._connect_clk_en(tr_manager, top_layer, xm_layer, dp_inst,
+                                                  sup_yc_list, show_pins)
 
         # connect CTLE
-        tmp = self._connect_ctle(tr_manager, ctle_inst, dp_inst, clkp.track_id,
-                                 clkn.track_id, show_pins)
+        tmp = self._connect_ctle(tr_manager, ctle_inst, dp_inst, clkp_tid, clkn_tid, show_pins)
         vincm, ctle_vss, biasl_vss, biasl_vdd = tmp
         # connect biases
         num_dfe = master_dp.num_dfe
@@ -404,8 +403,11 @@ class RXFrontend(TemplateBase):
 
         return ctle_inst.get_pin('outcm'), ctle_vss, biasl_vss, biasl_vdd
 
-    def _connect_clk_en(self, tr_manager, top_layer, xm_layer, dp_inst, sup_yc_list,
-                        fill_config, show_pins):
+    @staticmethod
+    def _warr_sort_fun(w):
+        return w.track_id.base_index
+
+    def _connect_clk_en(self, tr_manager, top_layer, xm_layer, dp_inst, sup_yc_list, show_pins):
         xm_tr_w_clk = tr_manager.get_width(xm_layer, 'clk')
         tr_w_div = tr_manager.get_width(xm_layer, 'en_div')
         dp_box = dp_inst.bound_box
@@ -422,34 +424,44 @@ class RXFrontend(TemplateBase):
                                                 unit_mode=True)
         clkp = dp_inst.get_all_port_pins('clkp')
         clkn = dp_inst.get_all_port_pins('clkn')
-        clkp, clkn = self.connect_differential_tracks(clkp, clkn, xm_layer, pidx, nidx,
-                                                      width=xm_tr_w_clk)
 
-        # connect up to top layer
-        clkp_cur = clkp
-        clkn_cur = clkn
+        clkp_cur = sorted(clkp, key=self._warr_sort_fun)
+        clkn_cur = sorted(clkn, key=self._warr_sort_fun)
+
+        curp_list = []
+        curn_list = []
+        for curp, curn in zip(clkp_cur, clkn_cur):
+            curp, curn = self.connect_differential_tracks(curp, curn, xm_layer, pidx, nidx,
+                                                          width=xm_tr_w_clk)
+            curp_list.append(curp)
+            curn_list.append(curn)
+        clkp_cur = curp_list
+        clkn_cur = curn_list
+        clkp_tid = clkp_cur[0].track_id
+        clkn_tid = clkn_cur[0].track_id
         for lay in range(xm_layer + 1, top_layer + 1):
+            tr_sp_clk = tr_manager.get_space(lay, ('clk', 'clk'))
             tr_w_clk = tr_manager.get_width(lay, 'clk')
-            coordp = clkp_cur.middle_unit
-            if (lay - xm_layer) % 2 == 1:
-                # vertical layer
-                tr_idx = self.grid.coord_to_nearest_fill_track(lay, coordp, fill_config,
-                                                               mode=0, unit_mode=True)
-                tid = TrackID(lay, tr_idx, width=tr_w_clk)
-                clkp_cur = self.connect_to_tracks(clkp_cur, tid, min_len_mode=0)
-                clkn_cur = self.connect_to_tracks(clkn_cur, tid, min_len_mode=0)
-            else:
-                coordn = clkn_cur.middle_unit
-                pidx = self.grid.coord_to_nearest_fill_track(lay, coordp, fill_config, mode=1,
-                                                             unit_mode=True)
-                nidx = self.grid.coord_to_nearest_fill_track(lay, coordn, fill_config, mode=-1,
-                                                             unit_mode=True)
-                clkp_cur = self.connect_to_tracks(clkp_cur, TrackID(lay, pidx, width=tr_w_clk),
-                                                  min_len_mode=0)
-                clkn_cur = self.connect_to_tracks(clkn_cur, TrackID(lay, nidx, width=tr_w_clk),
-                                                  min_len_mode=0)
-        self.add_pin('clkp', clkp_cur, label='clkp:', show=show_pins)
-        self.add_pin('clkn', clkn_cur, label='clkn:', show=show_pins)
+            tr_pitch = int(round(2 * (tr_sp_clk + tr_w_clk)))
+            tr_pitch = tr_pitch // 2 if tr_pitch % 2 == 0 else (tr_pitch + 1) // 2
+            curp_list = []
+            curn_list = []
+            for curp, curn in zip(clkp_cur, clkn_cur):
+                idxm = self.grid.coord_to_nearest_track(lay, curp.middle_unit, mode=0,
+                                                        half_track=True, unit_mode=True)
+                pidx = idxm + tr_pitch / 2
+                nidx = idxm - tr_pitch / 2
+                curp, curn = self.connect_differential_tracks(curp, curn, lay, pidx, nidx,
+                                                              width=tr_w_clk)
+                curp_list.append(curp)
+                curn_list.append(curn)
+            clkp_cur = curp_list
+            clkn_cur = curn_list
+        clkp = self.connect_wires(clkp_cur)[0]
+        clkn = self.connect_wires(clkn_cur)[0]
+
+        self.add_pin('clkp', clkp, label='clkp:', show=show_pins)
+        self.add_pin('clkn', clkn, label='clkn:', show=show_pins)
 
         pidx = self.grid.coord_to_nearest_track(xm_layer, ent_y, half_track=True, mode=1,
                                                 unit_mode=True)
@@ -470,7 +482,7 @@ class RXFrontend(TemplateBase):
                        width=tr_w_div, unit_mode=True)
         self.add_pin('enable_divider', env, show=show_pins)
 
-        return clkp, clkn
+        return clkp_tid, clkn_tid
 
     def _connect_supplies(self, tr_manager, xm_layer, dp_inst, sup_yc_list, vdd_wires,
                           vss_wires, hm_vdd, hm_vss, fill_box, fill_config, show_pins):
@@ -645,25 +657,41 @@ class RXFrontend(TemplateBase):
         xm_layer = clkp.layer_id
         h_mode = 1 if is_bot else -1
         for lay in range(xm_layer + 1, top_layer + 1):
-            tr_w_clk = tr_manager.get_width(lay, 'clk')
-            tr_sp_clk = tr_manager.get_space(lay, 'clk')
             fill_tr_w, fill_tr_sp, _, _ = fill_config[lay]
             fill_pitch = fill_tr_w + fill_tr_sp
-            clk_pitch = int(round(2 * (tr_w_clk + tr_sp_clk)))
-            clk_pitch = clk_pitch // 2 if clk_pitch % 2 == 0 else (clk_pitch + 1) // 2
-            clk_pitch = max(clk_pitch, fill_pitch * 2)
-            coord = clkp.middle_unit
+            tr_sp_clk = tr_manager.get_space(lay, ('clk', 'clk'))
+            tr_w_clk = tr_manager.get_width(lay, 'clk')
+            tr_pitch = int(round(2 * (tr_sp_clk + tr_w_clk)))
+            tr_pitch = tr_pitch // 2 if tr_pitch % 2 == 0 else (tr_pitch + 1) // 2
+            tr_pitch = max(tr_pitch, fill_pitch)
             if (lay - xm_layer) % 2 == 1:
                 # vertical layer
-                midx = self.grid.coord_to_nearest_fill_track(lay, coord, fill_config,
-                                                             mode=1, unit_mode=True)
+                xl = clkp.lower_unit
+                xr = clkp.upper_unit
+                idx0 = self.grid.coord_to_nearest_fill_track(lay, xl, fill_config, mode=1,
+                                                             unit_mode=True)
+                idx1 = self.grid.coord_to_nearest_fill_track(lay, xr, fill_config, mode=-1,
+                                                             unit_mode=True)
+                curp_list = []
+                curn_list = []
+                num = int(round(idx1 - idx0)) // tr_pitch
+                for cnt in range(0, num, 2):
+                    idxp = idx0 + cnt * tr_pitch
+                    curp, curn = self.connect_differential_tracks(clkp, clkn, lay, idxp,
+                                                                  idxp + tr_pitch,
+                                                                  width=tr_w_clk)
+                    curp_list.append(curp)
+                    curn_list.append(curn)
+                clkp = curp_list
+                clkn = curn_list
             else:
+                coord = clkp[0].middle_unit
                 midx = self.grid.coord_to_nearest_fill_track(lay, coord, fill_config,
                                                              mode=h_mode, unit_mode=True)
-            pidx = midx - clk_pitch / 2
-            nidx = midx + clk_pitch / 2
-            clkp, clkn = self.connect_differential_tracks(clkp, clkn, lay, pidx, nidx,
-                                                          width=tr_w_clk)
+                pidx = midx - tr_pitch / 2
+                nidx = midx + tr_pitch / 2
+                clkp, clkn = self.connect_differential_tracks(clkp, clkn, lay, pidx, nidx,
+                                                              width=tr_w_clk)
 
         self.add_pin('clkp', clkp, label='clkp:', show=show_pins)
         self.add_pin('clkn', clkn, label='clkn:', show=show_pins)
