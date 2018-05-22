@@ -690,8 +690,14 @@ class Tap1Column(TemplateBase):
         vm_w_clk = tr_manager.get_width(vm_layer, 'clk')
         start_idx0 = en_locs[3] - (vm_w_en - 1) / 2
         ntr = out_locs[0] + 1 - start_idx0
-        clk_locs = tr_manager.spread_wires(vm_layer, ['en', 1, 'clk', 'clk', 'clk', 'clk', 1],
-                                           ntr, ('clk', ''), alignment=1, start_idx=start_idx0)
+        try:
+            clk_locs = tr_manager.spread_wires(vm_layer, ['en', 1, 'clk', 'clk', 'clk', 'clk', 1],
+                                               ntr, ('clk', ''), alignment=1, start_idx=start_idx0)
+        except ValueError:
+            sp_min = self.grid.get_num_space_tracks(vm_layer, vm_w_clk, half_space=True)
+            clk_locs = tr_manager.spread_wires(vm_layer, ['en', 1, 'clk', 'clk', 'clk', 'clk', 1],
+                                               ntr, ('clk', ''), alignment=1, start_idx=start_idx0,
+                                               sp_override={('clk', 'clk'): {vm_layer: sp_min}})
 
         clkn, clkp = self.connect_differential_tracks(clk_warrs[1], clk_warrs[0], vm_layer,
                                                       clk_locs[2], clk_locs[5], width=vm_w_clk)
