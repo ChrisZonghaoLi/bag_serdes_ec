@@ -675,7 +675,7 @@ class RXFrontend(TemplateBase):
                 curp_list = []
                 curn_list = []
                 num = int(round(idx1 - idx0)) // tr_pitch
-                for cnt in range(0, num, 2):
+                for cnt in range(0, num, 4):
                     idxp = idx0 + cnt * tr_pitch
                     curp, curn = self.connect_differential_tracks(clkp, clkn, lay, idxp,
                                                                   idxp + tr_pitch,
