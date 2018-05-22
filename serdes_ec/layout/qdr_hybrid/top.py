@@ -1006,34 +1006,47 @@ class RXTop(TemplateBase):
 
     def _power_fill(self, fill_config, top_layer, xm_layer, inst_fe, inst_term,
                     inst_dac, show_pins):
+        fill_orient_mode = self.params['fill_orient_mode']
+
         vdd = list(chain(inst_fe.port_pins_iter('VDD'), inst_term.port_pins_iter('VDD')))
         vss = list(chain(inst_fe.port_pins_iter('VSS'), inst_term.port_pins_iter('VSS')))
         bnd_box = inst_fe.bound_box.merge(inst_term.bound_box)
 
         if top_layer > xm_layer:
             sp = 800
+            flip = fill_orient_mode & 1 != 0
             vdd, vss = self.do_power_fill(xm_layer + 1, sp, sp, vdd_warrs=vdd, vss_warrs=vss,
                                           bound_box=bnd_box, fill_width=3, fill_space=3,
-                                          unit_mode=True)
+                                          flip=flip, unit_mode=True)
             bnd_box = bnd_box.extend(x=0, unit_mode=True)
             for lay in range(xm_layer + 2, top_layer + 1):
+                if (lay - xm_layer) % 2 == 0:
+                    flip = fill_orient_mode & 2 != 0
+                else:
+                    flip = fill_orient_mode & 1 != 0
                 tr_w, tr_sp, sp, sp_le = fill_config[lay]
                 vdd, vss = self.do_power_fill(lay, sp, sp_le, vdd_warrs=vdd, vss_warrs=vss,
                                               bound_box=bnd_box, fill_width=tr_w,
-                                              fill_space=tr_sp, unit_mode=True)
+                                              fill_space=tr_sp, flip=flip, unit_mode=True)
 
         if inst_dac.master.top_layer < top_layer:
             params = dict(fill_config=fill_config, bot_layer=top_layer - 1, show_pins=False)
             fill_master = self.new_template(params=params, temp_cls=PowerFill)
             fill_box = fill_master.bound_box
             dac_box = inst_dac.bound_box
-            loc = (0, dac_box.bottom_unit)
+            x = 0
+            y = dac_box.bottom_unit
             blk_w = fill_box.width_unit
             blk_h = fill_box.height_unit
             nx = dac_box.right_unit // blk_w
             ny = dac_box.height_unit // blk_h
-            inst = self.add_instance(fill_master, loc=loc, nx=nx, ny=ny, spx=blk_w, spy=blk_h,
-                                     unit_mode=True)
+            if fill_orient_mode & 2 != 0:
+                y += blk_h
+            if fill_orient_mode & 1 != 0:
+                x += blk_w
+            orient = PowerFill.get_fill_orient(fill_orient_mode)
+            inst = self.add_instance(fill_master, loc=(x, y), nx=nx, ny=ny, spx=blk_w, spy=blk_h,
+                                     orient=orient, unit_mode=True)
             vdd_dac = self.connect_wires(inst.get_all_port_pins('VDD'))
             vss_dac = self.connect_wires(inst.get_all_port_pins('VSS'))
             vdd.extend(vdd_dac)
