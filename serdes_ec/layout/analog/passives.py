@@ -127,7 +127,7 @@ class PassiveCTLECore(ResArrayBase):
         top_layer = hm_layer + 1
         nx = 2 * num_col + 2 * num_dumc
         ny = 2 * (max(num_r1, num_r2) + num_dumr)
-        ndum_tot = nx * ny - 2 * (num_r1 + num_r2)
+        ndum_tot = nx * ny - 2 * num_col * (num_r1 + num_r2)
         self.draw_array(l, w, sub_type, threshold, nx=nx, ny=ny, top_layer=top_layer,
                         res_type=res_type, grid_type=None, options=my_options,
                         connect_up=True, half_blk_x=half_blk_x, half_blk_y=False)
