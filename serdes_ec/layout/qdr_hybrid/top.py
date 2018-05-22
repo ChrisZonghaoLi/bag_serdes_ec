@@ -456,12 +456,19 @@ class RXFrontend(TemplateBase):
         nidx = self.grid.coord_to_nearest_track(xm_layer, enb_y, half_track=True, mode=-1,
                                                 unit_mode=True)
         tid = TrackID(xm_layer, nidx, width=tr_w_div)
-        en = self.connect_to_tracks(dp_inst.get_all_port_pins('en_div'), tid,
-                                    track_upper=self.bound_box.right_unit, unit_mode=True)
+        en = self.connect_to_tracks(dp_inst.get_all_port_pins('en_div'), tid, unit_mode=True)
+
+        # connect en_div to M5 track
+        ym_layer = xm_layer - 1
+        ym_tidx = dp_inst.master.en_div_tidx
+        ym_tidx = dp_inst.translate_master_track(ym_layer, ym_tidx)
+        env, enh = self.connect_to_tracks(en, TrackID(ym_layer, ym_tidx), min_len_mode=True,
+                                          return_wires=True)
+
         # add matching dummy divider wire
-        self.add_wires(xm_layer, pidx, en.lower_unit, en.upper_unit,
+        self.add_wires(xm_layer, pidx, enh[0].lower_unit, enh[0].upper_unit,
                        width=tr_w_div, unit_mode=True)
-        self.add_pin('enable_divider', en, show=show_pins)
+        self.add_pin('enable_divider', env, show=show_pins)
 
         return clkp, clkn
 
@@ -527,7 +534,7 @@ class RXFrontend(TemplateBase):
             name_list.append(out_name)
 
         if is_bot:
-            self._bot_scan_names = scan_names = ['scan_divider_clkn']
+            self._bot_scan_names = scan_names = ['enable_divider', 'scan_divider_clkn']
         else:
             self._top_scan_names = scan_names = ['scan_divider_clkp']
             wire_list.reverse()
@@ -905,7 +912,7 @@ class RXTop(TemplateBase):
         bias_config = self.params['bias_config']
         show_pins = self.params['show_pins']
 
-        master_term, master_fe, master_dac, master_buf = self._make_masters()
+        master_term, master_fe, master_dac, master_bufb, master_buft = self._make_masters()
         box_term = master_term.bound_box
         box_fe = master_fe.bound_box
         box_dac = master_dac.bound_box
@@ -930,9 +937,10 @@ class RXTop(TemplateBase):
         inst_dac = self.add_instance(master_dac, 'XDAC', loc=(x_dac, h_tot), orient='MX',
                                      unit_mode=True)
         buf_loc = (master_fe.buf_locs[0][0] + x_fe, master_fe.buf_locs[0][1])
-        inst_bufb = self.add_instance(master_buf, 'XBUFB', loc=buf_loc, orient='MX', unit_mode=True)
+        inst_bufb = self.add_instance(master_bufb, 'XBUFB', loc=buf_loc, orient='MX',
+                                      unit_mode=True)
         buf_loc = (master_fe.buf_locs[1][0] + x_fe, master_fe.buf_locs[1][1])
-        inst_buft = self.add_instance(master_buf, 'XBUFT', loc=buf_loc, unit_mode=True)
+        inst_buft = self.add_instance(master_buft, 'XBUFT', loc=buf_loc, unit_mode=True)
 
         bnd_box = inst_dac.bound_box.extend(x=0, y=0, unit_mode=True)
         self.set_size_from_bound_box(top_layer, bnd_box)
@@ -944,7 +952,7 @@ class RXTop(TemplateBase):
 
         bot_scan_names = master_fe.bot_scan_names
         top_scan_names = master_fe.top_scan_names
-        self._connect_buffers(inst_fe, inst_bufb, inst_buft, bot_scan_names,
+        self._connect_buffers(hm_layer, inst_fe, inst_bufb, inst_buft, bot_scan_names,
                               top_scan_names, show_pins)
 
         self._connect_bias_routes(hm_layer, inst_fe, inst_dac, h_fe, bias_config)
@@ -960,7 +968,8 @@ class RXTop(TemplateBase):
             term_params=master_term.sch_params,
             fe_params=master_fe.sch_params,
             dac_params=master_dac.sch_params,
-            buf_params=master_buf.sch_params,
+            bufb_params=master_bufb.sch_params,
+            buft_params=master_buft.sch_params,
         )
 
     def _power_fill(self, fill_config, top_layer, xm_layer, inst_fe, inst_term,
@@ -1077,7 +1086,7 @@ class RXTop(TemplateBase):
                 self.connect_to_track_wires(pin_dac, pin_fe)
 
     def _connect_fe(self, top_layer, inst_fe, clk_tr_info, show_pins):
-        for name in ['des_clk', 'des_clkb', 'enable_divider']:
+        for name in ['des_clk', 'des_clkb']:
             self.reexport(inst_fe.get_port(name), show=show_pins)
 
         clkp = inst_fe.get_all_port_pins('clkp')
@@ -1097,7 +1106,8 @@ class RXTop(TemplateBase):
             self.reexport(inst_fe.get_port('data' + suf), show=show_pins)
             self.reexport(inst_fe.get_port('dlev' + suf), show=show_pins)
 
-    def _connect_buffers(self, inst_fe, inst_bufb, inst_buft, bot_names, top_names, show_pins):
+    def _connect_buffers(self, hm_layer, inst_fe, inst_bufb, inst_buft, bot_names, top_names,
+                         show_pins):
         # connect supplies
         vdd = inst_fe.get_pin('VDD_re')
         vss = inst_fe.get_pin('VSS_re')
@@ -1110,7 +1120,14 @@ class RXTop(TemplateBase):
         for inst, names in ((inst_bufb, bot_names), (inst_buft, top_names)):
             for idx, name in enumerate(names):
                 pin = inst_fe.get_pin(name)
-                self.connect_to_track_wires(inst.get_pin('out<%d>' % idx), pin)
+                cur_out = inst.get_pin('out<%d>' % idx)
+                if name == 'enable_divider':
+                    hm_tidx = self.grid.coord_to_nearest_track(hm_layer, cur_out.middle_unit,
+                                                               half_track=True, unit_mode=True)
+                    self.connect_to_tracks([cur_out, pin], TrackID(hm_layer, hm_tidx),
+                                           min_len_mode=1)
+                else:
+                    self.connect_to_track_wires(cur_out, pin)
                 cur_pin = self.extend_wires(inst.get_pin('in<%d>' % idx),
                                             unit_mode=True, min_len_mode=1)
                 self.add_pin(name, cur_pin, show=show_pins)
@@ -1150,6 +1167,10 @@ class RXTop(TemplateBase):
         buf_params['tr_spaces'] = fe_params['tr_spaces_dig']
         buf_params['ncol_min'] = master_fe.retime_ncol
         buf_params['show_pins'] = False
-        master_buf = self.new_template(params=buf_params, temp_cls=BufferArray)
+        master_buft = self.new_template(params=buf_params, temp_cls=BufferArray)
+        nbuf_list2 = list(buf_params['nbuf_list'])
+        nbuf_list2[-1] += 1
+        buf_params['nbuf_list'] = nbuf_list2
+        master_bufb = self.new_template(params=buf_params, temp_cls=BufferArray)
 
-        return master_term, master_fe, master_dac, master_buf
+        return master_term, master_fe, master_dac, master_bufb, master_buft

@@ -2,7 +2,7 @@
 
 """This module defines classes needed to build the Hybrid-QDR FFE/DFE summer."""
 
-from typing import TYPE_CHECKING, Dict, Any, Set, Tuple, List
+from typing import TYPE_CHECKING, Dict, Any, Set, Tuple, List, Union
 
 from bag.layout.util import BBox
 from bag.layout.template import TemplateBase
@@ -48,6 +48,7 @@ class RXDatapath(TemplateBase):
         self._sup_y_list = None
         self._buf_locs = None
         self._retime_ncol = None
+        self._en_div_tidx = None
 
     @property
     def sch_params(self):
@@ -103,6 +104,11 @@ class RXDatapath(TemplateBase):
     def retime_ncol(self):
         # type: () -> int
         return self._retime_ncol
+
+    @property
+    def en_div_tidx(self):
+        # type: () -> Union[float, int]
+        return self._en_div_tidx
 
     @classmethod
     def get_params_info(cls):
@@ -170,12 +176,18 @@ class RXDatapath(TemplateBase):
         xcur += master_loff.bound_box.width_unit
         samp = self.add_instance(master_samp, 'XSAMP', loc=(xcur, 0), unit_mode=True)
         sbuf_locs = master_samp.buf_locs
-        self._buf_locs = ((sbuf_locs[0][0] + xcur, sbuf_locs[0][1]),
-                          (sbuf_locs[1][0] + xcur, sbuf_locs[1][1]))
+        xbuf = sbuf_locs[0][0] + xcur
+        self._buf_locs = ((xbuf, sbuf_locs[0][1]), (xbuf, sbuf_locs[1][1]))
 
         self.array_box = bnd_box = samp.bound_box.extend(x=0, unit_mode=True)
         self.set_size_from_bound_box(top_layer, bnd_box)
         self.add_cell_boundary(bnd_box)
+
+        # reverse vertical track for en_div in the future
+        ym_tidx = self.grid.find_next_track(top_layer, xbuf, half_track=True, mode=1,
+                                            unit_mode=True)
+        self._en_div_tidx = ym_tidx
+        self.reserve_tracks(top_layer, ym_tidx)
 
         self._connect_signals(tapx, tap1, offset, offlev, samp)
 

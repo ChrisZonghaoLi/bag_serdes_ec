@@ -28,15 +28,16 @@ class bag_serdes_ec__qdr_top(Module):
             term_params='termination parameters.',
             fe_params='frontend parameters.',
             dac_params='dac parameters.',
-            buf_params='scan buffer parameters.',
+            bufb_params='bottom scan buffer parameters.',
+            buft_params='top scan buffer parameters.',
         )
 
-    def design(self, term_params, fe_params, dac_params, buf_params):
+    def design(self, term_params, fe_params, dac_params, bufb_params, buft_params):
         # design instances
         self.instances['XFE'].design(**fe_params)
         self.instances['XDAC'].design(**dac_params)
-        self.instances['XBUFB'].design(**buf_params)
-        self.instances['XBUFT'].design(**buf_params)
+        self.instances['XBUFB'].design(**bufb_params)
+        self.instances['XBUFT'].design(**buft_params)
         self.instances['XTERM'].design(**term_params)
         pin_list = self.instances['XDAC'].master.pin_list
 
@@ -95,3 +96,5 @@ class bag_serdes_ec__qdr_top(Module):
             for way in ways:
                 yield ('bias_way_%d_dfe_%d_s<1:0>' % (way, dfe_idx)), 2
         yield ('scan_divider_clk' + sgn), 1
+        if is_bot:
+            yield 'enable_divider', 1
