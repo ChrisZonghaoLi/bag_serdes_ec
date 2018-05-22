@@ -646,8 +646,12 @@ class RXFrontend(TemplateBase):
         h_mode = 1 if is_bot else -1
         for lay in range(xm_layer + 1, top_layer + 1):
             tr_w_clk = tr_manager.get_width(lay, 'clk')
+            tr_sp_clk = tr_manager.get_space(lay, 'clk')
             fill_tr_w, fill_tr_sp, _, _ = fill_config[lay]
             fill_pitch = fill_tr_w + fill_tr_sp
+            clk_pitch = int(round(2 * (tr_w_clk + tr_sp_clk)))
+            clk_pitch = clk_pitch // 2 if clk_pitch % 2 == 0 else (clk_pitch + 1) // 2
+            clk_pitch = max(clk_pitch, fill_pitch * 2)
             coord = clkp.middle_unit
             if (lay - xm_layer) % 2 == 1:
                 # vertical layer
@@ -656,8 +660,8 @@ class RXFrontend(TemplateBase):
             else:
                 midx = self.grid.coord_to_nearest_fill_track(lay, coord, fill_config,
                                                              mode=h_mode, unit_mode=True)
-            pidx = midx - fill_pitch
-            nidx = midx + fill_pitch
+            pidx = midx - clk_pitch / 2
+            nidx = midx + clk_pitch / 2
             clkp, clkn = self.connect_differential_tracks(clkp, clkn, lay, pidx, nidx,
                                                           width=tr_w_clk)
 
