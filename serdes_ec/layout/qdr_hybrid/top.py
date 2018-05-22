@@ -907,11 +907,23 @@ class RXTop(TemplateBase):
         # type: (TemplateDB, str, Dict[str, Any], Set[str], **kwargs) -> None
         TemplateBase.__init__(self, temp_db, lib_name, params, used_names, **kwargs)
         self._sch_params = None
+        self._bot_scan_names = None
+        self._top_scan_names = None
 
     @property
     def sch_params(self):
         # type: () -> Dict[str, Any]
         return self._sch_params
+
+    @property
+    def bot_scan_names(self):
+        # type: () -> List[str]
+        return self._bot_scan_names
+
+    @property
+    def top_scan_names(self):
+        # type: () -> List[str]
+        return self._top_scan_names
 
     @classmethod
     def get_params_info(cls):
@@ -982,8 +994,8 @@ class RXTop(TemplateBase):
         self._connect_fe(top_layer, inst_fe, clk_tr_info, show_pins)
         self._connect_term(inst_term, inst_fe, show_pins)
 
-        bot_scan_names = master_fe.bot_scan_names
-        top_scan_names = master_fe.top_scan_names
+        self._bot_scan_names = bot_scan_names = master_fe.bot_scan_names
+        self._top_scan_names = top_scan_names = master_fe.top_scan_names
         self._connect_buffers(hm_layer, inst_fe, inst_bufb, inst_buft, bot_scan_names,
                               top_scan_names, show_pins)
 
