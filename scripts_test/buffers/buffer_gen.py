@@ -11,7 +11,11 @@ from serdes_ec.layout.digital.buffer import BufferArray
 
 def run_main(prj, gen_lay=True, gen_sch=False, debug=False):
     root = 'specs_test/tx_buffers'
-    buf_list = ['buffer1.yaml']
+    buf_list = ['buffer1.yaml',
+                'buffer2.yaml',
+                'buffer3.yaml',
+                'buffer4.yaml',
+                ]
 
     with open(os.path.join(root, buf_list[0]), 'r') as f:
         specs = yaml.load(f)
@@ -60,4 +64,4 @@ if __name__ == '__main__':
         print('loading BAG project')
         bprj = local_dict['bprj']
 
-    run_main(bprj, debug=True)
+    run_main(bprj, gen_sch=True, debug=True)
