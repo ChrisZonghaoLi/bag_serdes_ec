@@ -11,9 +11,9 @@ from serdes_ec.layout.digital.buffer import BufferArray
 
 def run_main(prj, gen_lay=True, gen_sch=False, debug=False):
     root = 'specs_test/tx_buffers'
-    buf_list = [('BUF_5X8', 'buffer_5x8.yaml')]
+    buf_list = ['buffer1.yaml']
 
-    with open(os.path.join(root, buf_list[0][1]), 'r') as f:
+    with open(os.path.join(root, buf_list[0]), 'r') as f:
         specs = yaml.load(f)
 
     impl_lib = specs['impl_lib']
@@ -23,11 +23,15 @@ def run_main(prj, gen_lay=True, gen_sch=False, debug=False):
     name_list = []
     lay_list = []
     sch_list = []
-    for cell_name, spec_fname in buf_list:
-        print('computing layout for %s' % cell_name)
+    for spec_fname in buf_list:
         with open(os.path.join(root, spec_fname), 'r') as f:
             specs = yaml.load(f)
-        temp = tdb.new_template(params=specs['params'], temp_cls=BufferArray)
+
+        cell_name = specs['impl_cell']
+        params = specs['params']
+        print('computing layout for %s' % cell_name)
+
+        temp = tdb.new_template(params=params, temp_cls=BufferArray)
         name_list.append(cell_name)
         lay_list.append(temp)
         if gen_sch:
