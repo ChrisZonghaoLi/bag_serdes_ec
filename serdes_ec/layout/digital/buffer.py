@@ -133,7 +133,7 @@ class BufferRow(StdDigitalTemplate):
             cur_tid = TrackID(hm_layer, in_idx0 + idx * hm_pitch, width=hm_tr_w)
             cur_in = self.connect_to_tracks(cur_inst.get_pin('in'), TrackID(vm_layer, cur_mid - 1),
                                             min_len_mode=0)
-            cur_in = self.connect_to_tracks(cur_in, cur_tid, min_len_mode=None)
+            cur_in = self.connect_to_tracks(cur_in, cur_tid, min_len_mode=-1)
             self.add_pin('in<%d>' % idx, cur_in, show=show_pins)
             self.add_pin('out<%d>' % idx, cur_inst.get_pin('out'), show=show_pins)
         self.fill_space()
@@ -280,7 +280,7 @@ class BufferArray(StdDigitalTemplate):
                 out_pin = inst.get_pin('out<%d>' % idx)
                 self.add_pin('in<%d>' % (idx + idx0), in_pin, show=show_pins)
                 if not out_vertical:
-                    out_pin = self.connect_to_tracks(out_pin, in_pin.track_id)
+                    out_pin = self.connect_to_tracks(out_pin, in_pin.track_id, min_len_mode=1)
                 self.add_pin('out<%d>' % (idx + idx0), out_pin, show=show_pins)
 
             idx0 += nbuf
