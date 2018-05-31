@@ -1235,7 +1235,7 @@ class TapXColumn(TemplateBase):
                                                    mode=-1, unit_mode=True)
         self._connect_div_column(tr_manager, ym_layer, div_inst, right_vdd_tidx, clkp_list,
                                  clkn_list, en_list, vdd_list, vss_list, inp_warrs, inn_warrs,
-                                 sh_lower, sh_upper, show_pins)
+                                 sh_lower, sh_upper, show_pins, export_probe and num_dfe == 0)
 
         # set schematic parameters and various properties
         self._sch_params = dict(
@@ -1258,7 +1258,7 @@ class TapXColumn(TemplateBase):
 
     def _connect_div_column(self, tr_manager, vm_layer, div_inst, right_tidx, clkp_list, clkn_list,
                             en_list, vdd_list, vss_list, inp_warrs, inn_warrs, sh_lower, sh_upper,
-                            show_pins):
+                            show_pins, export_probe):
         wtype_list = [1, 'in', 'in', 1, 1, 'clk', 'clk', 1, 'clk', 'clk', 1,
                       'en', 'en', 'en', 'en', 1]
         _, locs = tr_manager.place_wires(vm_layer, wtype_list)
@@ -1288,9 +1288,13 @@ class TapXColumn(TemplateBase):
         en_off = 11
         vm_w_en = tr_manager.get_width(vm_layer, 'en')
         for en_idx, en_warrs in enumerate(en_list):
-            en_warrs.append(div_inst.get_pin('en<%d>' % en_idx))
+            en_name = 'en<%d>' % en_idx
+            en_warrs.append(div_inst.get_pin(en_name))
             tid = TrackID(vm_layer, locs[en_off + en_idx] + tr0, width=vm_w_en)
-            self.connect_to_tracks(en_warrs, tid)
+            warr = self.connect_to_tracks(en_warrs, tid)
+            if export_probe:
+                self.add_pin(en_name, warr, show=True)
+
         # connect clocks
         vm_w_clk = tr_manager.get_width(vm_layer, 'clk')
         clkp_list.extend(div_inst.port_pins_iter('clkp'))

@@ -50,21 +50,27 @@ class bag_serdes_ec__qdr_tapx_column(Module):
         )
 
     def design(self, div_params, ffe_params_list, dfe_params_list, dfe2_params, export_probe):
-        # design divider
-        self.instances['XDIVL'].design(**div_params)
-        self.instances['XDIVR'].design(**div_params)
-
         num_ffe = len(ffe_params_list)
-        num_dfe = len(dfe_params_list) + 2
+        if dfe_params_list is None:
+            num_dfe = -1
+            self._num_dfe = 0
+        else:
+            self._num_dfe = num_dfe = len(dfe_params_list) + 2
         self._num_ffe = num_ffe - 1
-        self._num_dfe = num_dfe
-
-        if not export_probe:
-            self.remove_pin('en<3:0>')
 
         if num_dfe == 2 or num_dfe == 3:
             # TODO: add support for 2 or 3 taps.
             raise NotImplementedError('Did not implement 2/3 taps schematic generator yet.')
+
+        # design divider
+        self.instances['XDIVL'].design(**div_params)
+        if num_dfe < 0:
+            self.delete_instance('XDIVR')
+        else:
+            self.instances['XDIVR'].design(**div_params)
+
+        if not export_probe:
+            self.remove_pin('en<3:0>')
 
         # design instances
         for idx in range(4):
@@ -79,11 +85,17 @@ class bag_serdes_ec__qdr_tapx_column(Module):
         else:
             self.rename_pin('casc<3:0>', 'casc<%d:4>' % (max_ffe + 3))
 
-        max_dfe = 4 * num_dfe
-        dfe_suf = '<%d:8>' % (max_dfe + 3)
-        self.rename_pin('sgnp<3:0>', 'sgnp' + dfe_suf)
-        self.rename_pin('sgnn<3:0>', 'sgnn' + dfe_suf)
-        self.rename_pin('bias_s<3:0>', 'bias_s' + dfe_suf)
+        if num_dfe < 0:
+            for name in ('sgnp<3:0>', 'sgnn<3:0>', 'bias_s<3:0>', 'inp_d<3:0>', 'inn_d<3:0>',
+                         'bias_d<3:0>'):
+                self.remove_pin(name)
+            max_dfe = 0
+        else:
+            max_dfe = 4 * num_dfe
+            dfe_suf = '<%d:8>' % (max_dfe + 3)
+            self.rename_pin('sgnp<3:0>', 'sgnp' + dfe_suf)
+            self.rename_pin('sgnn<3:0>', 'sgnn' + dfe_suf)
+            self.rename_pin('bias_s<3:0>', 'bias_s' + dfe_suf)
 
         # reconnect pins
         a_suf = '<%d:0>' % (num_ffe - 1)
@@ -122,14 +134,15 @@ class bag_serdes_ec__qdr_tapx_column(Module):
                 self.reconnect_instance_terminal(name, 'outn_a' + a_suf, 'outn_a' + cur_a_suf)
 
             # DFE related pins
-            cur_d_suf = '<%d:%d:4>' % (max_dfe + cidx, 12 + cidx)
-            self.reconnect_instance_terminal(name, 'outp_d' + do_suf, 'outp_d' + cur_d_suf)
-            self.reconnect_instance_terminal(name, 'outn_d' + do_suf, 'outn_d' + cur_d_suf)
-            cur_d_suf = '<%d:%d:4>' % (max_dfe - 4 + pcidx, 12 + pcidx)
-            net = 'out{0}_d%s,in{0}_d<%d>,in{0}_d<%d>' % (cur_d_suf, pcidx, cidx)
-            self.reconnect_instance_terminal(name, 'inp_d' + d_suf, net.format('p'))
-            self.reconnect_instance_terminal(name, 'inn_d' + d_suf, net.format('n'))
-            cur_d_suf = '<%d:%d:4>' % (max_dfe + ncidx, 8 + ncidx)
-            self.reconnect_instance_terminal(name, 'biasn_s' + d_suf, 'bias_s' + cur_d_suf)
-            self.reconnect_instance_terminal(name, 'sgnp' + d_suf, 'sgnp' + cur_d_suf)
-            self.reconnect_instance_terminal(name, 'sgnn' + d_suf, 'sgnn' + cur_d_suf)
+            if num_dfe >= 0:
+                cur_d_suf = '<%d:%d:4>' % (max_dfe + cidx, 12 + cidx)
+                self.reconnect_instance_terminal(name, 'outp_d' + do_suf, 'outp_d' + cur_d_suf)
+                self.reconnect_instance_terminal(name, 'outn_d' + do_suf, 'outn_d' + cur_d_suf)
+                cur_d_suf = '<%d:%d:4>' % (max_dfe - 4 + pcidx, 12 + pcidx)
+                net = 'out{0}_d%s,in{0}_d<%d>,in{0}_d<%d>' % (cur_d_suf, pcidx, cidx)
+                self.reconnect_instance_terminal(name, 'inp_d' + d_suf, net.format('p'))
+                self.reconnect_instance_terminal(name, 'inn_d' + d_suf, net.format('n'))
+                cur_d_suf = '<%d:%d:4>' % (max_dfe + ncidx, 8 + ncidx)
+                self.reconnect_instance_terminal(name, 'biasn_s' + d_suf, 'bias_s' + cur_d_suf)
+                self.reconnect_instance_terminal(name, 'sgnp' + d_suf, 'sgnp' + cur_d_suf)
+                self.reconnect_instance_terminal(name, 'sgnn' + d_suf, 'sgnn' + cur_d_suf)
