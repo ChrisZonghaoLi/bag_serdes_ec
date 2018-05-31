@@ -21,6 +21,9 @@ class bag_serdes_ec__qdr_tapx_summer_cell(Module):
 
     def __init__(self, bag_config, parent=None, prj=None, **kwargs):
         Module.__init__(self, bag_config, yaml_file, parent=parent, prj=prj, **kwargs)
+        self.has_set = False
+        self.has_casc = False
+        self.has_but = False
 
     @classmethod
     def get_params_info(cls):
@@ -31,24 +34,26 @@ class bag_serdes_ec__qdr_tapx_summer_cell(Module):
         )
 
     def design(self, sum_params, lat_params):
+        s_inst = self.instances['XSUM']
+        l_inst = self.instances['XLAT']
         # design instances
-        self.instances['XSUM'].design(**sum_params)
-        self.instances['XLAT'].design(**lat_params)
+        s_inst.design(**sum_params)
+        l_inst.design(**lat_params)
 
         # remove unused pins
-        s_pins = self.instances['XSUM'].master.pin_list
-        l_pins = self.instances['XLAT'].master.pin_list
-        has_casc = has_set = False
-        for pin in s_pins:
-            if pin.startswith('casc'):
-                has_casc = True
-                if pin == 'casc':
-                    self.rename_pin('casc<1:0>', 'casc')
-                    self.reconnect_instance_terminal('XSUM', 'casc', 'casc')
+        s_master = s_inst.master
+        if s_master.has_but:
+            self.has_but = True
+        else:
+            self.has_but = False
+            if s_master.has_casc:
+                self.rename_pin('casc<1:0>', 'casc')
+                self.reconnect_instance_terminal('XSUM', 'casc', 'casc')
+                self.has_casc = True
+            else:
+                self.remove_pin('casc<1:0>')
+                self.has_casc = False
 
-        if not has_casc:
-            self.remove_pin('casc<1:0>')
-
-        if not has_set and 'pulse' not in l_pins:
-            for name in ('setp', 'setn', 'pulse'):
-                self.remove_pin(name)
+        # for now has_set is always False
+        for name in ('setp', 'setn', 'pulse'):
+            self.remove_pin(name)

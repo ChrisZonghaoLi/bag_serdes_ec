@@ -488,15 +488,20 @@ class TapXSummer(TemplateBase):
 
         num_sum = len(seg_sum_list)
         num_ffe = len(seg_ffe_list)
-        num_dfe = len(seg_dfe_list) + 1
+        if seg_dfe_list is None:
+            # simulation mode
+            num_dfe = 0
+        else:
+            num_dfe = len(seg_dfe_list) + 1
+            if num_dfe < 2:
+                # TODO: restriction exists because otherwise we do not have routing space for
+                # TODO: biasp_d and biasn_d.  Remove restriction in the future?
+                raise ValueError('Must have at least two DFE.')
+
         if num_sum != num_ffe + num_dfe or num_sum != len(flip_sign_list):
             raise ValueError('segment dictionary list length mismatch.')
         if num_ffe < 1:
             raise ValueError('Must have at least one FFE (last FFE is main tap).')
-        if num_dfe < 2:
-            # TODO: restriction exists because otherwise we do not have routing space for
-            # TODO: biasp_d and biasn_d.  Remove restriction in the future?
-            raise ValueError('Must have at least two DFE.')
 
         # create layout masters and place instances
         tr_manager = TrackManager(self.grid, tr_widths, tr_spaces, half_space=True)
@@ -520,6 +525,9 @@ class TapXSummer(TemplateBase):
                                      sum_off=0, is_end=False, left_out=True)
         ffe_masters, self._ffe_track_info, ffe_sch_params, ffe_insts, place_info, blk_intvs = tmp
         ffe_master0 = ffe_masters[0]
+        inst_first = ffe_insts[-1]
+        inst_first_box = inst_first.bound_box
+        inst_last_box = ffe_insts[0].bound_box
         self._blockage_intvs = blk_intvs
         self._lr_edge_info = ffe_master0.lat_lr_edge_info
         self._div_tr_info = ffe_master0.div_tr_info
@@ -530,57 +538,70 @@ class TapXSummer(TemplateBase):
         self._sup_y_mid = ffe_master0.sup_y_mid
 
         # DFE instances
-        base_params['sch_hp_params'] = sch_hp_params
-        dfe_sig_list = self._get_dfe_signals(num_dfe)
-        tmp = self._create_and_place(tr_manager, num_dfe - 1, seg_dfe_list, seg_sum_list,
-                                     flip_sign_list, dfe_sig_list, base_params, ym_layer,
-                                     route_locs, place_info, vdd_list, vss_list, 'd', sig_off=3,
-                                     sum_off=num_ffe + 1, is_end=False, left_out=False)
-        dfe_masters, self._dfe_track_info, dfe_sch_params, dfe_insts, place_info, blk_intvs2 = tmp
-        blk_intvs.extend(blk_intvs2)
+        if num_dfe > 0:
+            base_params['sch_hp_params'] = sch_hp_params
+            dfe_sig_list = self._get_dfe_signals(num_dfe)
+            tmp = self._create_and_place(tr_manager, num_dfe - 1, seg_dfe_list, seg_sum_list,
+                                         flip_sign_list, dfe_sig_list, base_params, ym_layer,
+                                         route_locs, place_info, vdd_list, vss_list, 'd', sig_off=3,
+                                         sum_off=num_ffe + 1, is_end=False, left_out=False)
+            dfe_masters, self._dfe_track_info, dfe_sch_params, dfe_insts, place_info, bintvs2 = tmp
+            blk_intvs.extend(bintvs2)
 
-        # DFE2 gm cell
-        seg_last = seg_sum_list[num_ffe]
-        fs_last = flip_sign_list[num_ffe]
-        vm_w_out = tr_manager.get_width(ym_layer, 'out')
-        fg_amp = IntegAmp.get_amp_fg_info(self.grid, lch, seg_last)[0]
-        if fg_amp + 2 * fg_dum < fg_dig:
-            fg_duml = fg_dig - fg_dum - fg_amp
+            # DFE2 gm cell
+            seg_last = seg_sum_list[num_ffe]
+            fs_last = flip_sign_list[num_ffe]
+            vm_w_out = tr_manager.get_width(ym_layer, 'out')
+            fg_amp = IntegAmp.get_amp_fg_info(self.grid, lch, seg_last)[0]
+            if fg_amp + 2 * fg_dum < fg_dig:
+                fg_duml = fg_dig - fg_dum - fg_amp
+            else:
+                fg_duml = fg_dum
+            sig_types, sig_names, sig_right, blk_idx_intv = self._get_dfe2_signals()
+            base_params = dict(lch=lch, ptap_w=ptap_w, ntap_w=ntap_w, w_dict=w_sum, th_dict=th_sum,
+                               seg_dict=seg_last, fg_duml=fg_duml, fg_dumr=fg_dum,
+                               tr_widths=tr_widths, tr_spaces=tr_spaces, flip_sign=fs_last,
+                               end_mode=8, options=options, sch_hp_params=sch_hp_params,
+                               but_sw=True, show_pins=False)
+            gm_master = self.new_template(params=base_params, temp_cls=IntegAmp)
+            # NOTE: we reuse _place_master() command to place tap2 gm cell.
+            # blk_idx just cannot be zero.
+            tmp = self._place_master(tr_manager, ym_layer, gm_master, self._dfe_track_info,
+                                     blk_intvs, fg_dum, route_locs, sig_types, sig_names, sig_right,
+                                     vm_w_out, blk_idx_intv, place_info, True, 'd', 2, 0, vdd_list,
+                                     vss_list, -2)
+            gm_master, gm_inst, place_info = tmp
+            gm_arr_box = gm_inst.array_box
+            gm_bnd_box = gm_inst.bound_box
+            self._div_grp_loc = (gm_inst.location_unit[0], gm_arr_box.top_unit)
+
+            self._fg_tot += gm_master.fg_tot
+            self._fg_tot_dfe2 = gm_master.fg_tot
+            self.fill_box = bnd_box = inst_first_box.merge(gm_bnd_box)
+            self.array_box = inst_first.array_box.merge(gm_arr_box)
+
+            dfe2_params = gm_master.sch_params.copy()
+            dfe2_params['flip_sign'] = fs_last
         else:
-            fg_duml = fg_dum
-        sig_types, sig_names, sig_right, blk_idx_intv = self._get_dfe2_signals()
-        base_params = dict(lch=lch, ptap_w=ptap_w, ntap_w=ntap_w, w_dict=w_sum, th_dict=th_sum,
-                           seg_dict=seg_last, fg_duml=fg_duml, fg_dumr=fg_dum, tr_widths=tr_widths,
-                           tr_spaces=tr_spaces, flip_sign=fs_last, end_mode=8, options=options,
-                           sch_hp_params=sch_hp_params, but_sw=True, show_pins=False)
-        gm_master = self.new_template(params=base_params, temp_cls=IntegAmp)
-        # NOTE: we reuse _place_master() command to place tap2 gm cell.
-        # blk_idx just cannot be zero.
-        tmp = self._place_master(tr_manager, ym_layer, gm_master, self._dfe_track_info, blk_intvs,
-                                 fg_dum, route_locs, sig_types, sig_names, sig_right, vm_w_out,
-                                 blk_idx_intv, place_info, True, 'd', 2, 0, vdd_list, vss_list, -2)
-        gm_master, gm_inst, place_info = tmp
-        gm_arr_box = gm_inst.array_box
-        self._div_grp_loc = (gm_inst.location_unit[0], gm_arr_box.top_unit)
+            dfe_insts = gm_inst = None
+            self.fill_box = bnd_box = inst_first_box.merge(ffe_insts[0].bound_box)
+            self.array_box = inst_first.array_box.merge(ffe_insts[0].array_box)
 
-        self._fg_tot += gm_master.fg_tot
-        self._fg_tot_dfe2 = gm_master.fg_tot
+            dfe2_params = dfe_sch_params = None
+
         self._blockage_intvs = blk_intvs
         self._blockage_intvs.sort()
 
         # set size
         res = self.grid.resolution
-        inst_first = ffe_insts[-1]
         blk_w = self.grid.get_block_size(ym_layer, unit_mode=True)[0]
-        gm_bnd_box = gm_inst.bound_box
-        self.fill_box = bnd_box = inst_first.bound_box.merge(gm_bnd_box)
         tot_w = -(-bnd_box.width_unit // blk_w) * blk_w
-        top_box = BBox(bnd_box.left_unit, gm_bnd_box.top_unit, gm_bnd_box.left_unit,
+        ymid = ffe_master0.sup_y_mid + inst_first.location_unit[1]
+        top_box = BBox(bnd_box.left_unit, ymid, inst_last_box.right_unit,
                        bnd_box.top_unit, res, unit_mode=True)
         bot_box = BBox(bnd_box.left_unit, bnd_box.bottom_unit, bnd_box.right_unit,
-                       gm_bnd_box.top_unit, res, unit_mode=True)
+                       ymid, res, unit_mode=True)
         bnd_box = bnd_box.extend(x=tot_w, unit_mode=True)
-        self.array_box = inst_first.array_box.merge(gm_arr_box)
         self.set_size_from_bound_box(ym_layer, bnd_box)
         self.add_cell_boundary(bnd_box)
 
@@ -638,46 +659,52 @@ class TapXSummer(TemplateBase):
                           label='outn_a<%d>:' % fidx, show=show_pins)
 
         # export/collect DFE pins
-        biasd_list = []
-        for idx, inst in enumerate(dfe_insts):
-            didx = idx + 3
-            self.reexport(inst.get_port('biasn_s'), net_name='biasn_s<%d>' % didx,
-                          show=show_pins)
-            self.reexport(inst.get_port('inp'), net_name='inp_d<%d>' % didx, show=show_pins)
-            self.reexport(inst.get_port('inn'), net_name='inn_d<%d>' % didx, show=show_pins)
-            biasd_list.append(inst.get_pin('biasp_l'))
-            clkp_list.extend(inst.port_pins_iter('clkp'))
-            clkn_list.extend(inst.port_pins_iter('clkn'))
-            clkp_d_list.extend(inst.port_pins_iter('clkp_d'))
-            clkn_d_list.extend(inst.port_pins_iter('clkn_d'))
-            en_warrs[3].extend(inst.port_pins_iter('en<3>'))
-            en_warrs[2].extend(inst.port_pins_iter('en<2>'))
-            en_warrs[1].extend(inst.port_pins_iter('en<1>'))
-            if inst.has_port('casc<0>'):
-                self.reexport(inst.get_port('casc<0>'), net_name='sgnp<%d>' % didx, show=show_pins)
-                self.reexport(inst.get_port('casc<1>'), net_name='sgnn<%d>' % didx, show=show_pins)
-            # TODO: handle setp/setn/pulse pins
-            outs_warrs[0].append(inst.get_pin('outp_s'))
-            outs_warrs[1].append(inst.get_pin('outn_s'))
-            self.reexport(inst.get_port('outp_l'), net_name='outp_d<%d>' % didx,
-                          label='outp_d<%d>:' % didx, show=show_pins)
-            self.reexport(inst.get_port('outn_l'), net_name='outn_d<%d>' % didx,
-                          label='outn_d<%d>:' % didx, show=show_pins)
+        if dfe_insts is not None:
+            biasd_list = []
+            for idx, inst in enumerate(dfe_insts):
+                didx = idx + 3
+                self.reexport(inst.get_port('biasn_s'), net_name='biasn_s<%d>' % didx,
+                              show=show_pins)
+                self.reexport(inst.get_port('inp'), net_name='inp_d<%d>' % didx, show=show_pins)
+                self.reexport(inst.get_port('inn'), net_name='inn_d<%d>' % didx, show=show_pins)
+                biasd_list.append(inst.get_pin('biasp_l'))
+                clkp_list.extend(inst.port_pins_iter('clkp'))
+                clkn_list.extend(inst.port_pins_iter('clkn'))
+                clkp_d_list.extend(inst.port_pins_iter('clkp_d'))
+                clkn_d_list.extend(inst.port_pins_iter('clkn_d'))
+                en_warrs[3].extend(inst.port_pins_iter('en<3>'))
+                en_warrs[2].extend(inst.port_pins_iter('en<2>'))
+                en_warrs[1].extend(inst.port_pins_iter('en<1>'))
+                if inst.has_port('casc<0>'):
+                    self.reexport(inst.get_port('casc<0>'), net_name='sgnp<%d>' % didx,
+                                  show=show_pins)
+                    self.reexport(inst.get_port('casc<1>'), net_name='sgnn<%d>' % didx,
+                                  show=show_pins)
+                # TODO: handle setp/setn/pulse pins
+                outs_warrs[0].append(inst.get_pin('outp_s'))
+                outs_warrs[1].append(inst.get_pin('outn_s'))
+                self.reexport(inst.get_port('outp_l'), net_name='outp_d<%d>' % didx,
+                              label='outp_d<%d>:' % didx, show=show_pins)
+                self.reexport(inst.get_port('outn_l'), net_name='outn_d<%d>' % didx,
+                              label='outn_d<%d>:' % didx, show=show_pins)
 
-        # collect DFE tap2 pins
-        outs_warrs[0].append(gm_inst.get_pin('outp'))
-        outs_warrs[1].append(gm_inst.get_pin('outn'))
-        if gm_inst.has_port('clkp'):
-            clkp_list.extend(gm_inst.port_pins_iter('clkp'))
-        if gm_inst.has_port('clkn'):
-            clkn_list.extend(gm_inst.port_pins_iter('clkn'))
-        en_warrs[2].extend(gm_inst.port_pins_iter('en<3>'))
-        en_warrs[1].extend(gm_inst.port_pins_iter('en<2>'))
+            # collect DFE tap2 pins
+            if gm_inst is not None:
+                outs_warrs[0].append(gm_inst.get_pin('outp'))
+                outs_warrs[1].append(gm_inst.get_pin('outn'))
+                if gm_inst.has_port('clkp'):
+                    clkp_list.extend(gm_inst.port_pins_iter('clkp'))
+                if gm_inst.has_port('clkn'):
+                    clkn_list.extend(gm_inst.port_pins_iter('clkn'))
+                en_warrs[2].extend(gm_inst.port_pins_iter('en<3>'))
+                en_warrs[1].extend(gm_inst.port_pins_iter('en<2>'))
+
+            biasd = self.connect_wires(biasd_list)
+            self.add_pin('biasp_d', biasd, show=show_pins)
 
         # connect wires and add pins
         biasm = self.connect_wires(biasm_list)
         biasa = self.connect_wires(biasa_list)
-        biasd = self.connect_wires(biasd_list)
         outsp = self.connect_wires(outs_warrs[0])
         outsn = self.connect_wires(outs_warrs[1])
         clkp = self.connect_wires(clkp_list, unit_mode=True)
@@ -686,7 +713,6 @@ class TapXSummer(TemplateBase):
         clkn_d = self.connect_wires(clkn_d_list, unit_mode=True)
         self.add_pin('biasn_m', biasm, show=show_pins)
         self.add_pin('biasp_a', biasa, show=show_pins)
-        self.add_pin('biasp_d', biasd, show=show_pins)
         self.add_pin('clkp', clkp, label='clkp:', show=show_pins)
         self.add_pin('clkn', clkn, label='clkn:', show=show_pins)
         self.add_pin('clkp_d', clkp_d, label='clkp:', show=False)
@@ -701,24 +727,23 @@ class TapXSummer(TemplateBase):
                 self.add_pin(name, en_warr, label=name + ':', show=show_pins)
 
         # export last summer tap pins
-        inp_pin = gm_inst.get_pin('inp')
-        inn_pin = gm_inst.get_pin('inn')
-        self.add_pin('inp_d<2>', inp_pin, show=show_pins)
-        self.add_pin('inn_d<2>', inn_pin, show=show_pins)
-        # add alias pins for column layout connection only
-        self.add_pin('outp_d<2>', inp_pin, show=False)
-        self.add_pin('outn_d<2>', inn_pin, show=False)
-        self.reexport(gm_inst.get_port('biasp'), net_name='biasn_s<2>', show=show_pins)
-        if gm_inst.has_port('casc<0>'):
-            self.reexport(gm_inst.get_port('casc<0>'), net_name='sgnp<2>', show=show_pins)
-            self.reexport(gm_inst.get_port('casc<1>'), net_name='sgnn<2>', show=show_pins)
+        if gm_inst is not None:
+            inp_pin = gm_inst.get_pin('inp')
+            inn_pin = gm_inst.get_pin('inn')
+            self.add_pin('inp_d<2>', inp_pin, show=show_pins)
+            self.add_pin('inn_d<2>', inn_pin, show=show_pins)
+            # add alias pins for column layout connection only
+            self.add_pin('outp_d<2>', inp_pin, show=False)
+            self.add_pin('outn_d<2>', inn_pin, show=False)
+            self.reexport(gm_inst.get_port('biasp'), net_name='biasn_s<2>', show=show_pins)
+            if gm_inst.has_port('casc<0>'):
+                self.reexport(gm_inst.get_port('casc<0>'), net_name='sgnp<2>', show=show_pins)
+                self.reexport(gm_inst.get_port('casc<1>'), net_name='sgnn<2>', show=show_pins)
 
         for lay_id in range(1, hm_layer):
             self.do_max_space_fill(lay_id, bound_box=bot_box, fill_pitch=1.5)
             self.do_max_space_fill(lay_id, bound_box=top_box, fill_pitch=1.5)
 
-        dfe2_params = gm_master.sch_params.copy()
-        dfe2_params['flip_sign'] = fs_last
         self._sch_params = dict(
             ffe_params_list=ffe_sch_params,
             dfe_params_list=dfe_sch_params,
