@@ -1153,7 +1153,7 @@ class TapXColumn(TemplateBase):
 
             # connect DFE signals
             tmp = self._connect_signals(tr0, num_dfe, dfe_track_info, inst_list, ym_layer,
-                                        vm_w_out, 'd', sig_off=2, is_ffe=False)
+                                        vm_w_out, 'd', export_probe, sig_off=2, is_ffe=False)
             for cidx, (warrp, warrn) in enumerate(zip(*tmp)):
                 self.add_pin('inp_d<%d>' % cidx, warrp, show=show_pins)
                 self.add_pin('inn_d<%d>' % cidx, warrn, show=show_pins)
@@ -1180,7 +1180,7 @@ class TapXColumn(TemplateBase):
 
         # connect FFE signals
         tmp = self._connect_signals(tr0, num_ffe, ffe_track_info, inst_list, ym_layer,
-                                    vm_w_out, 'a', sig_off=0, is_ffe=True)
+                                    vm_w_out, 'a', export_probe, sig_off=0, is_ffe=True)
         inp_warrs = []
         inn_warrs = []
         for warrp, warrn in zip(*tmp):
@@ -1478,7 +1478,7 @@ class TapXColumn(TemplateBase):
             self.connect_to_tracks(div_warrs[en_idx], tid)
 
     def _connect_signals(self, tr0, num_sig, track_info, inst_list, vm_layer, vm_width, sig_type,
-                         sig_off=0, is_ffe=True):
+                         export_probe, sig_off=0, is_ffe=True):
         if is_ffe:
             in_dir = 1
             out_type = 'a'
@@ -1534,6 +1534,9 @@ class TapXColumn(TemplateBase):
                     # for DFE, export inputs on vertical layer.
                     inp_list.append(vwp)
                     inn_list.append(vwn)
+                elif export_probe:
+                    self.add_pin('outp_%s<%d>' % (out_type, sidx * 4 + cidx), vwp, show=True)
+                    self.add_pin('outn_%s<%d>' % (out_type, sidx * 4 + cidx), vwn, show=True)
 
         # connect end signals
         sidx = sig_off if is_ffe else num_sig + sig_off - 1
@@ -1543,8 +1546,11 @@ class TapXColumn(TemplateBase):
             n_name = 'outn_%s<%d>' % (out_type, sidx)
             trp = track_info[p_name][0] + tr0
             trn = track_info[n_name][0] + tr0
-            self.connect_differential_tracks(sigp_dict[key], sign_dict[key], vm_layer,
-                                             trp, trn, width=vm_width)
+            vwp, vwn = self.connect_differential_tracks(sigp_dict[key], sign_dict[key], vm_layer,
+                                                        trp, trn, width=vm_width)
+            if export_probe:
+                self.add_pin('outp_%s<%d>' % (out_type, sidx * 4 + cidx), vwp, show=True)
+                self.add_pin('outn_%s<%d>' % (out_type, sidx * 4 + cidx), vwn, show=True)
 
         return inp_list, inn_list
 

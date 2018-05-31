@@ -1,6 +1,6 @@
 lib_name: bag_serdes_ec
 cell_name: qdr_tapx_column
-pins: [ "VDD", "VSS", "clkp", "clkn", "casc<3:0>", "inn_a", "inp_d<3:0>", "bias_d<3:0>", "bias_s<3:0>", "bias_m<3:0>", "sgnp<3:0>", "inp_a", "inn_d<3:0>", "scan_div<3:2>", "en<3:0>", "outp<3:0>", "outn<3:0>", "sgnn<3:0>", "en_div", "bias_a<3:0>" ]
+pins: [ "VDD", "VSS", "clkp", "clkn", "casc<3:0>", "inn_a", "inp_d<3:0>", "bias_d<3:0>", "bias_s<3:0>", "bias_m<3:0>", "sgnp<3:0>", "outn_a<3:0>", "inp_a", "inn_d<3:0>", "scan_div<3:2>", "en<3:0>", "outp<3:0>", "outn<3:0>", "outp_a<3:0>", "sgnn<3:0>", "en_div", "bias_a<3:0>", "outp_d<3:0>", "outn_d<3:0>" ]
 instances:
   X3:
     lib_name: bag_serdes_ec
@@ -486,6 +486,10 @@ instances:
     lib_name: basic
     cell_name: ipin
     instpins: {}
+  PIN32:
+    lib_name: basic
+    cell_name: opin
+    instpins: {}
   PIN21:
     lib_name: basic
     cell_name: opin
@@ -495,6 +499,18 @@ instances:
     cell_name: opin
     instpins: {}
   PIN18:
+    lib_name: basic
+    cell_name: opin
+    instpins: {}
+  PIN30:
+    lib_name: basic
+    cell_name: opin
+    instpins: {}
+  PIN29:
+    lib_name: basic
+    cell_name: opin
+    instpins: {}
+  PIN31:
     lib_name: basic
     cell_name: opin
     instpins: {}

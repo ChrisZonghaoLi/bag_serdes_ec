@@ -69,8 +69,23 @@ class bag_serdes_ec__qdr_tapx_column(Module):
         else:
             self.instances['XDIVR'].design(**div_params)
 
+        max_ffe = 4 * (num_ffe - 1)
+        max_dfe = 0 if num_dfe < 0 else 4 * num_dfe
+        # handle probe ports
         if not export_probe:
-            self.remove_pin('en<3:0>')
+            for name in ('en<3:0>', 'outp_a<3:0>', 'outn_a<3:0>', 'outp_d<3:0>', 'outn_d<3:0>'):
+                self.remove_pin(name)
+        else:
+            asuf = '<%d:0>' % (max_ffe + 3)
+            self.rename_pin('outp_a<3:0>', 'outp_a' + asuf)
+            self.rename_pin('outn_a<3:0>', 'outn_a' + asuf)
+            if num_dfe < 3:
+                self.remove_pin('outp_d<3:0>')
+                self.remove_pin('outn_d<3:0>')
+            else:
+                dsuf = '<%d:12>' % (max_dfe + 3)
+                self.rename_pin('outp_d<3:0>', 'outp_d' + dsuf)
+                self.rename_pin('outn_d<3:0>', 'outn_d' + dsuf)
 
         # design instances
         for idx in range(4):
@@ -79,7 +94,6 @@ class bag_serdes_ec__qdr_tapx_column(Module):
                                                dfe2_params=dfe2_params)
 
         # rename pins
-        max_ffe = 4 * (num_ffe - 1)
         if num_ffe == 1:
             self.remove_pin('casc<3:0>')
         else:
@@ -89,9 +103,7 @@ class bag_serdes_ec__qdr_tapx_column(Module):
             for name in ('sgnp<3:0>', 'sgnn<3:0>', 'bias_s<3:0>', 'inp_d<3:0>', 'inn_d<3:0>',
                          'bias_d<3:0>'):
                 self.remove_pin(name)
-            max_dfe = 0
         else:
-            max_dfe = 4 * num_dfe
             dfe_suf = '<%d:8>' % (max_dfe + 3)
             self.rename_pin('sgnp<3:0>', 'sgnp' + dfe_suf)
             self.rename_pin('sgnn<3:0>', 'sgnn' + dfe_suf)
