@@ -69,6 +69,7 @@ class bag_serdes_ec__integ_gm(Module):
         seg_casc = seg_dict.get('casc', 0)
         seg_casc1 = seg_dict.get('but', 0)
         seg_tsw = seg_dict.get('tsw', 0)
+        seg_cap = seg_dict.get('cap', 0)
         stack_in = seg_dict.get('stack_in', 1)
 
         if seg_casc > 0 and seg_casc1 > 0:
@@ -102,6 +103,13 @@ class bag_serdes_ec__integ_gm(Module):
         th_in = th_dict['in']
         self.instances['XINP'].design(w=w_in, l=lch, seg=seg_in, intent=th_in, stack=stack_in)
         self.instances['XINN'].design(w=w_in, l=lch, seg=seg_in, intent=th_in, stack=stack_in)
+
+        if seg_cap > 0:
+            self.instances['XCAPL'].design(w=w_in, l=lch, seg=seg_cap, intent=th_in, stack=2)
+            self.instances['XCAPR'].design(w=w_in, l=lch, seg=seg_cap, intent=th_in, stack=2)
+        else:
+            self.delete_instance('XCAPL')
+            self.delete_instance('XCAPR')
 
         if seg_casc > 0:
             self.has_casc = True

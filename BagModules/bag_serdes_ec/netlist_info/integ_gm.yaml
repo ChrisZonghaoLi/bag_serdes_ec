@@ -2,6 +2,46 @@ lib_name: bag_serdes_ec
 cell_name: integ_gm
 pins: [ "pulse", "biasp", "en<3>", "foot", "setn", "setp", "inn", "inp", "casc<1:0>", "clkn", "outn", "outp", "clkp", "VSS", "VDD", "tail" ]
 instances:
+  XCAPR:
+    lib_name: bag_analog_ec
+    cell_name: nch_stack
+    instpins:
+      S:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      D:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      B:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      G:
+        direction: inputOutput
+        net_name: "inp"
+        num_bits: 1
+  XCAPL:
+    lib_name: bag_analog_ec
+    cell_name: nch_stack
+    instpins:
+      S:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      D:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      B:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      G:
+        direction: inputOutput
+        net_name: "inn"
+        num_bits: 1
   XINN:
     lib_name: bag_analog_ec
     cell_name: nch_stack

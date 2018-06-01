@@ -408,6 +408,7 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
         # draw tail switch differently than rest of transistors, as it is single-ended.
         seg_tsw = seg_dict.get('tsw', 0)
         seg_cap = seg_dict.get('cap', 0)
+        seg_nsep = seg_dict.get('nsep', self.min_fg_sep)
         stack_in = seg_dict.get('stack_in', 1)
         if seg_tsw > 0:
             # get transistor info
@@ -424,18 +425,25 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
             # get transistor info
             mos_type, row_idx = self.get_row_index('in')
             col = col_dict['in']
-            colp = col_idx + col - 4 - seg_cap * 2
-            coln = col_idx + (fg_tot - col + 4)
+            colp = col_idx + col - seg_nsep - seg_cap
+            coln = col_idx + (fg_tot - col + seg_nsep)
 
             # draw transistors
-            capl = self.draw_mos_conn(mos_type, row_idx, colp, seg_cap * 2, 0, 0,
-                                      s_net='', d_net='', stack=2, gate_interleave=True)
-            capr = self.draw_mos_conn(mos_type, row_idx, coln, seg_cap * 2, 0, 0,
-                                      s_net='', d_net='', stack=2, flip_lr=True,
-                                      gate_interleave=True)
-            ports['VSS'] = [capl['d'], capl['s'], capr['d'], capr['s']]
-            ports['inp'] = [capr['g']]
-            ports['inn'] = [capl['g']]
+            capl0 = self.draw_mos_conn(mos_type, row_idx, colp, seg_cap, 0, 0,
+                                       s_net='', d_net='', stack=2, gate_interleave=True)
+            capr0 = self.draw_mos_conn(mos_type, row_idx, coln, seg_cap, 0, 0,
+                                       s_net='', d_net='', stack=2, flip_lr=True,
+                                       gate_interleave=True)
+            mos_type, row_idx = self.get_row_index('nen')
+            capl1 = self.draw_mos_conn(mos_type, row_idx, colp, seg_cap, 0, 0,
+                                       s_net='', d_net='', stack=2, gate_interleave=True)
+            capr1 = self.draw_mos_conn(mos_type, row_idx, coln, seg_cap, 0, 0,
+                                       s_net='', d_net='', stack=2, flip_lr=True,
+                                       gate_interleave=True)
+            ports['VSS'] = [capl0['d'], capl0['s'], capl1['d'], capl1['s'],
+                            capr0['d'], capr0['s'], capr1['d'], capr1['s']]
+            ports['inp'] = [capr0['g'], capr1['g']]
+            ports['inn'] = [capl0['g'], capl1['g']]
         else:
             ports['inp'] = []
             ports['inn'] = []
@@ -645,7 +653,7 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
                 else:
                     ans['pen2'] = pen1
             pclk0, pclk1 = self.connect_differential_tracks(ports['pclk0'], ports['pclk1'],
-                                                            hm_layer,  pclk0_tid.base_index,
+                                                            hm_layer, pclk0_tid.base_index,
                                                             pclk1_tid.base_index,
                                                             width=pclk0_tid.width)
             if en_swap:
