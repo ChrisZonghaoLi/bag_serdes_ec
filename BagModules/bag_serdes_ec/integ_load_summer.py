@@ -24,6 +24,7 @@ class bag_serdes_ec__integ_load_summer(Module):
         Module.__init__(self, bag_config, yaml_file, parent=parent, prj=prj, **kwargs)
         self.has_clk = False
         self.has_en = False
+        self.en_only = False
 
     @classmethod
     def get_params_info(cls):
@@ -38,36 +39,37 @@ class bag_serdes_ec__integ_load_summer(Module):
         return self.orig_cell_name + ('_nin%d' % self.params['nin'])
 
     def design(self, load_params_list, nin):
-        num_load = len(load_params_list)
-        self.has_clk = self.has_en = False
-        if num_load > 1:
-            load_name_list = []
-            new_params_list = []
-            cnt = 0
-            for load_params in load_params_list:
-                if not bag_serdes_ec__integ_load.is_empty(load_params['seg_dict'],
-                                                          load_params['dum_info']):
-                    load_name_list.append('XLOAD%d' % cnt)
-                    new_params_list.append(load_params)
-                    cnt += 1
-            if cnt == 0:
-                self.delete_instance('XLOAD')
-            else:
-                self.array_instance('XLOAD', load_name_list)
-                for inst, params in zip(self.instances['XLOAD'], new_params_list):
-                    inst.design(**params)
-                    self.has_clk |= inst.master.has_clk
-                    self.has_en |= inst.master.has_en
+        load_name_list = []
+        new_params_list = []
+        num_load = 0
+        for load_params in load_params_list:
+            if not bag_serdes_ec__integ_load.is_empty(load_params['seg_dict'],
+                                                      load_params['dum_info']):
+                load_name_list.append('XLOAD%d' % num_load)
+                new_params_list.append(load_params)
+                num_load += 1
+
+        if num_load == 0:
+            self.delete_instance('XLOAD')
+        elif num_load == 1:
+            inst = self.instances['XLOAD']
+            inst.design(**new_params_list[0])
+            master = inst.master
+            self.has_clk = master.has_clk
+            self.has_en = master.has_en
+            if master.en_only:
+                self.en_only = True
+                self.reconnect_instance_terminal('XLOAD', 'en<3>', 'en<3>')
         else:
-            load_params = load_params_list[0]
-            if bag_serdes_ec__integ_load.is_empty(load_params['seg_dict'],
-                                                  load_params['dum_info']):
-                self.delete_instance('XLOAD')
-            else:
-                inst = self.instances['XLOAD']
-                inst.design(**load_params_list[0])
-                self.has_clk |= inst.master.has_clk
-                self.has_en |= inst.master.has_en
+            self.array_instance('XLOAD', load_name_list)
+            for idx, (inst, params) in enumerate(zip(self.instances['XLOAD'], new_params_list)):
+                inst.design(**params)
+                master = inst.master
+                self.has_clk |= master.has_clk
+                self.has_en |= master.has_en
+                if master.en_only:
+                    self.en_only = True
+                    self.reconnect_instance_terminal('XLOAD', 'en<3>', 'en<3>', index=idx)
 
         if nin > 1:
             suf = '<%d:0>' % (nin - 1)
@@ -83,6 +85,8 @@ class bag_serdes_ec__integ_load_summer(Module):
             self.remove_pin('clkn')
         if not self.has_en:
             self.remove_pin('en<3:2>')
+        elif self.en_only:
+            self.rename_pin('en<3:2>', 'en<3>')
 
     @classmethod
     def _get_arr_name(cls, base, n):

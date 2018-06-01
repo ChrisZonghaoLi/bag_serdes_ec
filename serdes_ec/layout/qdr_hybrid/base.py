@@ -78,6 +78,7 @@ class HybridQDRBaseInfo(AnalogBaseInfo):
         seg_casc = seg_dict.get('casc', 0)
         seg_but = seg_dict.get('but', 0)
         stack_in = seg_dict.get('stack_in', 1)
+        en_only = seg_dict.get('en_only', False)
 
         if stack_in % 2 == 0 and (seg_casc > 0 or seg_but > 0):
             # switch source/drain direction if input has even stack number,
@@ -88,7 +89,6 @@ class HybridQDRBaseInfo(AnalogBaseInfo):
         else:
             flip_load_sd = False
             fg_sep_load = max(0, fg_sep_hm - 2)
-
 
         seg_load = seg_dict.get('load', 0)
         seg_pen = seg_dict.get('pen', 0)
@@ -156,20 +156,24 @@ class HybridQDRBaseInfo(AnalogBaseInfo):
         # compute source-drain junction type for each net
         s_up = (2, 0)
         d_up = (0, 2)
+        flip_load_sd = (flip_load_sd != en_only)
         if seg_pen > 0:
             if flip_load_sd:
                 sd_dict = {('load0', 'd'): 'VDD', ('load1', 'd'): 'VDD',
                            ('load0', 's'): 'pm0', ('load1', 's'): 'pm1', }
                 sd_dir_dict = {'load0': d_up, 'load1': d_up, }
-                sd_name = 's'
+                sd_name = 'd' if en_only else 's'
             else:
                 sd_dict = {('load0', 's'): 'VDD', ('load1', 's'): 'VDD',
                            ('load0', 'd'): 'pm0', ('load1', 'd'): 'pm1', }
                 sd_dir_dict = {'load0': s_up, 'load1': s_up, }
-                sd_name = 'd'
+                sd_name = 's' if en_only else 'd'
 
-            sd_dict[('pen0', sd_name)] = 'pm0'
-            sd_dict[('pen1', sd_name)] = 'pm1'
+            if en_only:
+                sd_dict[('pen0', sd_name)] = sd_dict[('pen1', sd_name)] = 'VDD'
+            else:
+                sd_dict[('pen0', sd_name)] = 'pm0'
+                sd_dict[('pen1', sd_name)] = 'pm1'
             if sd_name == 'd':
                 sd_dir = d_up
                 sd_name = 's'
@@ -403,6 +407,7 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
         ports = {}
         # draw tail switch differently than rest of transistors, as it is single-ended.
         seg_tsw = seg_dict.get('tsw', 0)
+        stack_in = seg_dict.get('stack_in', 1)
         if seg_tsw > 0:
             # get transistor info
             mos_type, row_idx = self.get_row_index('nen')
@@ -415,7 +420,6 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
             ports['tail'] = [ntsw['s']]
             ports['nvdd'] = [ntsw['d']]
 
-        stack_in = seg_dict.get('stack_in', 1)
         for tran_name, tran_row in self.tran_list:
             stack = stack_in if tran_name == 'in' else 1
             fg = seg_dict.get(tran_row, 0) * stack
@@ -542,6 +546,7 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
         seg_casc = seg_dict.get('casc', 0)
         seg_but = seg_dict.get('but', 0)
         seg_tsw = seg_dict.get('tsw', 0)
+        en_only = seg_dict.get('en_only', False)
         fg_tot = amp_info['fg_tot']
         col_dict = amp_info['col_dict']
         sd_dict = amp_info['sd_dict']
@@ -604,15 +609,21 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
             pen1_tid = self.get_wire_id('pch', 0, 'g', wire_idx=idx_dict.get('pen1', 1))
             pclk0_tid = self.get_wire_id('pch', 1, 'g', wire_idx=idx_dict.get('pclk0', 0))
             pclk1_tid = self.get_wire_id('pch', 1, 'g', wire_idx=idx_dict.get('pclk1', 1))
-            pen0, pen1 = self.connect_differential_tracks(ports['pen0'], ports['pen1'], hm_layer,
-                                                          pen0_tid.base_index, pen1_tid.base_index,
-                                                          width=pen0_tid.width)
+            if en_only:
+                gate_wires = ports['pen0'] + ports['pen1']
+                pen0 = self.connect_to_tracks(gate_wires, pen1_tid)
+            else:
+                pen0, pen1 = self.connect_differential_tracks(ports['pen0'], ports['pen1'],
+                                                              hm_layer,
+                                                              pen0_tid.base_index,
+                                                              pen1_tid.base_index,
+                                                              width=pen0_tid.width)
+                ans['pen2'] = pen1
             pclk0, pclk1 = self.connect_differential_tracks(ports['pclk0'], ports['pclk1'],
                                                             hm_layer,  pclk0_tid.base_index,
                                                             pclk1_tid.base_index,
                                                             width=pclk0_tid.width)
             ans['pen3'] = pen0
-            ans['pen2'] = pen1
             ans['clkp'] = pclk1
             ans['clkn'] = pclk0
 

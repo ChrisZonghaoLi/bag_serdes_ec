@@ -80,8 +80,10 @@ class bag_serdes_ec__integ_amp(Module):
         master = load.master
         if master.has_clk:
             self.has_clkp = self.has_clkn = True
-        if master.has_en:
+        if master.has_en and not master.en_only:
             self.has_en2 = True
+        elif master.en_only:
+            self.reconnect_instance_terminal('XLOAD', 'en<3>', 'en<3>')
 
         if not self.has_clkp:
             self.remove_pin('clkp')

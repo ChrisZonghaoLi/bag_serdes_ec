@@ -26,6 +26,7 @@ class bag_serdes_ec__integ_load(Module):
         Module.__init__(self, bag_config, yaml_file, parent=parent, prj=prj, **kwargs)
         self.has_clk = False
         self.has_en = False
+        self.en_only = False
 
     @classmethod
     def get_params_info(cls):
@@ -56,6 +57,8 @@ class bag_serdes_ec__integ_load(Module):
         seg_en = seg_dict.get('pen', 0)
         w_en = w_dict.get('pen', 0)
         th_en = th_dict.get('pen', 'standard')
+        en_only = seg_dict.get('en_only', False)
+
         if seg_load <= 0:
             self.has_clk = False
             for name in self.load_names:
@@ -77,10 +80,16 @@ class bag_serdes_ec__integ_load(Module):
                 self.reconnect_instance_terminal('XPENP0', 'S', 'VDD')
                 self.reconnect_instance_terminal('XPENN0', 'S', 'VDD')
         else:
+            if en_only:
+                self.rename_pin('en<3:2>', 'en<3>')
+                self.en_only = True
             self.has_clk = self.has_en = True
             for name in self.load_names:
                 self.instances[name].design(w=w_load, l=lch, nf=seg_load, intent=th_load)
             for name in self.en_names:
                 self.instances[name].design(w=w_en, l=lch, nf=seg_en, intent=th_en)
+                if en_only:
+                    self.reconnect_instance_terminal(name, 'S', 'VDD')
+                    self.reconnect_instance_terminal(name, 'G', 'en<3>')
 
         self.design_dummy_transistors(dum_info, 'XDUM', 'VDD', 'VSS')
