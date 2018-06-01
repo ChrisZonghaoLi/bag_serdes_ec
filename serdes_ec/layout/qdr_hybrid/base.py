@@ -407,6 +407,7 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
         ports = {}
         # draw tail switch differently than rest of transistors, as it is single-ended.
         seg_tsw = seg_dict.get('tsw', 0)
+        seg_cap = seg_dict.get('cap', 0)
         stack_in = seg_dict.get('stack_in', 1)
         if seg_tsw > 0:
             # get transistor info
@@ -419,6 +420,25 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
             ports['nclk0'] = [ntsw['g']]
             ports['tail'] = [ntsw['s']]
             ports['nvdd'] = [ntsw['d']]
+        if seg_cap > 0:
+            # get transistor info
+            mos_type, row_idx = self.get_row_index('in')
+            col = col_dict['in']
+            colp = col_idx + col - 4 - seg_cap * 2
+            coln = col_idx + (fg_tot - col + 4)
+
+            # draw transistors
+            capl = self.draw_mos_conn(mos_type, row_idx, colp, seg_cap * 2, 0, 0,
+                                      s_net='', d_net='', stack=2, gate_interleave=True)
+            capr = self.draw_mos_conn(mos_type, row_idx, coln, seg_cap * 2, 0, 0,
+                                      s_net='', d_net='', stack=2, flip_lr=True,
+                                      gate_interleave=True)
+            ports['VSS'] = [capl['d'], capl['s'], capr['d'], capr['s']]
+            ports['inp'] = [capr['g']]
+            ports['inn'] = [capl['g']]
+        else:
+            ports['inp'] = []
+            ports['inn'] = []
 
         for tran_name, tran_row in self.tran_list:
             stack = stack_in if tran_name == 'in' else 1
@@ -471,15 +491,16 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
 
                 # draw transistors
                 mp = self.draw_mos_conn(mos_type, row_idx, colp, fg, sdir, ddir, stack=stack,
-                                        s_net=s_pre + snetpl + s_suf, d_net=d_pre + dnetpl + d_suf)
+                                        s_net=s_pre + snetpl + s_suf, d_net=d_pre + dnetpl + d_suf,
+                                        gate_interleave=True)
                 mn = self.draw_mos_conn(mos_type, row_idx, coln, fg, sdir, ddir, stack=stack,
                                         s_net=s_pre + snetnl + s_suf, d_net=d_pre + dnetnl + d_suf,
-                                        flip_lr=True)
+                                        flip_lr=True, gate_interleave=True)
                 gnet = self.gate_dict[tran_name]
                 # save gate port
                 if tran_name == 'in':
-                    ports[gnet + 'p'] = [mn['g']]
-                    ports[gnet + 'n'] = [mp['g']]
+                    ports['inp'].append(mn['g'])
+                    ports['inn'].append(mp['g'])
                 else:
                     ports[gnet] = [mp['g'], mn['g']]
                 # save drain/source ports
