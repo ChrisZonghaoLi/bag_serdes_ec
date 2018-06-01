@@ -21,6 +21,7 @@ class bag_serdes_ec__qdr_tapx_summer(Module):
 
     def __init__(self, bag_config, parent=None, prj=None, **kwargs):
         Module.__init__(self, bag_config, yaml_file, parent=parent, prj=prj, **kwargs)
+        self.en_only = False
 
     @classmethod
     def get_params_info(cls):
@@ -161,10 +162,15 @@ class bag_serdes_ec__qdr_tapx_summer(Module):
 
         # design load
         nin = len(load_params_list)
-        self.instances['XLOAD'].design(load_params_list=load_params_list, nin=nin)
+        inst_load = self.instances['XLOAD']
+        inst_load.design(load_params_list=load_params_list, nin=nin)
         suf = '<%d:0>' % (nin - 1)
         self.reconnect_instance_terminal('XLOAD', 'iip' + suf, 'iip' + suf)
         self.reconnect_instance_terminal('XLOAD', 'iin' + suf, 'iin' + suf)
+        if inst_load.master.en_only:
+            self.en_only = True
+            self.reconnect_instance_terminal('XLOAD', 'en<3>', 'en<2>')
+            self.rename_pin('en<3:1>', 'en<3:2>')
 
         # for now has_set is always False
         for name in ('setp', 'setn', 'pulse_in'):

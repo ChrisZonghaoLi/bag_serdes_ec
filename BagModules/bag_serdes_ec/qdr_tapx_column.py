@@ -89,9 +89,13 @@ class bag_serdes_ec__qdr_tapx_column(Module):
 
         # design instances
         for idx in range(4):
-            self.instances['X%d' % idx].design(ffe_params_list=ffe_params_list,
-                                               dfe_params_list=dfe_params_list,
-                                               dfe2_params=dfe2_params)
+            inst_name = 'X%d' % idx
+            inst = self.instances[inst_name]
+            inst.design(ffe_params_list=ffe_params_list, dfe_params_list=dfe_params_list,
+                        dfe2_params=dfe2_params)
+            if inst.master.en_only:
+                net_name = 'en<%d>,en<%d>' % (idx, (idx - 1) % 4)
+                self.reconnect_instance_terminal(inst_name, 'en<3:2>', net_name)
 
         # rename pins
         if num_ffe == 1:

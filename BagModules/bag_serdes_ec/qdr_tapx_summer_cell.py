@@ -54,6 +54,9 @@ class bag_serdes_ec__qdr_tapx_summer_cell(Module):
                 self.remove_pin('casc<1:0>')
                 self.has_casc = False
 
+        if not l_inst.master.has_en2:
+            self.reconnect_instance_terminal('XLAT', 'en<3>', 'en<3>')
+
         # for now has_set is always False
         for name in ('setp', 'setn', 'pulse'):
             self.remove_pin(name)
