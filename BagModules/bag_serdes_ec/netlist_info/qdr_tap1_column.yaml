@@ -1,6 +1,6 @@
 lib_name: bag_serdes_ec
 cell_name: qdr_tap1_column
-pins: [ "VDD", "VSS", "inp<3:0>", "inn<3:0>", "bias_f<3:0>", "clkp", "clkn", "scan_div<3:2>", "outp<3:0>", "outn<3:0>", "outp_d<3:0>", "outn_d<3:0>", "bias_d<3:0>", "bias_m<3:0>", "en_div" ]
+pins: [ "VDD", "VSS", "inp<3:0>", "inn<3:0>", "en<3:0>", "bias_f<3:0>", "clkp", "clkn", "scan_div<3:2>", "outp<3:0>", "outn<3:0>", "outp_d<3:0>", "outn_d<3:0>", "bias_d<3:0>", "bias_m<3:0>", "en_div" ]
 instances:
   X1:
     lib_name: bag_serdes_ec
@@ -379,6 +379,10 @@ instances:
     cell_name: opin
     instpins: {}
   PIN9:
+    lib_name: basic
+    cell_name: opin
+    instpins: {}
+  PIN18:
     lib_name: basic
     cell_name: opin
     instpins: {}

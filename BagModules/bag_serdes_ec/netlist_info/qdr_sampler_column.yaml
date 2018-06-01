@@ -1,6 +1,6 @@
 lib_name: bag_serdes_ec
 cell_name: qdr_sampler_column
-pins: [ "VDD", "VSS", "inp_data<3:0>", "inn_data<3:0>", "inp_dlev<3:0>", "inn_dlev<3:0>", "clkp", "clkn", "data<3:0>", "scan_div<3:2>", "en_div", "dlev<3:0>", "des_clk", "des_clkb" ]
+pins: [ "VDD", "VSS", "inp_data<3:0>", "inn_data<3:0>", "inp_dlev<3:0>", "inn_dlev<3:0>", "clkp", "clkn", "data<3:0>", "scan_div<3:2>", "en_div", "en<3:0>", "dlev<3:0>", "des_clk", "des_clkb", "sa_data<3:0>", "sa_dlev<3:0>" ]
 instances:
   PIN1:
     lib_name: basic
@@ -50,7 +50,19 @@ instances:
     lib_name: basic
     cell_name: opin
     instpins: {}
+  PIN14:
+    lib_name: basic
+    cell_name: opin
+    instpins: {}
   PIN11:
+    lib_name: basic
+    cell_name: opin
+    instpins: {}
+  PIN15:
+    lib_name: basic
+    cell_name: opin
+    instpins: {}
+  PIN16:
     lib_name: basic
     cell_name: opin
     instpins: {}

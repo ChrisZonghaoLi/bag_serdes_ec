@@ -22,26 +22,6 @@ instances:
         direction: inputOutput
         net_name: "inp"
         num_bits: 1
-  XCAPL:
-    lib_name: bag_analog_ec
-    cell_name: nch_stack
-    instpins:
-      S:
-        direction: inputOutput
-        net_name: "VSS"
-        num_bits: 1
-      D:
-        direction: inputOutput
-        net_name: "VSS"
-        num_bits: 1
-      B:
-        direction: inputOutput
-        net_name: "VSS"
-        num_bits: 1
-      G:
-        direction: inputOutput
-        net_name: "inn"
-        num_bits: 1
   XINN:
     lib_name: bag_analog_ec
     cell_name: nch_stack
@@ -61,6 +41,26 @@ instances:
       G:
         direction: inputOutput
         net_name: "inp"
+        num_bits: 1
+  XCAPL:
+    lib_name: bag_analog_ec
+    cell_name: nch_stack
+    instpins:
+      S:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      D:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      B:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      G:
+        direction: inputOutput
+        net_name: "inn"
         num_bits: 1
   XINP:
     lib_name: bag_analog_ec

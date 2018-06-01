@@ -194,6 +194,74 @@ instances:
     lib_name: bag_serdes_ec
     cell_name: qdr_datapath
     instpins:
+      en_samp<3:0>:
+        direction: output
+        net_name: "en_samp<3:0>"
+        num_bits: 4
+      en_tap1<3:0>:
+        direction: output
+        net_name: "en_tap1<3:0>"
+        num_bits: 4
+      en_tapx<3:0>:
+        direction: output
+        net_name: "en_tapx<3:0>"
+        num_bits: 4
+      inn_tap1<3:0>:
+        direction: output
+        net_name: "inn_tap1<3:0>"
+        num_bits: 4
+      inp_tap1<3:0>:
+        direction: output
+        net_name: "inp_tap1<3:0>"
+        num_bits: 4
+      outn_a<3:0>:
+        direction: output
+        net_name: "outn_a<3:0>"
+        num_bits: 4
+      outn_data<7:0>:
+        direction: output
+        net_name: "outn_data<7:0>"
+        num_bits: 8
+      outn_dlev<3:0>:
+        direction: output
+        net_name: "outn_dlev<3:0>"
+        num_bits: 4
+      outn_tap1<3:0>:
+        direction: output
+        net_name: "outn_tap1<3:0>"
+        num_bits: 4
+      outn_tapx<3:0>:
+        direction: output
+        net_name: "outn_tapx<3:0>"
+        num_bits: 4
+      outp_a<3:0>:
+        direction: output
+        net_name: "outp_a<3:0>"
+        num_bits: 4
+      outp_data<7:0>:
+        direction: output
+        net_name: "outp_data<7:0>"
+        num_bits: 8
+      outp_dlev<3:0>:
+        direction: output
+        net_name: "outp_dlev<3:0>"
+        num_bits: 4
+      outp_tap1<3:0>:
+        direction: output
+        net_name: "outp_tap1<3:0>"
+        num_bits: 4
+      outp_tapx<3:0>:
+        direction: output
+        net_name: "outp_tapx<3:0>"
+        num_bits: 4
+      sa_data<3:0>:
+        direction: output
+        net_name: "sa_data<3:0>"
+        num_bits: 4
+      sa_dlev<3:0>:
+        direction: output
+        net_name: "sa_dlev<3:0>"
+        num_bits: 4
       en_div:
         direction: input
         net_name: "enable_divider"
