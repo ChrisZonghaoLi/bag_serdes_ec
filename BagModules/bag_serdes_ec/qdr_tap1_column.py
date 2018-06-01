@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from typing import Dict
+from typing import Dict, Any
 
 import os
 import pkg_resources
@@ -29,9 +29,17 @@ class bag_serdes_ec__qdr_tap1_column(Module):
             sum_params='summer row parameters.',
             lat_params='latch parameters.',
             div_params='divider column parameters.',
+            export_probe='True to export probe ports.',
         )
 
-    def design(self, sum_params, lat_params, div_params):
+    @classmethod
+    def get_default_param_values(cls):
+        # type: () -> Dict[str, Any]
+        return dict(
+            export_probe=False,
+        )
+
+    def design(self, sum_params, lat_params, div_params, export_probe):
         self.instances['X0'].design(sum_params=sum_params, lat_params=lat_params)
         self.instances['X1'].design(sum_params=sum_params, lat_params=lat_params)
         self.instances['X2'].design(sum_params=sum_params, lat_params=lat_params)
@@ -39,3 +47,5 @@ class bag_serdes_ec__qdr_tap1_column(Module):
         self.instances['XDIV'].design(**div_params)
 
         self.has_hp = self.instances['X0'].master.has_hp
+        if not export_probe:
+            self.remove_pin('en<3:0>')

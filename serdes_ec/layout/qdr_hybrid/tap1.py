@@ -561,6 +561,7 @@ class Tap1Column(TemplateBase):
             sup_tids='supply tracks information for a summer.',
             sch_hp_params='Schematic high-pass filter parameters.',
             show_pins='True to create pin labels.',
+            export_probe='True to export probe ports.',
         )
 
     @classmethod
@@ -572,6 +573,7 @@ class Tap1Column(TemplateBase):
             sup_tids=None,
             sch_hp_params=None,
             show_pins=True,
+            export_probe=False,
         )
 
     def draw_layout(self):
@@ -579,6 +581,7 @@ class Tap1Column(TemplateBase):
         tr_widths = self.params['tr_widths']
         tr_spaces = self.params['tr_spaces']
         show_pins = self.params['show_pins']
+        export_probe = self.params['export_probe']
 
         sum_master, end_row_master, div2_master, div3_master = self._make_masters()
 
@@ -683,8 +686,10 @@ class Tap1Column(TemplateBase):
         # draw enable wires
         en_locs = sum_master.en_locs
         vm_w_en = tr_manager.get_width(vm_layer, 'en')
-        for tr_idx, en_warr in zip(en_locs, en_warrs):
-            self.connect_to_tracks(en_warr, TrackID(vm_layer, tr_idx, width=vm_w_en))
+        for en_idx, (tr_idx, en_warr) in enumerate(zip(en_locs, en_warrs)):
+            en_warr = self.connect_to_tracks(en_warr, TrackID(vm_layer, tr_idx, width=vm_w_en))
+            if export_probe:
+                self.add_pin('en<%d>' % en_idx, en_warr, show=True)
 
         # draw clock/bias_f wires
         vm_w_clk = tr_manager.get_width(vm_layer, 'clk')
@@ -801,6 +806,7 @@ class Tap1Column(TemplateBase):
             sum_params=sum_master.sch_params['sum_params'],
             lat_params=sum_master.sch_params['lat_params'],
             div_params=div3_master.sch_params,
+            export_probe=export_probe,
         )
         inp = sum_master.get_port('inp').get_pins()[0].track_id
         inn = sum_master.get_port('inn').get_pins()[0].track_id

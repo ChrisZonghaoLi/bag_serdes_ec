@@ -1079,6 +1079,7 @@ class SamplerColumn(TemplateBase):
             div_tr_info='divider track information dictionary.',
             options='other AnalogBase options',
             show_pins='True to draw pin geometries.',
+            export_probe='True to export probe ports.',
         )
 
     @classmethod
@@ -1087,12 +1088,14 @@ class SamplerColumn(TemplateBase):
         return dict(
             options=None,
             show_pins=True,
+            export_probe=False,
         )
 
     def draw_layout(self):
         tr_widths = self.params['tr_widths']
         tr_spaces = self.params['tr_spaces']
         show_pins = self.params['show_pins']
+        export_probe = self.params['export_probe']
 
         div_master, sa_master, re_master, buf_master = self._make_masters()
 
@@ -1131,14 +1134,16 @@ class SamplerColumn(TemplateBase):
 
         # connect senseamp outputs
         tr_w = tr_manager.get_width(vm_layer, 'out')
-        self._connect_io(sa_inst, re_inst, re_master.sig_locs, tr_w, vm_layer, show_pins)
+        self._connect_io(sa_inst, re_inst, re_master.sig_locs, tr_w, vm_layer, show_pins,
+                         export_probe)
 
         # connect supplies
         vdd_list = self._connect_supply(sa_inst, div_inst, re_inst, buf_h, show_pins)
 
         # connect enable wires
         ym_layer = vm_layer + 2
-        self._connect_clk(ym_layer, tr_manager, vdd_list, sa_inst, div_inst, re_inst, show_pins)
+        self._connect_clk(ym_layer, tr_manager, vdd_list, sa_inst, div_inst, re_inst, show_pins,
+                          export_probe)
 
         # export retimer outputs
         for name in re_inst.port_names_iter():
@@ -1149,6 +1154,7 @@ class SamplerColumn(TemplateBase):
             sa_params=sa_master.sch_params,
             div_params=div_master.sch_params,
             re_params=re_master.sch_params,
+            export_probe=export_probe,
         )
 
     def _connect_supply(self, sa_inst, div_inst, re_inst, buf_h, show_pins):
@@ -1191,7 +1197,8 @@ class SamplerColumn(TemplateBase):
         self.add_pin('VSS_re', re_vssr, label='VSS', show=False)
         return vdd_warrs
 
-    def _connect_clk(self, ym_layer, tr_manager, vdd_list, sa_inst, div_inst, re_inst, show_pins):
+    def _connect_clk(self, ym_layer, tr_manager, vdd_list, sa_inst, div_inst, re_inst, show_pins,
+                     export_probe):
         xc = div_inst.get_pin('en<0>').middle_unit
         tr0 = self.grid.coord_to_nearest_track(ym_layer, xc, half_track=True, mode=-1,
                                                unit_mode=True)
@@ -1218,6 +1225,8 @@ class SamplerColumn(TemplateBase):
             en_list.extend(div_inst.port_pins_iter(en_name))
             ym_tr = self.connect_to_tracks(en_list, TrackID(ym_layer, locs[idx + 4] + dtr,
                                                             width=tr_w))
+            if export_probe:
+                self.add_pin(en_name, ym_tr, show=True)
             tr_lower = min(tr_lower, ym_tr.lower_unit)
             tr_upper = max(tr_upper, ym_tr.upper_unit)
             en_re = re_inst.get_pin(en_name)
@@ -1246,7 +1255,7 @@ class SamplerColumn(TemplateBase):
         self.add_pin('clkp', clkp, show=show_pins)
         self.add_pin('clkn', clkn, show=show_pins)
 
-    def _connect_io(self, sa_inst, re_inst, sig_locs_m, tr_w, vm_layer, show_pins):
+    def _connect_io(self, sa_inst, re_inst, sig_locs_m, tr_w, vm_layer, show_pins, export_probe):
         tr_off = 0
         for idx in range(4):
             suf = '<%d>' % idx
@@ -1255,7 +1264,11 @@ class SamplerColumn(TemplateBase):
                 tr_idx = re_inst.translate_master_track(vm_layer, sig_locs_m[tr_off])
                 tr_off += 1
                 tid = TrackID(vm_layer, tr_idx, width=tr_w)
-                self.connect_to_tracks([sa_inst.get_pin(pname), re_inst.get_pin(pname)], tid)
+                warr = self.connect_to_tracks([sa_inst.get_pin(pname), re_inst.get_pin(pname)],
+                                              tid)
+                if export_probe:
+                    self.add_pin(pname, warr, show=True)
+
             for name in ('inp_data', 'inn_data', 'inp_dlev', 'inn_dlev'):
                 self.reexport(sa_inst.get_port(name + suf), show=show_pins)
 
