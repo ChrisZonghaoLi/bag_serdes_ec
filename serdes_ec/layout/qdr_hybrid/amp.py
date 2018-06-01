@@ -296,11 +296,12 @@ class IntegAmp(HybridQDRBase):
         nw_dict = {k: v for k, v in w_dict.items() if k != 'load' and k != 'pen'}
         nth_dict = {k: v for k, v in th_dict.items() if k != 'load' and k != 'pen'}
         nseg_dict = {k: v for k, v in seg_dict.items()
-                     if k != 'load' and k != 'pen' and k != 'en_only'}
+                     if k != 'load' and k != 'pen' and k != 'en_only' and k != 'en_swap'}
         pw_dict = {'load': w_dict.get('load', 0), 'pen': w_dict.get('pen', 0)}
         pth_dict = {'load': th_dict.get('load', 'standard'), 'pen': th_dict.get('pen', 'standard')}
         pseg_dict = {'load': seg_dict.get('load', 0), 'pen': seg_dict.get('pen', 0),
-                     'en_only': seg_dict.get('en_only', False)}
+                     'en_only': seg_dict.get('en_only', False),
+                     'en_swap': seg_dict.get('en_swap', False)}
 
         return dict(
             load_params=dict(

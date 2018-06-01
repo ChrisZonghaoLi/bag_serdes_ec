@@ -547,6 +547,7 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
         seg_but = seg_dict.get('but', 0)
         seg_tsw = seg_dict.get('tsw', 0)
         en_only = seg_dict.get('en_only', False)
+        en_swap = seg_dict.get('en_swap', False)
         fg_tot = amp_info['fg_tot']
         col_dict = amp_info['col_dict']
         sd_dict = amp_info['sd_dict']
@@ -618,14 +619,22 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
                                                               pen0_tid.base_index,
                                                               pen1_tid.base_index,
                                                               width=pen0_tid.width)
-                ans['pen2'] = pen1
+                if en_swap:
+                    ans['clkp'] = pen1
+                else:
+                    ans['pen2'] = pen1
             pclk0, pclk1 = self.connect_differential_tracks(ports['pclk0'], ports['pclk1'],
                                                             hm_layer,  pclk0_tid.base_index,
                                                             pclk1_tid.base_index,
                                                             width=pclk0_tid.width)
-            ans['pen3'] = pen0
-            ans['clkp'] = pclk1
-            ans['clkn'] = pclk0
+            if en_swap:
+                ans['clkn'] = pen0
+                ans['pen2'] = pclk1
+                ans['pen3'] = pclk0
+            else:
+                ans['pen3'] = pen0
+                ans['clkp'] = pclk1
+                ans['clkn'] = pclk0
 
         # connect cascode if necessary
         if seg_casc > 0 or seg_but > 0:

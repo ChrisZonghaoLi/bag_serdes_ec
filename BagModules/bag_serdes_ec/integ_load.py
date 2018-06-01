@@ -58,6 +58,7 @@ class bag_serdes_ec__integ_load(Module):
         w_en = w_dict.get('pen', 0)
         th_en = th_dict.get('pen', 'standard')
         en_only = seg_dict.get('en_only', False)
+        en_swap = seg_dict.get('en_swap', False)
 
         if seg_load <= 0:
             self.has_clk = False
@@ -91,5 +92,14 @@ class bag_serdes_ec__integ_load(Module):
                 if en_only:
                     self.reconnect_instance_terminal(name, 'S', 'VDD')
                     self.reconnect_instance_terminal(name, 'G', 'en<3>')
+            if en_swap:
+                self.reconnect_instance_terminal('XLOADP0', 'G', 'en<3>')
+                self.reconnect_instance_terminal('XPENP0', 'G', 'clkn')
+                self.reconnect_instance_terminal('XLOADP1', 'G', 'en<2>')
+                self.reconnect_instance_terminal('XPENP1', 'G', 'clkp')
+                self.reconnect_instance_terminal('XLOADN0', 'G', 'en<3>')
+                self.reconnect_instance_terminal('XPENN0', 'G', 'clkn')
+                self.reconnect_instance_terminal('XLOADN1', 'G', 'en<2>')
+                self.reconnect_instance_terminal('XPENN1', 'G', 'clkp')
 
         self.design_dummy_transistors(dum_info, 'XDUM', 'VDD', 'VSS')
