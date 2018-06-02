@@ -689,7 +689,7 @@ class Tap1Column(TemplateBase):
         for en_idx, (tr_idx, en_warr) in enumerate(zip(en_locs, en_warrs)):
             en_warr = self.connect_to_tracks(en_warr, TrackID(vm_layer, tr_idx, width=vm_w_en))
             if export_probe:
-                self.add_pin('en<%d>' % en_idx, en_warr, show=True)
+                self.add_pin('en<%d>' % en_idx, en_warr, show=show_pins)
 
         # draw clock/bias_f wires
         vm_w_clk = tr_manager.get_width(vm_layer, 'clk')

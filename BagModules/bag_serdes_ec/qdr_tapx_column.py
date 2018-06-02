@@ -18,18 +18,14 @@ class bag_serdes_ec__qdr_tapx_column(Module):
     Fill in high level description here.
     """
 
+    probe_names = ['en<3:0>', 'outp_a<3:0>', 'outn_a<3:0>', 'outp_d<3:0>', 'outn_d<3:0>']
+
     def __init__(self, bag_config, parent=None, prj=None, **kwargs):
         Module.__init__(self, bag_config, yaml_file, parent=parent, prj=prj, **kwargs)
-        self._num_ffe = None
-        self._num_dfe = None
-
-    @property
-    def num_ffe(self):
-        return self._num_ffe
-
-    @property
-    def num_dfe(self):
-        return self._num_dfe
+        self.num_ffe = None
+        self.num_dfe = None
+        self.probe_suf_ffe = None
+        self.probe_dfe_max_idx = None
 
     @classmethod
     def get_params_info(cls):
@@ -53,10 +49,10 @@ class bag_serdes_ec__qdr_tapx_column(Module):
         num_ffe = len(ffe_params_list)
         if dfe_params_list is None:
             num_dfe = -1
-            self._num_dfe = 0
+            self.num_dfe = 0
         else:
-            self._num_dfe = num_dfe = len(dfe_params_list) + 2
-        self._num_ffe = num_ffe - 1
+            self.num_dfe = num_dfe = len(dfe_params_list) + 2
+        self.num_ffe = num_ffe - 1
 
         if num_dfe == 2 or num_dfe == 3:
             # TODO: add support for 2 or 3 taps.
@@ -72,21 +68,21 @@ class bag_serdes_ec__qdr_tapx_column(Module):
         max_ffe = 4 * (num_ffe - 1)
         max_dfe = 0 if num_dfe < 0 else 4 * num_dfe
         # handle probe ports
-        if not export_probe:
-            for name in ('en<3:0>', 'outp_a<3:0>', 'outn_a<3:0>', 'outp_d<3:0>', 'outn_d<3:0>'):
-                self.remove_pin(name)
-        else:
-            asuf = '<%d:0>' % (max_ffe + 3)
+        if export_probe:
+            self.probe_suf_ffe = asuf = '<%d:0>' % (max_ffe + 3)
             self.rename_pin('outp_a<3:0>', 'outp_a' + asuf)
             self.rename_pin('outn_a<3:0>', 'outn_a' + asuf)
             if num_dfe < 3:
                 self.remove_pin('outp_d<3:0>')
                 self.remove_pin('outn_d<3:0>')
             else:
+                self.probe_dfe_max_idx = max_dfe + 3
                 dsuf = '<%d:12>' % (max_dfe + 3)
                 self.rename_pin('outp_d<3:0>', 'outp_d' + dsuf)
                 self.rename_pin('outn_d<3:0>', 'outn_d' + dsuf)
-
+        else:
+            for name in self.probe_names:
+                self.remove_pin(name)
         # design instances
         for idx in range(4):
             inst_name = 'X%d' % idx

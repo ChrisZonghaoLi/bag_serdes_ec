@@ -132,6 +132,7 @@ class RXDatapath(TemplateBase):
             x_margin='space between fill wires and left/right edge.',
             ana_options='other AnalogBase options',
             show_pins='True to create pin labels.',
+            export_probe='True to export probe ports.',
         )
 
     @classmethod
@@ -144,12 +145,14 @@ class RXDatapath(TemplateBase):
             x_margin=100,
             ana_options=None,
             show_pins=True,
+            export_probe=False,
         )
 
     def draw_layout(self):
         show_pins = self.params['show_pins']
+        export_probe = self.params['export_probe']
 
-        tmp = self._create_masters()
+        tmp = self._create_masters(export_probe)
         master_tapx, master_tap1, master_offset, master_loff, master_samp = tmp
 
         # place instances
@@ -189,7 +192,7 @@ class RXDatapath(TemplateBase):
         self._en_div_tidx = ym_tidx
         self.reserve_tracks(top_layer, ym_tidx)
 
-        self._connect_signals(tapx, tap1, offset, offlev, samp)
+        self._connect_signals(tapx, tap1, offset, offlev, samp, show_pins, export_probe)
 
         self._export_pins(tapx, tap1, offset, offlev, samp, show_pins)
 
@@ -203,6 +206,7 @@ class RXDatapath(TemplateBase):
             tap1_params=master_tap1.sch_params,
             loff_params=master_loff.sch_params,
             samp_params=master_samp.sch_params,
+            export_probe=export_probe,
         )
         self._num_ffe = master_tapx.num_ffe
         self._num_dfe = master_tapx.num_dfe
@@ -345,23 +349,53 @@ class RXDatapath(TemplateBase):
             self.reexport(samp.get_port('data' + off_suf), show=show_pins)
             self.reexport(samp.get_port('dlev' + off_suf), show=show_pins)
 
-    def _connect_signals(self, tapx, tap1, offset, offlev, samp):
+    def _connect_signals(self, tapx, tap1, offset, offlev, samp, show_pins, export_probe):
         # connect input/outputs that are track-aligned by construction
         io_list2 = [[], [], []]
         out_names = ['outp', 'outn']
         in_names = ['inp', 'inn']
         out_insts = [tapx, offset, tap1]
+        out_pnames = ['_tapx', None, '_tap1']
         in_insts = [offset, tap1, offlev]
+        in_pnames = [None, '_tap1', None]
         for idx in range(4):
             suf = '<%d>' % idx
             for name in out_names:
                 cur_name = name + suf
-                for io_list, inst in zip(io_list2, out_insts):
-                    io_list.extend(inst.port_pins_iter(cur_name))
+                for io_list, inst, pname in zip(io_list2, out_insts, out_pnames):
+                    pin = inst.get_pin(cur_name)
+                    io_list.append(pin)
+                    if pname is not None and export_probe:
+                        self.add_pin(name + pname + suf, pin, show=show_pins)
             for name in in_names:
                 cur_name = name + suf
-                for io_list, inst in zip(io_list2, in_insts):
-                    io_list.extend(inst.port_pins_iter(cur_name))
+                for io_list, inst, pname in zip(io_list2, in_insts, in_pnames):
+                    pin = inst.get_pin(cur_name)
+                    io_list.append(pin)
+                    if pname is not None and export_probe:
+                        self.add_pin(name + pname + suf, pin, show=show_pins)
+            if export_probe:
+                # export enable signal probes
+                en_name = 'en' + suf
+                self.add_pin('en_tapx' + suf, tapx.get_pin(en_name), show=show_pins)
+                self.add_pin('en_tap1' + suf, tap1.get_pin(en_name), show=show_pins)
+                self.add_pin('en_samp' + suf, samp.get_pin(en_name), show=show_pins)
+                sa_l = 'sa_dlev' + suf
+                self.add_pin(sa_l, samp.get_pin(sa_l), show=show_pins)
+                sa_d = 'sa_data' + suf
+                self.add_pin(sa_d, samp.get_pin(sa_d), show=show_pins)
+
+        # add signal chain probes
+        if export_probe:
+            for idx in tapx.master.probe_range_iter(analog=True):
+                suf = '<%d>' % idx
+                self.reexport(tapx.get_port('outp_a' + suf), show=show_pins)
+                self.reexport(tapx.get_port('outn_a' + suf), show=show_pins)
+            for idx in tapx.master.probe_range_iter(analog=False):
+                suf = '<%d>' % idx
+                suf2 = '<%d>' % (idx - 8)
+                self.add_pin('outp_data' + suf2, tapx.get_pin('outp_d' + suf), show=show_pins)
+                self.add_pin('outn_data' + suf2, tapx.get_pin('outn_d' + suf), show=show_pins)
 
         for io_list in io_list2:
             self.connect_wires(io_list)
@@ -378,14 +412,19 @@ class RXDatapath(TemplateBase):
             self.connect_differential_wires(inp, inn, outp_lev, outn_lev, unit_mode=True)
             inp = tap1.get_pin('outp_d' + out_suf)
             inn = tap1.get_pin('outn_d' + out_suf)
-            outp_lev = samp.get_pin('inp_data' + out_suf)
-            outn_lev = samp.get_pin('inn_data' + out_suf)
-            self.connect_differential_wires(inp, inn, outp_lev, outn_lev, unit_mode=True)
+            outp_data = samp.get_pin('inp_data' + out_suf)
+            outn_data = samp.get_pin('inn_data' + out_suf)
+            self.connect_differential_wires(inp, inn, outp_data, outn_data, unit_mode=True)
             outp_d = tapx.get_pin('inp_d' + out_suf)
             outn_d = tapx.get_pin('inn_d' + out_suf)
             self.connect_differential_wires(inp, inn, outp_d, outn_d, unit_mode=True)
+            if export_probe:
+                self.add_pin('outp_data' + out_suf, outp_data, show=show_pins)
+                self.add_pin('outn_data' + out_suf, outn_data, show=show_pins)
+                self.add_pin('outp_dlev' + out_suf, outp_lev, show=show_pins)
+                self.add_pin('outn_dlev' + out_suf, outn_lev, show=show_pins)
 
-    def _create_masters(self):
+    def _create_masters(self, export_probe):
         config = self.params['config']
         ptap_w = self.params['ptap_w']
         ntap_w = self.params['ntap_w']
@@ -419,6 +458,7 @@ class RXDatapath(TemplateBase):
         tapx_params['tr_spaces'] = tr_spaces
         tapx_params['options'] = ana_options
         tapx_params['show_pins'] = False
+        tapx_params['export_probe'] = export_probe
         master_tapx = self.new_template(params=tapx_params, temp_cls=TapXColumn)
         row_heights = master_tapx.row_heights
         sup_tids = master_tapx.sup_tids
@@ -443,6 +483,7 @@ class RXDatapath(TemplateBase):
         tap1_params['row_heights'] = row_heights
         tap1_params['sup_tids'] = sup_tids
         tap1_params['show_pins'] = False
+        tap1_params['export_probe'] = export_probe
         master_tap1 = self.new_template(params=tap1_params, temp_cls=Tap1Column)
         tap1_in_tr_info = master_tap1.in_tr_info
         tap1_out_tr_info = master_tap1.out_tr_info
@@ -494,6 +535,7 @@ class RXDatapath(TemplateBase):
         samp_params['div_tr_info'] = master_tap1.div_tr_info
         samp_params['options'] = ana_options
         samp_params['show_pins'] = False
+        samp_params['export_probe'] = export_probe
         master_samp = self.new_template(params=samp_params, temp_cls=SamplerColumn)
         self._retime_ncol = master_samp.retime_ncol
 

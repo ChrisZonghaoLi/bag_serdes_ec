@@ -1226,7 +1226,7 @@ class SamplerColumn(TemplateBase):
             ym_tr = self.connect_to_tracks(en_list, TrackID(ym_layer, locs[idx + 4] + dtr,
                                                             width=tr_w))
             if export_probe:
-                self.add_pin(en_name, ym_tr, show=True)
+                self.add_pin(en_name, ym_tr, show=show_pins)
             tr_lower = min(tr_lower, ym_tr.lower_unit)
             tr_upper = max(tr_upper, ym_tr.upper_unit)
             en_re = re_inst.get_pin(en_name)
@@ -1267,7 +1267,7 @@ class SamplerColumn(TemplateBase):
                 warr = self.connect_to_tracks([sa_inst.get_pin(pname), re_inst.get_pin(pname)],
                                               tid)
                 if export_probe:
-                    self.add_pin(pname, warr, show=True)
+                    self.add_pin(pname, warr, show=show_pins)
 
             for name in ('inp_data', 'inn_data', 'inp_dlev', 'inn_dlev'):
                 self.reexport(sa_inst.get_port(name + suf), show=show_pins)

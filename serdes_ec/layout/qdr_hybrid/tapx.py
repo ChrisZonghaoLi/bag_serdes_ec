@@ -1025,6 +1025,14 @@ class TapXColumn(TemplateBase):
         # type: () -> List[int]
         return self._sup_y_list
 
+    def probe_range_iter(self, analog=True):
+        if analog:
+            yield from range(4 * (self.num_ffe + 1))
+        else:
+            num_dfe = self.num_dfe
+            if num_dfe > 2:
+                yield from range(12, 4 * (num_dfe + 1))
+
     @classmethod
     def get_params_info(cls):
         # type: () -> Dict[str, str]
@@ -1153,7 +1161,8 @@ class TapXColumn(TemplateBase):
 
             # connect DFE signals
             tmp = self._connect_signals(tr0, num_dfe, dfe_track_info, inst_list, ym_layer,
-                                        vm_w_out, 'd', export_probe, sig_off=2, is_ffe=False)
+                                        vm_w_out, 'd', show_pins, export_probe, sig_off=2,
+                                        is_ffe=False)
             for cidx, (warrp, warrn) in enumerate(zip(*tmp)):
                 self.add_pin('inp_d<%d>' % cidx, warrp, show=show_pins)
                 self.add_pin('inn_d<%d>' % cidx, warrn, show=show_pins)
@@ -1180,7 +1189,7 @@ class TapXColumn(TemplateBase):
 
         # connect FFE signals
         tmp = self._connect_signals(tr0, num_ffe, ffe_track_info, inst_list, ym_layer,
-                                    vm_w_out, 'a', export_probe, sig_off=0, is_ffe=True)
+                                    vm_w_out, 'a', show_pins, export_probe, sig_off=0, is_ffe=True)
         inp_warrs = []
         inn_warrs = []
         for warrp, warrn in zip(*tmp):
@@ -1293,7 +1302,7 @@ class TapXColumn(TemplateBase):
             tid = TrackID(vm_layer, locs[en_off + en_idx] + tr0, width=vm_w_en)
             warr = self.connect_to_tracks(en_warrs, tid)
             if export_probe:
-                self.add_pin(en_name, warr, show=True)
+                self.add_pin(en_name, warr, show=show_pins)
 
         # connect clocks
         vm_w_clk = tr_manager.get_width(vm_layer, 'clk')
@@ -1471,14 +1480,14 @@ class TapXColumn(TemplateBase):
             if export_probe:
                 en_cur = self.connect_wires(en_warrs[en_idx])
                 en_exp = en_cur[0].to_warr_list()[0]
-                self.add_pin('en<%d>' % en_idx, en_exp, show=export_probe)
+                self.add_pin('en<%d>' % en_idx, en_exp, show=show_pins)
             else:
                 en_cur = en_warrs[en_idx]
             self.connect_to_tracks(en_cur, tid)
             self.connect_to_tracks(div_warrs[en_idx], tid)
 
     def _connect_signals(self, tr0, num_sig, track_info, inst_list, vm_layer, vm_width, sig_type,
-                         export_probe, sig_off=0, is_ffe=True):
+                         show_pins, export_probe, sig_off=0, is_ffe=True):
         if is_ffe:
             in_dir = 1
             out_type = 'a'
@@ -1535,8 +1544,8 @@ class TapXColumn(TemplateBase):
                     inp_list.append(vwp)
                     inn_list.append(vwn)
                 elif export_probe:
-                    self.add_pin('outp_%s<%d>' % (out_type, sidx * 4 + cidx), vwp, show=True)
-                    self.add_pin('outn_%s<%d>' % (out_type, sidx * 4 + cidx), vwn, show=True)
+                    self.add_pin('outp_%s<%d>' % (out_type, sidx * 4 + cidx), vwp, show=show_pins)
+                    self.add_pin('outn_%s<%d>' % (out_type, sidx * 4 + cidx), vwn, show=show_pins)
 
         # connect end signals
         sidx = sig_off if is_ffe else num_sig + sig_off - 1
@@ -1549,8 +1558,8 @@ class TapXColumn(TemplateBase):
             vwp, vwn = self.connect_differential_tracks(sigp_dict[key], sign_dict[key], vm_layer,
                                                         trp, trn, width=vm_width)
             if export_probe:
-                self.add_pin('outp_%s<%d>' % (out_type, sidx * 4 + cidx), vwp, show=True)
-                self.add_pin('outn_%s<%d>' % (out_type, sidx * 4 + cidx), vwn, show=True)
+                self.add_pin('outp_%s<%d>' % (out_type, sidx * 4 + cidx), vwp, show=show_pins)
+                self.add_pin('outn_%s<%d>' % (out_type, sidx * 4 + cidx), vwn, show=show_pins)
 
         return inp_list, inn_list
 

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from typing import Dict
+from typing import Dict, Any
 
 import os
 import pkg_resources
@@ -18,6 +18,12 @@ class bag_serdes_ec__qdr_datapath(Module):
 
     Fill in high level description here.
     """
+
+    probe_names = ['en_tapx<3:0>', 'en_tap1<3:0>', 'en_samp<3:0>',
+                   'outp_a<3:0>', 'outn_a<3:0>', 'outp_data<7:0>', 'outn_data<7:0>',
+                   'outp_tapx<3:0>', 'outn_tapx<3:0>', 'inp_tap1<3:0>', 'inn_tap1<3:0>',
+                   'outp_tap1<3:0>', 'outn_tap1<3:0>', 'outp_dlev<3:0>', 'outn_dlev<3:0>',
+                   'sa_data<3:0>', 'sa_dlev<3:0>']
 
     def __init__(self, bag_config, parent=None, prj=None, **kwargs):
         Module.__init__(self, bag_config, yaml_file, parent=parent, prj=prj, **kwargs)
@@ -46,9 +52,17 @@ class bag_serdes_ec__qdr_datapath(Module):
             tap1_params='Tap1 summer parameters.',
             loff_params='dlev offset parameters.',
             samp_params='sampler parameters.',
+            export_probe='True to export probe ports.',
         )
 
-    def design(self, tapx_params, off_params, tap1_params, loff_params, samp_params):
+    @classmethod
+    def get_default_param_values(cls):
+        # type: () -> Dict[str, Any]
+        return dict(
+            export_probe=False,
+        )
+
+    def design(self, tapx_params, off_params, tap1_params, loff_params, samp_params, export_probe):
         self.instances['XTAPX'].design(**tapx_params)
         self.instances['XOFF'].design(**off_params)
         self.instances['XTAP1'].design(**tap1_params)
@@ -59,6 +73,32 @@ class bag_serdes_ec__qdr_datapath(Module):
         self._num_ffe = tapx_master.num_ffe
         self._num_dfe = tapx_master.num_dfe
         self._has_hp = self.instances['XTAP1'].master.has_hp
+
+        # handle probes
+        if export_probe:
+            asuf = tapx_master.probe_suf_ffe
+            pname = 'outp_a' + asuf
+            nname = 'outn_a' + asuf
+            self.rename_pin('outp_a<3:0>', pname)
+            self.rename_pin('outn_a<3:0>', nname)
+            self.reconnect_instance_terminal('XTAPX', pname, pname)
+            self.reconnect_instance_terminal('XTAPX', nname, nname)
+            max_dfe = tapx_master.probe_dfe_max_idx
+            if max_dfe is None:
+                self.rename_pin('outp_data<7:0>', 'outp_data<3:0>')
+                self.rename_pin('outn_data<7:0>', 'outn_data<3:0>')
+            else:
+                max_idx = max_dfe - 8
+                suf = '<%d:0>' % max_idx
+                self.rename_pin('outp_data<7:0>', 'outp_data' + suf)
+                self.rename_pin('outn_data<7:0>', 'outn_data' + suf)
+                xsuf = '<%d:12>' % max_dfe
+                osuf = '<%d:4>' % max_idx
+                self.reconnect_instance_terminal('XTAPX', 'outp_d' + xsuf, 'outp_data' + osuf)
+                self.reconnect_instance_terminal('XTAPX', 'outn_d' + xsuf, 'outn_data' + osuf)
+        else:
+            for name in self.probe_names:
+                self.remove_pin(name)
 
         # handle FFE pins
         if self._num_ffe == 0:
