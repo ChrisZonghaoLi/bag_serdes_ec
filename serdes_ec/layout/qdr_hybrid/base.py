@@ -77,6 +77,7 @@ class HybridQDRBaseInfo(AnalogBaseInfo):
         fg_sep_nmos = seg_dict.get('nsep', fg_sep_min)
         seg_casc = seg_dict.get('casc', 0)
         seg_but = seg_dict.get('but', 0)
+        seg_cap = seg_dict.get('cap', 0)
         stack_in = seg_dict.get('stack_in', 1)
         en_only = seg_dict.get('en_only', False)
 
@@ -134,6 +135,16 @@ class HybridQDRBaseInfo(AnalogBaseInfo):
         seg_tot = 2 * seg_single + fg_sep_amp
         fg_dum = max(fg_dum, -(-(fg_min - seg_tot) // 2))
         fg_tot = seg_tot + 2 * fg_dum
+
+        # calculate number of fingers if cap option is enabled
+        if seg_cap > 0:
+            fg_cap = -(-seg_cap // 2) * 2
+            fg_single_cap = max(fg_in, seg_nen) + fg_sep_nmos + fg_cap
+            fg_tot_cap = 2 * fg_single_cap + fg_sep_amp + 2 * fg_sep_min
+            if fg_tot_cap > fg_tot:
+                delta = -(-(fg_tot_cap - fg_tot) // 2)
+                fg_tot += 2 * delta
+                fg_dum += delta
 
         # compute column index of each transistor
         col_lc = fg_dum + seg_single
@@ -423,21 +434,27 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
             ports['nvdd'] = [ntsw['d']]
         if seg_cap > 0:
             # get transistor info
-            mos_type, row_idx = self.get_row_index('in')
-            col = col_dict['in']
-            colp = col_idx + col - seg_nsep - seg_cap
-            coln = col_idx + (fg_tot - col + seg_nsep)
+            seg_cap_in = -(-seg_cap // 2)
+            seg_cap_en = seg_cap - seg_cap_in
+            fg_cap_in = seg_cap_in * 2
+            fg_cap_en = seg_cap_en * 2
 
             # draw transistors
-            capl0 = self.draw_mos_conn(mos_type, row_idx, colp, seg_cap, 0, 0,
+            mos_type, row_idx = self.get_row_index('in')
+            col = col_dict['in']
+            colp_in = col_idx + col - seg_nsep - fg_cap_in
+            coln_in = col_idx + (fg_tot - col + seg_nsep)
+            capl0 = self.draw_mos_conn(mos_type, row_idx, colp_in, fg_cap_in, 0, 0,
                                        s_net='', d_net='', stack=2, gate_interleave=True)
-            capr0 = self.draw_mos_conn(mos_type, row_idx, coln, seg_cap, 0, 0,
+            capr0 = self.draw_mos_conn(mos_type, row_idx, coln_in, fg_cap_in, 0, 0,
                                        s_net='', d_net='', stack=2, flip_lr=True,
                                        gate_interleave=True)
             mos_type, row_idx = self.get_row_index('nen')
-            capl1 = self.draw_mos_conn(mos_type, row_idx, colp, seg_cap, 0, 0,
+            colp_en = colp_in + fg_cap_in - fg_cap_en
+            coln_en = coln_in
+            capl1 = self.draw_mos_conn(mos_type, row_idx, colp_en, fg_cap_en, 0, 0,
                                        s_net='', d_net='', stack=2, gate_interleave=True)
-            capr1 = self.draw_mos_conn(mos_type, row_idx, coln, seg_cap, 0, 0,
+            capr1 = self.draw_mos_conn(mos_type, row_idx, coln_en, fg_cap_en, 0, 0,
                                        s_net='', d_net='', stack=2, flip_lr=True,
                                        gate_interleave=True)
             ports['VSS'] = [capl0['d'], capl0['s'], capl1['d'], capl1['s'],
