@@ -130,7 +130,7 @@ class HybridQDRBaseInfo(AnalogBaseInfo):
             seg_but_tot = 0
 
         # calculate number of center fingers and total size
-        fg_sep_amp = fg_sep_nmos if seg_tsw == 0 else 2 * fg_sep_nmos + seg_tsw
+        fg_sep_amp = max(fg_sep_pmos, fg_sep_nmos) if seg_tsw == 0 else 2 * fg_sep_nmos + seg_tsw
         seg_single = max(seg_pmos, seg_casc, fg_in, seg_but_tot, seg_nen, seg_tail)
         seg_tot = 2 * seg_single + fg_sep_amp
         fg_dum = max(fg_dum, -(-(fg_min - seg_tot) // 2))
