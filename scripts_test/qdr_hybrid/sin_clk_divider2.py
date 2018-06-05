@@ -7,7 +7,7 @@ import yaml
 from bag.core import BagProject
 
 from serdes_ec.layout.qdr_hybrid.tap1 import Tap1Summer
-from serdes_ec.layout.laygo.divider import SinClkDivider2
+from serdes_ec.layout.laygo.divider import SinClkDivider
 
 
 def run_main(prj):
@@ -36,8 +36,8 @@ def run_main(prj):
 
     div_specs['params'].update(div_info)
 
-    prj.generate_cell(div_specs, SinClkDivider2, debug=True)
-    # prj.generate_cell(div_specs, SinClkDivider2, gen_sch=True, run_lvs=True, debug=True)
+    # prj.generate_cell(div_specs, SinClkDivider, debug=True)
+    prj.generate_cell(div_specs, SinClkDivider, gen_sch=True, debug=True)
 
 
 if __name__ == '__main__':

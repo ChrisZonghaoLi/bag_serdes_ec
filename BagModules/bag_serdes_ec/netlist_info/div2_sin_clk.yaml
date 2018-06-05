@@ -2,6 +2,106 @@ lib_name: bag_serdes_ec
 cell_name: div2_sin_clk
 pins: [ "VDD", "VSS", "clk", "en", "scan_s", "q", "qb" ]
 instances:
+  XNSETR:
+    lib_name: BAG_prim
+    cell_name: nmos4_standard
+    instpins:
+      S:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      D:
+        direction: inputOutput
+        net_name: "q"
+        num_bits: 1
+      B:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      G:
+        direction: inputOutput
+        net_name: "rst"
+        num_bits: 1
+  XNSETL:
+    lib_name: BAG_prim
+    cell_name: nmos4_standard
+    instpins:
+      S:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      D:
+        direction: inputOutput
+        net_name: "qb"
+        num_bits: 1
+      B:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      G:
+        direction: inputOutput
+        net_name: "rst"
+        num_bits: 1
+  XNDRVR:
+    lib_name: BAG_prim
+    cell_name: nmos4_standard
+    instpins:
+      S:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      D:
+        direction: inputOutput
+        net_name: "q"
+        num_bits: 1
+      B:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      G:
+        direction: inputOutput
+        net_name: "qb_sr"
+        num_bits: 1
+  XNDRVL:
+    lib_name: BAG_prim
+    cell_name: nmos4_standard
+    instpins:
+      S:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      D:
+        direction: inputOutput
+        net_name: "qb"
+        num_bits: 1
+      B:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      G:
+        direction: inputOutput
+        net_name: "q_sr"
+        num_bits: 1
+  XNEI:
+    lib_name: BAG_prim
+    cell_name: nmos4_standard
+    instpins:
+      S:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      D:
+        direction: inputOutput
+        net_name: "rst"
+        num_bits: 1
+      B:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      G:
+        direction: inputOutput
+        net_name: "en"
+        num_bits: 1
   XNINTR:
     lib_name: BAG_prim
     cell_name: nmos4_standard
@@ -100,7 +200,7 @@ instances:
         num_bits: 1
       G:
         direction: inputOutput
-        net_name: "q"
+        net_name: "q_sr"
         num_bits: 1
   XNINVL:
     lib_name: BAG_prim
@@ -120,7 +220,87 @@ instances:
         num_bits: 1
       G:
         direction: inputOutput
+        net_name: "qb_sr"
+        num_bits: 1
+  XPDRVR:
+    lib_name: BAG_prim
+    cell_name: pmos4_standard
+    instpins:
+      S:
+        direction: inputOutput
+        net_name: "nortail"
+        num_bits: 1
+      D:
+        direction: inputOutput
+        net_name: "q"
+        num_bits: 1
+      B:
+        direction: inputOutput
+        net_name: "VDD"
+        num_bits: 1
+      G:
+        direction: inputOutput
+        net_name: "qb_sr"
+        num_bits: 1
+  XPDRVL:
+    lib_name: BAG_prim
+    cell_name: pmos4_standard
+    instpins:
+      S:
+        direction: inputOutput
+        net_name: "nortail"
+        num_bits: 1
+      D:
+        direction: inputOutput
         net_name: "qb"
+        num_bits: 1
+      B:
+        direction: inputOutput
+        net_name: "VDD"
+        num_bits: 1
+      G:
+        direction: inputOutput
+        net_name: "q_sr"
+        num_bits: 1
+  XPEI:
+    lib_name: BAG_prim
+    cell_name: pmos4_standard
+    instpins:
+      S:
+        direction: inputOutput
+        net_name: "VDD"
+        num_bits: 1
+      D:
+        direction: inputOutput
+        net_name: "rst"
+        num_bits: 1
+      B:
+        direction: inputOutput
+        net_name: "VDD"
+        num_bits: 1
+      G:
+        direction: inputOutput
+        net_name: "en"
+        num_bits: 1
+  XPEN:
+    lib_name: BAG_prim
+    cell_name: pmos4_standard
+    instpins:
+      S:
+        direction: inputOutput
+        net_name: "VDD"
+        num_bits: 1
+      D:
+        direction: inputOutput
+        net_name: "nortail"
+        num_bits: 1
+      B:
+        direction: inputOutput
+        net_name: "VDD"
+        num_bits: 1
+      G:
+        direction: inputOutput
+        net_name: "rst"
         num_bits: 1
   XPENR:
     lib_name: BAG_prim
@@ -260,7 +440,7 @@ instances:
         num_bits: 1
       G:
         direction: inputOutput
-        net_name: "q"
+        net_name: "q_sr"
         num_bits: 1
   XPINVL:
     lib_name: BAG_prim
@@ -280,7 +460,7 @@ instances:
         num_bits: 1
       G:
         direction: inputOutput
-        net_name: "qb"
+        net_name: "qb_sr"
         num_bits: 1
   PIN1:
     lib_name: basic
@@ -328,11 +508,11 @@ instances:
         num_bits: 1
       q:
         direction: output
-        net_name: "q"
+        net_name: "q_sr"
         num_bits: 1
       qb:
         direction: output
-        net_name: "qb"
+        net_name: "qb_sr"
         num_bits: 1
       sb:
         direction: input

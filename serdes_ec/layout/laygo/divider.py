@@ -223,7 +223,7 @@ class SinClkDivider2(LaygoBase):
         # connect enable
         en = self.connect_to_track_wires([inv_ports['en'], sr_ports['pen']], int_ports['en'])
         en_vm = sr_ports['nen']
-        self.add_pin('en_vm', en_vm, show=show_pins)
+        self.add_pin('en_vm', en_vm, label='en', show=False)
         en.append(en_vm)
         # connect inverters to integ amp
         clk = self.connect_to_track_wires(inv_ports['clk'], int_ports['clk'])
@@ -1501,12 +1501,12 @@ class SinClkDivider(LaygoBase):
         int_ports, int_seg = self._draw_integ_amp(col_int, seg_int, seg_dict, tr_manager)
         sr_ports, xm_locs, sr_params = self._draw_sr_latch(col_sr, seg_sr, seg_dict, tr_manager,
                                                            en3_htr_idx, inv_ports)
-        nor_ports, nor_params = self._draw_nor(col_nor, seg_dict, tr_manager, inv_ports)
+        nor_ports, nor_seg = self._draw_nor(col_nor, seg_dict, tr_manager, inv_ports)
 
         # connect enable
         en = self.connect_to_track_wires([inv_ports['en'], sr_ports['pen']], int_ports['en'])
         en_vm = sr_ports['nen']
-        self.add_pin('en_vm', en_vm, show=show_pins)
+        self.add_pin('en_vm', en_vm, label='en', show=False)
         en.append(en_vm)
         en.append(nor_ports['en'])
         # connect inverters to integ amp
@@ -1592,6 +1592,7 @@ class SinClkDivider(LaygoBase):
         p0_info = self.get_row_info(4)
         p1_info = self.get_row_info(5)
         inv_seg.update(int_seg)
+        inv_seg.update(nor_seg)
         self._sch_params = dict(
             lch=self.laygo_info.lch,
             w_dict=dict(
@@ -1610,7 +1611,6 @@ class SinClkDivider(LaygoBase):
             ),
             seg_dict=inv_seg,
             sr_params=sr_params,
-            nor_params=nor_params,
         )
 
     @classmethod
@@ -2159,8 +2159,8 @@ class SinClkDivider(LaygoBase):
         qb = self.connect_to_tracks([nsetr['d'], ndrvr['d'], pdrvr['d']], mid_tid)
         ninp, ninn = self.connect_differential_wires(ndrvr['g'], ndrvl['g'],
                                                      inv_ports['q'], inv_ports['qb'])
-        pinp = self.connect_to_tracks(pdrvr['g'], pg_tid)
-        pinn = self.connect_to_tracks(pdrvl['g'], pg_tid)
+        pinp, pinn = self.connect_differential_tracks(pdrvr['g'], pdrvl['g'], hm_layer,
+                                                      pg_idx, pg_idx + 1.5)
 
         # input connection
         pidx = self.laygo_info.col_to_track(vm_layer, col_mid + 1)
@@ -2193,5 +2193,5 @@ class SinClkDivider(LaygoBase):
                  'q': q,
                  'qb': qb,
                  }
-        nor_params = dict(inv=seg_inv, drv=seg_drv, set=seg_set)
-        return ports, nor_params
+        nor_seg = dict(nor_inv=seg_inv, nor_drv=seg_drv, nor_set=seg_set, nor_pen=seg_drv * 2)
+        return ports, nor_seg
