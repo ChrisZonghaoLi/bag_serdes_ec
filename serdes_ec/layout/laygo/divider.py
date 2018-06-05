@@ -654,6 +654,7 @@ class SinClkDivider(LaygoBase):
                                                      unit_mode=True)
         vm_q_idx = self.grid.coord_to_nearest_track(vm_layer, xr, half_track=True, mode=1,
                                                     unit_mode=True)
+        vm_xc_idx = self.grid.get_middle_track(vm_q_idx, vm_qb_idx)
         vm_q_tid = TrackID(vm_layer, vm_q_idx, width=vm_w_out)
         vm_qb_tid = TrackID(vm_layer, vm_qb_idx, width=vm_w_out)
         xl = self.laygo_info.col_to_coord(col_spl, unit_mode=True)
@@ -769,7 +770,7 @@ class SinClkDivider(LaygoBase):
                                                       half_track=True, mode=0, unit_mode=True)
         self.connect_to_tracks([scan_sb_ng, scan_sb_nd], TrackID(vm_layer, vm_mid_idx))
         self.connect_to_tracks([scan_sb_pg, scan_sb_ng], TrackID(vm_layer, vm_ssb_idx))
-        self.connect_to_tracks([scan_sb_pg, scan_sb_pd], nen_tid)
+        self.connect_to_tracks([scan_sb_pg, scan_sb_pd], TrackID(vm_layer, vm_xc_idx))
         scan_s = self.connect_to_tracks([scan_ps, scan_ns], TrackID(vm_layer, vm_ss_idx))
         ports['scan_s'] = scan_s
 
@@ -1500,13 +1501,14 @@ class SinClkDivider2(LaygoBase):
         int_ports, int_seg = self._draw_integ_amp(col_int, seg_int, seg_dict, tr_manager)
         sr_ports, xm_locs, sr_params = self._draw_sr_latch(col_sr, seg_sr, seg_dict, tr_manager,
                                                            en3_htr_idx, inv_ports)
-        # nor_ports, nor_params = self._draw_nor(col_nor, seg_nor, seg_dict, tr_manager)
+        nor_ports = self._draw_nor(col_nor, seg_dict, tr_manager, inv_ports)
 
         # connect enable
         en = self.connect_to_track_wires([inv_ports['en'], sr_ports['pen']], int_ports['en'])
         en_vm = sr_ports['nen']
         self.add_pin('en_vm', en_vm, show=show_pins)
         en.append(en_vm)
+        en.append(nor_ports['en'])
         # connect inverters to integ amp
         clk = self.connect_to_track_wires(inv_ports['clk'], int_ports['clk'])
         mp = inv_ports['mp']
@@ -1528,8 +1530,8 @@ class SinClkDivider2(LaygoBase):
         xm_w_q = tr_manager.get_width(xm_layer, 'div')
 
         # connect supply wires
-        vss_list = [inv_ports['VSS'], int_ports['VSS'], sr_ports['VSS']]
-        vdd_list = [inv_ports['VDD'], int_ports['VDD'], sr_ports['VDD']]
+        vss_list = [inv_ports['VSS'], int_ports['VSS'], sr_ports['VSS'], nor_ports['VSS']]
+        vdd_list = [inv_ports['VDD'], int_ports['VDD'], sr_ports['VDD'], nor_ports['VDD']]
         vss_intv = self.get_track_interval(0, 'ds')
         vdd_intv = self.get_track_interval(self.num_rows - 1, 'ds')
         vss = _connect_supply(self, vss_w, vss_list, vss_intv, tr_manager, round_up=False,
@@ -1540,8 +1542,8 @@ class SinClkDivider2(LaygoBase):
         self.fill_space()
 
         # add pins.  Connect to xm_layer if track information are given
-        q_warrs = sr_ports['q']
-        qb_warrs = sr_ports['qb']
+        q_warrs = nor_ports['q']
+        qb_warrs = nor_ports['qb']
         scan_s = sr_ports['scan_s']
         if tr_info is None:
             en_lbl = 'en:'
@@ -1729,8 +1731,8 @@ class SinClkDivider2(LaygoBase):
                                                       nin_locs[0], width=hm_w_in)
         pinp, pinn = self.connect_differential_tracks(pinvl['g'], pinvr['g'], hm_layer, pin_idx0,
                                                       pin_idx0 + 1, width=hm_w_in)
-        inp, inn = self.connect_differential_tracks([ninp, pinp], [ninn, pinn], vm_layer,
-                                                    vin_locs[0], vin_locs[1], width=vm_w_in)
+        self.connect_differential_tracks([ninp, pinp], [ninn, pinn], vm_layer,
+                                         vin_locs[0], vin_locs[1], width=vm_w_in)
 
         # connect enables and clocks
         num_en = (seg_pen + 2) // 4
@@ -1921,7 +1923,7 @@ class SinClkDivider2(LaygoBase):
         xm_layer = vm_layer + 1
         hm_w_in = tr_manager.get_width(hm_layer, 'in')
         hm_w_out = tr_manager.get_width(hm_layer, 'div')
-        vm_w_out = tr_manager.get_width(vm_layer, 'div')
+        vm_w_out = tr_manager.get_width(vm_layer, 1)
         gb_idx0 = self.get_track_index(3, 'gb', 0)
         gb_idx1 = self.get_track_index(4, 'gb', 0)
         ntr = gb_idx1 - gb_idx0 + 1
@@ -1936,7 +1938,6 @@ class SinClkDivider2(LaygoBase):
         ng1_tid = TrackID(hm_layer, ng_locs[2])
         pg0_tid = TrackID(hm_layer, pg_locs[0])
         pg1_tid = TrackID(hm_layer, pg_locs[1])
-        setd_tid = self.make_track_id(2, 'gb', 1)
         psg_tid = self.make_track_id(5, 'g', -1)
         pen_tid = TrackID(hm_layer, psg_tid.base_index + 1)
         pvdd_tid = self.make_track_id(5, 'gb', 0)
@@ -1949,6 +1950,7 @@ class SinClkDivider2(LaygoBase):
                                                      unit_mode=True)
         vm_q_idx = self.grid.coord_to_nearest_track(vm_layer, xr, half_track=True, mode=1,
                                                     unit_mode=True)
+        vm_xc_idx = self.grid.get_middle_track(vm_q_idx, vm_qb_idx)
         vm_q_tid = TrackID(vm_layer, vm_q_idx, width=vm_w_out)
         vm_qb_tid = TrackID(vm_layer, vm_qb_idx, width=vm_w_out)
         xl = self.laygo_info.col_to_coord(col_spl, unit_mode=True)
@@ -2066,7 +2068,7 @@ class SinClkDivider2(LaygoBase):
                                                       half_track=True, mode=0, unit_mode=True)
         self.connect_to_tracks([scan_sb_ng, scan_sb_nd], TrackID(vm_layer, vm_mid_idx))
         self.connect_to_tracks([scan_sb_pg, scan_sb_ng], TrackID(vm_layer, vm_ssb_idx))
-        self.connect_to_tracks([scan_sb_pg, scan_sb_pd], nen_tid)
+        self.connect_to_tracks([scan_sb_pg, scan_sb_pd], TrackID(vm_layer, vm_xc_idx))
         scan_s = self.connect_to_tracks([scan_ps, scan_ns], TrackID(vm_layer, vm_ss_idx))
         ports['scan_s'] = scan_s
 
@@ -2115,3 +2117,81 @@ class SinClkDivider2(LaygoBase):
         )
 
         return ports, xm_locs, sr_sch_params
+
+    def _draw_nor(self, start, seg_dict, tr_manager, inv_ports):
+        seg_inv = seg_dict['nor_inv']
+        seg_drv = seg_dict['nor_drv']
+        seg_set = seg_dict['nor_set']
+
+        ridx = 3
+        cur = start
+        nsetl = self.add_laygo_mos(ridx, cur, seg_set)
+        cur += seg_set
+        ndrvl = self.add_laygo_mos(ridx, cur, seg_drv)
+        pdrvl = self.add_laygo_mos(ridx + 1, cur, seg_drv)
+        pen = self.add_laygo_mos(ridx + 2, cur, seg_drv * 2, gate_loc='s')
+        cur += seg_drv
+        col_mid = cur
+        ndrvr = self.add_laygo_mos(ridx, cur, seg_drv)
+        pdrvr = self.add_laygo_mos(ridx + 1, cur, seg_drv)
+        cur += seg_drv
+        nsetr = self.add_laygo_mos(ridx, cur, seg_set)
+        cur += seg_set
+        col_inv = cur
+        ninv = self.add_laygo_mos(ridx, cur, seg_inv)
+        pinv = self.add_laygo_mos(ridx + 1, cur, seg_inv)
+
+        # get track locations
+        hm_layer = self.conn_layer + 1
+        vm_layer = hm_layer + 1
+        foot_idx = self.get_track_index(5, 'gb', 0)
+        ng_idx = self.get_track_index(3, 'g', -1)
+        pg_idx = self.get_track_index(4, 'g', -1)
+        nb_idx = self.get_track_index(3, 'gb', 0)
+        pt_idx = self.get_track_index(4, 'gb', 0)
+        mid_idx = self.grid.get_middle_track(nb_idx, pt_idx, round_up=True)
+        mid_tid = TrackID(hm_layer, mid_idx)
+        ng_tid = TrackID(hm_layer, ng_idx)
+        pg_tid = TrackID(hm_layer, pg_idx)
+
+        self.connect_to_tracks([pen['s'], pdrvl['s'], pdrvr['s']], TrackID(hm_layer, foot_idx))
+        q = self.connect_to_tracks([nsetl['d'], ndrvl['d'], pdrvl['d']], mid_tid)
+        qb = self.connect_to_tracks([nsetr['d'], ndrvr['d'], pdrvr['d']], mid_tid)
+        ninp, ninn = self.connect_differential_wires(ndrvr['g'], ndrvl['g'],
+                                                     inv_ports['q'], inv_ports['qb'])
+        pinp = self.connect_to_tracks(pdrvr['g'], pg_tid)
+        pinn = self.connect_to_tracks(pdrvl['g'], pg_tid)
+
+        # input connection
+        pidx = self.laygo_info.col_to_track(vm_layer, col_mid + 1)
+        nidx = self.laygo_info.col_to_track(vm_layer, col_mid - 1)
+        self.connect_differential_tracks([pinp, ninp], [pinn, ninn], vm_layer, pidx, nidx)
+
+        # output connection
+        out_pidx = nidx - seg_drv // 2
+        out_nidx = pidx + seg_drv // 2
+        tr_w = tr_manager.get_width(vm_layer, 'div')
+        q = self.connect_to_tracks(q, TrackID(vm_layer, out_pidx, width=tr_w), min_len_mode=0)
+        qb = self.connect_to_tracks(qb, TrackID(vm_layer, out_nidx, width=tr_w), min_len_mode=0)
+
+        # reset connection
+        nrst = self.connect_to_tracks([nsetl['g'], nsetr['g']], ng_tid)
+        prst = self.connect_to_tracks(pen['g'], TrackID(hm_layer, self.get_track_index(5, 'g', -1)))
+        orst = self.connect_to_tracks([ninv['d'], pinv['d']], TrackID(hm_layer, pt_idx))
+        vm_idx = self.laygo_info.col_to_track(vm_layer, col_inv + 1)
+        self.connect_to_tracks([nrst, prst, orst], TrackID(vm_layer, vm_idx))
+
+        # enable connection
+        vm_idx = self.laygo_info.col_to_track(vm_layer, col_inv + seg_inv - 1)
+        peng = self.connect_to_tracks(pinv['g'], pg_tid)
+        neng = self.connect_to_tracks(ninv['g'], TrackID(hm_layer, ng_idx - 1))
+        en = self.connect_to_tracks([peng, neng], TrackID(vm_layer, vm_idx))
+
+        ports = {'VSS': [ninv['s'], nsetl['s'], nsetr['s'], ndrvl['s'], ndrvr['s']],
+                 'VDD': [pen['d'], pinv['s']],
+                 'en': en,
+                 'q': q,
+                 'qb': qb,
+                 }
+
+        return ports
