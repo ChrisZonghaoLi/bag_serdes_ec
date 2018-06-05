@@ -978,7 +978,9 @@ class EnableRetimer(LaygoBase):
         clkn.extend(ff1_ports['clkb'])
         clkn.append(lat_ports['clk'])
 
-        self._en3_htr_tidx = en3_htr_idx = int(round(en3_pin.track_id.base_index * 2))
+        en3_htr_idx = int(round(en3_pin.track_id.base_index * 2))
+        # TODO: HACK.  Figure out what's wrong
+        self._en3_htr_tidx = en3_htr_idx if abut_mode & 1 != 0 else en3_htr_idx + 4
         vss_inc_set = set((int(round(warr.track_id.base_index * 2)) for warr in clkp))
         vss_inc_set.add(int(round(in_pin.track_id.base_index * 2)))
         vdd_inc_set = set((int(round(warr.track_id.base_index * 2)) for warr in clkn))
@@ -1688,7 +1690,8 @@ class SinClkDivider(LaygoBase):
                                            'in', alignment=1, start_idx=in_start)
 
         # hacks
-        nin_locs = [nin_locs[0] - 5, nin_locs[1] - 5]
+        # TODO: HACKS.  fix later
+        nin_locs = [nin_locs[0] - 4.5, nin_locs[1] - 4.5]
 
         gb_idx0 = self.get_track_index(3, 'gb', 0)
         gb_idx1 = self.get_track_index(4, 'gb', 0)

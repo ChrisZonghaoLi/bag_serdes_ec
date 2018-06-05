@@ -385,12 +385,13 @@ class Tap1Summer(TemplateBase):
         self._data_tr_info = (l_outp_tid.base_index, l_inst.get_pin('outn').track_id.base_index,
                               l_outp_tid.width)
         m_tr_info = l_master.track_info
+        en3_info = m_tr_info['nen3']
         tr_info = dict(
             VDD=m_tr_info['VDD'],
             VSS=m_tr_info['VSS'],
             q=m_tr_info['inp'],
             qb=m_tr_info['inn'],
-            en=m_tr_info['nen3'],
+            en=(en3_info[0] - 2, en3_info[1]),
             clkp=m_tr_info['clkp'],
             clkn=m_tr_info['clkn'],
             inp=m_tr_info['inp'],
