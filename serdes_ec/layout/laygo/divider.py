@@ -94,7 +94,7 @@ def _connect_supply(template, sup_warr, sup_list, sup_intv, tr_manager, round_up
     return warr_list
 
 
-class SinClkDivider(LaygoBase):
+class SinClkDivider2(LaygoBase):
     """A Sinusoidal clock divider using LaygoBase.
 
     Parameters
@@ -1374,7 +1374,7 @@ class DividerGroup(TemplateBase):
         )
 
 
-class SinClkDivider2(LaygoBase):
+class SinClkDivider(LaygoBase):
     """A Sinusoidal clock divider using LaygoBase.
 
     Parameters
@@ -1501,7 +1501,7 @@ class SinClkDivider2(LaygoBase):
         int_ports, int_seg = self._draw_integ_amp(col_int, seg_int, seg_dict, tr_manager)
         sr_ports, xm_locs, sr_params = self._draw_sr_latch(col_sr, seg_sr, seg_dict, tr_manager,
                                                            en3_htr_idx, inv_ports)
-        nor_ports = self._draw_nor(col_nor, seg_dict, tr_manager, inv_ports)
+        nor_ports, nor_params = self._draw_nor(col_nor, seg_dict, tr_manager, inv_ports)
 
         # connect enable
         en = self.connect_to_track_wires([inv_ports['en'], sr_ports['pen']], int_ports['en'])
@@ -1610,7 +1610,7 @@ class SinClkDivider2(LaygoBase):
             ),
             seg_dict=inv_seg,
             sr_params=sr_params,
-            # nor_params=nor_params,
+            nor_params=nor_params,
         )
 
     @classmethod
@@ -2193,5 +2193,5 @@ class SinClkDivider2(LaygoBase):
                  'q': q,
                  'qb': qb,
                  }
-
-        return ports
+        nor_params = dict(inv=seg_inv, drv=seg_drv, set=seg_set)
+        return ports, nor_params
