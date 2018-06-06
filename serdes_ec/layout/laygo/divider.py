@@ -980,7 +980,7 @@ class EnableRetimer(LaygoBase):
 
         en3_htr_idx = int(round(en3_pin.track_id.base_index * 2))
         # TODO: HACK.  Figure out what's wrong
-        self._en3_htr_tidx = en3_htr_idx if abut_mode & 1 != 0 else en3_htr_idx + 4
+        self._en3_htr_tidx = en3_htr_idx if abut_mode & 1 != 0 else en3_htr_idx + 16
         vss_inc_set = set((int(round(warr.track_id.base_index * 2)) for warr in clkp))
         vss_inc_set.add(int(round(in_pin.track_id.base_index * 2)))
         vdd_inc_set = set((int(round(warr.track_id.base_index * 2)) for warr in clkn))
@@ -1657,10 +1657,11 @@ class SinClkDivider(LaygoBase):
     @classmethod
     def _get_nor_info(cls, seg_dict):
         seg_inv = seg_dict['nor_inv']
-        seg_drv = seg_dict['nor_drv']
+        seg_pdrv = seg_dict['nor_pdrv']
+        seg_ndrv = seg_dict['nor_ndrv']
         seg_set = seg_dict['nor_set']
 
-        return seg_inv + seg_drv * 2 + seg_set * 2
+        return seg_inv + max(seg_pdrv, seg_ndrv) * 2 + seg_set * 2
 
     def _draw_gate_inv(self, start, seg_tot, seg_dict, tr_manager):
         blk_sp = seg_dict['blk_sp']
@@ -2123,21 +2124,22 @@ class SinClkDivider(LaygoBase):
 
     def _draw_nor(self, start, seg_dict, tr_manager, inv_ports):
         seg_inv = seg_dict['nor_inv']
-        seg_drv = seg_dict['nor_drv']
+        seg_pdrv = seg_dict['nor_pdrv']
+        seg_ndrv = seg_dict['nor_ndrv']
         seg_set = seg_dict['nor_set']
 
         ridx = 3
         cur = start
         nsetl = self.add_laygo_mos(ridx, cur, seg_set)
         cur += seg_set
-        ndrvl = self.add_laygo_mos(ridx, cur, seg_drv)
-        pdrvl = self.add_laygo_mos(ridx + 1, cur, seg_drv)
-        pen = self.add_laygo_mos(ridx + 2, cur, seg_drv * 2, gate_loc='s')
-        cur += seg_drv
+        ndrvl = self.add_laygo_mos(ridx, cur + seg_pdrv - seg_ndrv, seg_ndrv)
+        pdrvl = self.add_laygo_mos(ridx + 1, cur, seg_pdrv)
+        pen = self.add_laygo_mos(ridx + 2, cur, seg_pdrv * 2, gate_loc='s')
+        cur += seg_pdrv
         col_mid = cur
-        ndrvr = self.add_laygo_mos(ridx, cur, seg_drv)
-        pdrvr = self.add_laygo_mos(ridx + 1, cur, seg_drv)
-        cur += seg_drv
+        ndrvr = self.add_laygo_mos(ridx, cur, seg_ndrv)
+        pdrvr = self.add_laygo_mos(ridx + 1, cur, seg_pdrv)
+        cur += seg_pdrv
         nsetr = self.add_laygo_mos(ridx, cur, seg_set)
         cur += seg_set
         col_inv = cur
@@ -2171,8 +2173,8 @@ class SinClkDivider(LaygoBase):
         self.connect_differential_tracks([pinp, ninp], [pinn, ninn], vm_layer, pidx, nidx)
 
         # output connection
-        out_pidx = nidx - seg_drv // 2
-        out_nidx = pidx + seg_drv // 2
+        out_pidx = nidx - seg_pdrv // 2
+        out_nidx = pidx + seg_pdrv // 2
         tr_w = tr_manager.get_width(vm_layer, 'div')
         q = self.connect_to_tracks(q, TrackID(vm_layer, out_pidx, width=tr_w), min_len_mode=0)
         qb = self.connect_to_tracks(qb, TrackID(vm_layer, out_nidx, width=tr_w), min_len_mode=0)
@@ -2196,5 +2198,6 @@ class SinClkDivider(LaygoBase):
                  'q': q,
                  'qb': qb,
                  }
-        nor_seg = dict(nor_inv=seg_inv, nor_drv=seg_drv, nor_set=seg_set, nor_pen=seg_drv * 2)
+        nor_seg = dict(nor_inv=seg_inv, nor_pdrv=seg_pdrv,
+                       nor_ndrv=seg_ndrv, nor_set=seg_set, nor_pen=seg_pdrv * 2)
         return ports, nor_seg

@@ -27,8 +27,8 @@ class bag_serdes_ec__div2_sin_clk(Module):
                  ('XPINTL', 'p0', 'int_rst'), ('XPINTR', 'p0', 'int_rst'),
                  ('XPINVL', 'p0', 'inv_inv'), ('XPINVR', 'p0', 'inv_inv'),
                  ('XPEI', 'p0', 'nor_inv'), ('XNEI', 'n2', 'nor_inv'),
-                 ('XPDRVL', 'p0', 'nor_drv'), ('XPDRVR', 'p0', 'nor_drv'),
-                 ('XNDRVL', 'n2', 'nor_drv'), ('XNDRVR', 'n2', 'nor_drv'),
+                 ('XPDRVL', 'p0', 'nor_pdrv'), ('XPDRVR', 'p0', 'nor_pdrv'),
+                 ('XNDRVL', 'n2', 'nor_ndrv'), ('XNDRVR', 'n2', 'nor_ndrv'),
                  ('XNSETL', 'n2', 'nor_set'), ('XNSETR', 'n2', 'nor_set'),
                  ('XPEN', 'p1', 'nor_pen'),
                  ]
