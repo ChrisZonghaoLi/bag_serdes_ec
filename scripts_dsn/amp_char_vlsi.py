@@ -4,6 +4,13 @@ import os
 
 import yaml
 import numpy as np
+import scipy.interpolate as interp
+import scipy.optimize as sciopt
+import matplotlib.pyplot as plt
+# noinspection PyUnresolvedReferences
+from mpl_toolkits.mplot3d import Axes3D
+from matplotlib import cm
+from matplotlib import ticker
 
 from bag.core import BagProject
 from bag.io.sim_data import load_sim_results, save_sim_results, load_sim_file
@@ -73,14 +80,14 @@ def simulate(prj, name_list, sim_params):
         dsn.implement_design(impl_lib, top_cell_name=impl_cell)
 
         print('update testbench')
-        tb = prj.configure_testbench(impl_lib, tb_cell)
+        tb = prj.configure_testbench(impl_lib, impl_cell)
         tb.set_simulation_environments(env_list)
         tb.set_simulation_view(impl_lib, dut_cell, sim_view)
 
         for key, val in params.items():
             tb.set_parameter(key, val)
         tb.set_sweep_parameter('vload', values=vload_list)
-        tb.add_output('vout', """getData("/outac", ?result 'ac)""")
+        tb.add_output('outac', """getData("/outac", ?result 'ac)""")
 
         tb.update_testbench()
         print('run simulation')
@@ -91,9 +98,79 @@ def simulate(prj, name_list, sim_params):
         save_sim_results(data, save_fname)
 
 
+def compute_gain_and_w3db(f_vec, out_arr):
+    out_arr = np.abs(out_arr)
+    gain = out_arr[0]
+
+    # convert
+    out_log = 20 * np.log10(out_arr)
+    gain_log_3db = 20 * np.log10(gain) - 3
+
+    # find first index at which gain goes below gain_log 3db
+    diff_arr = out_log - gain_log_3db
+    idx_arr = np.argmax(diff_arr < 0)
+    freq_log = np.log10(f_vec)
+    freq_log_max = freq_log[idx_arr]
+
+    fun = interp.interp1d(freq_log, diff_arr, kind='cubic', copy=False,
+                          assume_sorted=True)
+    # noinspection PyTypeChecker
+    try:
+        f3db = 10.0**(sciopt.brentq(fun, freq_log[0], freq_log_max))
+    except ValueError:
+        f3db = f_vec[-1]
+
+    return gain, f3db
+
+
+def plot_mat(fig_idx, zlabel, mat, xvec, yvec):
+    x_mat, y_mat = np.meshgrid(xvec, yvec, indexing='ij', copy=False)
+
+    formatter = ticker.ScalarFormatter(useMathText=True)
+    formatter.set_scientific(True)
+    formatter.set_powerlimits((-2, 3))
+
+    fig = plt.figure(fig_idx + 1)
+    ax = fig.add_subplot(111, projection='3d')
+    ax.plot_surface(x_mat, y_mat, mat, rstride=1, cstride=1, linewidth=0, cmap=cm.cubehelix)
+    ax.set_xlabel('$N_{load}$')
+    ax.set_ylabel('$V_{load}$ (V)')
+    ax.set_zlabel(zlabel)
+    ax.w_zaxis.set_major_formatter(formatter)
+
+
+def plot_gain_bw(specs, sim_params, fg_load_list, env):
+    vname = 'outac'
+    base_name = specs['impl_cell']
+    save_root = sim_params['save_root']
+    vload_list = sim_params['vload_list']
+    gain_mat = np.empty((len(fg_load_list), len(vload_list)))
+    bw_mat = np.empty((len(fg_load_list), len(vload_list)))
+    for fg_idx, fg_load in enumerate(fg_load_list):
+        fname = os.path.join(save_root, '%s_fg%d.hdf5' % (base_name, fg_load))
+        results = load_sim_file(fname)
+
+        swp_pars = results['sweep_params'][vname]
+        corners = results['corner']
+        corner_idx = swp_pars.index('corner')
+        env_idx = np.argwhere(corners == env)[0][0]
+        data = np.take(results[vname], env_idx, axis=corner_idx)
+        vload_idx = swp_pars.index('vload')
+        vload_vec = results['vload']
+        for idx in range(vload_vec.size):
+            outac = np.take(data, idx, axis=vload_idx)
+            gain, f3db = compute_gain_and_w3db(results['freq'], outac)
+            gain_mat[fg_idx, idx] = gain
+            bw_mat[fg_idx, idx] = f3db
+
+    plot_mat(1, 'Gain (V/V)', gain_mat, fg_load_list, vload_list)
+    plot_mat(2, 'Bandwidth (Hz)', bw_mat, fg_load_list, vload_list)
+    plt.show()
+
+
 def run_main(prj):
     fname = 'specs_test/serdes_ec/analog/diffamp.yaml'
-    fg_load_list = [2, 4, 6, 8]
+    fg_load_list = [10, 12, 14]
 
     with open(fname, 'r') as f:
         specs = yaml.load(f)
@@ -118,6 +195,7 @@ def run_main(prj):
 
     name_list = gen_lay_sch(prj, specs, fg_load_list)
     simulate(prj, name_list, sim_params)
+    # plot_gain_bw(specs, sim_params, fg_load_list, 'tt')
 
 
 if __name__ == '__main__':
