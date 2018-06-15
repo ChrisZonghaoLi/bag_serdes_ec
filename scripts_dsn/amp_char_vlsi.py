@@ -109,9 +109,10 @@ def run_main(prj):
         vload_list=np.linspace(0.15, 0.45, 13, endpoint=True).tolist(),
         sim_view='av_extracted',
         params=dict(
-            incm=0.78,
+            vincm=0.78,
             vdd=0.9,
             vtail=0.55,
+            cload=5e-15,
         )
     )
 

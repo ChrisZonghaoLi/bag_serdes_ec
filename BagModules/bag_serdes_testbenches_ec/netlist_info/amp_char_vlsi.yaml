@@ -1,94 +1,38 @@
 lib_name: bag_serdes_testbenches_ec
-cell_name: gm_char_dc
+cell_name: amp_char_vlsi
 pins: [  ]
 instances:
-  XDUT:
-    lib_name: bag_serdes_ec
-    cell_name: integ_gm
-    instpins:
-      pulse:
-        direction: input
-        net_name: "VSS"
-        num_bits: 1
-      casc<1:0>:
-        direction: input
-        net_name: "<*2>VDD"
-        num_bits: 2
-      setn:
-        direction: input
-        net_name: "VSS"
-        num_bits: 1
-      setp:
-        direction: input
-        net_name: "VSS"
-        num_bits: 1
-      foot:
-        direction: output
-        net_name: "foot"
-        num_bits: 1
-      VSS:
-        direction: inputOutput
-        net_name: "VSS"
-        num_bits: 1
-      VDD:
-        direction: inputOutput
-        net_name: "VDD"
-        num_bits: 1
-      outp:
-        direction: output
-        net_name: "outp"
-        num_bits: 1
-      outn:
-        direction: output
-        net_name: "outn"
-        num_bits: 1
-      clkp:
-        direction: input
-        net_name: "VDD"
-        num_bits: 1
-      clkn:
-        direction: input
-        net_name: "VDD"
-        num_bits: 1
-      inp:
-        direction: input
-        net_name: "inp"
-        num_bits: 1
-      inn:
-        direction: input
-        net_name: "inn"
-        num_bits: 1
-      en<3>:
-        direction: input
-        net_name: "VDD"
-        num_bits: 1
-      tail:
-        direction: output
-        net_name: "tail"
-        num_bits: 1
-      biasp:
-        direction: input
-        net_name: "bias"
-        num_bits: 1
-  VON:
+  C0:
     lib_name: analogLib
-    cell_name: vdc
+    cell_name: cap
     instpins:
-      PLUS:
-        direction: inputOutput
-        net_name: "outn"
-        num_bits: 1
       MINUS:
         direction: inputOutput
-        net_name: "gnd!"
+        net_name: "VSS"
         num_bits: 1
-  VOP:
+      PLUS:
+        direction: inputOutput
+        net_name: "outp"
+        num_bits: 1
+  C1:
+    lib_name: analogLib
+    cell_name: cap
+    instpins:
+      MINUS:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      PLUS:
+        direction: inputOutput
+        net_name: "outn"
+        num_bits: 1
+  V8:
     lib_name: analogLib
     cell_name: vdc
     instpins:
       PLUS:
         direction: inputOutput
-        net_name: "outp"
+        net_name: "bias_load"
         num_bits: 1
       MINUS:
         direction: inputOutput
@@ -100,7 +44,7 @@ instances:
     instpins:
       PLUS:
         direction: inputOutput
-        net_name: "indm"
+        net_name: "inac"
         num_bits: 1
       MINUS:
         direction: inputOutput
@@ -112,7 +56,7 @@ instances:
     instpins:
       PLUS:
         direction: inputOutput
-        net_name: "incm"
+        net_name: "indc"
         num_bits: 1
       MINUS:
         direction: inputOutput
@@ -124,7 +68,7 @@ instances:
     instpins:
       PLUS:
         direction: inputOutput
-        net_name: "bias"
+        net_name: "bias_tail"
         num_bits: 1
       MINUS:
         direction: inputOutput
@@ -154,15 +98,7 @@ instances:
         direction: inputOutput
         net_name: "gnd!"
         num_bits: 1
-  I9:
-    lib_name: analogLib
-    cell_name: gnd
-    instpins:
-      gnd!:
-        direction: inputOutput
-        net_name: "gnd!"
-        num_bits: 1
-  I8:
+  I10:
     lib_name: analogLib
     cell_name: gnd
     instpins:
@@ -210,17 +146,37 @@ instances:
         direction: inputOutput
         net_name: "gnd!"
         num_bits: 1
+  XBOUT:
+    lib_name: analogLib
+    cell_name: ideal_balun
+    instpins:
+      c:
+        direction: inputOutput
+        net_name: "outdc"
+        num_bits: 1
+      d:
+        direction: inputOutput
+        net_name: "outac"
+        num_bits: 1
+      n:
+        direction: inputOutput
+        net_name: "outn"
+        num_bits: 1
+      p:
+        direction: inputOutput
+        net_name: "outp"
+        num_bits: 1
   XBAL:
     lib_name: analogLib
     cell_name: ideal_balun
     instpins:
       c:
         direction: inputOutput
-        net_name: "incm"
+        net_name: "indc"
         num_bits: 1
       d:
         direction: inputOutput
-        net_name: "indm"
+        net_name: "inac"
         num_bits: 1
       n:
         direction: inputOutput
@@ -229,4 +185,56 @@ instances:
       p:
         direction: inputOutput
         net_name: "inp"
+        num_bits: 1
+  XDUT:
+    lib_name: bag_serdes_ec
+    cell_name: diffamp
+    instpins:
+      vddn:
+        direction: inputOutput
+        net_name: "VDD"
+        num_bits: 1
+      bias_casc:
+        direction: input
+        net_name: "VDD"
+        num_bits: 1
+      bias_load:
+        direction: input
+        net_name: "bias_load"
+        num_bits: 1
+      bias_tail:
+        direction: input
+        net_name: "bias_tail"
+        num_bits: 1
+      clk_sw:
+        direction: input
+        net_name: "VSS"
+        num_bits: 1
+      enable:
+        direction: input
+        net_name: "VDD"
+        num_bits: 1
+      VSS:
+        direction: inputOutput
+        net_name: "VSS"
+        num_bits: 1
+      VDD:
+        direction: inputOutput
+        net_name: "VDD"
+        num_bits: 1
+      outp:
+        direction: inputOutput
+        net_name: "outp"
+        num_bits: 1
+      outn:
+        direction: inputOutput
+        net_name: "outn"
+        num_bits: 1
+      inp:
+        direction: input
+        net_name: "inp"
+        num_bits: 1
+      inn:
+        direction: input
+        net_name: "inn"
         num_bits: 1
