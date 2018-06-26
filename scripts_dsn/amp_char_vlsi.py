@@ -9,7 +9,7 @@ import scipy.optimize as sciopt
 import matplotlib.pyplot as plt
 # noinspection PyUnresolvedReferences
 from mpl_toolkits.mplot3d import Axes3D
-from matplotlib import cm
+from matplotlib import cm, rc
 from matplotlib import ticker
 
 from bag.core import BagProject
@@ -114,8 +114,8 @@ def compute_gain_and_w3db(f_vec, out_arr):
 
     fun = interp.interp1d(freq_log, diff_arr, kind='cubic', copy=False,
                           assume_sorted=True)
-    # noinspection PyTypeChecker
     try:
+        # noinspection PyTypeChecker
         f3db = 10.0**(sciopt.brentq(fun, freq_log[0], freq_log_max))
     except ValueError:
         f3db = f_vec[-1]
@@ -124,18 +124,27 @@ def compute_gain_and_w3db(f_vec, out_arr):
 
 
 def plot_mat(fig_idx, zlabel, mat, xvec, yvec):
+
+    fun = interp.RectBivariateSpline(xvec, yvec, mat)
     x_mat, y_mat = np.meshgrid(xvec, yvec, indexing='ij', copy=False)
 
     formatter = ticker.ScalarFormatter(useMathText=True)
     formatter.set_scientific(True)
     formatter.set_powerlimits((-2, 3))
 
+    xvec2 = np.linspace(xvec[0], xvec[-1], len(xvec) * 4)
+    yvec2 = np.linspace(yvec[0], yvec[-1], len(yvec) * 4)
+    x_fine, y_fine = np.meshgrid(xvec2, yvec2, indexing='ij', copy=False)
+    z_fine = fun(xvec2, yvec2, grid=True)
+
     fig = plt.figure(fig_idx + 1)
     ax = fig.add_subplot(111, projection='3d')
-    ax.plot_surface(x_mat, y_mat, mat, rstride=1, cstride=1, linewidth=0, cmap=cm.cubehelix)
-    ax.set_xlabel('$N_{load}$')
-    ax.set_ylabel('$V_{load}$ (V)')
-    ax.set_zlabel(zlabel)
+    ax.plot_surface(x_fine, y_fine, z_fine, rstride=1, cstride=1, linewidth=0, cmap=cm.cubehelix)
+    ax.scatter(x_mat.reshape(-1), y_mat.reshape(-1), mat.reshape(-1), c='r', marker='o')
+
+    ax.set_xlabel('$N_{load}$', fontsize=18)
+    ax.set_ylabel('$V_{load}$ (V)', fontsize=18)
+    ax.set_zlabel(zlabel, fontsize=18)
     ax.w_zaxis.set_major_formatter(formatter)
 
 
@@ -163,14 +172,14 @@ def plot_gain_bw(specs, sim_params, fg_load_list, env):
             gain_mat[fg_idx, idx] = gain
             bw_mat[fg_idx, idx] = f3db
 
-    plot_mat(1, 'Gain (V/V)', gain_mat, fg_load_list, vload_list)
-    plot_mat(2, 'Bandwidth (Hz)', bw_mat, fg_load_list, vload_list)
+    plot_mat(1, '$A_v$ (V/V)', gain_mat, fg_load_list, vload_list)
+    plot_mat(2, '$f_{3db}$ (Hz)', bw_mat, fg_load_list, vload_list)
     plt.show()
 
 
 def run_main(prj):
     fname = 'specs_test/serdes_ec/analog/diffamp.yaml'
-    fg_load_list = [10, 12, 14]
+    fg_load_list = [6, 8, 10, 12, 14]
 
     with open(fname, 'r') as f:
         specs = yaml.load(f)
@@ -193,9 +202,9 @@ def run_main(prj):
         )
     )
 
-    name_list = gen_lay_sch(prj, specs, fg_load_list)
-    simulate(prj, name_list, sim_params)
-    # plot_gain_bw(specs, sim_params, fg_load_list, 'tt')
+    # name_list = gen_lay_sch(prj, specs, fg_load_list)
+    # simulate(prj, name_list, sim_params)
+    plot_gain_bw(specs, sim_params, fg_load_list, 'ss_cold')
 
 
 if __name__ == '__main__':
