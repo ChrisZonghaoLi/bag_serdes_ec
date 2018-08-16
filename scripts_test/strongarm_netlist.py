@@ -9,7 +9,7 @@ from bag.core import BagProject
 from serdes_ec.layout.laygo.strongarm import SenseAmpStrongArm
 
 
-def netlist_test(prj, specs, gen_lay=False, gen_sch=False):
+def netlist_test(prj, specs, gen_lay=False, gen_sch=False, gen_shell=False):
     impl_lib = specs['impl_lib']
     impl_cell = specs['impl_cell']
     sch_lib = specs['sch_lib']
@@ -40,6 +40,10 @@ def netlist_test(prj, specs, gen_lay=False, gen_sch=False):
         print('creating schematic...')
         dsn.implement_design(impl_lib, top_cell_name=impl_cell, output='netlist',
                              format='cdl', fname='strongarm.sp')
+        if gen_shell:
+            dsn.implement_design(impl_lib, top_cell_name=impl_cell, output='netlist',
+                                 format='verilog', fname='strongarm.v', shell=True)
+
         print('schematic done.')
 
 
@@ -56,4 +60,4 @@ if __name__ == '__main__':
         print('loading BAG project')
         bprj = local_dict['bprj']
 
-    netlist_test(bprj, block_specs, gen_sch=True)
+    netlist_test(bprj, block_specs, gen_sch=True, gen_shell=True)
