@@ -38,6 +38,7 @@ def netlist_test(prj, specs, gen_lay=False, gen_sch=False, gen_shell=False):
         print('computing schematic...')
         dsn.design(**temp.sch_params)
         print('creating schematic...')
+        dsn.implement_schematic(impl_lib, top_cell_name=impl_cell)
         dsn.implement_design(impl_lib, top_cell_name=impl_cell, output='netlist',
                              format='cdl', fname='strongarm.sp')
         if gen_shell:
