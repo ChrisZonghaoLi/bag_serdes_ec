@@ -2650,9 +2650,7 @@ instances:
     connections:
       VDD: VDD
       VSS: VSS
-      in<0>: midn
       in<1:0>: qn,midn
-      in<1>: qn
       out: qp
     params:
       {}
@@ -2667,9 +2665,7 @@ instances:
     connections:
       VDD: VDD
       VSS: VSS
-      in<0>: midp
       in<1:0>: qp,midp
-      in<1>: qp
       out: qn
     params:
       {}
