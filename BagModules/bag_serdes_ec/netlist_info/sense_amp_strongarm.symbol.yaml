@@ -1,6 +1,11 @@
 lib_name: bag_serdes_ec
 cell_name: sense_amp_strongarm
 view_name: symbol
+bbox:
+  - -4
+  - -4
+  - 438
+  - 256
 in_terms:
   clk:
     obj:

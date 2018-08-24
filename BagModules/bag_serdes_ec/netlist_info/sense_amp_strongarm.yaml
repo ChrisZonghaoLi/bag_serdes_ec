@@ -1,6 +1,11 @@
 lib_name: bag_serdes_ec
 cell_name: sense_amp_strongarm
 view_name: schematic
+bbox:
+  - -521
+  - -180
+  - 978
+  - 510
 in_terms:
   clk:
     obj:
@@ -13,6 +18,11 @@ in_terms:
             - -460
             - 380
             - 0
+          bbox:
+            - -517
+            - 354
+            - -460
+            - 390
           connections:
             {}
           params:
@@ -45,6 +55,11 @@ in_terms:
             - -460
             - 420
             - 0
+          bbox:
+            - -517
+            - 394
+            - -460
+            - 430
           connections:
             {}
           params:
@@ -77,6 +92,11 @@ in_terms:
             - -460
             - 440
             - 0
+          bbox:
+            - -517
+            - 414
+            - -460
+            - 450
           connections:
             {}
           params:
@@ -110,6 +130,11 @@ out_terms:
             - -420
             - 360
             - 0
+          bbox:
+            - -420
+            - 334
+            - -363
+            - 370
           connections:
             {}
           params:
@@ -142,6 +167,11 @@ out_terms:
             - -420
             - 380
             - 0
+          bbox:
+            - -420
+            - 354
+            - -363
+            - 390
           connections:
             {}
           params:
@@ -174,6 +204,11 @@ out_terms:
             - -420
             - 440
             - 0
+          bbox:
+            - -420
+            - 414
+            - -363
+            - 450
           connections:
             {}
           params:
@@ -206,6 +241,11 @@ out_terms:
             - -420
             - 300
             - 0
+          bbox:
+            - -420
+            - 274
+            - -363
+            - 310
           connections:
             {}
           params:
@@ -238,6 +278,11 @@ out_terms:
             - -420
             - 320
             - 0
+          bbox:
+            - -420
+            - 294
+            - -363
+            - 330
           connections:
             {}
           params:
@@ -271,6 +316,11 @@ io_terms:
             - -460
             - 500
             - 0
+          bbox:
+            - -521
+            - 474
+            - -450
+            - 510
           connections:
             {}
           params:
@@ -303,6 +353,11 @@ io_terms:
             - -460
             - 480
             - 0
+          bbox:
+            - -521
+            - 454
+            - -450
+            - 490
           connections:
             {}
           params:
@@ -2572,6 +2627,11 @@ instances:
       - 300
       - -110
       - 0
+    bbox:
+      - 232
+      - -144
+      - 432
+      - -65
     connections:
       B: VSS
       D: VSS
@@ -2587,6 +2647,11 @@ instances:
       - -80
       - 110
       - 0
+    bbox:
+      - -148
+      - 76
+      - 52
+      - 155
     connections:
       B: VSS
       D: intn
@@ -2602,6 +2667,11 @@ instances:
       - 160
       - 110
       - 4
+    bbox:
+      - 28
+      - 76
+      - 228
+      - 155
     connections:
       B: VSS
       D: intp
@@ -2617,6 +2687,11 @@ instances:
       - 740
       - 100
       - 0
+    bbox:
+      - 736
+      - 96
+      - 978
+      - 196
     connections:
       VDD: VDD
       VSS: VSS
@@ -2632,6 +2707,11 @@ instances:
       - 740
       - 280
       - 0
+    bbox:
+      - 736
+      - 276
+      - 978
+      - 376
     connections:
       VDD: VDD
       VSS: VSS
@@ -2647,6 +2727,11 @@ instances:
       - 500
       - 100
       - 0
+    bbox:
+      - 496
+      - 96
+      - 758
+      - 196
     connections:
       VDD: VDD
       VSS: VSS
@@ -2662,6 +2747,11 @@ instances:
       - 500
       - 280
       - 0
+    bbox:
+      - 496
+      - 276
+      - 758
+      - 376
     connections:
       VDD: VDD
       VSS: VSS
@@ -2677,6 +2767,11 @@ instances:
       - 880
       - 60
       - 0
+    bbox:
+      - 870
+      - 10
+      - 890
+      - 64
     connections:
       noConn: outb
     params:
@@ -2689,6 +2784,11 @@ instances:
       - 0
       - 210
       - 4
+    bbox:
+      - -132
+      - 176
+      - 68
+      - 255
     connections:
       B: VSS
       D: midn
@@ -2704,6 +2804,11 @@ instances:
       - 80
       - 210
       - 0
+    bbox:
+      - 12
+      - 176
+      - 212
+      - 255
     connections:
       B: VSS
       D: midp
@@ -2719,6 +2824,11 @@ instances:
       - 0
       - 350
       - 4
+    bbox:
+      - -131
+      - 263
+      - 68
+      - 437
     connections:
       B: VDD
       D: midn
@@ -2734,6 +2844,11 @@ instances:
       - 80
       - 350
       - 0
+    bbox:
+      - 12
+      - 263
+      - 211
+      - 437
     connections:
       B: VDD
       D: midp
@@ -2749,6 +2864,11 @@ instances:
       - -300
       - 350
       - 0
+    bbox:
+      - -368
+      - 263
+      - -169
+      - 437
     connections:
       B: VDD
       D: intn
@@ -2764,6 +2884,11 @@ instances:
       - 380
       - 350
       - 4
+    bbox:
+      - 249
+      - 263
+      - 448
+      - 437
     connections:
       B: VDD
       D: intp
@@ -2779,6 +2904,11 @@ instances:
       - -180
       - 350
       - 0
+    bbox:
+      - -248
+      - 263
+      - -49
+      - 437
     connections:
       B: VDD
       D: midn
@@ -2794,6 +2924,11 @@ instances:
       - 260
       - 350
       - 4
+    bbox:
+      - 129
+      - 263
+      - 328
+      - 437
     connections:
       B: VDD
       D: midp
@@ -2809,6 +2944,11 @@ instances:
       - -80
       - 10
       - 0
+    bbox:
+      - -148
+      - -24
+      - 52
+      - 55
     connections:
       B: VSS
       D: tail
@@ -2824,6 +2964,11 @@ instances:
       - 160
       - 10
       - 4
+    bbox:
+      - 28
+      - -24
+      - 228
+      - 55
     connections:
       B: VSS
       D: tail
