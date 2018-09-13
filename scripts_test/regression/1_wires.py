@@ -20,8 +20,7 @@ class TestWires(TemplateBase):
         hm_layer = 4
         vm_layer = 5
 
-        # add a horizontal wire on track 0, from X=0.1 to X=0.3
-        warr1 = self.add_wires(hm_layer, 0, 0.1, 0.3)
+        warr1 = self.add_wires(hm_layer, 0, 100, 300)
         # print WireArray object
         print(warr1)
         # print lower, middle, and upper coordinate of wire.
