@@ -7,7 +7,7 @@ from bag.core import BagProject
 from bag.layout.template import TemplateBase
 
 
-class TestWires(TemplateBase):
+class TestLayout(TemplateBase):
     def __init__(self, temp_db, lib_name, params, used_names, **kwargs):
         TemplateBase.__init__(self, temp_db, lib_name, params, used_names, **kwargs)
 
@@ -65,4 +65,4 @@ if __name__ == '__main__':
         print('loading BAG project')
         bprj = local_dict['bprj']
 
-    bprj.generate_cell(block_specs, TestWires)
+    bprj.generate_cell(block_specs, TestLayout)
