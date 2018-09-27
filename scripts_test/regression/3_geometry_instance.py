@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Dict, Any, Set
 import yaml
 
 from bag.core import BagProject
-from bag.layout.util import BBox
+from bag.layout.util import BBox, GeometryMode
 from bag.layout.template import TemplateBase
 
 if TYPE_CHECKING:
@@ -24,7 +24,7 @@ class TestLayout1(TemplateBase):
         return dict()
 
     def draw_layout(self):
-        res = self.grid.resolution
+        self.set_geometry_mode(GeometryMode.POLY_45)
 
         # simple rectangle
         self.add_rect('M1', BBox(100, 60, 180, 80))
@@ -36,7 +36,7 @@ class TestLayout1(TemplateBase):
 
         # set top layer and bounding box so parent can query those
         self.prim_top_layer = 3
-        self.prim_bound_box = BBox(0, 0, 400, 400, res, unit_mode=True)
+        self.prim_bound_box = BBox(0, 0, 400, 400)
 
 
 class TestLayout2(TemplateBase):
@@ -49,18 +49,18 @@ class TestLayout2(TemplateBase):
         return dict()
 
     def draw_layout(self):
-        res = self.grid.resolution
+        self.set_geometry_mode(GeometryMode.POLY)
 
         # instantiate Test1
         master = self.template_db.new_template(params={}, temp_cls=TestLayout1)
-        self.add_instance(master, 'X0', loc=(-100, -100), orient='MX', unit_mode=True)
+        self.add_instance(master, 'X0', loc=(-100, -100), orient='MX')
 
         # add via, using BAG's technology DRC calculator
-        self.add_via(BBox(0, 0, 100, 100, res, unit_mode=True),
+        self.add_via(BBox(0, 0, 100, 100),
                      'M1', 'M2', 'x')
 
         # add a primitive pin
-        self.add_pin_primitive('mypin', 'M1', BBox(-100, 0, 0, 20, res, unit_mode=True))
+        self.add_pin_primitive('mypin', 'M1', BBox(-100, 0, 0, 20))
 
         # add a polygon
         points = [(0, 0), (300, 200), (100, 400)]
@@ -82,7 +82,7 @@ class TestLayout2(TemplateBase):
                             join_style='round')
 
         self.prim_top_layer = 3
-        self.prim_bound_box = BBox(-10000, -10000, 10000, 10000, res, unit_mode=True)
+        self.prim_bound_box = BBox(-10000, -10000, 10000, 10000)
 
 
 if __name__ == '__main__':

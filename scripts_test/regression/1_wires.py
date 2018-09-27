@@ -24,7 +24,7 @@ class TestLayout(TemplateBase):
         # print WireArray object
         print(warr1)
         # print lower, middle, and upper coordinate of wire.
-        print(warr1.lower, warr1.middle, warr1.upper)
+        print(warr1.lower_unit, warr1.middle_unit, warr1.upper_unit)
         # print TrackID object associated with WireArray
         print(warr1.track_id)
         # add a horizontal wire on track 1, from X=0.1 to X=0.3,
