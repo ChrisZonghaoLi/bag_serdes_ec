@@ -23,6 +23,10 @@ class TestLayout(TemplateBase):
         warr1 = self.add_wires(hm_layer, 0, 0, 400)
         warr2 = self.add_wires(vm_layer, 2, 0, 400)
         self.connect_to_track_wires(warr1, warr2)
+
+        warr3 = self.add_wires(hm_layer, 10, 0, 400, num=3, pitch=2)
+        self.connect_to_track_wires(warr2, warr3)
+
         self.add_pin('foo', warr2)
 
 
