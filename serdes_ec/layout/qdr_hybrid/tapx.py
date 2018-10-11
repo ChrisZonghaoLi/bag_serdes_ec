@@ -48,7 +48,7 @@ class TapXSummerCell(TemplateBase):
     """
 
     def __init__(self, temp_db, lib_name, params, used_names, **kwargs):
-        # type: (TemplateDB, str, Dict[str, Any], Set[str], **kwargs) -> None
+        # type: (TemplateDB, str, Dict[str, Any], Set[str], Any) -> None
         TemplateBase.__init__(self, temp_db, lib_name, params, used_names, **kwargs)
         self._sch_params = None
         self._lat_row_layout_info = None
@@ -338,7 +338,7 @@ class TapXSummer(TemplateBase):
     """
 
     def __init__(self, temp_db, lib_name, params, used_names, **kwargs):
-        # type: (TemplateDB, str, Dict[str, Any], Set[str], **kwargs) -> None
+        # type: (TemplateDB, str, Dict[str, Any], Set[str], Any) -> None
         TemplateBase.__init__(self, temp_db, lib_name, params, used_names, **kwargs)
         self._sch_params = None
         self._ffe_track_info = None
@@ -961,7 +961,7 @@ class TapXColumn(TemplateBase):
     """
 
     def __init__(self, temp_db, lib_name, params, used_names, **kwargs):
-        # type: (TemplateDB, str, Dict[str, Any], Set[str], **kwargs) -> None
+        # type: (TemplateDB, str, Dict[str, Any], Set[str], Any) -> None
         TemplateBase.__init__(self, temp_db, lib_name, params, used_names, **kwargs)
         self._sch_params = None
         self._row_heights = None

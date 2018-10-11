@@ -40,7 +40,7 @@ class HybridQDRBaseInfo(AnalogBaseInfo):
 
     def __init__(self, grid, lch, guard_ring_nf, top_layer=None, end_mode=15, min_fg_sep=0,
                  fg_tot=None, **kwargs):
-        # type: (RoutingGrid, float, int, Optional[int], int, int, Optional[int], **kwargs) -> None
+        # type: (RoutingGrid, float, int, Optional[int], int, int, Optional[int], Any) -> None
         AnalogBaseInfo.__init__(self, grid, lch, guard_ring_nf, top_layer=top_layer,
                                 end_mode=end_mode, min_fg_sep=min_fg_sep, fg_tot=fg_tot, **kwargs)
 
@@ -299,7 +299,7 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
                  'but0': 'casc<0>', 'but1': 'casc<1>'}
 
     def __init__(self, temp_db, lib_name, params, used_names, **kwargs):
-        # type: (TemplateDB, str, Dict[str, Any], Set[str], **kwargs) -> None
+        # type: (TemplateDB, str, Dict[str, Any], Set[str], Any) -> None
         AnalogBase.__init__(self, temp_db, lib_name, params, used_names, **kwargs)
         self._row_lookup = None
 
@@ -340,7 +340,7 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
                   th_dict,  # type: Dict[str, str]
                   tr_manager,  # type: TrackManager
                   wire_names,  # type: Dict[str, Dict[str, List[str]]]
-                  **kwargs  # type: **kwargs
+                  **kwargs  # type: Any
                   ):
         # type: (...) -> None
         """Draw the transistors and substrate rows.
@@ -547,7 +547,7 @@ class HybridQDRBase(AnalogBase, metaclass=abc.ABCMeta):
                        fg_min=0,  # type: int
                        fg_dum=0,  # type: int
                        fg_sep_hm=0,  # type: int
-                       idx_dict=None,  # type: Optional[Dict[str, int]]]
+                       idx_dict=None,  # type: Optional[Dict[str, int]]
                        net_prefix='',  # type: str
                        net_suffix='',  # type: str
                        ):
