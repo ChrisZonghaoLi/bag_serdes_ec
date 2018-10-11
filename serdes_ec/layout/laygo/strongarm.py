@@ -33,7 +33,7 @@ class SenseAmpStrongArm(LaygoBase):
     """
 
     def __init__(self, temp_db, lib_name, params, used_names, **kwargs):
-        # type: (TemplateDB, str, Dict[str, Any], Set[str], **Any) -> None
+        # type: (TemplateDB, str, Dict[str, Any], Set[str], Any) -> None
         LaygoBase.__init__(self, temp_db, lib_name, params, used_names, **kwargs)
         self._sch_params = None
         self._fg_tot = None
@@ -506,7 +506,7 @@ class SenseAmpStrongArm(LaygoBase):
         self.connect_to_tracks([nmidn, pmidn], mn_tid)
         self.connect_to_tracks([nmidp, pmidp], mp_tid)
 
-        om_idx = self.grid.coord_to_nearest_track(xm_layer, outp1.middle, half_track=True)
+        om_idx = self.grid.coord_to_nearest_track(xm_layer, outp1.middle_unit, half_track=True)
         _, loc_xm_out = tr_manager.place_wires(xm_layer, ['out', 'out'])
         out_mid_idx = (loc_xm_out[0] + loc_xm_out[1]) / 2
         midp_idx = loc_xm_out[1] + om_idx - out_mid_idx
